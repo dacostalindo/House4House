@@ -1,0 +1,11 @@
+FROM apache/airflow:2.10.4-python3.12
+
+# pyogrio bundles its own GDAL wheels — no system GDAL packages needed.
+# pyproj is required to parse EPSG codes from WKT CRS strings.
+USER airflow
+
+RUN pip install --no-cache-dir \
+    pyogrio \
+    pyproj \
+    minio==7.2.7 \
+    requests==2.31.0
