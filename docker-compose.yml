@@ -1,5 +1,5 @@
 # House4House data platform
-# Services: Airflow (webserver + scheduler) + MinIO + PostGIS warehouse + OSRM routing
+# Services: Airflow (webserver + scheduler) + MinIO + PostGIS warehouse + OSRM routing + Nominatim geocoding
 #
 # Start:  docker compose up -d
 # Stop:   docker compose down
@@ -20,8 +20,16 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
     # Make the pipelines package importable inside all Airflow containers
     PYTHONPATH: /opt/airflow/dags
+    # dbt needs warehouse connection as OS env vars (not Airflow Variables)
+    DBT_PROFILES_DIR: /opt/airflow/dbt
+    WAREHOUSE_HOST: warehouse
+    WAREHOUSE_PORT: "5432"
+    WAREHOUSE_DB: house4house
+    WAREHOUSE_USER: warehouse
+    WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
   volumes:
     - ./pipelines:/opt/airflow/dags/pipelines
+    - ./dbt:/opt/airflow/dbt
     - /var/run/docker.sock:/var/run/docker.sock
     - osrm_data:/osrm-data
   depends_on:
@@ -84,7 +92,9 @@ services:
         airflow variables set OSRM_CAR_URL http://osrm-car:5000 &&
         airflow variables set OSRM_WALKING_URL http://osrm-walking:5000 &&
         airflow variables set OSRM_CYCLING_URL http://osrm-cycling:5000 &&
-        echo 'OSRM internal URLs set (inter-container use port 5000; host uses 5050/5051/5052)'
+        airflow variables set NOMINATIM_URL http://nominatim:8080 &&
+        airflow variables set ZENROWS_API_KEY ${ZENROWS_API_KEY} &&
+        echo 'All Airflow variables set'
       "
     restart: "no"
 
@@ -103,6 +113,8 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    ports:
+      - "8089:8089"   # dbt docs serve
 
   # ── MinIO (S3-compatible object storage) ───────────────────────────────────
   minio:
@@ -120,6 +132,21 @@ services:
       test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
       interval: 10s
       retries: 3
+    restart: unless-stopped
+
+  # ── Nominatim Geocoder ──────────────────────────────────────────────────
+  nominatim:
+    image: mediagis/nominatim:4.4
+    environment:
+      PBF_URL: https://download.geofabrik.de/europe/portugal-latest.osm.pbf
+      REPLICATION_URL: https://download.geofabrik.de/europe/portugal-updates/
+      NOMINATIM_PASSWORD: nominatim2025
+      IMPORT_STYLE: full
+    volumes:
+      - nominatim_data:/var/lib/postgresql/14/main
+    ports:
+      - "8088:8080"
+    shm_size: 1g
     restart: unless-stopped
 
   # ── OSRM Routing (Car) ──────────────────────────────────────────────────
@@ -157,3 +184,4 @@ volumes:
   warehouse_data:
   minio_data:
   osrm_data:
+  nominatim_data:

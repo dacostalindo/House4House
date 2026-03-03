@@ -247,3 +247,47 @@ curl "http://localhost:5050/route/v1/driving/-9.1393,38.7223;-8.6291,41.1579"
 ### Update frequency
 
 Quarterly. Re-trigger `osm_pbf_ingestion` then `osrm_build` then restart the OSRM containers.
+
+---
+
+## Nominatim Geocoder
+
+Self-hosted OSM-based geocoder for forward and reverse geocoding of Portuguese addresses.
+
+### Service
+
+| Property | Value |
+|----------|-------|
+| Image | `mediagis/nominatim:4.4` |
+| Port | 8088 (host) → 8080 (container) |
+| Data | Downloads Portugal PBF from Geofabrik on first startup |
+| Import | One-time (~30-45 min), data persisted in `nominatim_data` volume |
+| Internal URL | `http://nominatim:8080` (for Airflow DAGs) |
+
+### API examples
+
+```bash
+# Forward geocoding
+curl "http://localhost:8088/search?q=Rua+Augusta+100+Lisboa&format=json"
+
+# Reverse geocoding
+curl "http://localhost:8088/reverse?lat=38.7223&lon=-9.1393&format=json"
+
+# Structured search
+curl "http://localhost:8088/search?street=Avenida+dos+Aliados&city=Porto&format=json"
+```
+
+### First startup
+
+The Nominatim container automatically downloads the Portugal PBF and imports it on first start. This takes ~30-45 minutes. Subsequent restarts are fast (data is persisted in the `nominatim_data` volume).
+
+### Updating
+
+To refresh the geocoding data, remove the volume and restart:
+
+```bash
+docker compose down nominatim
+docker volume rm house4house_nominatim_data
+docker compose up -d nominatim
+# Wait ~30-45 min for re-import
+```

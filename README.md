@@ -2719,9 +2719,10 @@ dags/
 | Load BGRI → `bronze_ine.raw_bgri` | S12 | 1 | 203,264 subsection polygons + 32 census columns | ✅ Done |
 | Load OSM → `bronze_location.raw_osm_*` | S09/S10/S11 | 1 | 18 tables, 5.2M features (POIs + transport + roads + context) | ✅ Done |
 | Load INE → `bronze_ine.raw_indicators` | S01/S29 | 1 | 33 indicators, 907,533 rows flattened from JSON | ✅ Done |
-| Build `gold_analytics.dim_geography` | S08 | 0.5 | 3,049 freguesias with dual-CRS geometry | Pending |
-| Build OSRM | S11 | 2 | Routing engine serving Portugal | Pending |
-| Setup Nominatim | (S11 PBF) | 1 | Geocoder operational | Pending |
+| Setup dbt (dbt-postgres 1.9) | — | 0.5 | dbt project, staging views, custom schema macro, Airflow DAG | ✅ Done |
+| Build `gold_analytics.dim_geography` | S08 | 0.5 | 3,049 freguesias with dual-CRS geometry + census demographics (via dbt) | ✅ Done |
+| Build OSRM | S11 | 2 | Routing engine serving Portugal (car :5050, walking :5051, cycling :5052) | ✅ Done |
+| Setup Nominatim | (S11 PBF) | 1 | Geocoder operational on :8088 (forward + reverse) | ✅ Done |
 | Start CI license enquiry | S02 | — | Email sent | Pending |
 
 **Exit criteria:** All bronze tables populated; dim_geography live; Nominatim + OSRM responding.
