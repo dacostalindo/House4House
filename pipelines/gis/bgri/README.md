@@ -89,13 +89,82 @@ s3://raw/bgri/2021/portugal2021.gpkg
 
 ---
 
+## Bronze Schema
+
+After ingestion to MinIO, DAG **`s12_bgri_bronze_load`** loads the GPKG into PostGIS.
+Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
+
+### `bronze_ine.raw_bgri` — 203,264 rows
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `objectid` | INTEGER | GPKG row ID |
+| `bgri2021` | VARCHAR(20) | Statistical subsection code (11-char) |
+| `dt21` | VARCHAR(2) | District code |
+| `dtmn21` | VARCHAR(4) | Municipality code |
+| `dtmnfr21` | VARCHAR(6) | Parish code (DICOFRE) |
+| `dtmnfrsec21` | VARCHAR(10) | Section code |
+| `secnum21` | VARCHAR(4) | Section number within parish |
+| `ssnum21` | VARCHAR(4) | Subsection number within section |
+| `secssnum21` | VARCHAR(8) | Section + subsection combined |
+| `subseccao` | VARCHAR(20) | Subsection label |
+| `nuts1` | VARCHAR(50) | NUTS I code |
+| `nuts2` | VARCHAR(50) | NUTS II code |
+| `nuts3` | VARCHAR(50) | NUTS III code |
+| **Buildings (12)** | | |
+| `n_edificios_classicos` | DOUBLE PRECISION | Classic buildings |
+| `n_edificios_class_const_1_ou_2_aloj` | DOUBLE PRECISION | Buildings with 1-2 dwellings |
+| `n_edificios_class_const_3_ou_mais_alojamentos` | DOUBLE PRECISION | Buildings with 3+ dwellings |
+| `n_edificios_exclusiv_resid` | DOUBLE PRECISION | Exclusively residential buildings |
+| `n_edificios_1_ou_2_pisos` | DOUBLE PRECISION | 1-2 storey buildings |
+| `n_edificios_3_ou_mais_pisos` | DOUBLE PRECISION | 3+ storey buildings |
+| `n_edificios_constr_antes_1945` | DOUBLE PRECISION | Built before 1945 |
+| `n_edificios_constr_1946_1980` | DOUBLE PRECISION | Built 1946-1980 |
+| `n_edificios_constr_1981_2000` | DOUBLE PRECISION | Built 1981-2000 |
+| `n_edificios_constr_2001_2010` | DOUBLE PRECISION | Built 2001-2010 |
+| `n_edificios_constr_2011_2021` | DOUBLE PRECISION | Built 2011-2021 |
+| `n_edificios_com_necessidades_reparacao` | DOUBLE PRECISION | Buildings needing repair |
+| **Dwellings (8)** | | |
+| `n_alojamentos_total` | DOUBLE PRECISION | Total dwellings |
+| `n_alojamentos_familiares` | DOUBLE PRECISION | Family dwellings |
+| `n_alojamentos_fam_class_rhabitual` | DOUBLE PRECISION | Usual residence |
+| `n_alojamentos_fam_class_vagos_ou_resid_secundaria` | DOUBLE PRECISION | Vacant or secondary |
+| `n_rhabitual_acessivel_cadeiras_rodas` | DOUBLE PRECISION | Wheelchair accessible |
+| `n_rhabitual_com_estacionamento` | DOUBLE PRECISION | With parking |
+| `n_rhabitual_prop_ocup` | DOUBLE PRECISION | Owner-occupied |
+| `n_rhabitual_arrendados` | DOUBLE PRECISION | Rented |
+| **Households (5)** | | |
+| `n_agregados_domesticos_privados` | DOUBLE PRECISION | Private domestic aggregates |
+| `n_adp_1_ou_2_pessoas` | DOUBLE PRECISION | 1-2 person households |
+| `n_adp_3_ou_mais_pessoas` | DOUBLE PRECISION | 3+ person households |
+| `n_nucleos_familiares` | DOUBLE PRECISION | Family nuclei |
+| `n_nucleos_familiares_com_filhos_tendo_o_mais_novo_menos_de_25` | DOUBLE PRECISION | Family nuclei with youngest child < 25 |
+| **Population (7)** | | |
+| `n_individuos` | DOUBLE PRECISION | Total population |
+| `n_individuos_h` | DOUBLE PRECISION | Male population |
+| `n_individuos_m` | DOUBLE PRECISION | Female population |
+| `n_individuos_0_14` | DOUBLE PRECISION | Age 0-14 |
+| `n_individuos_15_24` | DOUBLE PRECISION | Age 15-24 |
+| `n_individuos_25_64` | DOUBLE PRECISION | Age 25-64 |
+| `n_individuos_65_ou_mais` | DOUBLE PRECISION | Age 65+ |
+| **Shape + Geometry** | | |
+| `shape_length` | DOUBLE PRECISION | Perimeter length |
+| `shape_area` | DOUBLE PRECISION | Area |
+| `geom` | GEOMETRY(MULTIPOLYGON, 3763) | Boundary in ETRS89 / PT-TM06 |
+| `_load_timestamp` | TIMESTAMPTZ | Ingestion timestamp |
+
+### Key relationships
+
+- `dtmnfr21` joins to CAOP `raw_caop_freguesias.dtmnfr`
+- `dtmn21` joins to CAOP `raw_caop_municipios.dtmn`
+- `bgri2021` is the most granular geographic key (city-block level)
+
+---
+
 ## After ingestion
 
-1. Read the `validate_gis_file` task logs to confirm layer names and field list
-2. Update `expected_layers` in [bgri_config.py](bgri_config.py) with the actual layer names
-3. Download the `.gpkg` from MinIO and open in QGIS to explore
-4. Design `bronze_geo.raw_bgri_2021_subseccao` DDL based on actual column names
-5. Build the bronze loading pipeline (`ogr2ogr` → PostGIS)
+Trigger **`s12_bgri_bronze_load`** from the Airflow UI (no config needed).
+It finds the latest GPKG in MinIO automatically.
 
 ---
 
