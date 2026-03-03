@@ -93,22 +93,80 @@ Example: `s3://raw/caop/2025/Continente_CAOP2025.gpkg`
 
 ---
 
+## Bronze Schema
+
+After ingestion to MinIO, DAG **`s08_caop_bronze_load`** loads the GPKG into PostGIS.
+Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
+
+### `bronze_geo.raw_caop_freguesias` — 3,049 rows
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `dtmnfr` | VARCHAR(6) | DICOFRE code (distrito 2 + municipio 2 + freguesia 2) |
+| `freguesia` | TEXT | Parish name |
+| `municipio` | TEXT | Municipality name |
+| `distrito_ilha` | TEXT | District name |
+| `nuts3_cod` | VARCHAR(10) | NUTS III code |
+| `nuts3` | TEXT | NUTS III name |
+| `nuts2` | TEXT | NUTS II name |
+| `nuts1` | TEXT | NUTS I name |
+| `area_ha` | DOUBLE PRECISION | Area in hectares |
+| `perimetro_km` | INTEGER | Perimeter in km |
+| `designacao_simplificada` | TEXT | Simplified designation |
+| `geom` | GEOMETRY(MULTIPOLYGON, 3763) | Boundary in ETRS89 / PT-TM06 |
+| `_load_timestamp` | TIMESTAMPTZ | Ingestion timestamp |
+
+### `bronze_geo.raw_caop_municipios` — 278 rows
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `dtmn` | VARCHAR(4) | Municipality code (distrito 2 + municipio 2) |
+| `municipio` | TEXT | Municipality name |
+| `distrito_ilha` | TEXT | District name |
+| `nuts3_cod` | VARCHAR(10) | NUTS III code |
+| `nuts3` | TEXT | NUTS III name |
+| `nuts2` | TEXT | NUTS II name |
+| `nuts1` | TEXT | NUTS I name |
+| `area_ha` | DOUBLE PRECISION | Area in hectares |
+| `perimetro_km` | INTEGER | Perimeter in km |
+| `n_freguesias` | INTEGER | Number of parishes |
+| `geom` | GEOMETRY(MULTIPOLYGON, 3763) | Boundary in ETRS89 / PT-TM06 |
+| `_load_timestamp` | TIMESTAMPTZ | Ingestion timestamp |
+
+### `bronze_geo.raw_caop_distritos` — 18 rows
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `dt` | VARCHAR(2) | District code |
+| `distrito` | TEXT | District name |
+| `nuts1_cod` | VARCHAR(10) | NUTS I code |
+| `nuts1` | TEXT | NUTS I name |
+| `area_ha` | DOUBLE PRECISION | Area in hectares |
+| `perimetro_km` | INTEGER | Perimeter in km |
+| `n_municipios` | INTEGER | Number of municipalities |
+| `n_freguesias` | DOUBLE PRECISION | Number of parishes |
+| `geom` | GEOMETRY(MULTIPOLYGON, 3763) | Boundary in ETRS89 / PT-TM06 |
+| `_load_timestamp` | TIMESTAMPTZ | Ingestion timestamp |
+
+### Key relationships
+
+- `dtmnfr` = `dtmn` prefix (4 chars) → joins to municipios
+- `dtmn` = `dt` prefix (2 chars) → joins to distritos
+- `dtmnfr` is the primary join key for spatial lookups across the warehouse
+
+---
+
 ## After ingestion
 
-The pipeline intentionally does **not** load into PostGIS.
+Trigger **`s08_caop_bronze_load`** from the Airflow UI (no config needed).
+It finds the latest GPKG in MinIO automatically.
 
-Next steps:
-1. Download the `.gpkg` from MinIO (bucket `raw`, path `caop/{version}/...`)
-2. Explore it in QGIS: inspect field names, value formats, `dtmnfr` / `dtmn` / `dt` code structure, geometry quality
-3. Design `bronze_geo.raw_caop_*` DDL based on actual field names/types
-4. Build the bronze loading pipeline (`ogr2ogr` → PostGIS)
-
-The `validate_gis_file` task logs the full field list for every layer — check the Airflow task logs for a quick preview without downloading.
+The `validate_gis_file` task in the ingestion DAG logs the full field list for every layer — check the Airflow task logs for a quick preview without downloading.
 
 ---
 
 ## Updating for a new release
 
-No code changes needed. Just re-trigger with the new `version` and `download_url`.
+No code changes needed. Just re-trigger the ingestion DAG with the new `version` and `download_url`, then re-trigger the bronze load DAG.
 
 If DGT changes the layer naming convention, update `_caop_layer_names()` in [caop_config.py](caop_config.py).

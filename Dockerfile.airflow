@@ -8,4 +8,5 @@ RUN pip install --no-cache-dir \
     pyogrio \
     pyproj \
     minio==7.2.7 \
-    requests==2.31.0
+    requests==2.31.0 \
+    tenacity

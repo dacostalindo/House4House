@@ -1,5 +1,5 @@
 # Minimal stack for GIS ingestion pipelines
-# Services: Airflow (webserver + scheduler + worker) + MinIO
+# Services: Airflow (webserver + scheduler + worker) + MinIO + PostGIS warehouse
 #
 # Start:  docker compose up -d
 # Stop:   docker compose down
@@ -25,6 +25,8 @@ x-airflow-common: &airflow-common
   depends_on:
     postgres:
       condition: service_healthy
+    warehouse:
+      condition: service_healthy
   restart: unless-stopped
 
 services:
@@ -44,6 +46,24 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ── Data warehouse (PostGIS) ───────────────────────────────────────────────
+  warehouse:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD}
+      POSTGRES_DB: house4house
+    volumes:
+      - warehouse_data:/var/lib/postgresql/data
+      - ./warehouse/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "warehouse"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ── Airflow init (runs once, then exits) ───────────────────────────────────
   airflow-init:
     <<: *airflow-common
@@ -53,7 +73,12 @@ services:
         airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname Admin --lastname User --role Admin --email admin@local.dev || true &&
         airflow variables set MINIO_ENDPOINT minio:9000 &&
         airflow variables set MINIO_ACCESS_KEY ${MINIO_ROOT_USER} &&
-        airflow variables set MINIO_SECRET_KEY ${MINIO_ROOT_PASSWORD}
+        airflow variables set MINIO_SECRET_KEY ${MINIO_ROOT_PASSWORD} &&
+        airflow variables set WAREHOUSE_HOST warehouse &&
+        airflow variables set WAREHOUSE_PORT 5432 &&
+        airflow variables set WAREHOUSE_DB house4house &&
+        airflow variables set WAREHOUSE_USER warehouse &&
+        airflow variables set WAREHOUSE_PASSWORD ${WAREHOUSE_PASSWORD}
       "
     restart: "no"
 
@@ -93,4 +118,5 @@ services:
 
 volumes:
   postgres_data:
+  warehouse_data:
   minio_data:
