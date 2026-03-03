@@ -191,3 +191,59 @@ Trigger a new ingestion run with the current month as version:
 
 Then re-trigger **`s09_osm_bronze_load`** to refresh the bronze tables.
 Each version is stored separately in MinIO — no overwrites.
+
+---
+
+## OSRM Routing Engine
+
+Three OSRM instances provide HTTP routing APIs for car, walking, and cycling profiles.
+Built from the same Geofabrik Portugal data using Contraction Hierarchies (CH).
+
+### Architecture
+
+```
+Geofabrik PBF (~700 MB)
+  ↓  osm_pbf_ingestion DAG (download to MinIO)
+s3://raw/osm-pbf/{version}/portugal-latest.osm.pbf
+  ↓  osrm_build DAG (extract + contract × 3 profiles)
+osrm_data volume:
+  /data/car/portugal-latest.osrm*
+  /data/walking/portugal-latest.osrm*
+  /data/cycling/portugal-latest.osrm*
+  ↓  osrm-routed (3 Docker services)
+HTTP API on ports 5050 (car), 5051 (walking), 5052 (cycling)
+```
+
+### Services
+
+| Service | Profile | Port | API base |
+|---------|---------|------|----------|
+| `osrm-car` | car.lua | 5050 | `http://localhost:5050/route/v1/driving/` |
+| `osrm-walking` | foot.lua | 5051 | `http://localhost:5051/route/v1/walking/` |
+| `osrm-cycling` | bicycle.lua | 5052 | `http://localhost:5052/route/v1/cycling/` |
+
+### DAGs
+
+| DAG | Purpose | Trigger |
+|-----|---------|---------|
+| `osm_pbf_ingestion` | Download PBF from Geofabrik to MinIO | Manual, with `{"version": "2026-Q1"}` |
+| `osrm_build` | Extract + contract PBF for 3 profiles | Manual, after PBF download |
+
+### How to build OSRM data
+
+```bash
+# 1. Start all services
+docker compose up -d
+
+# 2. Download PBF (Airflow UI → osm_pbf_ingestion → Trigger with {"version": "2026-Q1"})
+# 3. Build routing data (Airflow UI → osrm_build → Trigger DAG)
+# 4. Restart OSRM services to load new data
+docker compose restart osrm-car osrm-walking osrm-cycling
+
+# 5. Test
+curl "http://localhost:5050/route/v1/driving/-9.1393,38.7223;-8.6291,41.1579"
+```
+
+### Update frequency
+
+Quarterly. Re-trigger `osm_pbf_ingestion` then `osrm_build` then restart the OSRM containers.
