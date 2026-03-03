@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: dim_geography
+    description: >
+      Geography dimension at the freguesia (parish) level.
+      Combines CAOP administrative boundaries with Census 2021 demographics.
+      3,049 rows (mainland Portugal + islands).
+    columns:
+      - name: geo_key
+        description: "Surrogate integer key, deterministic via ROW_NUMBER"
+        tests:
+          - unique
+          - not_null
+
+      - name: freguesia_code
+        description: "6-digit DTMNFR code — natural key"
+        tests:
+          - unique
+          - not_null
+
+      - name: distrito_code
+        tests:
+          - not_null
+
+      - name: concelho_code
+        tests:
+          - not_null
+
+      - name: freguesia_name
+        tests:
+          - not_null
+
+      - name: freguesia_geom
+        description: "MultiPolygon in EPSG:4326"
+        tests:
+          - not_null
+
+      - name: freguesia_geom_pt
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+
+      - name: area_km2
+        tests:
+          - not_null
