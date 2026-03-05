@@ -21,6 +21,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+
+
+def _jsonl_line(obj: dict) -> str:
+    """Serialize dict to a JSONL-safe line (escapes U+2028/U+2029)."""
+    line = json.dumps(obj, ensure_ascii=False)
+    return line.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 import shutil
 import tempfile
 import time
@@ -97,7 +103,7 @@ def _find_previous_detail(
     resp.release_conn()
 
     previous = {}
-    for line in raw_bytes.decode("utf-8").splitlines():
+    for line in raw_bytes.decode("utf-8").split("\n"):
         line = line.strip()
         if not line:
             continue
@@ -119,6 +125,7 @@ def _find_previous_detail(
 def _create_dag():
     from airflow.decorators import dag, task
     from airflow.models.param import Param
+    from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
     default_args = {
         "owner": "data-engineering",
@@ -136,6 +143,7 @@ def _create_dag():
         schedule="0 3 * * *",
         start_date=datetime(2025, 1, 1),
         catchup=False,
+        max_active_runs=1,
         max_active_tasks=4,
         default_args=default_args,
         params={
@@ -216,6 +224,7 @@ def _create_dag():
         def build_segments(_api_check: dict, **context) -> list[dict]:
             """Build segment dicts, filtered by trigger params."""
             from pipelines.api.idealista.idealista_config import (
+                ACTIVE_DISTRITOS,
                 DETAIL_REFRESH_DAYS,
                 DISTRITO_SEARCH_URLS,
                 OPERATIONS,
@@ -233,6 +242,12 @@ def _create_dag():
                         f"Valid: {list(DISTRITO_SEARCH_URLS.keys())}"
                     )
                 distritos = {param_distrito: DISTRITO_SEARCH_URLS[param_distrito]}
+            elif ACTIVE_DISTRITOS is not None:
+                distritos = {
+                    d: DISTRITO_SEARCH_URLS[d]
+                    for d in ACTIVE_DISTRITOS
+                    if d in DISTRITO_SEARCH_URLS
+                }
             else:
                 distritos = DISTRITO_SEARCH_URLS
 
@@ -378,7 +393,7 @@ def _create_dag():
             )
             with open(local_path, "w", encoding="utf-8") as f:
                 for item in all_items:
-                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+                    f.write(_jsonl_line(item) + "\n")
 
             minio_object = (
                 f"{MINIO_PREFIX}/discovery/{operation}/{distrito}/{scrape_date}.jsonl"
@@ -461,7 +476,7 @@ def _create_dag():
 
             discovery_items = [
                 json.loads(line)
-                for line in raw_bytes.decode("utf-8").splitlines()
+                for line in raw_bytes.decode("utf-8").split("\n")
                 if line.strip()
             ]
             all_ids = [
@@ -522,7 +537,7 @@ def _create_dag():
                         prev = previous_details[pid]
                         prev["_scrape_date"] = scrape_date
                         prev["_carried_forward"] = True
-                        f.write(json.dumps(prev, ensure_ascii=False) + "\n")
+                        f.write(_jsonl_line(prev) + "\n")
                         carried_forward += 1
 
                 # Fetch new details from ZenRows
@@ -541,7 +556,7 @@ def _create_dag():
                         detail["_operation"] = operation
                         detail["_scrape_date"] = scrape_date
                         detail["_carried_forward"] = False
-                        f.write(json.dumps(detail, ensure_ascii=False) + "\n")
+                        f.write(_jsonl_line(detail) + "\n")
                         detail_count += 1
                     except Exception as exc:
                         log.warning(
@@ -631,7 +646,15 @@ def _create_dag():
         segments = build_segments(api_check)
         discovery_results = crawl_discovery.expand(segment=segments)
         detail_results = crawl_details.expand(discovery_result=discovery_results)
-        log_run_summary(detail_results)
+        summary = log_run_summary(detail_results)
+
+        trigger_bronze = TriggerDagRunOperator(
+            task_id="trigger_bronze_load",
+            trigger_dag_id="idealista_bronze_load",
+            wait_for_completion=True,
+            reset_dag_run=True,
+        )
+        summary >> trigger_bronze
 
     return idealista_ingestion()
 

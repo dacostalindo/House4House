@@ -113,7 +113,7 @@ def _parse_location_hierarchy(hierarchy) -> tuple[str | None, str | None, str | 
         return district, municipality, parish
 
     if isinstance(hierarchy, list):
-        for item in hierarchy:
+        for idx, item in enumerate(hierarchy):
             if isinstance(item, dict):
                 item_type = str(item.get("type", "")).lower()
                 name = item.get("name") or item.get("label")
@@ -127,8 +127,7 @@ def _parse_location_hierarchy(hierarchy) -> tuple[str | None, str | None, str | 
                 elif "parish" in item_type or "freguesia" in item_type:
                     parish = name
             elif isinstance(item, str):
-                # Positional fallback: [district, municipality, parish]
-                idx = hierarchy.index(item)
+                # Positional: [district, municipality, parish]
                 if idx == 0:
                     district = item
                 elif idx == 1:
@@ -186,6 +185,8 @@ def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
     # ZenRows uses bedroom_count (singular) in detail, bedrooms_count in discovery
     bedrooms = detail.get("bedroom_count") or detail.get("bedrooms_count")
 
+    images = detail.get("property_images") or []
+
     return (
         str(detail.get("_property_id") or detail.get("property_id", "")),
         detail.get("property_url"),
@@ -193,6 +194,7 @@ def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
         _parse_price(detail.get("property_price") or detail.get("price")),
         "EUR",
         detail.get("property_type"),
+        detail.get("property_subtype"),
         str(bedrooms) if bedrooms is not None else None,
         _parse_area(detail.get("lot_size_usable") or detail.get("property_dimensions")),
         _parse_area(detail.get("lot_size") or detail.get("property_dimensions")),
@@ -200,11 +202,19 @@ def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
         _parse_int(bedrooms),
         _parse_int(detail.get("bathroom_count")),
         _parse_floor(detail.get("floor")),
+        # Boolean features (all grouped together)
         _parse_bool_feature(all_feats, ["elevator", "lift", "elevador"]),
         _parse_bool_feature(all_feats, ["parking", "garagem", "estacionamento"]),
         _parse_bool_feature(all_feats, ["terrace", "terraco", "varanda"]),
         _parse_bool_feature(all_feats, ["garden", "jardim"]),
         _parse_bool_feature(all_feats, ["pool", "piscina", "swimming"]),
+        _parse_bool_feature(all_feats, ["air conditioning", "ar condicionado", "climatização", "climatizacao"]),
+        _parse_bool_feature(all_feats, ["heating", "aquecimento", "calefação", "calefacao"]),
+        _parse_bool_feature(all_feats, ["balcony", "balcão", "balcao"]),
+        _parse_bool_feature(all_feats, ["furnished kitchen", "cozinha equipada"]),
+        _parse_bool_feature(all_feats, ["built-in wardrobes", "armários embutidos", "roupeiros", "armarios"]),
+        _parse_bool_feature(features, ["exterior"]),
+        # Property details
         _parse_energy_class(detail.get("energy_certificate")),
         _parse_construction_year(features),
         detail.get("property_condition"),
@@ -217,8 +227,14 @@ def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
         detail.get("longitude"),
         _parse_date(detail.get("modified_at")),
         _parse_date(detail.get("modified_at")),
+        # Agent info
         detail.get("agency_name"),
         None,  # agent_type — not in ZenRows
+        detail.get("agency_phone"),
+        # Metadata
+        len(images) if images else None,
+        _parse_date(detail.get("last_deactivated_at")),
+        detail.get("status"),
         scrape_date,
         batch_id,
         minio_path,
@@ -324,6 +340,7 @@ def _create_dag():
                     price                NUMERIC(12,2),
                     currency             CHAR(3) DEFAULT 'EUR',
                     property_type_raw    VARCHAR(100),
+                    property_subtype_raw VARCHAR(100),
                     typology_raw         VARCHAR(20),
                     useful_area_m2       NUMERIC(10,2),
                     gross_area_m2        NUMERIC(10,2),
@@ -336,6 +353,12 @@ def _create_dag():
                     has_terrace          BOOLEAN,
                     has_garden           BOOLEAN,
                     has_pool             BOOLEAN,
+                    has_ac               BOOLEAN,
+                    has_heating          BOOLEAN,
+                    has_balcony          BOOLEAN,
+                    has_furnished_kitchen BOOLEAN,
+                    has_wardrobes        BOOLEAN,
+                    is_exterior          BOOLEAN,
                     energy_class         CHAR(2),
                     construction_year    SMALLINT,
                     condition_raw        VARCHAR(50),
@@ -350,6 +373,10 @@ def _create_dag():
                     update_date          DATE,
                     agent_name           VARCHAR(200),
                     agent_type           VARCHAR(50),
+                    agent_phone          VARCHAR(50),
+                    image_count          SMALLINT,
+                    last_deactivated_at  DATE,
+                    status_raw           VARCHAR(20),
                     _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
                     _source              VARCHAR(30) DEFAULT 'idealista',
                     _scrape_date         DATE NOT NULL,
@@ -416,22 +443,26 @@ def _create_dag():
             insert_sql = """
                 INSERT INTO bronze_listings.raw_idealista (
                     source_listing_id, listing_url, operation_type,
-                    price, currency, property_type_raw, typology_raw,
+                    price, currency, property_type_raw, property_subtype_raw, typology_raw,
                     useful_area_m2, gross_area_m2, plot_area_m2,
                     num_rooms, num_bathrooms, floor_number,
                     has_elevator, has_parking, has_terrace, has_garden, has_pool,
+                    has_ac, has_heating, has_balcony,
+                    has_furnished_kitchen, has_wardrobes, is_exterior,
                     energy_class, construction_year, condition_raw,
                     description_text, address_raw,
                     district_raw, municipality_raw, parish_raw,
                     latitude, longitude,
                     listing_date, update_date,
-                    agent_name, agent_type,
+                    agent_name, agent_type, agent_phone,
+                    image_count, last_deactivated_at, status_raw,
                     _scrape_date, _batch_id, _raw_html_path
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s
                 )
             """
 
@@ -450,7 +481,7 @@ def _create_dag():
                 resp.release_conn()
 
                 rows = []
-                for line in raw_bytes.decode("utf-8").splitlines():
+                for line in raw_bytes.decode("utf-8").split("\n"):
                     line = line.strip()
                     if not line:
                         continue

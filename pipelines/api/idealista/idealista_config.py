@@ -18,6 +18,11 @@ ZENROWS_DETAIL_URL = (
 
 OPERATIONS = ["sale", "rent"]
 
+# Active distritos for scheduled runs.
+# Set to None to crawl all 18 distritos, or list specific ones.
+# Manual triggers can still override via the "distrito" param.
+ACTIVE_DISTRITOS: list[str] | None = ["aveiro"]
+
 # 18 continental distritos mapped to their Idealista search base URLs.
 # Each district has a sale and rent URL following Idealista's URL structure.
 DISTRITO_SEARCH_URLS: dict[str, dict[str, str]] = {
