@@ -4,240 +4,95 @@ Idealista Bronze Loading — S03/S04
 Loads Idealista property detail JSONL from MinIO into PostGIS bronze table.
 One row per listing per scrape date in bronze_listings.raw_idealista.
 
+Source-oriented: stores raw ZenRows fields as-is (TEXT, JSONB, BIGINT).
+All parsing and transformation belongs in the silver/dbt layer.
+
 Idempotent: DELETE WHERE _scrape_date = today's date before INSERT.
-Trigger manually from Airflow UI after idealista_ingestion DAG completes.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import re
 from datetime import date, timedelta
 
 log = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Field parsing helpers
-# ---------------------------------------------------------------------------
-
-
-def _parse_price(raw) -> float | None:
-    """Parse price to float. Handles int, float, or string like '285 000'."""
-    if raw is None:
-        return None
-    try:
-        return float(str(raw).replace(" ", "").replace(",", ".").replace("\xa0", ""))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_area(raw) -> float | None:
-    """Extract numeric value from area string like '95 m2' or '95.5'."""
-    if raw is None:
-        return None
-    if isinstance(raw, (int, float)):
-        return float(raw)
-    match = re.search(r"[\d]+[.,]?[\d]*", str(raw).replace(",", "."))
-    return float(match.group().replace(",", ".")) if match else None
-
-
-def _parse_int(raw) -> int | None:
-    """Safe int parsing from any type."""
-    if raw is None:
-        return None
-    try:
-        return int(float(str(raw).strip()))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_floor(raw) -> int | None:
-    """Extract floor number from strings like '3rd floor', 'Ground floor', '3'."""
-    if raw is None:
-        return None
-    if isinstance(raw, int):
-        return raw
-    s = str(raw).lower()
-    if any(kw in s for kw in ("ground", "rés", "res-do-chao", "r/c")):
-        return 0
-    match = re.search(r"\d+", s)
-    return int(match.group()) if match else None
-
-
-def _parse_bool_feature(features: list, keywords: list[str]) -> bool:
-    """True if any keyword is a case-insensitive substring of any feature string."""
-    if not features:
-        return False
-    keywords_lower = [k.lower() for k in keywords]
-    for feat in features:
-        feat_lower = str(feat).lower()
-        if any(kw in feat_lower for kw in keywords_lower):
-            return True
-    return False
-
-
-def _parse_energy_class(raw) -> str | None:
-    """Extract energy class letter from strings like 'A+', 'B', 'F', 'Isento'."""
-    if raw is None:
-        return None
-    s = str(raw).strip()
-    if s.lower() in ("exempt", "isento", "n/a", ""):
-        return None
-    match = re.match(r"^([A-Fa-f][+]?)$", s.strip())
-    if match:
-        return match.group(1).upper()
-    return s[:2].upper() if len(s) >= 1 else None
-
-
-def _parse_location_hierarchy(hierarchy) -> tuple[str | None, str | None, str | None]:
-    """
-    Extract (district, municipality, parish) from ZenRows location_hierarchy.
-    Handles both list-of-objects with 'type' keys and positional arrays.
-    """
-    if not hierarchy:
-        return None, None, None
-
-    district = municipality = parish = None
-
-    if isinstance(hierarchy, dict):
-        # Direct dict: {"district": "Lisboa", "municipality": "Lisboa", ...}
-        district = hierarchy.get("district") or hierarchy.get("distrito")
-        municipality = (
-            hierarchy.get("municipality")
-            or hierarchy.get("concelho")
-            or hierarchy.get("municipio")
-        )
-        parish = hierarchy.get("parish") or hierarchy.get("freguesia")
-        return district, municipality, parish
-
-    if isinstance(hierarchy, list):
-        for idx, item in enumerate(hierarchy):
-            if isinstance(item, dict):
-                item_type = str(item.get("type", "")).lower()
-                name = item.get("name") or item.get("label")
-                if "district" in item_type or "distrito" in item_type:
-                    district = name
-                elif any(
-                    kw in item_type
-                    for kw in ("municipality", "concelho", "municipio")
-                ):
-                    municipality = name
-                elif "parish" in item_type or "freguesia" in item_type:
-                    parish = name
-            elif isinstance(item, str):
-                # Positional: [district, municipality, parish]
-                if idx == 0:
-                    district = item
-                elif idx == 1:
-                    municipality = item
-                elif idx == 2:
-                    parish = item
-
-    return district, municipality, parish
-
-
-def _parse_date(raw) -> str | None:
-    """Parse date from ISO string or Unix timestamp (ms). Returns YYYY-MM-DD or None."""
-    if not raw:
-        return None
-    try:
-        # ZenRows modified_at is Unix timestamp in milliseconds
-        if isinstance(raw, (int, float)) and raw > 1_000_000_000:
-            from datetime import datetime
-
-            ts = raw / 1000 if raw > 1_000_000_000_000 else raw
-            return datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
-        return str(raw)[:10]
-    except Exception:
-        return None
-
-
-def _parse_construction_year(features: list) -> int | None:
-    """Extract construction year from property_features list."""
-    for feat in features:
-        match = re.search(r"(?:construído|built)\s+(?:em|in)\s+(\d{4})", str(feat).lower())
-        if match:
-            return int(match.group(1))
-    return None
-
-
 def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
     """
-    Map a ZenRows property detail JSON object to a bronze INSERT row tuple.
-    Column order must exactly match the INSERT SQL in load_listings.
+    Thin passthrough from ZenRows JSON to bronze INSERT tuple.
+    Only safe coercions: arrays → JSONB via json.dumps, lat/long left as-is.
     """
-    features = detail.get("property_features") or []
-    equipment = detail.get("property_equipment") or []
-    all_feats = features + equipment
-
-    district_raw, municipality_raw, parish_raw = _parse_location_hierarchy(
-        detail.get("location_hierarchy")
-    )
-
-    operation = str(detail.get("operation", "")).lower() or detail.get("_operation")
+    operation = detail.get("_operation", "") or str(detail.get("operation", "")).lower()
     distrito = detail.get("_distrito", "")
-    minio_path = (
-        f"s3://raw/idealista/detail/{operation}/{distrito}/{scrape_date}.jsonl"
-    )
+    minio_path = f"s3://raw/idealista/detail/{operation}/{distrito}/{scrape_date.replace('-', '')}.jsonl"
 
-    # ZenRows uses bedroom_count (singular) in detail, bedrooms_count in discovery
-    bedrooms = detail.get("bedroom_count") or detail.get("bedrooms_count")
+    def _jsonb(val):
+        if val is None:
+            return None
+        return json.dumps(val, ensure_ascii=False)
 
-    images = detail.get("property_images") or []
+    def _text(val):
+        if val is None:
+            return None
+        return str(val)
 
     return (
-        str(detail.get("_property_id") or detail.get("property_id", "")),
-        detail.get("property_url"),
-        operation,
-        _parse_price(detail.get("property_price") or detail.get("price")),
-        "EUR",
-        detail.get("property_type"),
-        detail.get("property_subtype"),
-        str(bedrooms) if bedrooms is not None else None,
-        _parse_area(detail.get("lot_size_usable") or detail.get("property_dimensions")),
-        _parse_area(detail.get("lot_size") or detail.get("property_dimensions")),
-        _parse_area(detail.get("lot_size")),
-        _parse_int(bedrooms),
-        _parse_int(detail.get("bathroom_count")),
-        _parse_floor(detail.get("floor")),
-        # Boolean features (all grouped together)
-        _parse_bool_feature(all_feats, ["elevator", "lift", "elevador"]),
-        _parse_bool_feature(all_feats, ["parking", "garagem", "estacionamento"]),
-        _parse_bool_feature(all_feats, ["terrace", "terraco", "varanda"]),
-        _parse_bool_feature(all_feats, ["garden", "jardim"]),
-        _parse_bool_feature(all_feats, ["pool", "piscina", "swimming"]),
-        _parse_bool_feature(all_feats, ["air conditioning", "ar condicionado", "climatização", "climatizacao"]),
-        _parse_bool_feature(all_feats, ["heating", "aquecimento", "calefação", "calefacao"]),
-        _parse_bool_feature(all_feats, ["balcony", "balcão", "balcao"]),
-        _parse_bool_feature(all_feats, ["furnished kitchen", "cozinha equipada"]),
-        _parse_bool_feature(all_feats, ["built-in wardrobes", "armários embutidos", "roupeiros", "armarios"]),
-        _parse_bool_feature(features, ["exterior"]),
-        # Property details
-        _parse_energy_class(detail.get("energy_certificate")),
-        _parse_construction_year(features),
-        detail.get("property_condition"),
-        detail.get("property_description"),
-        detail.get("address"),
-        district_raw,
-        municipality_raw,
-        parish_raw,
-        detail.get("latitude"),
-        detail.get("longitude"),
-        _parse_date(detail.get("modified_at")),
-        _parse_date(detail.get("modified_at")),
-        # Agent info
-        detail.get("agency_name"),
-        None,  # agent_type — not in ZenRows
-        detail.get("agency_phone"),
-        # Metadata
-        len(images) if images else None,
-        _parse_date(detail.get("last_deactivated_at")),
-        detail.get("status"),
         scrape_date,
         batch_id,
         minio_path,
+        bool(detail.get("_carried_forward", False)),
+        # Internal keys
+        _text(detail.get("_property_id") or detail.get("property_id")),
+        distrito,
+        operation,
+        # Property identifiers
+        _text(detail.get("property_id")),
+        detail.get("property_url"),
+        detail.get("property_type"),
+        detail.get("property_subtype"),
+        # Price — raw TEXT
+        _text(detail.get("property_price")),
+        detail.get("price_currency_symbol"),
+        # Areas — raw TEXT
+        _text(detail.get("lot_size")),
+        _text(detail.get("lot_size_usable")),
+        _text(detail.get("property_dimensions")),
+        # Rooms — raw TEXT
+        _text(detail.get("bedroom_count")),
+        _text(detail.get("bedrooms_count")),
+        _text(detail.get("bathroom_count")),
+        # Floor — raw TEXT
+        _text(detail.get("floor")),
+        detail.get("floor_description"),
+        # Features / equipment — JSONB arrays
+        _jsonb(detail.get("property_features")),
+        _jsonb(detail.get("property_equipment")),
+        # Images — JSONB arrays
+        _jsonb(detail.get("property_images")),
+        _jsonb(detail.get("property_image_tags")),
+        # Property details — raw TEXT
+        detail.get("property_condition"),
+        detail.get("property_description"),
+        detail.get("property_title"),
+        _text(detail.get("energy_certificate")),
+        detail.get("address"),
+        detail.get("location_name"),
+        # Location — JSONB (polymorphic: dict or list)
+        _jsonb(detail.get("location_hierarchy")),
+        detail.get("latitude"),
+        detail.get("longitude"),
+        detail.get("country"),
+        # Agency
+        detail.get("agency_name"),
+        detail.get("agency_phone"),
+        detail.get("agency_logo"),
+        # Timestamps / status — raw
+        detail.get("modified_at"),
+        detail.get("status"),
+        _text(detail.get("last_deactivated_at")),
+        detail.get("operation"),
     )
 
 
@@ -331,65 +186,90 @@ def _create_dag():
             conn.autocommit = True
             cur = conn.cursor()
 
+            # Drop old parsed-column table (one-time migration; MinIO is source of record)
+            cur.execute("DROP TABLE IF EXISTS bronze_listings.raw_idealista")
+
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS bronze_listings.raw_idealista (
-                    id                   BIGSERIAL PRIMARY KEY,
-                    source_listing_id    VARCHAR(50) NOT NULL,
-                    listing_url          TEXT,
-                    operation_type       VARCHAR(10),
-                    price                NUMERIC(12,2),
-                    currency             CHAR(3) DEFAULT 'EUR',
-                    property_type_raw    VARCHAR(100),
-                    property_subtype_raw VARCHAR(100),
-                    typology_raw         VARCHAR(20),
-                    useful_area_m2       NUMERIC(10,2),
-                    gross_area_m2        NUMERIC(10,2),
-                    plot_area_m2         NUMERIC(12,2),
-                    num_rooms            SMALLINT,
-                    num_bathrooms        SMALLINT,
-                    floor_number         SMALLINT,
-                    has_elevator         BOOLEAN,
-                    has_parking          BOOLEAN,
-                    has_terrace          BOOLEAN,
-                    has_garden           BOOLEAN,
-                    has_pool             BOOLEAN,
-                    has_ac               BOOLEAN,
-                    has_heating          BOOLEAN,
-                    has_balcony          BOOLEAN,
-                    has_furnished_kitchen BOOLEAN,
-                    has_wardrobes        BOOLEAN,
-                    is_exterior          BOOLEAN,
-                    energy_class         CHAR(2),
-                    construction_year    SMALLINT,
-                    condition_raw        VARCHAR(50),
-                    description_text     TEXT,
-                    address_raw          TEXT,
-                    district_raw         VARCHAR(100),
-                    municipality_raw     VARCHAR(100),
-                    parish_raw           VARCHAR(100),
-                    latitude             NUMERIC(10,7),
-                    longitude            NUMERIC(10,7),
-                    listing_date         DATE,
-                    update_date          DATE,
-                    agent_name           VARCHAR(200),
-                    agent_type           VARCHAR(50),
-                    agent_phone          VARCHAR(50),
-                    image_count          SMALLINT,
-                    last_deactivated_at  DATE,
-                    status_raw           VARCHAR(20),
-                    _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
-                    _source              VARCHAR(30) DEFAULT 'idealista',
-                    _scrape_date         DATE NOT NULL,
-                    _batch_id            VARCHAR(50),
-                    _raw_html_path       TEXT
+                    id                    BIGSERIAL PRIMARY KEY,
+
+                    -- Metadata
+                    _scrape_date          DATE NOT NULL,
+                    _batch_id             VARCHAR(50),
+                    _minio_path           TEXT,
+                    _ingested_at          TIMESTAMPTZ DEFAULT NOW(),
+                    _source               VARCHAR(30) DEFAULT 'idealista',
+                    _carried_forward      BOOLEAN DEFAULT FALSE,
+
+                    -- Internal keys
+                    _property_id          TEXT,
+                    _distrito             TEXT,
+                    _operation            TEXT,
+
+                    -- Property identifiers
+                    property_id           TEXT,
+                    property_url          TEXT,
+                    property_type         TEXT,
+                    property_subtype      TEXT,
+
+                    -- Price (raw)
+                    property_price        TEXT,
+                    price_currency_symbol TEXT,
+
+                    -- Areas (raw)
+                    lot_size              TEXT,
+                    lot_size_usable       TEXT,
+                    property_dimensions   TEXT,
+
+                    -- Rooms (raw)
+                    bedroom_count         TEXT,
+                    bedrooms_count        TEXT,
+                    bathroom_count        TEXT,
+
+                    -- Floor (raw)
+                    floor                 TEXT,
+                    floor_description     TEXT,
+
+                    -- Features / equipment (JSONB arrays)
+                    property_features     JSONB,
+                    property_equipment    JSONB,
+
+                    -- Images (JSONB arrays)
+                    property_images       JSONB,
+                    property_image_tags   JSONB,
+
+                    -- Property details (raw)
+                    property_condition    TEXT,
+                    property_description  TEXT,
+                    property_title        TEXT,
+                    energy_certificate    TEXT,
+                    address               TEXT,
+                    location_name         TEXT,
+
+                    -- Location
+                    location_hierarchy    JSONB,
+                    latitude              NUMERIC(10,7),
+                    longitude             NUMERIC(10,7),
+                    country               TEXT,
+
+                    -- Agency
+                    agency_name           TEXT,
+                    agency_phone          TEXT,
+                    agency_logo           TEXT,
+
+                    -- Timestamps / status (raw)
+                    modified_at           BIGINT,
+                    status                TEXT,
+                    last_deactivated_at   TEXT,
+                    operation             TEXT
                 )
             """)
 
             for idx_sql in [
-                "CREATE INDEX IF NOT EXISTS idx_idealista_source_id ON bronze_listings.raw_idealista(source_listing_id)",
+                "CREATE INDEX IF NOT EXISTS idx_idealista_property_id ON bronze_listings.raw_idealista(_property_id)",
                 "CREATE INDEX IF NOT EXISTS idx_idealista_scrape_date ON bronze_listings.raw_idealista(_scrape_date)",
-                "CREATE INDEX IF NOT EXISTS idx_idealista_operation ON bronze_listings.raw_idealista(operation_type, _scrape_date)",
-                "CREATE INDEX IF NOT EXISTS idx_idealista_location ON bronze_listings.raw_idealista(district_raw, municipality_raw)",
+                "CREATE INDEX IF NOT EXISTS idx_idealista_operation ON bronze_listings.raw_idealista(_operation, _scrape_date)",
+                "CREATE INDEX IF NOT EXISTS idx_idealista_distrito ON bronze_listings.raw_idealista(_distrito)",
             ]:
                 cur.execute(idx_sql)
 
@@ -442,27 +322,26 @@ def _create_dag():
 
             insert_sql = """
                 INSERT INTO bronze_listings.raw_idealista (
-                    source_listing_id, listing_url, operation_type,
-                    price, currency, property_type_raw, property_subtype_raw, typology_raw,
-                    useful_area_m2, gross_area_m2, plot_area_m2,
-                    num_rooms, num_bathrooms, floor_number,
-                    has_elevator, has_parking, has_terrace, has_garden, has_pool,
-                    has_ac, has_heating, has_balcony,
-                    has_furnished_kitchen, has_wardrobes, is_exterior,
-                    energy_class, construction_year, condition_raw,
-                    description_text, address_raw,
-                    district_raw, municipality_raw, parish_raw,
-                    latitude, longitude,
-                    listing_date, update_date,
-                    agent_name, agent_type, agent_phone,
-                    image_count, last_deactivated_at, status_raw,
-                    _scrape_date, _batch_id, _raw_html_path
+                    _scrape_date, _batch_id, _minio_path, _carried_forward,
+                    _property_id, _distrito, _operation,
+                    property_id, property_url, property_type, property_subtype,
+                    property_price, price_currency_symbol,
+                    lot_size, lot_size_usable, property_dimensions,
+                    bedroom_count, bedrooms_count, bathroom_count,
+                    floor, floor_description,
+                    property_features, property_equipment,
+                    property_images, property_image_tags,
+                    property_condition, property_description, property_title,
+                    energy_certificate, address, location_name,
+                    location_hierarchy, latitude, longitude, country,
+                    agency_name, agency_phone, agency_logo,
+                    modified_at, status, last_deactivated_at, operation
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s
+                    %s, %s
                 )
             """
 
@@ -534,11 +413,11 @@ def _create_dag():
 
             cur.execute(
                 """
-                SELECT operation_type, district_raw, COUNT(*)
+                SELECT _operation, _distrito, COUNT(*)
                 FROM bronze_listings.raw_idealista
                 WHERE _scrape_date = %s
-                GROUP BY operation_type, district_raw
-                ORDER BY operation_type, district_raw
+                GROUP BY _operation, _distrito
+                ORDER BY _operation, _distrito
             """,
                 (scrape_date,),
             )

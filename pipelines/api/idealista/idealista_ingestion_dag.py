@@ -54,7 +54,7 @@ def _get_known_property_ids(detail_refresh_days: int) -> set[str]:
         cur = conn.cursor()
         cutoff = (date.today() - timedelta(days=detail_refresh_days)).isoformat()
         cur.execute(
-            "SELECT DISTINCT source_listing_id "
+            "SELECT DISTINCT _property_id "
             "FROM bronze_listings.raw_idealista "
             "WHERE _scrape_date >= %s",
             (cutoff,),
