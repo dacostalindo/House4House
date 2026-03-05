@@ -186,9 +186,6 @@ def _create_dag():
             conn.autocommit = True
             cur = conn.cursor()
 
-            # Drop old parsed-column table (one-time migration; MinIO is source of record)
-            cur.execute("DROP TABLE IF EXISTS bronze_listings.raw_idealista")
-
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS bronze_listings.raw_idealista (
                     id                    BIGSERIAL PRIMARY KEY,

@@ -7,7 +7,7 @@ Stores raw JSONL in MinIO at:
   raw/idealista/detail/{operation}/{distrito}/{YYYYMMDD}.jsonl
 
 Incremental: detail phase skips listings already in bronze within
-DETAIL_REFRESH_DAYS (default 30). Previous detail data is carried forward
+detail_refresh_days (default 30). Previous detail data is carried forward
 from MinIO. Force full re-fetch by setting force_full_refresh=true in
 trigger config.
 
@@ -21,21 +21,22 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import tempfile
+import time
+from datetime import date, timedelta
+from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 def _jsonl_line(obj: dict) -> str:
     """Serialize dict to a JSONL-safe line (escapes U+2028/U+2029)."""
     line = json.dumps(obj, ensure_ascii=False)
     return line.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-import shutil
-import tempfile
-import time
-from datetime import date, datetime, timedelta
-
-log = logging.getLogger(__name__)
 
 
-def _get_known_property_ids(detail_refresh_days: int) -> set[str]:
+def _get_known_property_ids(config, detail_refresh_days: int) -> set[str]:
     """
     Query bronze table for property_ids scraped within the refresh window.
     Returns a set of property_id strings that do NOT need re-fetching.
@@ -55,7 +56,7 @@ def _get_known_property_ids(detail_refresh_days: int) -> set[str]:
         cutoff = (date.today() - timedelta(days=detail_refresh_days)).isoformat()
         cur.execute(
             "SELECT DISTINCT _property_id "
-            "FROM bronze_listings.raw_idealista "
+            f"FROM {config.bronze_schema_table} "
             "WHERE _scrape_date >= %s",
             (cutoff,),
         )
@@ -63,21 +64,23 @@ def _get_known_property_ids(detail_refresh_days: int) -> set[str]:
         cur.close()
         conn.close()
         log.info(
-            "[idealista] Found %d known property_ids in bronze (last %d days)",
+            "[%s] Found %d known property_ids in bronze (last %d days)",
+            config.source_name,
             len(known),
             detail_refresh_days,
         )
         return known
     except Exception as exc:
-        # Table may not exist on first run
         log.warning(
-            "[idealista] Could not query bronze table (first run?): %s", exc
+            "[%s] Could not query bronze table (first run?): %s",
+            config.source_name,
+            exc,
         )
         return set()
 
 
 def _find_previous_detail(
-    minio_client, bucket: str, prefix: str, operation: str, distrito: str
+    config, minio_client, bucket: str, prefix: str, operation: str, distrito: str
 ) -> dict[str, dict]:
     """
     Find the most recent detail JSONL for this segment in MinIO.
@@ -94,7 +97,6 @@ def _find_previous_detail(
     if not jsonl_files:
         return {}
 
-    # Latest file by name (YYYYMMDD sorts lexicographically)
     latest = sorted(jsonl_files, key=lambda o: o.object_name)[-1]
 
     resp = minio_client.get_object(bucket, latest.object_name)
@@ -113,7 +115,8 @@ def _find_previous_detail(
             previous[str(pid)] = detail
 
     log.info(
-        "[idealista] %s/%s: loaded %d previous details from %s",
+        "[%s] %s/%s: loaded %d previous details from %s",
+        config.source_name,
         operation,
         distrito,
         len(previous),
@@ -125,26 +128,23 @@ def _find_previous_detail(
 def _create_dag():
     from airflow.decorators import dag, task
     from airflow.models.param import Param
-    from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+    from pipelines.api.idealista.idealista_config import IDEALISTA_CONFIG as config
 
     default_args = {
         "owner": "data-engineering",
-        "retries": 2,
-        "retry_delay": timedelta(minutes=5),
+        "retries": config.retries,
+        "retry_delay": timedelta(minutes=config.retry_delay_minutes),
     }
 
     @dag(
-        dag_id="idealista_ingestion",
-        description=(
-            "Idealista listing ingestion via ZenRows API. "
-            "Crawls Portuguese distritos for sale and rent. "
-            "Stores discovery + detail JSONL in MinIO raw layer."
-        ),
-        schedule="0 3 * * *",
-        start_date=datetime(2025, 1, 1),
+        dag_id=config.dag_id,
+        description=config.description,
+        schedule=config.schedule,
+        start_date=config.start_date,
         catchup=False,
-        max_active_runs=1,
-        max_active_tasks=4,
+        max_active_runs=config.max_active_runs,
+        max_active_tasks=config.max_active_tasks,
         default_args=default_args,
         params={
             "distrito": Param(
@@ -169,38 +169,31 @@ def _create_dag():
                 type="boolean",
             ),
         },
-        tags=["ingestion", "api", "idealista", "minio", "listings"],
+        tags=["ingestion", "api", "minio", "listings"] + config.tags,
     )
     def idealista_ingestion():
 
         @task()
-        def check_zenrows_api(**context) -> dict:
+        def check_api_availability(**context) -> dict:
             """Validate ZenRows API key with a single test discovery call."""
             import requests
             from airflow.models import Variable
 
-            from pipelines.api.idealista.idealista_config import (
-                DISTRITO_SEARCH_URLS,
-                REQUEST_TIMEOUT_SECONDS,
-                ZENROWS_DISCOVERY_URL,
-            )
-
             api_key = Variable.get("ZENROWS_API_KEY")
 
-            # Use the first distrito that will actually be crawled for the test
             params_distrito = context["params"].get("distrito", "all")
-            if params_distrito != "all" and params_distrito in DISTRITO_SEARCH_URLS:
+            if params_distrito != "all" and params_distrito in config.distrito_search_urls:
                 test_distrito = params_distrito
             else:
                 test_distrito = "aveiro"
 
-            test_url = DISTRITO_SEARCH_URLS[test_distrito]["sale"]
+            test_url = config.distrito_search_urls[test_distrito]["sale"]
             params = {"url": test_url, "page": 1, "apikey": api_key}
 
             resp = requests.get(
-                ZENROWS_DISCOVERY_URL,
+                config.discovery_url,
                 params=params,
-                timeout=REQUEST_TIMEOUT_SECONDS,
+                timeout=config.request_timeout_seconds,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -214,7 +207,8 @@ def _create_dag():
             else:
                 item_count = 0
             log.info(
-                "[idealista] API check passed — got %d items from %s/sale test",
+                "[%s] API check passed — got %d items from %s/sale test",
+                config.source_name,
                 item_count,
                 test_distrito,
             )
@@ -223,49 +217,40 @@ def _create_dag():
         @task()
         def build_segments(_api_check: dict, **context) -> list[dict]:
             """Build segment dicts, filtered by trigger params."""
-            from pipelines.api.idealista.idealista_config import (
-                ACTIVE_DISTRITOS,
-                DETAIL_REFRESH_DAYS,
-                DISTRITO_SEARCH_URLS,
-                OPERATIONS,
-            )
-
             param_distrito = context["params"].get("distrito", "all")
             param_operation = context["params"].get("operation", "all")
             force_full = context["params"].get("force_full_refresh", False)
 
-            # Determine which distritos/operations to crawl
             if param_distrito != "all":
-                if param_distrito not in DISTRITO_SEARCH_URLS:
+                if param_distrito not in config.distrito_search_urls:
                     raise ValueError(
                         f"Unknown distrito '{param_distrito}'. "
-                        f"Valid: {list(DISTRITO_SEARCH_URLS.keys())}"
+                        f"Valid: {list(config.distrito_search_urls.keys())}"
                     )
-                distritos = {param_distrito: DISTRITO_SEARCH_URLS[param_distrito]}
-            elif ACTIVE_DISTRITOS is not None:
+                distritos = {param_distrito: config.distrito_search_urls[param_distrito]}
+            elif config.active_distritos is not None:
                 distritos = {
-                    d: DISTRITO_SEARCH_URLS[d]
-                    for d in ACTIVE_DISTRITOS
-                    if d in DISTRITO_SEARCH_URLS
+                    d: config.distrito_search_urls[d]
+                    for d in config.active_distritos
+                    if d in config.distrito_search_urls
                 }
             else:
-                distritos = DISTRITO_SEARCH_URLS
+                distritos = config.distrito_search_urls
 
             if param_operation != "all":
-                if param_operation not in OPERATIONS:
+                if param_operation not in config.operations:
                     raise ValueError(
-                        f"Unknown operation '{param_operation}'. Valid: {OPERATIONS}"
+                        f"Unknown operation '{param_operation}'. Valid: {config.operations}"
                     )
                 operations = [param_operation]
             else:
-                operations = OPERATIONS
+                operations = config.operations
 
-            # Get known property_ids for incremental logic
             if force_full:
                 known_ids = set()
-                log.info("[idealista] Force full refresh — skipping incremental check")
+                log.info("[%s] Force full refresh — skipping incremental check", config.source_name)
             else:
-                known_ids = _get_known_property_ids(DETAIL_REFRESH_DAYS)
+                known_ids = _get_known_property_ids(config, config.detail_refresh_days)
 
             segments = []
             for distrito, ops in distritos.items():
@@ -281,8 +266,9 @@ def _create_dag():
                     )
 
             log.info(
-                "[idealista] Built %d segments (distrito=%s, operation=%s, "
+                "[%s] Built %d segments (distrito=%s, operation=%s, "
                 "known_ids=%d, force_full=%s)",
+                config.source_name,
                 len(segments),
                 param_distrito,
                 param_operation,
@@ -295,20 +281,37 @@ def _create_dag():
         def crawl_discovery(segment: dict) -> dict:
             """
             Phase 1: Paginate ZenRows Discovery for one distrito/operation.
-            Fetches all pages (20 listings/page) until empty or 1,800 cap.
+            Fetches all pages (20 listings/page) until empty or listing cap.
             Writes JSONL to MinIO.
             """
             import requests
             from airflow.models import Variable
             from minio import Minio
-
-            from pipelines.api.idealista.idealista_config import (
-                DISCOVERY_RATE_LIMIT_SECONDS,
-                MINIO_BUCKET,
-                MINIO_PREFIX,
-                REQUEST_TIMEOUT_SECONDS,
-                ZENROWS_DISCOVERY_URL,
+            from tenacity import (
+                retry,
+                retry_if_exception_type,
+                stop_after_attempt,
+                wait_exponential,
             )
+
+            @retry(
+                stop=stop_after_attempt(config.max_retries),
+                wait=wait_exponential(
+                    multiplier=1, min=config.retry_backoff_seconds, max=60
+                ),
+                retry=retry_if_exception_type(
+                    (
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout,
+                        requests.exceptions.HTTPError,
+                    )
+                ),
+                reraise=True,
+            )
+            def _fetch_page(url, params, timeout):
+                resp = requests.get(url, params=params, timeout=timeout)
+                resp.raise_for_status()
+                return resp
 
             api_key = Variable.get("ZENROWS_API_KEY")
             operation = segment["operation"]
@@ -322,27 +325,22 @@ def _create_dag():
                 secret_key=Variable.get("MINIO_SECRET_KEY"),
                 secure=False,
             )
-            if not minio_client.bucket_exists(MINIO_BUCKET):
-                minio_client.make_bucket(MINIO_BUCKET)
+            if not minio_client.bucket_exists(config.minio_bucket):
+                minio_client.make_bucket(config.minio_bucket)
 
             all_items = []
             page = 1
-            MAX_PAGES = 90  # 90 × 20 = 1,800 listing cap
 
-            while page <= MAX_PAGES:
+            while page <= config.max_discovery_pages:
                 params = {"url": search_url, "page": page, "apikey": api_key}
-                resp = requests.get(
-                    ZENROWS_DISCOVERY_URL,
-                    params=params,
-                    timeout=REQUEST_TIMEOUT_SECONDS,
+                resp = _fetch_page(
+                    config.discovery_url, params, config.request_timeout_seconds
                 )
-                resp.raise_for_status()
                 items = resp.json()
 
                 if isinstance(items, list):
                     page_items = items
                 elif isinstance(items, dict):
-                    # ZenRows wraps results: {"pagination": {...}, "property_list": [...]}
                     page_items = (
                         items.get("property_list")
                         or items.get("data")
@@ -353,7 +351,8 @@ def _create_dag():
 
                 if not page_items:
                     log.info(
-                        "[idealista] %s/%s: empty page %d — stopping",
+                        "[%s] %s/%s: empty page %d — stopping",
+                        config.source_name,
                         operation,
                         distrito,
                         page,
@@ -368,7 +367,8 @@ def _create_dag():
                 all_items.extend(page_items)
 
                 log.info(
-                    "[idealista] %s/%s: page %d → %d items (total: %d)",
+                    "[%s] %s/%s: page %d → %d items (total: %d)",
+                    config.source_name,
                     operation,
                     distrito,
                     page,
@@ -376,12 +376,13 @@ def _create_dag():
                     len(all_items),
                 )
                 page += 1
-                time.sleep(DISCOVERY_RATE_LIMIT_SECONDS)
+                time.sleep(config.discovery_rate_limit_seconds)
 
-            if len(all_items) >= 1800:
+            if len(all_items) >= config.max_discovery_pages * 20:
                 log.warning(
-                    "[idealista] %s/%s: hit 1,800 listing cap — "
+                    "[%s] %s/%s: hit listing cap — "
                     "consider splitting by municipality",
+                    config.source_name,
                     operation,
                     distrito,
                 )
@@ -396,29 +397,29 @@ def _create_dag():
                     f.write(_jsonl_line(item) + "\n")
 
             minio_object = (
-                f"{MINIO_PREFIX}/discovery/{operation}/{distrito}/{scrape_date}.jsonl"
+                f"{config.minio_prefix}/discovery/{operation}/{distrito}/{scrape_date}.jsonl"
             )
             minio_client.fput_object(
-                bucket_name=MINIO_BUCKET,
+                bucket_name=config.minio_bucket,
                 object_name=minio_object,
                 file_path=local_path,
                 content_type="application/x-ndjson",
                 metadata={
-                    "x-amz-meta-source": "idealista",
+                    "x-amz-meta-source": config.source_name,
                     "x-amz-meta-operation": operation,
                     "x-amz-meta-distrito": distrito,
                     "x-amz-meta-scrape-date": scrape_date,
                     "x-amz-meta-listing-count": str(len(all_items)),
                 },
             )
-            shutil.rmtree(tmp_dir)
 
             log.info(
-                "[idealista] %s/%s: discovery done — %d listings → s3://%s/%s",
+                "[%s] %s/%s: discovery done — %d listings → s3://%s/%s",
+                config.source_name,
                 operation,
                 distrito,
                 len(all_items),
-                MINIO_BUCKET,
+                config.minio_bucket,
                 minio_object,
             )
             return {
@@ -428,6 +429,7 @@ def _create_dag():
                 "listing_count": len(all_items),
                 "scrape_date": scrape_date,
                 "force_full": segment.get("force_full", False),
+                "temp_dir": tmp_dir,
             }
 
         @task()
@@ -436,7 +438,7 @@ def _create_dag():
             Phase 2: Fetch property detail for discovered listings.
 
             Incremental logic:
-            - Query bronze for property_ids scraped within DETAIL_REFRESH_DAYS
+            - Query bronze for property_ids scraped within detail_refresh_days
             - Only fetch detail for NEW listings not in that set
             - Carry forward previous detail data from MinIO for skipped listings
             - Force full refresh overrides this and fetches everything
@@ -444,15 +446,31 @@ def _create_dag():
             import requests
             from airflow.models import Variable
             from minio import Minio
-
-            from pipelines.api.idealista.idealista_config import (
-                DETAIL_RATE_LIMIT_SECONDS,
-                DETAIL_REFRESH_DAYS,
-                MINIO_BUCKET,
-                MINIO_PREFIX,
-                REQUEST_TIMEOUT_SECONDS,
-                ZENROWS_DETAIL_URL,
+            from tenacity import (
+                retry,
+                retry_if_exception_type,
+                stop_after_attempt,
+                wait_exponential,
             )
+
+            @retry(
+                stop=stop_after_attempt(config.max_retries),
+                wait=wait_exponential(
+                    multiplier=1, min=config.retry_backoff_seconds, max=60
+                ),
+                retry=retry_if_exception_type(
+                    (
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout,
+                        requests.exceptions.HTTPError,
+                    )
+                ),
+                reraise=True,
+            )
+            def _fetch_detail(url, params, timeout):
+                resp = requests.get(url, params=params, timeout=timeout)
+                resp.raise_for_status()
+                return resp
 
             api_key = Variable.get("ZENROWS_API_KEY")
             operation = discovery_result["operation"]
@@ -469,7 +487,7 @@ def _create_dag():
             )
 
             # Read discovery JSONL from MinIO
-            resp = minio_client.get_object(MINIO_BUCKET, discovery_path)
+            resp = minio_client.get_object(config.minio_bucket, discovery_path)
             raw_bytes = resp.read()
             resp.close()
             resp.release_conn()
@@ -491,33 +509,35 @@ def _create_dag():
                 ids_to_skip = set()
                 previous_details = {}
                 log.info(
-                    "[idealista] %s/%s: force full — fetching all %d listings",
+                    "[%s] %s/%s: force full — fetching all %d listings",
+                    config.source_name,
                     operation,
                     distrito,
                     len(ids_to_fetch),
                 )
             else:
-                known_ids = _get_known_property_ids(DETAIL_REFRESH_DAYS)
+                known_ids = _get_known_property_ids(config, config.detail_refresh_days)
                 ids_to_fetch = [pid for pid in all_ids if pid not in known_ids]
                 ids_to_skip = {pid for pid in all_ids if pid in known_ids}
 
-                # Load previous detail data for skipped IDs
                 if ids_to_skip:
                     previous_details = _find_previous_detail(
-                        minio_client, MINIO_BUCKET, MINIO_PREFIX, operation, distrito
+                        config, minio_client, config.minio_bucket,
+                        config.minio_prefix, operation, distrito,
                     )
                 else:
                     previous_details = {}
 
                 log.info(
-                    "[idealista] %s/%s: %d total, %d new to fetch, "
+                    "[%s] %s/%s: %d total, %d new to fetch, "
                     "%d skipped (in bronze last %d days), %d previous details loaded",
+                    config.source_name,
                     operation,
                     distrito,
                     len(all_ids),
                     len(ids_to_fetch),
                     len(ids_to_skip),
-                    DETAIL_REFRESH_DAYS,
+                    config.detail_refresh_days,
                     len(previous_details),
                 )
 
@@ -542,14 +562,13 @@ def _create_dag():
 
                 # Fetch new details from ZenRows
                 for prop_id in ids_to_fetch:
-                    url = ZENROWS_DETAIL_URL.format(property_id=prop_id)
+                    url = config.detail_url.format(property_id=prop_id)
                     try:
-                        detail_resp = requests.get(
+                        detail_resp = _fetch_detail(
                             url,
-                            params={"apikey": api_key, "tld": ".pt"},
-                            timeout=REQUEST_TIMEOUT_SECONDS,
+                            {"apikey": api_key, "tld": ".pt"},
+                            config.request_timeout_seconds,
                         )
-                        detail_resp.raise_for_status()
                         detail = detail_resp.json()
                         detail["_property_id"] = prop_id
                         detail["_distrito"] = distrito
@@ -560,26 +579,27 @@ def _create_dag():
                         detail_count += 1
                     except Exception as exc:
                         log.warning(
-                            "[idealista] %s/%s: detail fetch failed for %s — %s",
+                            "[%s] %s/%s: detail fetch failed for %s — %s",
+                            config.source_name,
                             operation,
                             distrito,
                             prop_id,
                             exc,
                         )
                         errors += 1
-                    time.sleep(DETAIL_RATE_LIMIT_SECONDS)
+                    time.sleep(config.detail_rate_limit_seconds)
 
             # Upload detail JSONL to MinIO
             minio_object = (
-                f"{MINIO_PREFIX}/detail/{operation}/{distrito}/{scrape_date}.jsonl"
+                f"{config.minio_prefix}/detail/{operation}/{distrito}/{scrape_date}.jsonl"
             )
             minio_client.fput_object(
-                bucket_name=MINIO_BUCKET,
+                bucket_name=config.minio_bucket,
                 object_name=minio_object,
                 file_path=local_path,
                 content_type="application/x-ndjson",
                 metadata={
-                    "x-amz-meta-source": "idealista",
+                    "x-amz-meta-source": config.source_name,
                     "x-amz-meta-operation": operation,
                     "x-amz-meta-distrito": distrito,
                     "x-amz-meta-scrape-date": scrape_date,
@@ -588,17 +608,17 @@ def _create_dag():
                     "x-amz-meta-errors": str(errors),
                 },
             )
-            shutil.rmtree(tmp_dir)
 
             log.info(
-                "[idealista] %s/%s: detail done — %d fetched, %d carried forward, "
+                "[%s] %s/%s: detail done — %d fetched, %d carried forward, "
                 "%d errors → s3://%s/%s",
+                config.source_name,
                 operation,
                 distrito,
                 detail_count,
                 carried_forward,
                 errors,
-                MINIO_BUCKET,
+                config.minio_bucket,
                 minio_object,
             )
             return {
@@ -609,7 +629,25 @@ def _create_dag():
                 "carried_forward": carried_forward,
                 "errors": errors,
                 "scrape_date": scrape_date,
+                "temp_dir": tmp_dir,
             }
+
+        @task(trigger_rule="all_done")
+        def cleanup_temp(
+            discovery_results: list[dict], detail_results: list[dict]
+        ):
+            """Remove temp directories after all crawls complete."""
+            seen: set[str] = set()
+            for result in list(discovery_results) + list(detail_results):
+                tmp = result.get("temp_dir")
+                if tmp and tmp not in seen and Path(tmp).exists():
+                    shutil.rmtree(tmp)
+                    seen.add(tmp)
+            log.info(
+                "[%s] Cleaned up %d temp directories",
+                config.source_name,
+                len(seen),
+            )
 
         @task(trigger_rule="all_done")
         def log_run_summary(detail_results: list[dict]) -> dict:
@@ -618,7 +656,7 @@ def _create_dag():
             total_carried = sum(r.get("carried_forward", 0) for r in detail_results)
             total_errors = sum(r.get("errors", 0) for r in detail_results)
             log.info("=" * 60)
-            log.info("IDEALISTA INGESTION COMPLETE")
+            log.info("%s INGESTION COMPLETE", config.source_name.upper())
             log.info("  Details fetched (new)  : %d", total_fetched)
             log.info("  Details carried forward: %d", total_carried)
             log.info("  Total listings         : %d", total_fetched + total_carried)
@@ -642,19 +680,23 @@ def _create_dag():
             }
 
         # --- Task wiring ---
-        api_check = check_zenrows_api()
+        api_check = check_api_availability()
         segments = build_segments(api_check)
         discovery_results = crawl_discovery.expand(segment=segments)
         detail_results = crawl_details.expand(discovery_result=discovery_results)
+        cleanup_temp(discovery_results, detail_results)
         summary = log_run_summary(detail_results)
 
-        trigger_bronze = TriggerDagRunOperator(
-            task_id="trigger_bronze_load",
-            trigger_dag_id="idealista_bronze_load",
-            wait_for_completion=True,
-            reset_dag_run=True,
-        )
-        summary >> trigger_bronze
+        if config.trigger_dag_id:
+            from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+            trigger_downstream = TriggerDagRunOperator(
+                task_id="trigger_downstream",
+                trigger_dag_id=config.trigger_dag_id,
+                wait_for_completion=True,
+                reset_dag_run=True,
+            )
+            summary >> trigger_downstream
 
     return idealista_ingestion()
 

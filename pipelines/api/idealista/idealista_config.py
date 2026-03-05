@@ -9,6 +9,11 @@ Crawl strategy: Split by Portugal's 18 continental distritos × 2 operations (sa
 Each segment stays within Idealista's ~1,800 listing cap per search URL.
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+
 ZENROWS_DISCOVERY_URL = (
     "https://realestate.api.zenrows.com/v1/targets/idealista/discovery/"
 )
@@ -118,3 +123,79 @@ MINIO_PREFIX = "idealista"
 
 # Bronze table
 BRONZE_SCHEMA_TABLE = "bronze_listings.raw_idealista"
+
+
+# ---------------------------------------------------------------------------
+# Config dataclass (mirrors template's APIIngestionConfig pattern)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class IdealistaIngestionConfig:
+    """
+    All parameters needed to run the Idealista ingestion DAG.
+
+    Mirrors the template's APIIngestionConfig style but adds fields
+    for two-phase crawling (discovery → detail) and incremental logic.
+    """
+
+    # --- DAG identity ---
+    dag_id: str = "idealista_ingestion"
+    source_name: str = "idealista"
+    description: str = (
+        "Idealista listing ingestion via ZenRows API. "
+        "Crawls Portuguese distritos for sale and rent. "
+        "Stores discovery + detail JSONL in MinIO raw layer."
+    )
+
+    # --- API connection ---
+    discovery_url: str = ZENROWS_DISCOVERY_URL
+    detail_url: str = ZENROWS_DETAIL_URL
+    request_timeout_seconds: int = REQUEST_TIMEOUT_SECONDS
+
+    # --- Retry (tenacity) ---
+    max_retries: int = 3
+    retry_backoff_seconds: int = 5
+
+    # --- Rate limiting ---
+    discovery_rate_limit_seconds: float = DISCOVERY_RATE_LIMIT_SECONDS
+    detail_rate_limit_seconds: float = DETAIL_RATE_LIMIT_SECONDS
+
+    # --- Crawl dimensions ---
+    operations: list[str] = field(default_factory=lambda: OPERATIONS)
+    active_distritos: list[str] | None = field(
+        default_factory=lambda: ACTIVE_DISTRITOS
+    )
+    distrito_search_urls: dict[str, dict[str, str]] = field(
+        default_factory=lambda: DISTRITO_SEARCH_URLS
+    )
+
+    # --- Incremental ---
+    detail_refresh_days: int = DETAIL_REFRESH_DAYS
+
+    # --- MinIO storage ---
+    minio_bucket: str = MINIO_BUCKET
+    minio_prefix: str = MINIO_PREFIX
+
+    # --- Bronze ---
+    bronze_schema_table: str = BRONZE_SCHEMA_TABLE
+
+    # --- Scheduling ---
+    schedule: str = "0 3 * * *"
+    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    max_active_runs: int = 1
+    max_active_tasks: int = 4
+
+    # --- Orchestration ---
+    trigger_dag_id: str | None = "idealista_bronze_load"
+
+    # --- DAG settings ---
+    tags: list[str] = field(default_factory=lambda: ["idealista"])
+    retries: int = 2
+    retry_delay_minutes: int = 5
+
+    # --- Discovery limits ---
+    max_discovery_pages: int = 90  # 90 × 20 = 1,800 cap
+
+
+IDEALISTA_CONFIG = IdealistaIngestionConfig()
