@@ -1,0 +1,26 @@
+name: house4house
+version: "1.0.0"
+config-version: 2
+
+profile: house4house
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  caop_year: 2025
+
+on-run-start:
+  - "CREATE SCHEMA IF NOT EXISTS staging_dbt"
+
+models:
+  house4house:
+    staging:
+      +materialized: view
+      +schema: staging_dbt
+    gold:
+      +materialized: table
+      +schema: gold_analytics

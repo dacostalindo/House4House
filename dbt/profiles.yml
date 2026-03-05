@@ -1,0 +1,12 @@
+house4house:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('WAREHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('WAREHOUSE_PORT', '5433') | int }}"
+      user: "{{ env_var('WAREHOUSE_USER', 'warehouse') }}"
+      password: "{{ env_var('WAREHOUSE_PASSWORD') }}"
+      dbname: "{{ env_var('WAREHOUSE_DB', 'house4house') }}"
+      schema: gold_analytics
+      threads: 2

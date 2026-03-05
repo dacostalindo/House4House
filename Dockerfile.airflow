@@ -9,4 +9,5 @@ RUN pip install --no-cache-dir \
     pyproj \
     minio==7.2.7 \
     requests==2.31.0 \
-    tenacity
+    tenacity \
+    dbt-postgres==1.9.0

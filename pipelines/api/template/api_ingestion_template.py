@@ -88,6 +88,7 @@ class APIIngestionConfig:
     api_path: str           # e.g. "/ine/json_indicador/pindica.jsp"
     default_params: dict[str, str] = field(default_factory=dict)
     code_param_name: Optional[str] = "varcd"  # Query param for indicator code
+    code_in_path: bool = False  # Append code to URL path instead of query param
 
     request_timeout_seconds: int = 60
     max_retries: int = 3
@@ -107,6 +108,9 @@ class APIIngestionConfig:
 
     # --- DAG-level Airflow Params ---
     dag_params: dict = field(default_factory=dict)
+
+    # --- Orchestration ---
+    trigger_dag_id: Optional[str] = None  # Auto-trigger this DAG after ingestion
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -189,12 +193,14 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
             """
             import requests
 
-            url = f"{config.base_url}{config.api_path}"
-
             # Build a minimal test request using the first indicator
             test_params = {**config.default_params}
-            if config.indicators and config.code_param_name:
-                test_params[config.code_param_name] = config.indicators[0].code
+            if config.code_in_path and config.indicators:
+                url = f"{config.base_url}{config.api_path}{config.indicators[0].code}"
+            else:
+                url = f"{config.base_url}{config.api_path}"
+                if config.indicators and config.code_param_name:
+                    test_params[config.code_param_name] = config.indicators[0].code
 
             log.info(
                 "[%s] Checking API availability: %s (params=%s)",
@@ -245,7 +251,10 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
                 params[config.code_param_name] = indicator.code
             params.update(indicator.endpoint_params)
 
-            url = f"{config.base_url}{config.api_path}"
+            if config.code_in_path:
+                url = f"{config.base_url}{config.api_path}{indicator.code}"
+            else:
+                url = f"{config.base_url}{config.api_path}"
 
             log.info(
                 "[%s] Fetching indicator %s (%s)",
@@ -279,7 +288,8 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             # Save raw JSON to temp file
             temp_dir = Path(tempfile.mkdtemp(prefix=f"api_{config.source_name}_"))
-            raw_path = temp_dir / f"{indicator.code}.json"
+            safe_code = indicator.code.replace("/", "_")
+            raw_path = temp_dir / f"{safe_code}.json"
             raw_path.write_text(json.dumps(raw_data, ensure_ascii=False, indent=2))
 
             result = {
@@ -411,6 +421,17 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
         upload_results = upload_to_minio.expand(fetch_result=fetch_results)
 
         cleanup_temp(fetch_results, upload_results)
-        log_run_metadata(upload_results)
+        metadata = log_run_metadata(upload_results)
+
+        if config.trigger_dag_id:
+            from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+            trigger_downstream = TriggerDagRunOperator(
+                task_id="trigger_downstream",
+                trigger_dag_id=config.trigger_dag_id,
+                wait_for_completion=True,
+                reset_dag_run=True,
+            )
+            metadata >> trigger_downstream
 
     return api_ingestion_dag()

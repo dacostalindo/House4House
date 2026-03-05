@@ -1,4 +1,4 @@
-# INE API Ingestion — Housing, Demographics, Tourism, Economy & Innovation
+# INE API — Housing, Demographics, Tourism, Economy & Innovation (INE)
 
 **Instituto Nacional de Estatística** — 33 statistical indicators fetched from the public JSON API. Time-series housing market data that complements the static BGRI Census 2021 snapshot.
 
@@ -11,9 +11,10 @@
 | Publisher | INE — Instituto Nacional de Estatística |
 | API | `https://www.ine.pt/ine/json_indicador/pindica.jsp` |
 | Auth | None required (public API) |
-| Format | JSON (raw, stored as-is in MinIO bronze layer) |
+| Format | JSON (raw, stored as-is in MinIO) |
 | CRS | N/A (tabular data with NUTS geographic codes) |
-| Refresh | Quarterly (most indicators), some monthly |
+| Coverage | National, NUTS regions, and municipalities (varies by indicator) |
+| Refresh | Monthly ingestion (`0 6 1 * *` — 1st of each month at 06:00 UTC). All 33 indicators fetched every run. |
 
 ---
 
@@ -35,33 +36,35 @@
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0012785` | Housing Transactions Count | Quarterly | NUTS-2024 |
-| `0012786` | Housing Transactions Value (€) | Quarterly | NUTS-2024 |
+| `0012786` | Housing Transactions Value (EUR) | Quarterly | NUTS-2024 |
 | `0012787` | Housing Transactions Count | Annual | NUTS-2024 |
-| `0012788` | Housing Transactions Value (€) | Annual | NUTS-2024 |
+| `0012788` | Housing Transactions Value (EUR) | Annual | NUTS-2024 |
 
 ### Housing: rental market (4)
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
-| `0012571` | Median Rental Value (€/m²) | Quarterly | NUTS-2024 |
+| `0012571` | Median Rental Value (EUR/m2) | Quarterly | NUTS-2024 |
 | `0012572` | New Lease Agreements Count | Quarterly | NUTS-2024 |
-| `0012573` | Median Rental Value (€/m²) — Large cities | Quarterly | Municipalities >100k |
+| `0012573` | Median Rental Value (EUR/m2) — Large cities | Quarterly | Municipalities >100k |
 | `0012574` | New Lease Agreements — Large cities | Quarterly | Municipalities >100k |
 
-### Housing: construction (3)
+### Housing: construction (5)
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0012096` | Licensed Buildings | Monthly | NUTS-2024 |
 | `0012778` | Completed Dwellings (New Construction) | Quarterly | NUTS-2024 |
 | `0011750` | Housing Construction Cost Index | Monthly | National |
+| `0012097` | Licensed Dwellings (New Construction) | Monthly | NUTS-2024 |
+| `0008321` | Completed Dwellings (New Construction) | Annual | NUTS + municipalities |
 
 ### Housing: mortgage finance (4)
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0006340` | Housing Loan Interest Rate | Monthly | National |
-| `0006341` | Housing Loan Outstanding Liability (€) | Monthly | National |
+| `0006341` | Housing Loan Outstanding Liability (EUR) | Monthly | National |
 | `0008867` | Housing Loan Interest Rate by NUTS I | Monthly | NUTS-I |
 | `0008870` | Total Interests on Housing Loans by NUTS I | Monthly | NUTS-I |
 
@@ -69,14 +72,7 @@
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
-| `0012236` | Median Dwelling Sales Value per m² (2022 methodology) | Quarterly | NUTS-2024 + municipalities |
-
-### Housing: construction — additional (2)
-
-| Code | Name | Frequency | Geography |
-|------|------|-----------|-----------|
-| `0012097` | Licensed Dwellings (New Construction) | Monthly | NUTS-2024 |
-| `0008321` | Completed Dwellings (New Construction) | Annual | NUTS + municipalities |
+| `0012236` | Median Dwelling Sales Value per m2 (2022 methodology) | Quarterly | NUTS-2024 + municipalities |
 
 ### Housing: building stock — Census 2021 (2)
 
@@ -91,7 +87,7 @@
 |------|------|-----------|-----------|
 | `0001271` | Old-age Dependency Ratio | Annual | National |
 | `0008273` | Resident Population by Sex & Age Group | Annual | NUTS + municipalities |
-| `0008337` | Population Density (per km²) | Annual | Municipalities |
+| `0008337` | Population Density (per km2) | Annual | Municipalities |
 
 ### Tourism (1)
 
@@ -111,33 +107,23 @@
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0008515` | ICT Companies Count | Annual | NUTS + municipalities |
-| `0008519` | Gross Value Added in ICT Activities (€) | Annual | NUTS + municipalities |
+| `0008519` | Gross Value Added in ICT Activities (EUR) | Annual | NUTS + municipalities |
 | `0008521` | High & Medium-High Technology Companies | Annual | NUTS + municipalities |
 
----
-
-## How it complements BGRI
+### How it complements BGRI
 
 | Gap in BGRI | INE API fills with | Join path |
 |---|---|---|
-| No price trends | Median sales €/m² (quarterly, NUTS-2024) | BGRI subsection → municipality → NUTS code |
+| No price trends | Median sales EUR/m2 (quarterly, NUTS-2024) | BGRI subsection → municipality → NUTS code |
 | No transaction volume | Transaction count/value (quarterly) | Same |
-| No rental data | Median rental €/m² (quarterly, NUTS-III) | Same |
+| No rental data | Median rental EUR/m2 (quarterly, NUTS-III) | Same |
 | No construction activity | Licensed buildings, completed dwellings | Same |
 | No financing context | Loan interest rates, outstanding liability | NUTS-I broadcast |
 | Static 2021 snapshot | Time-series 2009–present | Temporal enrichment |
 
 ---
 
-## How to run
-
-### 1. Trigger the DAG
-
-Open the Airflow UI → **ine_api_ingestion** → **Trigger DAG**.
-
-No configuration parameters needed — all indicator codes are defined in [ine_config.py](ine_config.py).
-
-### 2. What happens
+## How it works
 
 ```
 GET https://www.ine.pt/ine/json_indicador/pindica.jsp?op=2&varcd={code}&Dim1=T&lang=EN
@@ -151,7 +137,19 @@ cleanup temp dirs
 log_run_metadata (structured summary)
 ```
 
-### 3. Where it lands
+Each run appends a new timestamped file — full audit trail, no overwrites.
+
+---
+
+## How to run
+
+### 1. Trigger the DAG
+
+Open the Airflow UI → **ine_api_ingestion** → **Trigger DAG**.
+
+No configuration parameters needed — all indicator codes are defined in [ine_config.py](ine_config.py).
+
+### 2. Where it lands
 
 ```
 s3://raw/ine/0009201/20260301T060000Z.json
@@ -160,35 +158,41 @@ s3://raw/ine/0009207/20260301T060000Z.json
 s3://raw/ine/0001271/20260301T060000Z.json
 ```
 
-Each run appends a new timestamped file — full audit trail, no overwrites.
+### 3. Bronze load
+
+After ingestion completes, trigger **`ine_bronze_load`** from the Airflow UI (no config needed). It reads the latest JSON per indicator from MinIO automatically.
 
 ---
 
-## JSON response structure
+## DAGs
 
-The INE API returns data nested inside a `Dados` dict keyed by period:
+### `ine_api_ingestion` — INE API → MinIO
 
-```json
-{
-  "IndicadorCod": "0009201",
-  "IndicadorDsg": "Housing price index...",
-  "DataExtracao": "2026-02-23T20:35:28.002Z",
-  "DataUltimoAtualizacao": "2025-06-18",
-  "Dados": {
-    "2024": [{"geocod": "PT", "geodsg": "Portugal", "valor": "38.6", ...}],
-    "2023": [...]
-  }
-}
+```
+check_api → fetch_indicator.expand(33) → upload_to_minio → cleanup + log_run_metadata → trigger_downstream
 ```
 
-Key fields inside each observation: `geocod`, `geodsg`, `valor`, `ind_string`, `dim_3`/`dim_3_t` (indicator-specific dimensions), `sinal_conv` (convention codes for missing data).
+| Setting | Value |
+|---------|-------|
+| Schedule | `0 6 1 * *` (monthly, 1st of each month at 06:00 UTC) |
+| Orchestration | Auto-triggers `ine_bronze_load` after completion (`wait_for_completion=True`) |
+| Tags | `ingestion`, `api`, `ine`, `minio` |
+
+### `ine_bronze_load` — MinIO → PostGIS
+
+```
+list_minio_files → create_table → load_indicators.expand(33) → validate_counts
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (auto-triggered by `ine_api_ingestion`, or manual) |
+| Idempotency | DELETE + INSERT per indicator |
+| Tags | `ine`, `bronze`, `postgis` |
 
 ---
 
-## Bronze Schema
-
-After ingestion to MinIO, DAG **`ine_bronze_load`** flattens the JSON files into PostGIS.
-Full-refresh per indicator (DELETE + INSERT), idempotent, no schedule — trigger manually.
+## Bronze schema
 
 ### `bronze_ine.raw_indicators` — 907,533 rows (33 indicators)
 
@@ -229,24 +233,68 @@ Full-refresh per indicator (DELETE + INSERT), idempotent, no schedule — trigge
 | `0008273` | Resident population | 254,904 | Municipalities |
 | `0008321` | Completed dwellings | 240,520 | Municipalities |
 | `0012096` | Licensed buildings | 80,028 | NUTS |
-| `0012236` | Median sales €/m² | 67,032 | Municipalities |
+| `0012236` | Median sales EUR/m2 | 67,032 | Municipalities |
 | `0012234` | Median dwelling sales | 67,032 | NUTS |
 | `0012097` | Licensed dwellings | 44,460 | NUTS |
 
 ---
 
-## After ingestion
+## JSON response structure
 
-Trigger **`ine_bronze_load`** from the Airflow UI (no config needed).
-It reads the latest JSON per indicator from MinIO automatically.
+The INE API returns data nested inside a `Dados` dict keyed by period:
+
+```json
+{
+  "IndicadorCod": "0009201",
+  "IndicadorDsg": "Housing price index...",
+  "DataExtracao": "2026-02-23T20:35:28.002Z",
+  "DataUltimoAtualizacao": "2025-06-18",
+  "Dados": {
+    "2024": [{"geocod": "PT", "geodsg": "Portugal", "valor": "38.6", ...}],
+    "2023": [...]
+  }
+}
+```
+
+Key fields inside each observation: `geocod`, `geodsg`, `valor`, `ind_string`, `dim_3`/`dim_3_t` (indicator-specific dimensions), `sinal_conv` (convention codes for missing data).
 
 ---
 
-## Adding indicators
+## Known limitations
 
-Add a new `APIIndicator` entry to `INE_INDICATORS` in [ine_config.py](ine_config.py).
-Then add the code to `INDICATOR_CODES` in [ine_bronze_dag.py](ine_bronze_dag.py).
-No other code changes needed.
+| Issue | Detail | Resolution |
+|-------|--------|------------|
+| Geographic granularity varies | Some indicators are national-only, others go to municipality level | Silver layer handles aggregation/broadcast |
+| `sinal_conv` missing data codes | `'x'` = not available, `'...'` = provisional | Parsed as NULL `valor` in bronze |
+| No geometry | Tabular data only — NUTS codes for geographic joins | Join via CAOP/BGRI geographic keys |
+
+---
+
+## Configuration
+
+### Environment
+
+| Variable | Where | Value |
+|----------|-------|-------|
+| `MINIO_ENDPOINT` | Airflow Variable | `minio:9000` |
+| `MINIO_ACCESS_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+| `MINIO_SECRET_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+| `WAREHOUSE_HOST` | Airflow Variable | `warehouse` |
+
+### Directory structure
+
+```
+pipelines/api/ine/
+├── __init__.py                    # Package marker
+├── ine_config.py                  # Indicator list, API URL, rate limits
+├── ine_ingestion_dag.py           # DAG: INE API → MinIO
+├── ine_bronze_dag.py              # DAG: MinIO → PostGIS bronze table
+└── README.md                      # This file
+```
+
+### Adding indicators
+
+Add a new `APIIndicator` entry to `INE_INDICATORS` in [ine_config.py](ine_config.py). Then add the code to `INDICATOR_CODES` in [ine_bronze_dag.py](ine_bronze_dag.py). No other code changes needed.
 
 To find indicator codes:
 1. Browse https://www.ine.pt → choose a dataset → inspect URL for `varcd=XXXXXXX`

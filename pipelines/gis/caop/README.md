@@ -1,8 +1,6 @@
-# S08 — CAOP Boundaries (DGT)
+# CAOP Boundaries — Administrative Geography (DGT)
 
-**Carta Administrativa Oficial de Portugal** — the official Portuguese administrative boundary dataset, published annually by DGT (Direção-Geral do Território).
-
-This is a **P0 / foundation source**. Every entity in the warehouse (listing, census record, POI, etc.) resolves to a `freguesia` via a spatial join against this dataset. It must be loaded before anything else.
+**Carta Administrativa Oficial de Portugal** — the official Portuguese administrative boundary dataset, published annually by DGT. Foundation source (P0) — every entity in the warehouse resolves to a `freguesia` via spatial join against this dataset. Must be loaded before anything else.
 
 ---
 
@@ -12,6 +10,7 @@ This is a **P0 / foundation source**. Every entity in the warehouse (listing, ce
 |----------|-------|
 | Publisher | DGT — Direção-Geral do Território |
 | Page | https://www.dgterritorio.gov.pt/cartografia/caop |
+| Auth | None required (public download) |
 | Format | GeoPackage (`.gpkg`), sometimes distributed as `.zip` |
 | CRS | ETRS89 / PT-TM06 — **EPSG:3763** (projected) or ETRS89 geographic — **EPSG:4258** |
 | Coverage | Continental Portugal only (`cont_*` layers) |
@@ -19,7 +18,7 @@ This is a **P0 / foundation source**. Every entity in the warehouse (listing, ce
 
 ---
 
-## Layers
+## What it contains
 
 The GeoPackage contains three primary administrative boundary layers plus auxiliary layers (NUTS hierarchy, edge lines, style tables). Only the three below are validated:
 
@@ -79,24 +78,40 @@ s3://raw/caop/{version}/{filename}.gpkg
 
 Example: `s3://raw/caop/2025/Continente_CAOP2025.gpkg`
 
----
+### 5. Bronze load
 
-## Validation behaviour
-
-| Check | On failure |
-|-------|-----------|
-| HTTP status ≠ 2xx | Hard fail — DAG stops at task 1 |
-| File < 10 MB | Hard fail — likely truncated download |
-| Expected layer missing | Hard fail — layer names may have changed, update `_caop_layer_names()` |
-| Feature count outside [10, 5000] | Hard fail — applies to `cont_distritos`, `cont_municipios`, `cont_freguesias` only |
-| CRS ≠ EPSG:3763/4258 | **Warning only** — file still uploaded; reprojection handled in silver |
+After ingestion completes, trigger **`s08_caop_bronze_load`** from the Airflow UI (no config needed). It finds the latest GPKG in MinIO automatically.
 
 ---
 
-## Bronze Schema
+## DAGs
 
-After ingestion to MinIO, DAG **`s08_caop_bronze_load`** loads the GPKG into PostGIS.
-Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
+### `s08_caop_ingestion` — DGT → MinIO
+
+```
+check_source → download_file → validate_gis_file → upload_to_minio → cleanup_temp → log_run_metadata
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Tags | `ingestion`, `gis`, `caop` |
+
+### `s08_caop_bronze_load` — MinIO → PostGIS
+
+```
+find_latest_gpkg → load_distritos + load_municipios + load_freguesias → validate_counts
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Idempotency | TRUNCATE + INSERT |
+| Tags | `caop`, `bronze`, `postgis` |
+
+---
+
+## Bronze schema
 
 ### `bronze_geo.raw_caop_freguesias` — 3,049 rows
 
@@ -156,16 +171,49 @@ Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
 
 ---
 
-## After ingestion
+## Validation behaviour
 
-Trigger **`s08_caop_bronze_load`** from the Airflow UI (no config needed).
-It finds the latest GPKG in MinIO automatically.
-
-The `validate_gis_file` task in the ingestion DAG logs the full field list for every layer — check the Airflow task logs for a quick preview without downloading.
+| Check | On failure |
+|-------|-----------|
+| HTTP status ≠ 2xx | Hard fail — DAG stops at task 1 |
+| File < 10 MB | Hard fail — likely truncated download |
+| Expected layer missing | Hard fail — layer names may have changed, update `_caop_layer_names()` |
+| Feature count outside [10, 5000] | Hard fail — applies to `cont_distritos`, `cont_municipios`, `cont_freguesias` only |
+| CRS ≠ EPSG:3763/4258 | **Warning only** — file still uploaded; reprojection handled in silver |
 
 ---
 
-## Updating for a new release
+## Known limitations
+
+| Issue | Detail | Resolution |
+|-------|--------|------------|
+| Azores/Madeira not covered | Only continental layers (`cont_*`) are processed | Add island files when needed |
+| URL changes annually | DGT does not publish stable permalinks | Manual URL discovery each year |
+
+---
+
+## Configuration
+
+### Environment
+
+| Variable | Where | Value |
+|----------|-------|-------|
+| `MINIO_ENDPOINT` | Airflow Variable | `minio:9000` |
+| `MINIO_ACCESS_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+| `MINIO_SECRET_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+
+### Directory structure
+
+```
+pipelines/gis/caop/
+├── __init__.py                    # Package marker
+├── caop_config.py                 # Layer names, validation thresholds, MinIO paths
+├── caop_ingestion_dag.py          # DAG: DGT → MinIO
+├── caop_bronze_dag.py             # DAG: MinIO → PostGIS bronze tables
+└── README.md                      # This file
+```
+
+### Updating for a new release
 
 No code changes needed. Just re-trigger the ingestion DAG with the new `version` and `download_url`, then re-trigger the bronze load DAG.
 
