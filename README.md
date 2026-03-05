@@ -2736,7 +2736,7 @@ dags/
 | Idealista ingestion DAG refactor | S03/S04 | 1 | Config dataclass, tenacity retry, cleanup task, template alignment | ✅ Done |
 | ECB Euribor | S17 | 1 | Monthly rate DAG → `bronze_macro.raw_ecb` (3 Euribor series via SDMX API) | ✅ Done |
 | Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` (3 domains, 16 datasets via JSON-stat API) | ✅ Done |
-| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` | |
+| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` (38 EU countries, JSON-stat API) | ✅ Done |
 | Geocoding pipeline | — | 2 | Batch geocoding operational | |
 | dbt project scaffolding | — | 2 | Staging models, `dim_time`, `dim_property_type` | |
 
