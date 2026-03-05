@@ -133,12 +133,41 @@ Source-oriented: unrolls JSON-stat cube dimensions into one row per observation.
 | `_batch_id` | VARCHAR(50) | — | Batch identifier |
 | `dataset_code` | VARCHAR(30) | constant | `'prc_hpi_q'` |
 | `freq` | CHAR(1) | dimension `freq` | Always `'Q'` (Quarterly) |
-| `purchase` | VARCHAR(20) | dimension `purchase` | `TOTAL`, `DW_NEW`, `DW_EXST` |
-| `unit` | VARCHAR(20) | dimension `unit` | `I10_Q`, `I15_Q`, `RCH_Q`, `RCH_A` |
+| `purchase` | VARCHAR(20) | dimension `purchase` | Type of dwelling transaction (see below) |
+| `unit` | VARCHAR(20) | dimension `unit` | How the value is measured (see below) |
 | `geo` | VARCHAR(10) | dimension `geo` | ISO country code or aggregate (`PT`, `ES`, `EU`, `EA`) |
 | `time_period` | VARCHAR(10) | dimension `time` | Quarter string (e.g. `2024-Q1`) |
-| `value` | NUMERIC(12,4) | `value[flat_idx]` | Index value or rate of change |
-| `status` | VARCHAR(10) | `status[flat_idx]` | Quality flag (`p`, `b`, `d`, `e`) |
+| `value` | NUMERIC(12,4) | `value[flat_idx]` | Numeric observation — meaning depends on `unit` (see below) |
+| `status` | VARCHAR(10) | `status[flat_idx]` | Data quality flag (see below). NULL = final, reliable data |
+
+#### `purchase` — dwelling transaction type
+
+| Code | Meaning |
+|------|---------|
+| `TOTAL` | All dwellings combined |
+| `DW_NEW` | Purchases of newly built dwellings |
+| `DW_EXST` | Purchases of existing dwellings |
+
+#### `unit` — unit of measure (determines how to interpret `value`)
+
+| Code | Meaning | Example |
+|------|---------|---------|
+| `I10_Q` | Quarterly index, 2010=100 | `158.64` → prices 58.6% above 2010 levels |
+| `I15_Q` | Quarterly index, 2015=100 | `269.35` → prices 169.4% above 2015 levels |
+| `RCH_Q` | Quarterly rate of change (%) | `4.1` → +4.1% vs previous quarter |
+| `RCH_A` | Annual rate of change (%) | `17.7` → +17.7% vs same quarter last year |
+
+#### `status` — data quality flag
+
+Most observations have no status (NULL = final, reliable data). Out of ~31K observations, only ~1.1K have a flag.
+
+| Flag | Meaning |
+|------|---------|
+| `p` | Provisional — may be revised in future releases |
+| `e` | Estimated |
+| `b` | Break in time series — methodology changed, not directly comparable to earlier periods |
+| `d` | Definition differs from standard (see Eurostat metadata) |
+| `\|C` | Confidential — value suppressed |
 
 ### Indexes
 
