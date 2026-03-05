@@ -210,8 +210,8 @@ This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + 
 
 **S17 — ECB Euribor Rates**
 - **URL:** https://sdw.ecb.europa.eu
-- **Data:** Euribor 3M, 6M, 12M daily rates
-- **Format:** CSV/SDMX (API)
+- **Data:** Euribor 3M, 6M, 12M monthly rates
+- **Format:** SDMX-JSON (API)
 - **Ingestion:** SDMX REST API → `pandasdmx` → Bronze
 - **Volume:** ~5K observations (daily, multi-year)
 - **Refresh:** Daily (weekdays)
@@ -2645,7 +2645,7 @@ dags/
 │   ├── dag_osm_import.py               # Sprint 1 — Monthly
 │   ├── dag_idealista_listings.py        # Sprint 2 — Daily
 │   ├── dag_ine_transactions.py          # Sprint 2 — Quarterly
-│   ├── dag_ecb_euribor.py              # Sprint 2 — Daily (weekdays)
+│   ├── dag_ecb_euribor.py              # Sprint 2 — Monthly
 │   ├── dag_bpstat_macro.py             # Sprint 2 — Monthly
 │   ├── dag_eurostat_hpi.py             # Sprint 2 — Quarterly
 │   ├── dag_imovirtual_listings.py       # Sprint 3 — Daily
@@ -2686,7 +2686,7 @@ dags/
 | dbt Silver run | `0 11 * * *` | 2+ | After dedup |
 | dbt Gold run | `0 12 * * *` | 2+ | After Silver |
 | MatView refresh | `0 13 * * *` | 6+ | After Gold |
-| ECB Euribor | `0 18 * * 1-5` (weekdays) | 2+ | None |
+| ECB Euribor | `0 6 1 * *` (monthly) | 2+ | None |
 | INE transactions | `0 6 1 1,4,7,10 *` (quarterly) | 2+ | None |
 | OSM full import | `0 2 1 * *` (monthly) | 1+ | None |
 | Location scores | `0 3 * * 0` (weekly Sunday) | 4+ | After OSM |
@@ -2729,14 +2729,16 @@ dags/
 
 ### Sprint 2 — Core Market Data (Weeks 3-4)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| Idealista API integration | S03/S04 | 5 | Daily sale + rental ingestion → `bronze_listings.raw_idealista` |
-| ECB Euribor | S17 | 1 | Daily rate DAG → `bronze_macro.raw_ecb` |
-| Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` |
-| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` |
-| Geocoding pipeline | — | 2 | Batch geocoding operational |
-| dbt project scaffolding | — | 2 | Staging models, `dim_time`, `dim_property_type` |
+| Task | Source | Days | Deliverable | Status |
+|---|---|---|---|---|
+| Idealista API integration | S03/S04 | 5 | Daily sale + rental ingestion → `bronze_listings.raw_idealista` | ✅ Done |
+| Idealista bronze schema (source-oriented) | S03/S04 | 1 | Raw JSONL → PostGIS with JSONB/TEXT columns (no parsing at bronze) | ✅ Done |
+| Idealista ingestion DAG refactor | S03/S04 | 1 | Config dataclass, tenacity retry, cleanup task, template alignment | ✅ Done |
+| ECB Euribor | S17 | 1 | Monthly rate DAG → `bronze_macro.raw_ecb` (3 Euribor series via SDMX API) | ✅ Done |
+| Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` (3 domains, 16 datasets via JSON-stat API) | ✅ Done |
+| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` | |
+| Geocoding pipeline | — | 2 | Batch geocoding operational | |
+| dbt project scaffolding | — | 2 | Staging models, `dim_time`, `dim_property_type` | |
 
 **Exit criteria:** Idealista flowing daily; macro indicators loaded; geocoding working.
 

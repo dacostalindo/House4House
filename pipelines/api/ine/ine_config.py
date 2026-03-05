@@ -411,9 +411,12 @@ INE_CONFIG = APIIngestionConfig(
     minio_bucket="raw",
     minio_prefix="ine",
 
-    # --- Schedule: quarterly refresh (1st of each quarter at 06:00 UTC) ---
-    schedule="0 6 1 1,4,7,10 *",
+    # --- Schedule: monthly refresh (1st of each month at 06:00 UTC) ---
+    schedule="0 6 1 * *",
     start_date=datetime(2025, 1, 1),
+
+    # --- Orchestration: auto-trigger bronze load after ingestion ---
+    trigger_dag_id="ine_bronze_load",
 
     # --- Tags ---
     tags=["ine", "housing", "demographics", "tourism", "economy", "innovation", "quarterly"],

@@ -1,4 +1,4 @@
-# S12 — BGRI Census 2021 (INE)
+# BGRI Census 2021 — Statistical Geography & Demographics (INE)
 
 **Base Geográfica de Referenciação de Informação** — the INE statistical geography grid bundled with Census 2021 variables. City-block level demographics with embedded geometry.
 
@@ -10,6 +10,7 @@
 |----------|-------|
 | Publisher | INE — Instituto Nacional de Estatística |
 | Page | https://mapas.ine.pt/download/index2021.phtml |
+| Auth | None required (public download) |
 | Format | GeoPackage (`.gpkg`) inside a `.zip` archive |
 | CRS | ETRS89 / PT-TM06 — **EPSG:3763** (projected, metres) |
 | Coverage | All of Portugal (continental + Azores + Madeira) |
@@ -42,9 +43,7 @@
 
 > **Not in the synthesis file:** education level, employment/unemployment rate, foreign-born %. These will be sourced from the INE API (pindica.jsp) as P1 supplements once the hedonic model requires them.
 
----
-
-## Why BGRI instead of the INE Census API
+### Why BGRI instead of the INE Census API
 
 | | BGRI (this pipeline) | INE API (pindica.jsp) |
 |---|---|---|
@@ -87,12 +86,40 @@ log_run_metadata                 structured summary in Airflow task logs
 s3://raw/bgri/2021/portugal2021.gpkg
 ```
 
+### 4. Bronze load
+
+After ingestion completes, trigger **`s12_bgri_bronze_load`** from the Airflow UI (no config needed). It finds the latest GPKG in MinIO automatically.
+
 ---
 
-## Bronze Schema
+## DAGs
 
-After ingestion to MinIO, DAG **`s12_bgri_bronze_load`** loads the GPKG into PostGIS.
-Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
+### `s12_bgri_ingestion` — INE → MinIO
+
+```
+check_source → download_file → validate_gis_file → upload_to_minio → cleanup_temp → log_run_metadata
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Tags | `ingestion`, `gis`, `bgri` |
+
+### `s12_bgri_bronze_load` — MinIO → PostGIS
+
+```
+find_latest_gpkg → create_table → load_subsections → validate_counts
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Idempotency | TRUNCATE + INSERT |
+| Tags | `bgri`, `bronze`, `postgis` |
+
+---
+
+## Bronze schema
 
 ### `bronze_ine.raw_bgri` — 203,264 rows
 
@@ -161,14 +188,37 @@ Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
 
 ---
 
-## After ingestion
+## Known limitations
 
-Trigger **`s12_bgri_bronze_load`** from the Airflow UI (no config needed).
-It finds the latest GPKG in MinIO automatically.
+| Issue | Detail | Resolution |
+|-------|--------|------------|
+| Static 2021 snapshot | No time-series — single census point | INE API provides time-series supplements |
+| Missing variables | Education, employment, foreign-born not in synthesis file | Source from INE API when hedonic model requires them |
 
 ---
 
-## Updating for a new census
+## Configuration
+
+### Environment
+
+| Variable | Where | Value |
+|----------|-------|-------|
+| `MINIO_ENDPOINT` | Airflow Variable | `minio:9000` |
+| `MINIO_ACCESS_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+| `MINIO_SECRET_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+
+### Directory structure
+
+```
+pipelines/gis/bgri/
+├── __init__.py                    # Package marker
+├── bgri_config.py                 # Download URL, version, validation thresholds
+├── bgri_ingestion_dag.py          # DAG: INE → MinIO
+├── bgri_bronze_dag.py             # DAG: MinIO → PostGIS bronze table
+└── README.md                      # This file
+```
+
+### Updating for a new census
 
 Not applicable until the next census (~2031). At that point:
 - Update `download_url` and `source_version` in [bgri_config.py](bgri_config.py)

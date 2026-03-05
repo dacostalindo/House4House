@@ -1,6 +1,6 @@
-# S09/S10/S11 — OpenStreetMap Portugal (Geofabrik)
+# OSM Portugal — POIs, Transport & Road Network (Geofabrik)
 
-Single GeoPackage covering three project sources: **POIs** (walkability), **Transport** (accessibility), and **Road Network** (drive-time routing).
+Single GeoPackage covering three project sources: **POIs** (walkability), **Transport** (accessibility), and **Road Network** (drive-time routing). Includes self-hosted OSRM routing engine and Nominatim geocoder.
 
 ---
 
@@ -10,6 +10,7 @@ Single GeoPackage covering three project sources: **POIs** (walkability), **Tran
 |----------|-------|
 | Publisher | Geofabrik GmbH (OSM extract) |
 | Page | https://download.geofabrik.de/europe/portugal.html |
+| Auth | None required (public download) |
 | Format | GeoPackage (`.gpkg`) inside a `.zip` archive |
 | CRS | WGS 84 — **EPSG:4326** (geographic, not projected) |
 | Coverage | All of Portugal (continental + islands) |
@@ -22,7 +23,7 @@ Single GeoPackage covering three project sources: **POIs** (walkability), **Tran
 
 18 layers, ~4.5M features:
 
-### S09 — POIs (for walkability & amenity scoring)
+### POIs (for walkability & amenity scoring)
 
 | Layer | Geometry | Features | Key fclass values |
 |-------|----------|----------|-------------------|
@@ -31,7 +32,7 @@ Single GeoPackage covering three project sources: **POIs** (walkability), **Tran
 | `gis_osm_pofw_free` | Point | 2K | places of worship |
 | `gis_osm_pofw_a_free` | Polygon | 11K | places of worship (areas) |
 
-### S10 — Transport (for accessibility scoring)
+### Transport (for accessibility scoring)
 
 | Layer | Geometry | Features | Key fclass values |
 |-------|----------|----------|-------------------|
@@ -39,7 +40,7 @@ Single GeoPackage covering three project sources: **POIs** (walkability), **Tran
 | `gis_osm_transport_a_free` | Polygon | 1K | bus_station, railway_station, airport (areas) |
 | `gis_osm_railways_free` | Line | 11K | rail (8.6K), light_rail (1.1K), subway (341), tram (229) |
 
-### S11 — Road Network (for OSRM routing)
+### Road Network (for OSRM routing)
 
 | Layer | Geometry | Features | Key fclass values |
 |-------|----------|----------|-------------------|
@@ -112,21 +113,66 @@ log_run_metadata
 s3://raw/osm/2026-03/portugal.gpkg
 ```
 
----
+### 4. Bronze load
 
-## CRS note
-
-This file uses **WGS 84 (EPSG:4326)**, not PT-TM06 (EPSG:3763) like CAOP and BGRI. Spatial joins in the silver layer will need `ST_Transform` to align coordinate systems.
+After ingestion completes, trigger **`s09_osm_bronze_load`** from the Airflow UI (no config needed). It finds the latest GPKG in MinIO automatically.
 
 ---
 
-## Bronze Schema
+## DAGs
 
-After ingestion to MinIO, DAG **`s09_osm_bronze_load`** loads all 18 GPKG layers into PostGIS.
-Full-refresh (TRUNCATE + INSERT), idempotent, no schedule — trigger manually.
+### `s09_osm_ingestion` — Geofabrik GPKG → MinIO
+
+```
+check_source → download_file → validate_gis_file → upload_to_minio → cleanup_temp → log_run_metadata
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Tags | `ingestion`, `gis`, `osm` |
+
+### `s09_osm_bronze_load` — MinIO → PostGIS
+
+```
+find_latest_gpkg → load_layer.expand(18) → validate_counts
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Idempotency | TRUNCATE + INSERT |
+| Tags | `osm`, `bronze`, `postgis` |
+
+### `osm_pbf_ingestion` — Geofabrik PBF → MinIO
+
+```
+check_source → download_pbf → upload_to_minio → cleanup_temp
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Tags | `ingestion`, `osm`, `pbf` |
+
+### `osrm_build` — MinIO PBF → OSRM routing data
+
+```
+download_pbf_from_minio → extract.expand(3 profiles) → contract.expand(3 profiles)
+```
+
+| Setting | Value |
+|---------|-------|
+| Schedule | None (manual trigger) |
+| Tags | `osrm`, `routing` |
+
+---
+
+## Bronze schema
+
 All tables in `bronze_location` schema. CRS is EPSG:4326.
 
-### S09 — POIs
+### POIs
 
 | Table | Source layer | Rows | Geometry | Fields |
 |-------|-------------|------|----------|--------|
@@ -135,7 +181,7 @@ All tables in `bronze_location` schema. CRS is EPSG:4326.
 | `raw_osm_pofw` | gis_osm_pofw_free | 1,669 | POINT | osm_id, code, fclass, name |
 | `raw_osm_pofw_a` | gis_osm_pofw_a_free | 11,412 | MULTIPOLYGON | osm_id, code, fclass, name |
 
-### S10 — Transport
+### Transport
 
 | Table | Source layer | Rows | Geometry | Fields |
 |-------|-------------|------|----------|--------|
@@ -143,7 +189,7 @@ All tables in `bronze_location` schema. CRS is EPSG:4326.
 | `raw_osm_transport_a` | gis_osm_transport_a_free | 1,144 | MULTIPOLYGON | osm_id, code, fclass, name |
 | `raw_osm_railways` | gis_osm_railways_free | 10,567 | LINESTRING | osm_id, code, fclass, name, layer, bridge, tunnel |
 
-### S11 — Roads & Traffic
+### Roads & Traffic
 
 | Table | Source layer | Rows | Geometry | Fields |
 |-------|-------------|------|----------|--------|
@@ -174,30 +220,9 @@ The `fclass` column is the primary classification — e.g. `restaurant`, `bus_st
 
 ---
 
-## After ingestion
+## OSRM routing engine
 
-Trigger **`s09_osm_bronze_load`** from the Airflow UI (no config needed).
-It finds the latest GPKG in MinIO automatically.
-
----
-
-## Updating
-
-Trigger a new ingestion run with the current month as version:
-
-```json
-{"version": "2026-04"}
-```
-
-Then re-trigger **`s09_osm_bronze_load`** to refresh the bronze tables.
-Each version is stored separately in MinIO — no overwrites.
-
----
-
-## OSRM Routing Engine
-
-Three OSRM instances provide HTTP routing APIs for car, walking, and cycling profiles.
-Built from the same Geofabrik Portugal data using Contraction Hierarchies (CH).
+Three OSRM instances provide HTTP routing APIs for car, walking, and cycling profiles. Built from the same Geofabrik Portugal data using Contraction Hierarchies (CH).
 
 ### Architecture
 
@@ -222,13 +247,6 @@ HTTP API on ports 5050 (car), 5051 (walking), 5052 (cycling)
 | `osrm-walking` | foot.lua | 5051 | `http://localhost:5051/route/v1/walking/` |
 | `osrm-cycling` | bicycle.lua | 5052 | `http://localhost:5052/route/v1/cycling/` |
 
-### DAGs
-
-| DAG | Purpose | Trigger |
-|-----|---------|---------|
-| `osm_pbf_ingestion` | Download PBF from Geofabrik to MinIO | Manual, with `{"version": "2026-Q1"}` |
-| `osrm_build` | Extract + contract PBF for 3 profiles | Manual, after PBF download |
-
 ### How to build OSRM data
 
 ```bash
@@ -244,17 +262,11 @@ docker compose restart osrm-car osrm-walking osrm-cycling
 curl "http://localhost:5050/route/v1/driving/-9.1393,38.7223;-8.6291,41.1579"
 ```
 
-### Update frequency
-
-Quarterly. Re-trigger `osm_pbf_ingestion` then `osrm_build` then restart the OSRM containers.
-
 ---
 
-## Nominatim Geocoder
+## Nominatim geocoder
 
 Self-hosted OSM-based geocoder for forward and reverse geocoding of Portuguese addresses.
-
-### Service
 
 | Property | Value |
 |----------|-------|
@@ -291,3 +303,50 @@ docker volume rm house4house_nominatim_data
 docker compose up -d nominatim
 # Wait ~30-45 min for re-import
 ```
+
+---
+
+## Known limitations
+
+| Issue | Detail | Resolution |
+|-------|--------|------------|
+| CRS mismatch | EPSG:4326 vs EPSG:3763 for CAOP/BGRI | `ST_Transform` in silver layer spatial joins |
+| Large file size | ~1.5 GB extracted GPKG | Stream download with chunking; sufficient disk space needed |
+| OSRM rebuild required after update | New PBF needs extract + contract (~1h per profile) | Run `osrm_build` DAG then restart containers |
+
+---
+
+## Configuration
+
+### Environment
+
+| Variable | Where | Value |
+|----------|-------|-------|
+| `MINIO_ENDPOINT` | Airflow Variable | `minio:9000` |
+| `MINIO_ACCESS_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+| `MINIO_SECRET_KEY` | Airflow Variable | Set via `airflow-init` in `docker-compose.yml` |
+
+### Directory structure
+
+```
+pipelines/gis/osm/
+├── __init__.py                    # Package marker
+├── osm_config.py                  # Layer list, download URL, validation thresholds
+├── osm_ingestion_dag.py           # DAG: Geofabrik GPKG → MinIO
+├── osm_bronze_dag.py              # DAG: MinIO GPKG → PostGIS bronze tables
+├── osm_pbf_ingestion_dag.py       # DAG: Geofabrik PBF → MinIO (for OSRM)
+├── osrm_build_dag.py              # DAG: PBF → OSRM routing data (3 profiles)
+└── README.md                      # This file
+```
+
+### Updating
+
+Trigger a new ingestion run with the current month as version:
+
+```json
+{"version": "2026-04"}
+```
+
+Then re-trigger **`s09_osm_bronze_load`** to refresh the bronze tables. Each version is stored separately in MinIO — no overwrites.
+
+OSRM update frequency: quarterly. Re-trigger `osm_pbf_ingestion` → `osrm_build` → restart OSRM containers.
