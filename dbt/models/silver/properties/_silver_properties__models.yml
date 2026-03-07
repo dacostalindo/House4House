@@ -1,0 +1,138 @@
+version: 2
+
+models:
+  - name: unified_listings
+    description: >
+      Idealista listings parsed from TEXT bronze to typed silver with Portuguese labels.
+      Incremental merge on source_listing_id preserves first_seen_date and initial_price.
+      Spatial join to dim_geography; two-pass join to dim_property_type.
+      ~1,495 unique listings (Aveiro district, sale + rent).
+    columns:
+      - name: listing_key
+        description: "Surrogate key via ROW_NUMBER"
+        tests:
+          - unique
+          - not_null
+
+      - name: source_listing_id
+        description: "Idealista property_id cast to VARCHAR(50)"
+        tests:
+          - unique
+          - not_null
+
+      - name: source
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['idealista']
+
+      - name: operation_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sale', 'rent']
+
+      - name: price_eur
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 100
+              max_value: 50000000
+
+      - name: useful_area_m2
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 500000
+              where: "useful_area_m2 IS NOT NULL"
+
+      - name: num_rooms
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 15
+              where: "num_rooms IS NOT NULL"
+
+      - name: energy_class
+        tests:
+          - accepted_values:
+              values: ['A+', 'A', 'B', 'B-', 'C', 'D', 'E', 'F', 'G']
+              where: "energy_class IS NOT NULL"
+
+      - name: condition
+        tests:
+          - accepted_values:
+              values: ['Bom estado', 'Novo', 'Para recuperar']
+              where: "condition IS NOT NULL"
+
+      - name: latitude
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 36.9
+              max_value: 42.2
+              where: "latitude IS NOT NULL"
+
+      - name: longitude
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -9.6
+              max_value: -6.1
+              where: "longitude IS NOT NULL"
+
+      - name: geo_key
+        tests:
+          - relationships:
+              to: ref('dim_geography')
+              field: geo_key
+              where: "geo_key IS NOT NULL"
+
+      - name: property_type_key
+        tests:
+          - relationships:
+              to: ref('dim_property_type')
+              field: property_type_key
+              where: "property_type_key IS NOT NULL"
+
+      - name: property_type
+        description: "Portuguese property type label (e.g. Apartamento, Moradia)"
+        tests:
+          - accepted_values:
+              values: ['Apartamento', 'Moradia', 'Moradia Rústica', 'Habitação']
+              where: "property_type IS NOT NULL"
+
+      - name: property_subtype
+        description: "Portuguese property subtype label (e.g. Duplex, Geminada)"
+
+      - name: property_type_group
+        description: "Broad grouping: Apartamento or Moradia"
+        tests:
+          - accepted_values:
+              values: ['Apartamento', 'Moradia']
+              where: "property_type_group IS NOT NULL"
+
+      - name: is_active
+        tests:
+          - not_null
+
+      - name: first_seen_date
+        tests:
+          - not_null
+
+      - name: last_seen_date
+        tests:
+          - not_null
+
+      - name: construction_year
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1800
+              max_value: 2030
+              where: "construction_year IS NOT NULL"
+
+      - name: postal_code
+        description: "Portuguese postal code from Nominatim reverse geocoding"
+        tests:
+          - not_null:
+              where: "latitude IS NOT NULL"
+              config:
+                severity: warn

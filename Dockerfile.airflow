@@ -4,10 +4,12 @@ FROM apache/airflow:2.10.4-python3.12
 # pyproj is required to parse EPSG codes from WKT CRS strings.
 USER airflow
 
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
     pyogrio \
     pyproj \
     minio==7.2.7 \
     requests==2.31.0 \
     tenacity \
-    dbt-postgres==1.9.0
+    dbt-postgres==1.9.0 \
+    astronomer-cosmos[dbt-postgres]

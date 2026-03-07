@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_osm_pois
+    description: "OSM points of interest. View over bronze_location.raw_osm_pois."
+    columns:
+      - name: osm_id
+        tests: [not_null]
+      - name: fclass
+        tests: [not_null]
+      - name: geom
+        tests: [not_null]
+
+  - name: stg_osm_transport
+    description: "OSM transport stops. View over bronze_location.raw_osm_transport."
+    columns:
+      - name: osm_id
+        tests: [not_null]
+      - name: fclass
+        tests: [not_null]
+      - name: geom
+        tests: [not_null]

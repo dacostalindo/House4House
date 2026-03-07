@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: transport_stops
+    description: >
+      SKELETON — OSM transport stops cleaned and classified.
+      Sprint 5 implementation.
+
+  - name: osm_pois
+    description: >
+      SKELETON — OSM POIs with category grouping and geo_key.
+      Sprint 5 implementation.

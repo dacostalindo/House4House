@@ -1,0 +1,7 @@
+version: 2
+
+models:
+  - name: census_demographics
+    description: >
+      SKELETON — BGRI census aggregated to freguesia with extended demographics.
+      Sprint 5 implementation.

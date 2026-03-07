@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: bronze_ine
+    database: house4house
+    schema: bronze_ine
+    tables:
+      - name: raw_bgri
+        description: "Census 2021 BGRI statistical subsections. 203,264 rows."
+        columns:
+          - name: dtmnfr21
+            description: "6-digit freguesia code for joining with CAOP"
+
+      - name: raw_indicators
+        description: "INE statistical indicators. Loaded by ine_bronze_dag."
+        columns:
+          - name: indicator_code
+            tests: [not_null]
+          - name: time_period
+            tests: [not_null]

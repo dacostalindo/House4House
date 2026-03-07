@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: bronze_listings
+    database: house4house
+    schema: bronze_listings
+    tables:
+      - name: raw_idealista
+        description: "Idealista property listings. Source-oriented raw bronze. Loaded by idealista_bronze_dag."
+        columns:
+          - name: property_url
+            description: "Full Idealista property URL — used as unique listing identifier"
+          - name: property_price
+            description: "Raw price string, e.g. '350.000 €' — parsed in silver"
+          - name: _scrape_date
+            description: "Date the row was scraped"
+          - name: _operation
+            description: "'sale' or 'rent'"
+
+      - name: reverse_geocoded
+        description: >
+          Reverse geocoded address data from Nominatim, keyed by (latitude, longitude).
+          Incrementally populated by the reverse_geocode task in idealista_bronze_dag.

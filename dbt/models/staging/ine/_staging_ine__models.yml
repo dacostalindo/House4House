@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: stg_bgri_freguesia_agg
+    description: "Census 2021 BGRI subsections aggregated to 3,049 freguesia-level rows."
+    columns:
+      - name: freguesia_code
+        tests: [unique, not_null]
+      - name: population_2021
+        tests: [not_null]
+
+  - name: stg_ine_indicators
+    description: "INE statistical indicators. View over bronze_ine.raw_ine_indicators."
+    columns:
+      - name: indicator_code
+        tests: [not_null]
+      - name: value
+        tests: [not_null]

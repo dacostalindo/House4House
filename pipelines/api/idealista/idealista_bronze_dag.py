@@ -270,8 +270,30 @@ def _create_dag():
             ]:
                 cur.execute(idx_sql)
 
+            # Reverse geocoded lookup table (Nominatim)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS bronze_listings.reverse_geocoded (
+                    latitude       NUMERIC(10,7)  NOT NULL,
+                    longitude      NUMERIC(10,7)  NOT NULL,
+                    display_name   TEXT,
+                    road           TEXT,
+                    house_number   TEXT,
+                    postcode       TEXT,
+                    city_district  TEXT,
+                    city           TEXT,
+                    raw_response   JSONB,
+                    _geocoded_at   TIMESTAMPTZ    DEFAULT NOW(),
+                    PRIMARY KEY (latitude, longitude)
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_reverse_geocoded_postcode
+                    ON bronze_listings.reverse_geocoded (postcode)
+            """)
+
             log.info(
-                "[idealista] Ensured bronze_listings.raw_idealista exists with indexes"
+                "[idealista] Ensured bronze_listings.raw_idealista "
+                "and reverse_geocoded exist with indexes"
             )
             cur.close()
             conn.close()
@@ -441,12 +463,140 @@ def _create_dag():
                 },
             }
 
+        @task()
+        def reverse_geocode(validate_result: dict) -> dict:
+            """
+            Incrementally reverse-geocode listing coordinates via local Nominatim.
+            Only calls Nominatim for (lat, lon) pairs not already in the lookup table.
+            """
+            import psycopg2
+            import time
+
+            import requests
+            from airflow.models import Variable
+
+            NOMINATIM_URL = Variable.get("NOMINATIM_URL", "http://nominatim:8080")
+            RATE_LIMIT_SECONDS = 0.02  # ~50 req/s for local Nominatim
+
+            conn = psycopg2.connect(
+                host=Variable.get("WAREHOUSE_HOST"),
+                port=int(Variable.get("WAREHOUSE_PORT")),
+                dbname=Variable.get("WAREHOUSE_DB"),
+                user=Variable.get("WAREHOUSE_USER"),
+                password=Variable.get("WAREHOUSE_PASSWORD"),
+            )
+            cur = conn.cursor()
+
+            # Find coordinates not yet geocoded
+            cur.execute("""
+                SELECT DISTINCT r.latitude, r.longitude
+                FROM bronze_listings.raw_idealista r
+                LEFT JOIN bronze_listings.reverse_geocoded g
+                    ON r.latitude = g.latitude AND r.longitude = g.longitude
+                WHERE r.latitude IS NOT NULL
+                  AND r.longitude IS NOT NULL
+                  AND g.latitude IS NULL
+            """)
+            missing = cur.fetchall()
+            log.info("[geocode] %d new coordinate pairs to geocode", len(missing))
+
+            insert_sql = """
+                INSERT INTO bronze_listings.reverse_geocoded
+                    (latitude, longitude, display_name, road, house_number,
+                     postcode, city_district, city, raw_response)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (latitude, longitude) DO NOTHING
+            """
+
+            geocoded = 0
+            errors = 0
+
+            for lat, lon in missing:
+                try:
+                    resp = requests.get(
+                        f"{NOMINATIM_URL}/reverse",
+                        params={
+                            "lat": float(lat),
+                            "lon": float(lon),
+                            "format": "jsonv2",
+                            "addressdetails": 1,
+                        },
+                        timeout=10,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    addr = data.get("address", {})
+                    road = addr.get("road") or addr.get("square")
+                    city = (
+                        addr.get("city")
+                        or addr.get("town")
+                        or addr.get("village")
+                    )
+
+                    cur.execute(insert_sql, (
+                        lat,
+                        lon,
+                        data.get("display_name"),
+                        road,
+                        addr.get("house_number"),
+                        addr.get("postcode"),
+                        addr.get("city_district"),
+                        city,
+                        json.dumps(data, ensure_ascii=False),
+                    ))
+                    geocoded += 1
+
+                    if geocoded % 100 == 0:
+                        conn.commit()
+                        log.info(
+                            "[geocode] Progress: %d / %d geocoded",
+                            geocoded,
+                            len(missing),
+                        )
+
+                except Exception as exc:
+                    log.warning(
+                        "[geocode] Failed for (%s, %s): %s", lat, lon, exc
+                    )
+                    errors += 1
+
+                time.sleep(RATE_LIMIT_SECONDS)
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            log.info(
+                "[geocode] Done: %d geocoded, %d errors out of %d total",
+                geocoded,
+                errors,
+                len(missing),
+            )
+            return {
+                "new_geocoded": geocoded,
+                "errors": errors,
+                "total_missing_before": len(missing),
+            }
+
         # --- Task wiring ---
         files = list_minio_files()
         table_ready = create_table()
         loaded = load_listings(files)
         table_ready >> loaded
-        validate_counts(loaded)
+        validated = validate_counts(loaded)
+        geocoded = reverse_geocode(validated)
+
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+        trigger_dbt = TriggerDagRunOperator(
+            task_id="trigger_dbt_pipeline",
+            trigger_dag_id="dbt_full_pipeline",
+            wait_for_completion=True,
+            reset_dag_run=True,
+            poke_interval=10,
+        )
+        geocoded >> trigger_dbt
 
     return idealista_bronze_load()
 

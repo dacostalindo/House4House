@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: stg_caop_freguesias
+    description: "CAOP parish boundaries with dual CRS and hierarchy codes."
+    columns:
+      - name: freguesia_code
+        tests: [unique, not_null]
+      - name: geom_pt
+        tests: [not_null]
+      - name: geom_4326
+        tests: [not_null]
+
+  - name: stg_caop_distritos
+    description: "CAOP district codes and names."
+    columns:
+      - name: distrito_code
+        tests: [unique, not_null]
+
+  - name: stg_caop_municipios
+    description: "CAOP municipality codes and names."
+    columns:
+      - name: concelho_code
+        tests: [unique, not_null]

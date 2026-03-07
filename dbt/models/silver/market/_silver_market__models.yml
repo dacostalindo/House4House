@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: macro_timeseries
+    description: >
+      Unified macro-economic time series from BPStat, ECB, and Eurostat.
+      Periods parsed to DATE. MoM/QoQ/YoY change rates computed via LAG.
+      Partitioned by (indicator_code, geo).
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: indicator_code
+        tests: [not_null]
+      - name: source
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['bpstat', 'ecb', 'eurostat']
+      - name: geo
+        tests: [not_null]
+      - name: observation_date
+        tests: [not_null]
+      - name: category
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['housing_credit', 'interest_rates', 'housing_prices']
+      - name: value
+        tests: [not_null]

@@ -44,3 +44,24 @@ models:
       - name: area_km2
         tests:
           - not_null
+
+  - name: dim_property_type
+    description: >
+      Static dimension mapping Idealista raw property_type + property_subtype
+      to standardized Portuguese labels and groupings. ~16 rows.
+    columns:
+      - name: property_type_key
+        tests:
+          - unique
+          - not_null
+      - name: source_type
+        tests:
+          - not_null
+      - name: tipo
+        tests:
+          - not_null
+      - name: type_group
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Apartamento', 'Moradia']

@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: bronze_macro
+    database: house4house
+    schema: bronze_macro
+    tables:
+      - name: raw_bpstat
+        description: "BPStat Bank of Portugal time-series. Loaded by bpstat_bronze_dag."
+        columns:
+          - name: series_id
+            tests: [not_null]
+          - name: period
+            description: "BPStat period format: '2024M01', '2024Q1', '2024'"
+          - name: value
+            description: "Numeric observation value"
+          - name: _batch_id
+            tests: [not_null]
+
+      - name: raw_ecb
+        description: "ECB SDMX observations. Loaded by ecb_bronze_dag."
+        columns:
+          - name: series_key
+            tests: [not_null]
+          - name: time_period
+            description: "ECB period format: '2024-01', '2024-Q1'"
+          - name: value
+            description: "Numeric observation value"
+          - name: _batch_id
+            tests: [not_null]
+
+      - name: raw_eurostat
+        description: "Eurostat JSON-stat observations. Loaded by eurostat_bronze_dag."
+        columns:
+          - name: dataset_code
+            tests: [not_null]
+          - name: time_period
+            description: "Eurostat period format: '2024-Q1'"
+          - name: geo
+            description: "ISO country code or aggregate (PT, ES, EU27_2020, ...)"
+          - name: value
+          - name: _batch_id
+            tests: [not_null]

@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: stg_idealista
+    description: "Idealista listings. View over bronze_listings.raw_idealista with column renames."
+    columns:
+      - name: listing_url
+        tests: [not_null]
+      - name: operation_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sale', 'rent']

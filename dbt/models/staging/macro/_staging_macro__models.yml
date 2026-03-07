@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_bpstat
+    description: "BPStat Bank of Portugal time-series. View over bronze_macro.raw_bpstat."
+    columns:
+      - name: series_id
+        tests: [not_null]
+      - name: period_raw
+        tests: [not_null]
+      - name: value
+        tests: [not_null]
+
+  - name: stg_ecb
+    description: "ECB SDMX time-series. View over bronze_macro.raw_ecb."
+    columns:
+      - name: series_key
+        tests: [not_null]
+      - name: period_raw
+        tests: [not_null]
+      - name: value
+        tests: [not_null]
+
+  - name: stg_eurostat
+    description: "Eurostat JSON-stat observations. View over bronze_macro.raw_eurostat."
+    columns:
+      - name: dataset_code
+        tests: [not_null]
+      - name: geo
+        tests: [not_null]
+      - name: period_raw
+        tests: [not_null]
