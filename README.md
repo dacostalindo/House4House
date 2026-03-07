@@ -1034,53 +1034,90 @@ CREATE TABLE gold_analytics.dim_property_type (
 
 #### Listings (S03/S04 Idealista, S05/S06 Imovirtual)
 
+Source-oriented: stores scraped JSON fields as-is in TEXT columns. JSONB for nested
+arrays (features, equipment, images). No parsing at bronze — type casting, area
+extraction, and feature flags are silver/dbt work.
+
 ```sql
 CREATE TABLE bronze_listings.raw_idealista (
-    id                   BIGSERIAL PRIMARY KEY,
-    source_listing_id    VARCHAR(50) NOT NULL,
-    listing_url          TEXT,
-    operation_type       VARCHAR(10),                  -- 'sale', 'rent'
-    price                NUMERIC(12,2),
-    currency             CHAR(3) DEFAULT 'EUR',
-    property_type_raw    VARCHAR(100),
-    typology_raw         VARCHAR(20),
-    useful_area_m2       NUMERIC(10,2),
-    gross_area_m2        NUMERIC(10,2),
-    plot_area_m2         NUMERIC(12,2),
-    num_rooms            SMALLINT,
-    num_bathrooms        SMALLINT,
-    floor_number         SMALLINT,
-    has_elevator         BOOLEAN,
-    has_parking          BOOLEAN,
-    has_terrace          BOOLEAN,
-    has_garden           BOOLEAN,
-    has_pool             BOOLEAN,
-    energy_class         CHAR(2),
-    construction_year    SMALLINT,
-    condition_raw        VARCHAR(50),
-    description_text     TEXT,
-    address_raw          TEXT,
-    district_raw         VARCHAR(100),
-    municipality_raw     VARCHAR(100),
-    parish_raw           VARCHAR(100),
-    latitude             NUMERIC(10,7),
-    longitude            NUMERIC(10,7),
-    listing_date         DATE,
-    update_date          DATE,
-    agent_name           VARCHAR(200),
-    agent_type           VARCHAR(50),
+    id                    BIGSERIAL PRIMARY KEY,
 
-    _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
-    _source              VARCHAR(30) DEFAULT 'idealista',
-    _scrape_date         DATE NOT NULL,
-    _batch_id            VARCHAR(50),
-    _raw_html_path       TEXT
+    -- Metadata
+    _scrape_date          DATE NOT NULL,
+    _batch_id             VARCHAR(50),
+    _minio_path           TEXT,                           -- Path to raw JSON in MinIO
+    _ingested_at          TIMESTAMPTZ DEFAULT NOW(),
+    _source               VARCHAR(30) DEFAULT 'idealista',
+    _carried_forward      BOOLEAN DEFAULT FALSE,          -- TRUE if listing unchanged since last scrape
+
+    -- Internal keys (derived during load for indexing)
+    _property_id          TEXT,                           -- Normalised property ID
+    _distrito             TEXT,                           -- District name (for partitioning)
+    _operation            TEXT,                           -- 'sale' or 'rent'
+
+    -- Property identifiers (raw from scraper)
+    property_id           TEXT,
+    property_url          TEXT,
+    property_type         TEXT,                           -- e.g. 'Apartamento', 'Moradia'
+    property_subtype      TEXT,
+
+    -- Price (raw text — may contain formatting)
+    property_price        TEXT,                           -- e.g. '250.000 €'
+    price_currency_symbol TEXT,
+
+    -- Areas (raw text)
+    lot_size              TEXT,
+    lot_size_usable       TEXT,
+    property_dimensions   TEXT,                           -- e.g. '85 m²'
+
+    -- Rooms (raw text)
+    bedroom_count         TEXT,
+    bedrooms_count        TEXT,                           -- Alternate field name from scraper
+    bathroom_count        TEXT,
+
+    -- Floor (raw text)
+    floor                 TEXT,
+    floor_description     TEXT,
+
+    -- Features / equipment (JSONB arrays from scraper)
+    property_features     JSONB,                          -- e.g. ["Elevator", "Parking", "Terrace"]
+    property_equipment    JSONB,                          -- e.g. ["Air Conditioning", "Central Heating"]
+
+    -- Images (JSONB arrays)
+    property_images       JSONB,                          -- URLs
+    property_image_tags   JSONB,                          -- AI-generated tags per image
+
+    -- Property details (raw text)
+    property_condition    TEXT,
+    property_description  TEXT,                           -- Full listing description (Portuguese)
+    property_title        TEXT,
+    energy_certificate    TEXT,
+    address               TEXT,
+    location_name         TEXT,
+
+    -- Location
+    location_hierarchy    JSONB,                          -- Nested hierarchy from scraper
+    latitude              NUMERIC(10,7),
+    longitude             NUMERIC(10,7),
+    country               TEXT,
+
+    -- Agency
+    agency_name           TEXT,
+    agency_phone          TEXT,
+    agency_logo           TEXT,
+
+    -- Timestamps / status (raw)
+    modified_at           BIGINT,                         -- Unix timestamp from API
+    status                TEXT,
+    last_deactivated_at   TEXT,
+    operation             TEXT
 );
-CREATE INDEX idx_idealista_lid ON bronze_listings.raw_idealista(source_listing_id);
-CREATE INDEX idx_idealista_dt ON bronze_listings.raw_idealista(_scrape_date);
+CREATE INDEX idx_idealista_property_id ON bronze_listings.raw_idealista(_property_id);
+CREATE INDEX idx_idealista_scrape_date ON bronze_listings.raw_idealista(_scrape_date);
+CREATE INDEX idx_idealista_operation ON bronze_listings.raw_idealista(_operation, _scrape_date);
+CREATE INDEX idx_idealista_distrito ON bronze_listings.raw_idealista(_distrito);
 
--- Identical structure for:
--- bronze_listings.raw_imovirtual (S05/S06)
+-- S05/S06 Imovirtual: similar source-oriented schema (not yet implemented)
 ```
 
 #### INE — Indicators + Census BGRI (S01/S12/S29)
@@ -1264,45 +1301,130 @@ CREATE TABLE bronze_geo.raw_caop_distritos (
 CREATE INDEX idx_caop_dist_geom ON bronze_geo.raw_caop_distritos USING GIST(geom);
 ```
 
+#### OSM — OpenStreetMap (S11)
+
+Source is a Geofabrik Portugal PBF extract, pre-processed into shapefiles. 14 tables in
+`bronze_location` loaded source-faithful via ogr2ogr. All share a common base schema
+(osm_id, code, fclass, name, geom) with layer-specific extras.
+
+```sql
+-- Common columns across all OSM layers:
+--   osm_id    TEXT         — OpenStreetMap feature ID
+--   code      INTEGER      — Geofabrik numeric feature code
+--   fclass    TEXT         — Feature class (e.g. 'restaurant', 'bus_stop', 'primary')
+--   name      TEXT         — Feature name (may be NULL)
+--   geom      GEOMETRY     — EPSG:4326 (WGS84)
+--   _load_timestamp TIMESTAMPTZ DEFAULT NOW()
+
+-- Points of interest (POIs + POFWs)
+-- raw_osm_pois         174K  POINT          — Restaurants, shops, ATMs, pharmacies, ...
+-- raw_osm_pois_a       130K  MULTIPOLYGON   — Same as above (area features)
+-- raw_osm_pofw         1.7K  POINT          — Places of worship
+-- raw_osm_pofw_a       11K   MULTIPOLYGON
+
+-- Transport
+-- raw_osm_transport    49K   POINT          — Bus stops, train stations, ferry terminals
+-- raw_osm_transport_a  1.1K  MULTIPOLYGON
+-- raw_osm_railways     11K   LINESTRING     — + layer, bridge, tunnel
+-- raw_osm_roads        1.5M  LINESTRING     — + ref, oneway, maxspeed, layer, bridge, tunnel
+-- raw_osm_traffic      172K  POINT          — Traffic signals, crossings, speed cameras
+-- raw_osm_traffic_a    60K   MULTIPOLYGON
+
+-- Land & water
+-- raw_osm_buildings_a  2.1M  MULTIPOLYGON   — + type
+-- raw_osm_landuse_a    492K  MULTIPOLYGON
+-- raw_osm_natural      227K  POINT
+-- raw_osm_natural_a    1.6K  MULTIPOLYGON
+-- raw_osm_places       31K   POINT          — + population
+-- raw_osm_places_a     694   MULTIPOLYGON   — + population
+-- raw_osm_water_a      56K   MULTIPOLYGON
+-- raw_osm_waterways    119K  LINESTRING     — + width
+```
+
 #### Macro Sources (S16 BPStat, S17 ECB, S18 Eurostat)
 
 ```sql
+-- ── raw_bpstat: Banco de Portugal (S16) ──────────────────────────────────────
+-- 3 domains, 16 datasets, ~130 series, ~24K rows.
+-- Source: JSON-stat 2.0 API. One row per (series × observation period).
+-- Flattened from JSON-stat cube: extension.series → dimension positions → values.
+
 CREATE TABLE bronze_macro.raw_bpstat (
     id                   BIGSERIAL PRIMARY KEY,
-    series_id            VARCHAR(50) NOT NULL,
-    series_name          VARCHAR(500),
-    period               VARCHAR(20),
-    value                NUMERIC(20,6),
-    unit                 VARCHAR(100),
-    dimension_code       VARCHAR(50),
-    dimension_value      VARCHAR(200),
     _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
-    _source              VARCHAR(30) DEFAULT 'bpstat'
+    _source              VARCHAR(30) DEFAULT 'bpstat',
+    _batch_id            VARCHAR(50),
+
+    -- Dataset identity
+    domain_id            INTEGER,                         -- BPStat domain (186, 21, 39)
+    dataset_id           VARCHAR(50),                     -- Dataset hash (e.g. 'd45bb68e...')
+
+    -- Series identity
+    series_id            INTEGER NOT NULL,                -- Unique series ID from extension.series
+    series_name          TEXT,                            -- Full label (includes dimension breakdown)
+
+    -- Observation
+    period               VARCHAR(20) NOT NULL,            -- End-of-period date (e.g. '2024-12-31')
+    value                NUMERIC(20,6),                   -- Numeric value as-is from API
+    unit                 VARCHAR(100),                    -- From metric dimension (e.g. 'Percentage', 'Millions of euros')
+    status               VARCHAR(10)                      -- Quality flag ('F' = final)
 );
+CREATE INDEX idx_bpstat_series_id ON bronze_macro.raw_bpstat(series_id);
+CREATE INDEX idx_bpstat_dataset ON bronze_macro.raw_bpstat(dataset_id);
+CREATE INDEX idx_bpstat_series_period ON bronze_macro.raw_bpstat(series_id, period);
+
+-- ── raw_ecb: European Central Bank (S17) ─────────────────────────────────────
+-- 3 Euribor series (3M, 6M, 12M), ~1.2K rows.
+-- Source: SDMX-JSON API. One row per (series × time_period).
+-- Flattened from dataSets[0].series[key].observations.
 
 CREATE TABLE bronze_macro.raw_ecb (
     id                   BIGSERIAL PRIMARY KEY,
-    series_key           VARCHAR(100) NOT NULL,
-    series_name          VARCHAR(500),
-    observation_date     DATE NOT NULL,
-    value                NUMERIC(10,6),
-    unit                 VARCHAR(50),
     _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
-    _source              VARCHAR(30) DEFAULT 'ecb_sdw'
+    _source              VARCHAR(30) DEFAULT 'ecb',
+    _batch_id            VARCHAR(50),
+
+    -- Series identity
+    series_key           VARCHAR(100) NOT NULL,           -- SDMX dimension key (e.g. 'M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA')
+    series_name          TEXT,                            -- Full label from structure.dimensions.series
+
+    -- Observation
+    time_period          VARCHAR(10) NOT NULL,            -- Month string (e.g. '2024-01')
+    value                NUMERIC(12,7),                   -- Interest rate (e.g. 2.0113)
+    unit                 VARCHAR(50),                     -- From series attributes (e.g. 'PCPA' = percent per annum)
+    obs_status           VARCHAR(10),                     -- Observation status (e.g. 'A' = normal)
+    obs_conf             VARCHAR(10)                      -- Observation confidentiality
 );
+CREATE INDEX idx_ecb_series_key ON bronze_macro.raw_ecb(series_key);
+CREATE INDEX idx_ecb_series_period ON bronze_macro.raw_ecb(series_key, time_period);
+
+-- ── raw_eurostat: Eurostat HPI (S18) ─────────────────────────────────────────
+-- 1 dataset (PRC_HPI_Q), 38 EU countries, ~31K rows.
+-- Source: JSON-stat 2.0 API. One row per (freq × purchase × unit × geo × time).
+-- Flattened from pure dimensional cube (no extension.series — unlike BPStat).
 
 CREATE TABLE bronze_macro.raw_eurostat (
     id                   BIGSERIAL PRIMARY KEY,
-    dataset_code         VARCHAR(30) NOT NULL,
-    geo                  VARCHAR(10),
-    time_period          VARCHAR(20),
-    indicator            VARCHAR(50),
-    value                NUMERIC(20,6),
-    unit                 VARCHAR(50),
-    flag                 VARCHAR(10),
     _ingested_at         TIMESTAMPTZ DEFAULT NOW(),
-    _source              VARCHAR(30) DEFAULT 'eurostat'
+    _source              VARCHAR(30) DEFAULT 'eurostat',
+    _batch_id            VARCHAR(50),
+
+    -- Dataset identity
+    dataset_code         VARCHAR(30) NOT NULL,            -- 'prc_hpi_q'
+
+    -- Dimensions (from JSON-stat cube)
+    freq                 CHAR(1) DEFAULT 'Q',             -- Always 'Q' (Quarterly)
+    purchase             VARCHAR(20) NOT NULL,             -- TOTAL, DW_NEW (new), DW_EXST (existing)
+    unit                 VARCHAR(20) NOT NULL,             -- I15_Q (index 2015=100), RCH_A (annual %), RCH_Q (quarterly %), I10_Q (index 2010=100)
+    geo                  VARCHAR(10) NOT NULL,             -- ISO country code or aggregate (PT, ES, EU, EA, ...)
+    time_period          VARCHAR(10) NOT NULL,             -- Quarter string (e.g. '2024-Q1')
+
+    -- Observation
+    value                NUMERIC(12,4),                   -- Index value or rate of change (depends on unit)
+    status               VARCHAR(10)                      -- Quality flag: p=provisional, b=break, d=differs, e=estimated
 );
+CREATE INDEX idx_eurostat_geo_time ON bronze_macro.raw_eurostat(geo, time_period);
+CREATE INDEX idx_eurostat_dataset ON bronze_macro.raw_eurostat(dataset_code);
 ```
 
 #### Tourism & STR (S14 RNAL, S15 Inside Airbnb)
@@ -1507,6 +1629,23 @@ CREATE INDEX idx_aru_geom ON bronze_geo.raw_aru_zones USING GIST(geom);
 #### Unified Listings (anchor table for all property analysis)
 
 ```sql
+-- dbt transforms: parse TEXT bronze columns to typed silver columns, geocode addresses.
+--
+-- Bronze → Silver mapping (Idealista source-oriented bronze):
+--   property_url TEXT           → listing_url TEXT, source_listing_id (extracted from URL)
+--   property_price TEXT         → price_eur NUMERIC (parse "€ 350,000" → 350000.00)
+--   property_type TEXT          → property_type_key INTEGER (map to dim_property_type)
+--   property_typology TEXT      → typology VARCHAR, num_rooms SMALLINT (parse "T3" → 3)
+--   property_size TEXT          → useful_area_m2 NUMERIC (parse "120 m²" → 120.00)
+--   property_condition TEXT     → condition VARCHAR (normalize labels)
+--   property_location TEXT      → address_clean TEXT, geocode → lat/lon/freguesia
+--   detail_json JSONB           → gross_area_m2, plot_area_m2, num_bathrooms, floor_number,
+--                                  construction_year, energy_class, has_elevator, has_parking, ...
+--   features_json JSONB         → has_terrace, has_garden, has_pool (flag extraction)
+--   scrape_date DATE            → first_seen_date, last_seen_date (SCD logic)
+--
+-- All type casting and business logic belongs in dbt (silver), NOT in bronze.
+
 CREATE TABLE silver_properties.unified_listings (
     listing_key          BIGSERIAL PRIMARY KEY,
     property_hash        VARCHAR(64) NOT NULL,         -- Dedup key: hash(address + area + typology)
@@ -1603,6 +1742,13 @@ CREATE TABLE silver_properties.listing_matches (
 #### Census Demographics
 
 ```sql
+-- Bronze → Silver mapping:
+--   raw_bgri: subsection-level census rows (variable_code + value per subsecção)
+--     Aggregated to freguesia level via BGRI hierarchy (subsecção → secção → freguesia)
+--     variable_code pivot: N_INDIVIDUOS → total_population, N_ALOJAMENTOS → total_dwellings, etc.
+--     Spatial join with dim_geography via freguesia_code → geo_key
+--   raw_ine_indicators: additional computed metrics (aging_index, vacancy_rate, etc.)
+
 CREATE TABLE silver_geo.census_demographics (
     geo_key              INTEGER PRIMARY KEY REFERENCES gold_analytics.dim_geography(geo_key),
     freguesia_code       CHAR(6) NOT NULL,
@@ -1665,6 +1811,12 @@ CREATE INDEX idx_zoning_geom ON silver_geo.zoning USING GIST(geom);
 #### Location Features
 
 ```sql
+-- Bronze → Silver mapping:
+--   raw_osm_transport: osm_id TEXT → (not stored), name TEXT → stop_name,
+--     fclass TEXT → stop_type (mapped: 'railway_station' → 'rail', 'bus_stop' → 'bus', etc.)
+--     geom GEOMETRY → geom + geom_pt (reproject to 3763), spatial join → geo_key
+--   GTFS (future S24): route_count, service_frequency, operator, is_interchange
+
 CREATE TABLE silver_location.transport_stops (
     stop_key             BIGSERIAL PRIMARY KEY,
     stop_name            VARCHAR(200),
@@ -1721,6 +1873,11 @@ CREATE TABLE silver_location.healthcare_facilities (
 CREATE INDEX idx_hf_geom ON silver_location.healthcare_facilities USING GIST(geom);
 CREATE INDEX idx_hf_geom_pt ON silver_location.healthcare_facilities USING GIST(geom_pt);
 
+-- Bronze → Silver mapping:
+--   raw_osm_pois: osm_id TEXT → osm_id BIGINT (cast), name TEXT → name,
+--     fclass TEXT → fclass + category (grouped: 'restaurant' → 'food', 'pharmacy' → 'health', etc.)
+--     geom GEOMETRY → geom + geom_pt (reproject to 3763), spatial join → geo_key
+
 CREATE TABLE silver_location.osm_pois (
     poi_key              BIGSERIAL PRIMARY KEY,
     osm_id               BIGINT NOT NULL,
@@ -1742,22 +1899,35 @@ CREATE INDEX idx_pois_silver_fclass ON silver_location.osm_pois(fclass);
 #### Market Context
 
 ```sql
+-- Unified time-series from all bronze macro sources.
+-- dbt transforms: parse periods to DATE, compute change rates, conform codes.
+--
+-- Bronze → Silver mapping:
+--   raw_bpstat  → indicator_code = 'BPSTAT_{series_id}', period parsed to DATE
+--   raw_ecb     → indicator_code = series_key, time_period parsed to DATE
+--   raw_eurostat → indicator_code = 'EUROSTAT_{purchase}_{unit}', geo = country code
+--
+-- Eurostat rows carry geo (PT, ES, EU, ...) for cross-country comparison.
+-- BPStat and ECB are Portugal-only (geo = 'PT').
+
 CREATE TABLE silver_market.macro_timeseries (
     id                   BIGSERIAL PRIMARY KEY,
-    indicator_code       VARCHAR(50) NOT NULL,
-    indicator_name       VARCHAR(300) NOT NULL,
-    category             VARCHAR(50) NOT NULL,
-    source               VARCHAR(30) NOT NULL,
-    observation_date     DATE NOT NULL,
-    period_type          VARCHAR(10),
+    indicator_code       VARCHAR(100) NOT NULL,            -- Conformed code (e.g. 'BPSTAT_12710732', 'EUROSTAT_TOTAL_I15_Q')
+    indicator_name       VARCHAR(300) NOT NULL,            -- Human-readable label
+    category             VARCHAR(50) NOT NULL,             -- housing_prices, interest_rates, housing_credit, euribor
+    source               VARCHAR(30) NOT NULL,             -- 'bpstat', 'ecb', 'eurostat'
+    geo                  VARCHAR(10) DEFAULT 'PT',         -- ISO country code (PT for national sources, varies for Eurostat)
+    observation_date     DATE NOT NULL,                    -- Parsed from period/time_period
+    period_type          VARCHAR(10),                      -- 'M' (monthly), 'Q' (quarterly)
     value                NUMERIC(20,6),
-    unit                 VARCHAR(50),
-    mom_change           NUMERIC(10,4),
-    qoq_change           NUMERIC(10,4),
-    yoy_change           NUMERIC(10,4),
+    unit                 VARCHAR(100),
+    mom_change           NUMERIC(10,4),                    -- Month-on-month % (computed in dbt)
+    qoq_change           NUMERIC(10,4),                    -- Quarter-on-quarter %
+    yoy_change           NUMERIC(10,4),                    -- Year-on-year %
     _updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_macro_ind ON silver_market.macro_timeseries(indicator_code, observation_date);
+CREATE INDEX idx_macro_geo ON silver_market.macro_timeseries(geo, observation_date);
 
 CREATE TABLE silver_market.str_registry (
     str_key              BIGSERIAL PRIMARY KEY,
@@ -2729,106 +2899,111 @@ dags/
 
 ### Sprint 2 — Core Market Data (Weeks 3-4)
 
-| Task | Source | Days | Deliverable | Status |
-|---|---|---|---|---|
-| Idealista API integration | S03/S04 | 5 | Daily sale + rental ingestion → `bronze_listings.raw_idealista` | ✅ Done |
-| Idealista bronze schema (source-oriented) | S03/S04 | 1 | Raw JSONL → PostGIS with JSONB/TEXT columns (no parsing at bronze) | ✅ Done |
-| Idealista ingestion DAG refactor | S03/S04 | 1 | Config dataclass, tenacity retry, cleanup task, template alignment | ✅ Done |
-| ECB Euribor | S17 | 1 | Monthly rate DAG → `bronze_macro.raw_ecb` (3 Euribor series via SDMX API) | ✅ Done |
-| Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` (3 domains, 16 datasets via JSON-stat API) | ✅ Done |
-| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` | |
-| Geocoding pipeline | — | 2 | Batch geocoding operational | |
-| dbt project scaffolding | — | 2 | Staging models, `dim_time`, `dim_property_type` | |
+| Task | Source | Days | Deliverable | Tables affected | Status |
+|---|---|---|---|---|---|
+| Idealista API integration | S03/S04 | 5 | Daily sale + rental ingestion → `bronze_listings.raw_idealista` | — | ✅ Done |
+| Idealista bronze schema (source-oriented) | S03/S04 | 1 | Raw JSONL → PostGIS with JSONB/TEXT columns (no parsing at bronze) | — | ✅ Done |
+| Idealista ingestion DAG refactor | S03/S04 | 1 | Config dataclass, tenacity retry, cleanup task, template alignment | — | ✅ Done |
+| ECB Euribor | S17 | 1 | Monthly rate DAG → `bronze_macro.raw_ecb` (3 Euribor series via SDMX API) | — | ✅ Done |
+| Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` (3 domains, 16 datasets via JSON-stat API) | — | ✅ Done |
+| Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` (38 EU countries, JSON-stat API) | — | ✅ Done |
+| dbt restructure + Cosmos | — | 2 | Domain staging (`geo/`, `ine/`, `listings/`, `macro/`, `location/`), Cosmos DbtTaskGroup, silver skeletons | `staging_dbt.stg_*` (11 views), `silver_market.macro_timeseries` | ✅ Done |
+| Geocoding pipeline | — | 2 | Reverse geocoding via Nominatim → `bronze_listings.reverse_geocoded` (1,334 coords, 100% postal code coverage). Address enrichment in `unified_listings` (58% → 93% street addresses) | `bronze_listings.reverse_geocoded`, `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
+| `dim_time` seed | — | 0.5 | Date dimension 2000–2035 via dbt_utils.date_spine (13,149 rows). YYYYMMDD integer key, ISO day-of-week, INE quarter labels | `gold_analytics.dim_time` | ✅ Done |
+| `dim_property_type` seed | — | 0.5 | 16-row static dimension: Idealista raw type/subtype → Portuguese labels (tipo, subtipo, type_group) | `gold_analytics.dim_property_type` | ✅ Done |
 
-**Exit criteria:** Idealista flowing daily; macro indicators loaded; geocoding working.
+**Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Scoped dbt triggers (`dbt_scoped_build`) wired to all 8 bronze DAGs.
 
 ### Sprint 3 — Silver Layer: Unification (Weeks 5-6)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| Listing normalization | S03/S04 | 2 | Common schema |
-| Address cleaning | — | 2 | Standardized Portuguese addresses |
-| Imovirtual scraper | S05 | 7 | Second portal live |
-| Dedup pipeline | — | 3 | Cross-portal dedup |
-| Price history tracking | — | 2 | SCD2 for price changes |
-| unified_listings dbt model | — | 2 | Clean, geocoded, deduped |
-| IMI/IMT reference tables | S31 | 2 | Tax brackets loaded |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Listing normalization | S03/S04 | 2 | Parse TEXT → typed: price → NUMERIC, area → NUMERIC, typology "T3" → rooms SMALLINT, floor codes, condition/energy to Portuguese, JSONB feature extraction (construction year, orientation, heating, amenity flags). Human-readable property_type/subtype/type_group columns | `silver_properties.unified_listings` | ✅ Done |
+| Address cleaning | — | 2 | Nominatim reverse geocoding enriches raw addresses: street name fallback when raw lacks prefix (Rua, Av., etc.), postal code always from Nominatim. 58% → 93% street addresses, 0% → 100% postal codes | `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
+| Geocode join | — | 1 | Spatial join via `ST_Within(point, freguesia_geom)` → `dim_geography.geo_key` + freguesia/concelho/distrito codes | `silver_properties.unified_listings` (geo_key, freguesia_code) | ✅ Done |
+| SCD Type 2 price tracking | — | 2 | Incremental merge preserves first_seen_date, initial_price_eur, _created_at. Tracks price_change_count, listing_age_days. Staleness-based is_active (3-day rule + post-hook UPDATE) | `silver_properties.unified_listings` | ✅ Done |
+| Imovirtual scraper | S05 | 7 | Second listing portal live → `bronze_listings.raw_imovirtual` | — |
+| Cross-portal dedup | — | 3 | Hash(address + area + typology) matching, fuzzy fallback | `silver_properties.unified_listings` (property_hash), `silver_properties.listing_matches` |
+| IMI/IMT reference tables | S31 | 2 | IMT transfer tax brackets (16 rows: primary/secondary/rural/other urban, 2025) and IMI municipal property tax rates (278 municipalities, urban 0.30%–0.45%). VALUES-based SQL models in gold_analytics | `gold_analytics.ref_imt_brackets`, `gold_analytics.ref_imi_rates` | ✅ Done |
+| Census demographics model | S12 | 2 | BGRI 203K subsections → 2,882 freguesias: population by age band, household size, dwelling vacancy/tenure (42% avg vacancy, 82% owner-occupied), plus INE building aging ratio and repair %. 135 BGRI codes unmatched to CAOP (boundary changes) | `silver_geo.census_demographics` | ✅ Done |
 
-**Exit criteria:** unified_listings with ~100K+ deduped active listings; >95% geocoded.
+**Exit criteria:** `unified_listings` with ~100K+ deduped active listings; >95% geocoded; `census_demographics` populated.
 
 ### Sprint 4 — Location Scores & Market Stats (Weeks 7-8)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| neighbourhood_market_stats | S01/S03 | 3 | Per-freguesia stats |
-| Transport proximity | S10 | 2 | Nearest metro/train |
-| POI density / walkability | S09 | 2 | Amenity counts |
-| Drive-time via OSRM | S11 | 3 | City center, airport |
-| property_location_scores | — | 2 | Composite scores |
-| Inside Airbnb | S15 | 1 | STR data for LX + Porto |
-| PDM Zoning (LX + Porto) | S19 | 3 | Zoning polygons |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Transport stops model | S10 | 1 | Map OSM fclass → stop_type (48.9K rows), spatial join → geo_key (96.5% coverage), reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
+| OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key | `silver_location.osm_pois` | |
+| Transport proximity scores | S10 | 2 | Nearest metro/train distance per listing via PostGIS `ST_Distance` | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_train_m) | |
+| POI density / walkability | S09 | 2 | Count amenities within 500m/1km per listing | `gold_analytics.property_location_scores` (walkability_score, restaurants_500m, supermarkets_1km) | |
+| Drive-time via OSRM | S11 | 3 | Batch routing: listing → city center, airport, nearest hospital | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) | |
+| Composite location score | — | 1 | Weighted combination of transport + walkability + drive-time | `gold_analytics.property_location_scores` (overall_location_score) | |
+| Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, turnover | `gold_analytics.neighbourhood_market_stats` | |
+| Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | |
+| PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` | |
 
-**Exit criteria:** Every listing has location scores; neighbourhood stats computed.
+**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `osm_pois` populated.
 
 ### Sprint 5 — Hedonic Model & Valuation (Weeks 9-10)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| hedonic_features assembly | — | 3 | Feature vector per listing |
-| Hedonic model training | — | 5 | OLS/Ridge on log(price_sqm) |
-| Model validation | — | 2 | R² ≥ 0.73; MAPE < 18% |
-| property_comparables | — | 3 | Top-10 comps per listing |
-| property_valuation | — | 2 | Predicted price + blended gap |
-| Seed renovation cost table | — | 1 | Manual cost estimates |
-| Seed area catalysts | — | 2 | Known infrastructure projects |
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| Hedonic feature assembly | — | 3 | Join `unified_listings` + `property_location_scores` + `census_demographics` + `neighbourhood_market_stats` + `zoning` into feature vector | `gold_analytics.hedonic_features` |
+| Hedonic model training | — | 5 | OLS/Ridge regression on log(price_sqm) ~ property + location + neighbourhood features | Model artifact (pickle/ONNX) |
+| Model validation | — | 2 | Cross-validation: R² ≥ 0.73, MAPE < 18%; residual analysis by geography | Validation report |
+| Property comparables | — | 3 | KNN on feature space: top-10 similar listings within 2km, same typology band | `gold_analytics.property_comparables` |
+| Property valuation | — | 2 | Predicted €/m² + comp-weighted €/m² → blended fair value, gap %, signal (undervalued/fair/overpriced) | `gold_analytics.property_valuation` |
+| Seed renovation cost table | — | 1 | Manual €/m² estimates by scope (cosmetic, light, full, structural) | `gold_analytics.ref_renovation_costs` |
+| Seed area catalysts | — | 2 | Known infrastructure projects (metro extensions, hospitals, university campuses) with geo + timeline | `gold_analytics.ref_area_catalysts` |
 
-**Exit criteria:** Every sale listing has predicted fair value and valuation_signal.
+**Exit criteria:** Every sale listing has predicted fair value and `valuation_signal` (undervalued / fair / overpriced).
 
 ### Sprint 6 — UC-1 MVP: Investment Opportunities (Weeks 11-12)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| investment_yield_analysis | S04/S15/S31 | 4 | LTR + STR yield |
-| renovation_opportunity | (ref table) | 3 | Reno cost + ROI |
-| neighbourhood_trajectory | — | 3 | Trajectory scores |
-| investment_opportunities view | — | 2 | **Composite score — UC-1 LIVE** |
-| Metabase: Investment Dashboard | — | 3 | Map + table + filters |
-| INE Rental Price Index | S29 | 0.5 | Official rents |
-| ARU boundaries | S20 | 2 | ARU zones loaded |
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| Investment yield analysis | S04/S15/S31 | 4 | LTR yield (€/m² rent ÷ price), STR yield (Airbnb RevPAR × occupancy), net of IMI/IMT/condominium | `gold_analytics.investment_yield_analysis` |
+| Renovation opportunity | (ref table) | 3 | Match undervalued listings to reno cost estimates → post-reno value, ROI % | `gold_analytics.renovation_opportunity` |
+| Neighbourhood trajectory | — | 3 | YoY price trend + population growth + vacancy change + catalyst proximity → trajectory score | `gold_analytics.neighbourhood_trajectory` |
+| Investment opportunities view | — | 2 | Composite ranking: valuation gap × yield × trajectory × location → **UC-1 LIVE** | `gold_analytics.investment_opportunities` (materialized view) |
+| Metabase: Investment Dashboard | — | 3 | Map + ranked table + filters (budget, yield threshold, location, property type) | — |
+| INE Rental Price Index | S29 | 0.5 | Official rent indices → `bronze_ine.raw_indicators` (already ingested, add to dbt) | `silver_market.macro_timeseries` (new indicator rows) |
+| ARU boundaries | S20 | 2 | Urban Rehabilitation Areas → spatial overlay with listings | `silver_geo.zoning` (is_aru flag), `gold_analytics.hedonic_features` (is_aru) |
 
 **🏁 MILESTONE 1 (Week 12): UC-1 MVP LIVE.** Investors can query ranked opportunities.
 
 ### Sprint 7 — Enhancements + UC-2 Foundation (Weeks 13-14)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| Imovirtual rentals | S06 | 1 | Rental comps expanded |
-| RNAL scraping | S14 | 5 | AL license registry |
-| STR registry (RNAL + Airbnb) | S14/S15 | 2 | str_registry with licensing |
-| School data (InfoEscolas) | S22 | 5 | Schools geocoded + scored |
-| Healthcare facilities | S23 | 2 | Hospitals/clinics geocoded |
-| GTFS transport schedules | S24 | 3 | Service frequency enrichment |
-| Recalibrate hedonic model v2 | — | 2 | Add education + healthcare |
-| Refresh investment_opportunities | — | 1 | Improved scores |
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| Imovirtual rentals | S06 | 1 | Second rental source → `bronze_listings.raw_imovirtual` rentals | `silver_properties.unified_listings` (new rows) |
+| RNAL scraping | S14 | 5 | AL license registry → `bronze_listings.raw_rnal` | — |
+| STR registry (RNAL + Airbnb) | S14/S15 | 2 | Merge RNAL licenses + Airbnb listings → licensed vs unlicensed STR map | `silver_properties.str_registry`, `gold_analytics.investment_yield_analysis` (licensing risk) |
+| School data (InfoEscolas) | S22 | 5 | Schools geocoded + exam scores → spatial join | `silver_location.schools`, `gold_analytics.property_location_scores` (education_score, schools_1km) |
+| Healthcare facilities | S23 | 2 | Hospitals/clinics geocoded + type/operator | `silver_location.healthcare_facilities`, `gold_analytics.property_location_scores` (healthcare_score, nearest_hospital_m) |
+| GTFS transport schedules | S24 | 3 | Route count + service frequency enrichment | `silver_location.transport_stops` (route_count, service_frequency), `gold_analytics.property_location_scores` (transport_score recalc) |
+| Recalibrate hedonic model v2 | — | 2 | Add education_score + healthcare_score to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) |
+| Refresh investment_opportunities | — | 1 | Recompute with improved location + valuation scores | `gold_analytics.investment_opportunities` (refreshed) |
 
-**Exit criteria:** Location scores include education + healthcare; STR intelligence live.
+**Exit criteria:** Location scores include education + healthcare; STR intelligence live; hedonic model v2 deployed.
 
 ### Sprint 8 — UC-2 MVP + Production Hardening (Weeks 15-16)
 
-| Task | Source | Days | Deliverable |
-|---|---|---|---|
-| Competitive developments | S34 | 5 | Competing new-builds mapped |
-| absorption_rate_model | — | 3 | Days-on-market by segment |
-| location_price_premiums | — | 2 | Hedonic coefficients as table |
-| ref_unit_premiums calibration | — | 2 | Floor/view/orientation lookup |
-| development_projects import | — | 2 | Developer project data entry |
-| unit_pricing_recommendation | — | 3 | **Unit-level pricing — UC-2 LIVE** |
-| project_pricing_summary | — | 1 | Aggregated project dashboard |
-| Metabase: Pricing Dashboard | — | 3 | Unit matrix + competition map |
-| CI data integration (if license) | S02 | 3 | Transaction pricing (if available) |
-| Data quality monitoring | — | 2 | dbt tests + freshness alerts |
-| Documentation | — | 2 | Data dictionary + user guide |
-| Backup + recovery test | — | 1 | pg_dump restore verified |
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| Competitive developments | S34 | 5 | Competing new-build projects mapped + unit inventory | `silver_properties.competitive_developments` |
+| Absorption rate model | — | 3 | Days-on-market by segment (type × location × price band) | `gold_analytics.absorption_rate_model` |
+| Location price premiums | — | 2 | Extract hedonic coefficients as lookup: metro proximity → €/m² premium | `gold_analytics.location_price_premiums` |
+| Unit premiums calibration | — | 2 | Floor/view/orientation → premium/discount lookup from hedonic residuals | `gold_analytics.ref_unit_premiums` |
+| Development projects import | — | 2 | Developer project data entry (units, typologies, target prices) | `gold_analytics.development_projects` |
+| Unit pricing recommendation | — | 3 | Per-unit: base €/m² × premiums × market position → recommended price, **UC-2 LIVE** | `gold_analytics.unit_pricing_recommendation` |
+| Project pricing summary | — | 1 | Roll up unit recommendations → project GDV, margin, sell-through timeline | `gold_analytics.project_pricing_summary` |
+| Metabase: Pricing Dashboard | — | 3 | Unit matrix + competition map + absorption chart | — |
+| CI data integration (if license) | S02 | 3 | Transaction prices → validate hedonic predictions, calibrate gap % | `silver_properties.unified_listings` (transaction_price), `gold_analytics.property_valuation` (recalibrated) |
+| Data quality monitoring | — | 2 | dbt tests + source freshness alerts + row count anomaly detection | All models |
+| Documentation | — | 2 | Data dictionary + user guide + lineage diagrams | — |
+| Backup + recovery test | — | 1 | pg_dump restore verified, WAL archiving confirmed | — |
 
 **🏁 MILESTONE 2 (Week 16): UC-2 MVP LIVE + Production Release.**
 

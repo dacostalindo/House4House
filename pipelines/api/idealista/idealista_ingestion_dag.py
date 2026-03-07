@@ -497,11 +497,13 @@ def _create_dag():
                 for line in raw_bytes.decode("utf-8").split("\n")
                 if line.strip()
             ]
-            all_ids = [
+            # Deduplicate: discovery pagination can return the same listing
+            # on multiple pages. Use dict.fromkeys to preserve first occurrence order.
+            all_ids = list(dict.fromkeys(
                 str(item["property_id"])
                 for item in discovery_items
                 if item.get("property_id")
-            ]
+            ))
 
             # Determine which IDs need fetching
             if force_full:

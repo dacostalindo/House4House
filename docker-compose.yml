@@ -94,7 +94,8 @@ services:
         airflow variables set OSRM_CYCLING_URL http://osrm-cycling:5000 &&
         airflow variables set NOMINATIM_URL http://nominatim:8080 &&
         airflow variables set ZENROWS_API_KEY ${ZENROWS_API_KEY} &&
-        echo 'All Airflow variables set'
+        airflow connections add warehouse_postgres --conn-type postgres --conn-host warehouse --conn-port 5432 --conn-schema house4house --conn-login warehouse --conn-password ${WAREHOUSE_PASSWORD} || true &&
+        echo 'All Airflow variables and connections set'
       "
     restart: "no"
 

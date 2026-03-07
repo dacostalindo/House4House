@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: stg_bpstat
+    description: >
+      BPStat (Banco de Portugal) time-series. View over bronze_macro.raw_bpstat.
+      Filters to rows WHERE value IS NOT NULL.
+      ~311 series across 3 domains: housing credit (186), interest rates (21), housing prices (39).
+      Periods are end-of-month dates (e.g. '2024-12-31') — normalized in macro_timeseries silver model.
+      Source: BPStat REST API via bpstat_bronze_load.
+    columns:
+      - name: series_id
+        description: "Unique BPStat series identifier (INTEGER, e.g. 12710732)"
+        tests: [not_null]
+      - name: domain_id
+        description: "BPStat domain (INTEGER): 186 = housing credit, 21 = interest rates, 39 = housing prices"
+      - name: dataset_id
+        description: "Dataset hash identifier (VARCHAR(50), e.g. 'd45bb68e792a6b1b2fc36d6a90da4f20')"
+      - name: series_name
+        description: "Full series label including dimension breakdown"
+      - name: period_raw
+        description: "Observation date as string (e.g. '2024-12-31'). End-of-month — parsed to start-of-month in silver"
+        tests: [not_null]
+      - name: value
+        description: "Numeric observation value. Units vary: percentages, millions of euros, indices"
+        tests: [not_null]
+      - name: unit
+        description: "Unit from metric dimension (e.g. 'Percentage', 'Millions of euros', 'Taxa de desconto')"
+      - name: status
+        description: "Observation quality flag ('F' = final)"
+      - name: _batch_id
+        description: "Bronze load batch identifier"
+
+  - name: stg_ecb
+    description: >
+      ECB SDMX time-series (Euribor rates). View over bronze_macro.raw_ecb.
+      Filters to rows WHERE value IS NOT NULL.
+      3 series: Euribor 3m, 6m, 12m (monthly averages). ~1,158 rows (386 per series, 1994-present).
+      Source: ECB Statistical Data Warehouse SDMX REST API via ecb_bronze_load.
+    columns:
+      - name: series_key
+        description: "ECB SDMX series key (e.g. 'M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA')"
+        tests: [not_null]
+      - name: series_name
+        description: "Short series name (e.g. 'euribor_3m')"
+      - name: value
+        description: "Rate value as percentage per annum (e.g. 2.0113)"
+        tests: [not_null]
+      - name: period_raw
+        description: "Observation period (e.g. '2024-12'). Parsed to DATE in silver via TO_DATE"
+        tests: [not_null]
+      - name: unit
+        description: "SDMX unit code (e.g. 'PCPA' = percent per annum)"
+      - name: obs_status
+        description: "Observation status ('A' = normal)"
+      - name: _batch_id
+        description: "Bronze load batch identifier"
+
+  - name: stg_eurostat
+    description: >
+      Eurostat JSON-stat observations (House Price Index). View over bronze_macro.raw_eurostat.
+      Filters to rows WHERE value IS NOT NULL.
+      ~31K observations: HPI quarterly data across 38 EU/EEA countries, 3 purchase types, 4 units.
+      Source: Eurostat SDMX API (prc_hpi_q dataset) via eurostat_bronze_load.
+    columns:
+      - name: dataset_code
+        description: "Eurostat dataset code — always 'prc_hpi_q' (House Price Index quarterly)"
+        tests: [not_null]
+      - name: freq
+        description: "Frequency — always 'Q' (quarterly)"
+      - name: purchase
+        description: "Dwelling transaction type: TOTAL, DW_NEW (new), DW_EXST (existing)"
+      - name: unit
+        description: "Unit of measure: I10_Q (index 2010=100), I15_Q (index 2015=100), RCH_Q (quarterly change %), RCH_A (annual change %)"
+      - name: geo
+        description: "ISO country code or aggregate (PT, ES, EU, EA20, etc.)"
+        tests: [not_null]
+      - name: period_raw
+        description: "Quarter string (e.g. '2024-Q1'). Parsed to DATE in silver via MAKE_DATE"
+        tests: [not_null]
+      - name: value
+        description: "Numeric observation value — interpretation depends on 'unit' column"
+      - name: status
+        description: "Data quality flag: 'p' (provisional), 'b' (break), 'e' (estimated). NULL = final"
+      - name: _batch_id
+        description: "Bronze load batch identifier"

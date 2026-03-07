@@ -132,16 +132,18 @@ check_source → download_file → validate_gis_file → upload_to_minio → cle
 | Schedule | None (manual trigger) |
 | Tags | `ingestion`, `gis`, `osm` |
 
-### `s09_osm_bronze_load` — MinIO → PostGIS
+### `s09_osm_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-find_latest_gpkg → load_layer.expand(18) → validate_counts
+find_latest_gpkg → load_layer.expand(18) → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (manual trigger) |
 | Idempotency | TRUNCATE + INSERT |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_osm_pois+ stg_osm_transport+` |
+| Downstream models | `stg_osm_pois` → `osm_pois` (Sprint 5), `stg_osm_transport` → `transport_stops` (Sprint 5) |
 | Tags | `osm`, `bronze`, `postgis` |
 
 ### `osm_pbf_ingestion` — Geofabrik PBF → MinIO

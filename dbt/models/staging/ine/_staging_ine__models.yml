@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: stg_bgri_freguesia_agg
+    description: >
+      Census 2021 BGRI subsections aggregated from ~203K rows to ~3,049 freguesia-level rows.
+      Core demographic columns for dim_geography: population, households, weighted average age.
+      Full Census aggregation (age bands, dwellings, tenure) lives in census_demographics.
+      Source: bronze_ine.raw_bgri (BGRI GeoPackage).
+    columns:
+      - name: freguesia_code
+        description: "6-digit DTMNFR code from BGRI dtmnfr21. GROUP BY key"
+        tests: [unique, not_null]
+      - name: population_2021
+        description: "Total population: SUM(n_individuos) cast to INTEGER"
+        tests: [not_null]
+      - name: households_2021
+        description: "Total private households: SUM(n_agregados_domesticos_privados) cast to INTEGER"
+      - name: weighted_avg_age
+        description: >
+          Weighted average age using band midpoints: (0-14 x 7 + 15-24 x 19.5 + 25-64 x 44.5 + 65+ x 77.5) / total.
+          Not a true median — approximation from 4 age bands. NULL when population is 0.
+
+  - name: stg_ine_indicators
+    description: >
+      INE statistical indicators. View over bronze_ine.raw_indicators with column renames.
+      Filters to rows where valor IS NOT NULL. 33 indicators across housing, demographics,
+      tourism, economy, and innovation categories. ~907K rows.
+      Source: INE public JSON API via ine_bronze_load.
+    columns:
+      - name: indicator_code
+        description: "INE indicator code (e.g. '0009201' for House Price Index)"
+        tests: [not_null]
+      - name: indicator_name
+        description: "Full indicator description from INE IndicadorDsg field"
+      - name: last_updated
+        description: "Date indicator was last updated by INE (DataUltimoAtualizacao)"
+      - name: time_period
+        description: "Period key as string (e.g. '2024', '1st Quarter 2009', 'April 2007'). Parsed in silver layer"
+      - name: geographic_code
+        description: "INE geographic code (geocod) — varies by indicator: 'PT' (national), '1106' (municipality), '11E' (NUTS)"
+      - name: geographic_name
+        description: "Geographic name from INE (geodsg) — e.g. 'Portugal', 'Lisboa'"
+      - name: dim_3
+        description: "Dimension 3 code — indicator-specific (e.g. category of housing, type of project)"
+      - name: dim_3_name
+        description: "Dimension 3 label (human-readable)"
+      - name: dim_4
+        description: "Dimension 4 code — present in some indicators only"
+      - name: dim_4_name
+        description: "Dimension 4 label"
+      - name: dim_5
+        description: "Dimension 5 code — rare, present in complex indicators"
+      - name: dim_5_name
+        description: "Dimension 5 label"
+      - name: value
+        description: "Parsed numeric value (NUMERIC(15,4)). Convention codes (x, .., etc.) filtered out via WHERE valor IS NOT NULL"
+        tests: [not_null]
+      - name: ind_string
+        description: "Raw formatted string from INE (e.g. '104,55', 'x'). Preserved for debugging"
+      - name: sinal_conv
+        description: "Convention signal code (e.g. 'x' = not available)"
+      - name: sinal_conv_desc
+        description: "Convention signal description"
+      - name: _batch_id
+        description: "Batch identifier from bronze load (e.g. '0009201_20260302T212500')"
+      - name: _api_extraction_ts
+        description: "DataExtracao timestamp from INE API response"

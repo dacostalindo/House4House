@@ -1,0 +1,105 @@
+version: 2
+
+models:
+  - name: macro_timeseries
+    description: >
+      Unified macro-economic time series from three sources: BPStat (Banco de Portugal),
+      ECB (European Central Bank), and Eurostat (EU statistics).
+      Periods parsed to DATE. Change rates (MoM, QoQ, YoY) computed via LAG window functions
+      partitioned by (indicator_code, geo).
+      Sources: stg_bpstat, stg_ecb, stg_eurostat (all staging from bronze API ingestion).
+    columns:
+      # ── Identity ────────────────────────────────────────────────────────────
+      - name: id
+        description: "Surrogate key via ROW_NUMBER ordered by (source, indicator_code, geo, observation_date)"
+        tests: [unique, not_null]
+
+      - name: indicator_code
+        description: >
+          Unique indicator identifier. Format varies by source:
+          BPStat: 'BPSTAT_' + series_id (e.g. BPSTAT_12345),
+          ECB: raw series_key (e.g. MIR.M.PT.B.A2A.A.R.A.2250.EUR.N),
+          Eurostat: 'EUROSTAT_' + dataset_code + '_' + purchase + '_' + unit
+        tests: [not_null]
+
+      - name: indicator_name
+        description: >
+          Human-readable indicator name.
+          BPStat: series_name from API, ECB: series_name from API,
+          Eurostat: constructed from dataset_code + purchase + unit description.
+          Used for display in dashboards and reports.
+
+      # ── Classification ──────────────────────────────────────────────────────
+      - name: category
+        description: >
+          Thematic grouping: 'housing_credit' (BPStat domain 186 — mortgage volumes, new loans),
+          'interest_rates' (BPStat domain 21 + ECB — Euribor, ECB rates, PT mortgage rates),
+          'housing_prices' (BPStat domain 39 + Eurostat — HPI indices, price changes)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['housing_credit', 'interest_rates', 'housing_prices']
+
+      - name: source
+        description: "'bpstat' (Banco de Portugal), 'ecb' (European Central Bank), or 'eurostat' (EU statistics)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['bpstat', 'ecb', 'eurostat']
+
+      - name: geo
+        description: >
+          Geographic scope. 'PT' for Portuguese national data (BPStat),
+          'EU' for euro area aggregates (ECB),
+          ISO country codes for Eurostat (PT, ES, FR, DE, etc.)
+        tests: [not_null]
+
+      # ── Time ────────────────────────────────────────────────────────────────
+      - name: observation_date
+        description: >
+          Observation period normalized to first day of period.
+          BPStat: end-of-month dates truncated to start-of-month via DATE_TRUNC.
+          ECB: '2024-01' → 2024-01-01, '2024-Q1' → 2024-01-01.
+          Eurostat: same quarter/month parsing as ECB.
+        tests: [not_null]
+
+      - name: period_type
+        description: "'M' (monthly), 'Q' (quarterly), or 'A' (annual) — determines LAG offsets for change rates"
+
+      # ── Values ──────────────────────────────────────────────────────────────
+      - name: value
+        description: >
+          Observed numeric value. Units vary by indicator:
+          interest rates (% per annum), price indices (base year = 100),
+          change rates (%), loan volumes (EUR millions), etc.
+          See 'unit' column for interpretation.
+        tests: [not_null]
+
+      - name: unit
+        description: >
+          Unit of measurement, translated from source codes.
+          BPStat: 'Discount rate', 'Year-end rate', '4-quarter moving avg change rate'.
+          ECB: 'Percentage per annum'.
+          Eurostat: 'Index (2010=100)', 'Index (2015=100)', 'Annual rate of change (%)', 'Quarterly rate of change (%)'.
+
+      # ── Computed change rates ───────────────────────────────────────────────
+      - name: mom_change
+        description: >
+          Month-on-month % change: (value - lag(1)) / |lag(1)| × 100, rounded to 4 decimals.
+          Only computed for monthly series (period_type = 'M'). NULL for quarterly/annual.
+          Window: PARTITION BY indicator_code, geo ORDER BY observation_date.
+
+      - name: qoq_change
+        description: >
+          Quarter-on-quarter % change. For monthly series: lag(3); for quarterly: lag(1).
+          NULL for annual series. Rounded to 4 decimals.
+
+      - name: yoy_change
+        description: >
+          Year-on-year % change. Lag offset adapts to period_type:
+          monthly = lag(12), quarterly = lag(4), annual = lag(1).
+          Rounded to 4 decimals.
+
+      # ── Audit ───────────────────────────────────────────────────────────────
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"

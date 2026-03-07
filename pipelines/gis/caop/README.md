@@ -97,16 +97,18 @@ check_source → download_file → validate_gis_file → upload_to_minio → cle
 | Schedule | None (manual trigger) |
 | Tags | `ingestion`, `gis`, `caop` |
 
-### `s08_caop_bronze_load` — MinIO → PostGIS
+### `s08_caop_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-find_latest_gpkg → load_distritos + load_municipios + load_freguesias → validate_counts
+find_latest_gpkg → load_distritos + load_municipios + load_freguesias → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (manual trigger) |
 | Idempotency | TRUNCATE + INSERT |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_caop_distritos+ stg_caop_municipios+ stg_caop_freguesias+` |
+| Downstream models | `stg_caop_freguesias` → `dim_geography` → `unified_listings`, `census_demographics` |
 | Tags | `caop`, `bronze`, `postgis` |
 
 ---

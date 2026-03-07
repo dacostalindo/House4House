@@ -15,12 +15,27 @@ vars:
 
 on-run-start:
   - "CREATE SCHEMA IF NOT EXISTS staging_dbt"
+  - "CREATE SCHEMA IF NOT EXISTS silver_market"
+  - "CREATE SCHEMA IF NOT EXISTS silver_properties"
+  - "CREATE SCHEMA IF NOT EXISTS silver_geo"
+  - "CREATE SCHEMA IF NOT EXISTS silver_location"
+  - "CREATE SCHEMA IF NOT EXISTS gold_analytics"
 
 models:
   house4house:
     staging:
       +materialized: view
       +schema: staging_dbt
+    silver:
+      +materialized: table
+      market:
+        +schema: silver_market
+      properties:
+        +schema: silver_properties
+      geo:
+        +schema: silver_geo
+      location:
+        +schema: silver_location
     gold:
       +materialized: table
       +schema: gold_analytics

@@ -1,0 +1,145 @@
+version: 2
+
+models:
+  - name: census_demographics
+    description: >
+      BGRI Census 2021 aggregated from 203K subsections to ~3,049 freguesias.
+      Population by age band, household size, dwelling vacancy/tenure,
+      plus INE building condition indicators (aging ratio, repair %).
+      Joins to dim_geography via geo_key for human-readable names.
+      Source: bronze_ine.raw_bgri (BGRI subsections) + stg_ine_indicators (codes 0012575, 0012581).
+      Deferred columns (need API district-level chunking): employment_rate, unemployment_rate,
+      pop_higher_ed_pct, total_foreign, foreign_pct.
+    columns:
+      # ── Identity ────────────────────────────────────────────────────────────
+      - name: geo_key
+        description: "FK to dim_geography.geo_key — NULL for ~135 BGRI codes not in CAOP (administrative boundary changes between Census 2021 and current CAOP)"
+        tests:
+          - unique:
+              where: "geo_key IS NOT NULL"
+          - not_null:
+              severity: warn
+
+      - name: freguesia_code
+        description: "6-digit DTMNFR code from BGRI (dtmnfr21). Primary key for this table"
+        tests:
+          - unique
+          - not_null
+
+      # ── Geography (from dim_geography) ──────────────────────────────────────
+      - name: distrito_code
+        description: "2-digit distrito code from dim_geography (e.g. '01' for Aveiro). NULL when geo_key is NULL"
+
+      - name: distrito_name
+        description: "Distrito name from dim_geography (e.g. 'Aveiro'). NULL when geo_key is NULL"
+
+      - name: concelho_code
+        description: "4-digit concelho code from dim_geography (e.g. '0105'). NULL when geo_key is NULL"
+
+      - name: concelho_name
+        description: "Concelho/municipality name from dim_geography. NULL when geo_key is NULL"
+
+      - name: freguesia_name
+        description: "Freguesia/parish name from dim_geography. NULL when geo_key is NULL"
+
+      # ── Population ──────────────────────────────────────────────────────────
+      - name: total_population
+        description: "Total resident population (SUM of n_individuos across subsections)"
+        tests:
+          - not_null
+
+      - name: pop_0_14
+        description: "Population aged 0-14 (children). SUM of n_individuos_0_14"
+
+      - name: pop_15_24
+        description: "Population aged 15-24 (young adults). SUM of n_individuos_15_24"
+
+      - name: pop_25_64
+        description: "Population aged 25-64 (working age). SUM of n_individuos_25_64"
+
+      - name: pop_65_plus
+        description: "Population aged 65+ (elderly). SUM of n_individuos_65_ou_mais"
+
+      - name: median_age
+        description: >
+          Weighted average age using band midpoints (7, 19.5, 44.5, 77.5).
+          Not a true median — approximation from 4 age bands. Named 'median_age'
+          for consistency with dim_geography.
+          Formula: (pop_0_14 × 7 + pop_15_24 × 19.5 + pop_25_64 × 44.5 + pop_65_plus × 77.5) / total_population
+
+      - name: aging_index
+        description: >
+          Demographic aging index: (pop_65_plus / pop_0_14) × 100.
+          Values >100 mean more elderly than children. NULL when pop_0_14 = 0.
+          Portugal average ~182 (2021).
+
+      # ── Households ──────────────────────────────────────────────────────────
+      - name: total_households
+        description: "Total private domestic households (agregados domésticos privados)"
+        tests:
+          - not_null
+
+      - name: avg_household_size
+        description: "Average persons per household: total_population / total_households, rounded to 1 decimal"
+
+      - name: small_household_pct
+        description: >
+          Percentage of households with 1-2 persons.
+          BGRI only provides 1-2 vs 3+ split (n_adp_1_ou_2_pessoas / n_agregados_domesticos_privados × 100).
+          Named 'small_household_pct' since true single-person count is unavailable.
+
+      # ── Dwellings ──────────────────────────────────────────────────────────
+      - name: total_dwellings
+        description: "Total dwellings (alojamentos) including all types"
+        tests:
+          - not_null
+
+      - name: occupied_dwellings
+        description: "Dwellings classified as usual residence (residência habitual)"
+
+      - name: vacant_dwellings
+        description: "Dwellings classified as vacant or secondary residence (vagos ou residência secundária)"
+
+      - name: vacancy_rate
+        description: >
+          Percentage of dwellings that are vacant or secondary residence:
+          vacant_dwellings / total_dwellings × 100.
+          Portugal average ~42% (includes secondary residences, not just truly empty).
+
+      - name: owner_occupied_pct
+        description: >
+          Percentage of usual-residence dwellings that are owner-occupied:
+          n_rhabitual_prop_ocup / occupied_dwellings × 100.
+          Portugal average ~82%.
+
+      - name: renter_pct
+        description: >
+          Percentage of usual-residence dwellings that are rented:
+          n_rhabitual_arrendados / occupied_dwellings × 100.
+          Complement of owner_occupied_pct (plus 'other' category).
+
+      # ── INE building condition indicators ───────────────────────────────────
+      - name: building_aging_ratio
+        description: >
+          Building aging index from INE indicator 0012575 (Census 2021).
+          Ratio of buildings >50 years old to buildings <20 years old.
+          Higher values indicate older building stock. Joined via geographic_code = freguesia_code.
+          Coverage: ~3,397 of 3,049 BGRI freguesias (some codes not in CAOP).
+
+      - name: buildings_repair_needed_pct
+        description: >
+          Proportion of buildings needing repair (%) from INE indicator 0012581 (Census 2021).
+          Includes buildings with small, medium, and large repairs needed.
+          Joined via geographic_code = freguesia_code.
+          Coverage: ~3,438 of 3,049 BGRI freguesias.
+
+      # ── Metadata ────────────────────────────────────────────────────────────
+      - name: census_year
+        description: "Census reference year, always 2021"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['2021']
+
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"

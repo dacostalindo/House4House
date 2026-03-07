@@ -401,6 +401,18 @@ def _create_dag():
         validated = validate_counts(load_results)
         cleanup_temp(fetched, validated)
 
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+        trigger_dbt = TriggerDagRunOperator(
+            task_id="trigger_dbt_pipeline",
+            trigger_dag_id="dbt_scoped_build",
+            conf={"select": "stg_osm_pois+ stg_osm_transport+"},
+            wait_for_completion=True,
+            reset_dag_run=True,
+            poke_interval=10,
+        )
+        validated >> trigger_dbt
+
     return osm_bronze_load()
 
 

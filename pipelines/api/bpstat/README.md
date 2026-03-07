@@ -123,16 +123,18 @@ check_api_availability → fetch_indicator.expand(16) → upload_to_minio → cl
 | Orchestration | Auto-triggers `bpstat_bronze_load` after completion (`wait_for_completion=True`) |
 | Tags | `ingestion`, `api`, `minio`, `bpstat`, `macro`, `mortgage`, `lending`, `housing_prices` |
 
-### `bpstat_bronze_load` — MinIO → PostGIS
+### `bpstat_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-list_minio_files → create_table → load_datasets → validate_counts
+list_minio_files → create_table → load_datasets → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (auto-triggered by `bpstat_api_ingestion`, or manual) |
 | Idempotency | DELETE + INSERT per dataset_id |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_bpstat+` |
+| Downstream models | `stg_bpstat` → `macro_timeseries` (housing credit, interest rates, housing prices) |
 | Tags | `bpstat`, `bronze`, `macro`, `postgis` |
 
 ---

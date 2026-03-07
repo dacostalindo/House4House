@@ -105,16 +105,18 @@ check_source → download_file → validate_gis_file → upload_to_minio → cle
 | Schedule | None (manual trigger) |
 | Tags | `ingestion`, `gis`, `bgri` |
 
-### `s12_bgri_bronze_load` — MinIO → PostGIS
+### `s12_bgri_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-find_latest_gpkg → create_table → load_subsections → validate_counts
+find_latest_gpkg → create_table → load_subsections → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (manual trigger) |
 | Idempotency | TRUNCATE + INSERT |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_bgri_freguesia_agg+` |
+| Downstream models | `stg_bgri_freguesia_agg` → `dim_geography` → `unified_listings`, `census_demographics` |
 | Tags | `bgri`, `bronze`, `postgis` |
 
 ---

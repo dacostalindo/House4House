@@ -1,0 +1,93 @@
+version: 2
+
+models:
+  - name: osm_pois
+    description: >
+      SKELETON (Sprint 5) — OSM points of interest cleaned and classified into categories.
+      Depends on: stg_osm_pois, dim_geography.
+      Transformations: osm_id TEXT → BIGINT, fclass → category mapping (food, health, finance,
+      retail, education, green_space, other), dual-projection geometries (4326 + 3763),
+      spatial join to dim_geography for geo_key.
+    columns:
+      - name: poi_key
+        description: "Surrogate key (BIGINT)"
+      - name: osm_id
+        description: "OpenStreetMap feature ID cast from TEXT to BIGINT"
+      - name: name
+        description: "POI name from OSM (may be NULL for unnamed features)"
+      - name: fclass
+        description: "Original OSM feature class (e.g. restaurant, pharmacy, school)"
+      - name: category
+        description: >
+          Grouped category: food (restaurant, cafe, fast_food), health (pharmacy, hospital, clinic),
+          finance (bank, atm), retail (supermarket, mall, convenience), education (school, university, kindergarten),
+          green_space (park, nature_reserve), other (everything else)
+      - name: geo_key
+        description: "FK to dim_geography via ST_Within spatial join"
+      - name: latitude
+        description: "WGS84 latitude (NUMERIC(10,7))"
+      - name: longitude
+        description: "WGS84 longitude (NUMERIC(10,7))"
+      - name: geom
+        description: "PostGIS POINT in SRID 4326 (WGS84). GIST-indexed"
+      - name: geom_pt
+        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run"
+
+  - name: transport_stops
+    description: >
+      OSM transport stops classified by mode (~48.9K rows).
+      fclass mapped to stop_type (rail, bus, tram, ferry, taxi, air).
+      Dual-projection geometries (4326 + 3763), spatial join to dim_geography for geo_key.
+      Source: Geofabrik Portugal gis_osm_transport_free layer.
+    columns:
+      - name: stop_key
+        description: "Surrogate key via ROW_NUMBER ordered by osm_id"
+        tests:
+          - unique
+          - not_null
+      - name: stop_name
+        description: "Transport stop name from OSM (may be NULL for unnamed stops)"
+      - name: stop_type
+        description: "Transport mode: rail, bus, tram, metro, ferry, taxi, air — mapped from OSM fclass"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['rail', 'bus', 'tram', 'metro', 'ferry', 'taxi', 'air', 'other']
+      - name: operator
+        description: "NULL — not available in Geofabrik extract. Placeholder for future enrichment"
+      - name: is_interchange
+        description: "NULL — placeholder for future multi-modal hub classification"
+      - name: geo_key
+        description: "FK to dim_geography via ST_Within spatial join. NULL for stops outside mainland freguesias"
+      - name: distrito_code
+        description: "2-digit distrito code from dim_geography (e.g. '11' for Lisboa)"
+      - name: distrito_name
+        description: "Distrito name (e.g. 'Lisboa')"
+      - name: concelho_code
+        description: "4-digit concelho code from dim_geography (e.g. '1106' for Lisboa)"
+      - name: concelho_name
+        description: "Concelho/municipality name (e.g. 'Lisboa')"
+      - name: freguesia_name
+        description: "Freguesia/parish name from dim_geography"
+      - name: latitude
+        description: "WGS84 latitude extracted via ST_Y(geom)"
+        tests:
+          - not_null
+      - name: longitude
+        description: "WGS84 longitude extracted via ST_X(geom)"
+        tests:
+          - not_null
+      - name: geom
+        description: "PostGIS POINT in SRID 4326 (WGS84). GIST-indexed"
+        tests:
+          - not_null
+      - name: geom_pt
+        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance calculations"
+        tests:
+          - not_null
+      - name: is_planned
+        description: "Always FALSE — OSM data represents existing infrastructure"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run"

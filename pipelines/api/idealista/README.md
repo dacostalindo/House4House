@@ -122,11 +122,11 @@ check_zenrows_api → build_segments → crawl_discovery.expand(36) → crawl_de
 | Orchestration | Auto-triggers `idealista_bronze_load` after completion (`wait_for_completion=True`) |
 | Tags | `ingestion`, `api`, `idealista`, `minio`, `listings` |
 
-### `idealista_bronze_load` — MinIO → PostGIS
+### `idealista_bronze_load` — MinIO → PostGIS → Nominatim → dbt
 
 ```
 list_minio_files ─┐
-                  ├→ load_listings → validate_counts
+                  ├→ load_listings → validate_counts → reverse_geocode → trigger_dbt_pipeline
 create_table ─────┘
 ```
 
@@ -134,6 +134,8 @@ create_table ─────┘
 |---------|-------|
 | Schedule | None (auto-triggered by `idealista_ingestion`, or manual) |
 | Idempotency | `DELETE WHERE _scrape_date = today` before INSERT |
+| Reverse geocode | Incremental — only new `(lat, lon)` pairs not yet in `reverse_geocoded` |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` (`stg_idealista+` — 2 models) |
 | Tags | `idealista`, `bronze`, `listings`, `postgis` |
 
 ---
@@ -142,83 +144,208 @@ create_table ─────┘
 
 ### `bronze_listings.raw_idealista`
 
-One row per listing per scrape date. Beja/sale test: 228 rows.
+Source-oriented: stores raw ZenRows fields as-is (TEXT, JSONB, BIGINT). All parsing and transformation belongs in the silver/dbt layer. One row per listing per scrape date.
 
 | Column | Type | Source | Notes |
 |--------|------|--------|-------|
 | `id` | BIGSERIAL | Auto | Primary key |
-| `source_listing_id` | VARCHAR(50) | `property_id` | Deduplication key |
-| `listing_url` | TEXT | `property_url` | Full Idealista URL |
-| `operation_type` | VARCHAR(10) | `operation` | `'sale'` or `'rent'` |
-| `price` | NUMERIC(12,2) | `property_price` | EUR |
-| `currency` | CHAR(3) | — | Always `'EUR'` |
-| `property_type_raw` | VARCHAR(100) | `property_type` | e.g. `'chalet'`, `'flat'` |
-| `property_subtype_raw` | VARCHAR(100) | `property_subtype` | e.g. `'andarMoradia'` |
-| `typology_raw` | VARCHAR(20) | `bedroom_count` | Stored as string |
-| `useful_area_m2` | NUMERIC(10,2) | `lot_size_usable` | Usable area |
-| `gross_area_m2` | NUMERIC(10,2) | `lot_size` | Total built area |
-| `plot_area_m2` | NUMERIC(12,2) | `lot_size` | Plot/land area |
-| `num_rooms` | SMALLINT | `bedroom_count` | Integer |
-| `num_bathrooms` | SMALLINT | `bathroom_count` | Integer |
-| `floor_number` | SMALLINT | `floor` | Parsed from string (ground = 0) |
-| `has_elevator` | BOOLEAN | `property_features` | Keyword: elevator/lift/elevador |
-| `has_parking` | BOOLEAN | `property_features` | Keyword: parking/garagem/estacionamento |
-| `has_terrace` | BOOLEAN | `property_features` | Keyword: terrace/terraco/varanda |
-| `has_garden` | BOOLEAN | `property_features` | Keyword: garden/jardim |
-| `has_pool` | BOOLEAN | `property_features` | Keyword: pool/piscina/swimming |
-| `has_ac` | BOOLEAN | `property_equipment` | Keyword: air conditioning/ar condicionado/climatização |
-| `has_heating` | BOOLEAN | `property_equipment` | Keyword: heating/aquecimento/calefação |
-| `has_balcony` | BOOLEAN | `property_features` | Keyword: balcony/balcão |
-| `has_furnished_kitchen` | BOOLEAN | `property_equipment` | Keyword: furnished kitchen/cozinha equipada |
-| `has_wardrobes` | BOOLEAN | `property_equipment` | Keyword: built-in wardrobes/armários embutidos/roupeiros |
-| `is_exterior` | BOOLEAN | `property_features` | Keyword: exterior |
-| `energy_class` | CHAR(2) | `energy_certificate` | Letter grade (A+ to F) |
-| `construction_year` | SMALLINT | `property_features` | Parsed from "Construído em YYYY" |
-| `condition_raw` | VARCHAR(50) | `property_condition` | e.g. `'good'`, `'to renovate'` |
-| `description_text` | TEXT | `property_description` | Full listing description |
-| `address_raw` | TEXT | `address` | Street address |
-| `district_raw` | VARCHAR(100) | `location_hierarchy[0]` | e.g. `'Beja'` |
-| `municipality_raw` | VARCHAR(100) | `location_hierarchy[1]` | e.g. `'Beja'` |
-| `parish_raw` | VARCHAR(100) | `location_hierarchy[2]` | e.g. `'Santiago Maior e São João Baptista'` |
-| `latitude` | NUMERIC(10,7) | `latitude` | WGS84 |
-| `longitude` | NUMERIC(10,7) | `longitude` | WGS84 |
-| `listing_date` | DATE | `modified_at` | Best proxy (no original listing date in API) |
-| `update_date` | DATE | `modified_at` | Unix timestamp ms → DATE |
-| `agent_name` | VARCHAR(200) | `agency_name` | Real estate agency |
-| `agent_type` | VARCHAR(50) | — | NULL (not in ZenRows) |
-| `agent_phone` | VARCHAR(50) | `agency_phone` | Agent contact number |
-| `image_count` | SMALLINT | `property_images` | Count of listing photos |
-| `last_deactivated_at` | DATE | `last_deactivated_at` | When listing went inactive |
-| `status_raw` | VARCHAR(20) | `status` | e.g. `'active'` |
-| `_ingested_at` | TIMESTAMPTZ | DB default | `NOW()` |
-| `_source` | VARCHAR(30) | — | Always `'idealista'` |
 | `_scrape_date` | DATE | Pipeline | Date of scrape |
 | `_batch_id` | VARCHAR(50) | Pipeline | `{YYYYMMDDTHHMMSS}` |
-| `_raw_html_path` | TEXT | Pipeline | MinIO object path |
+| `_minio_path` | TEXT | Pipeline | MinIO object path |
+| `_ingested_at` | TIMESTAMPTZ | DB default | `NOW()` |
+| `_source` | VARCHAR(30) | — | Always `'idealista'` |
+| `_carried_forward` | BOOLEAN | Pipeline | `TRUE` = detail reused from previous run (not re-fetched) |
+| `_property_id` | TEXT | `_property_id` | Internal dedup key |
+| `_distrito` | TEXT | Pipeline | Crawl segment distrito |
+| `_operation` | TEXT | Pipeline | `'sale'` or `'rent'` |
+| `property_id` | TEXT | `property_id` | Idealista listing ID |
+| `property_url` | TEXT | `property_url` | Full listing URL |
+| `property_type` | TEXT | `property_type` | e.g. `'chalet'`, `'flat'`, `'countryHouse'` |
+| `property_subtype` | TEXT | `property_subtype` | e.g. `'andarMoradia'`, `'studio'` (~60% NULL) |
+| `property_price` | TEXT | `property_price` | Raw price string |
+| `price_currency_symbol` | TEXT | `price_currency_symbol` | e.g. `'€'` |
+| `lot_size` | TEXT | `lot_size` | Primary area (useful) — raw |
+| `lot_size_usable` | TEXT | `lot_size_usable` | Secondary area (gross) — raw |
+| `property_dimensions` | TEXT | `property_dimensions` | Always NULL in current data |
+| `bedroom_count` | TEXT | `bedroom_count` | Raw string |
+| `bedrooms_count` | TEXT | `bedrooms_count` | Alternate field (some listings use this) |
+| `bathroom_count` | TEXT | `bathroom_count` | Raw string |
+| `floor` | TEXT | `floor` | e.g. `'bj'`, `'ss'`, `'3'`, `'en'` |
+| `floor_description` | TEXT | `floor_description` | Free text floor info |
+| `property_features` | JSONB | `property_features` | Array of Portuguese feature strings |
+| `property_equipment` | JSONB | `property_equipment` | Array of equipment strings |
+| `property_images` | JSONB | `property_images` | Array of image URLs |
+| `property_image_tags` | JSONB | `property_image_tags` | Image tag metadata |
+| `property_condition` | TEXT | `property_condition` | e.g. `'good'`, `'newdevelopment'`, `'renew'` |
+| `property_description` | TEXT | `property_description` | Full listing description |
+| `property_title` | TEXT | `property_title` | Listing title |
+| `energy_certificate` | TEXT | `energy_certificate` | e.g. `'d'`, `'aplus'`, `'bminus'` |
+| `address` | TEXT | `address` | Street address |
+| `location_name` | TEXT | `location_name` | Locality name |
+| `location_hierarchy` | JSONB | `location_hierarchy` | `[district, municipality, parish]` |
+| `latitude` | NUMERIC(10,7) | `latitude` | WGS84 |
+| `longitude` | NUMERIC(10,7) | `longitude` | WGS84 |
+| `country` | TEXT | `country` | e.g. `'pt'` |
+| `agency_name` | TEXT | `agency_name` | Real estate agency |
+| `agency_phone` | TEXT | `agency_phone` | Agent contact number |
+| `agency_logo` | TEXT | `agency_logo` | Agency logo URL |
+| `modified_at` | BIGINT | `modified_at` | Unix timestamp (ms) |
+| `status` | TEXT | `status` | e.g. `'active'` |
+| `last_deactivated_at` | TEXT | `last_deactivated_at` | When listing went inactive |
+| `operation` | TEXT | `operation` | Redundant with `_operation` |
+
+### `_carried_forward` explained
+
+When the incremental detail phase finds a `property_id` already in bronze within the last 30 days, it **skips the API call** and copies the previous detail data into the new day's JSONL with `_carried_forward = TRUE`. This saves ~96% of API calls on subsequent runs. The data is identical to the original fetch — only `_scrape_date` is updated.
+
+On **full refresh**, `unified_listings` includes all rows (both fresh and carried-forward) because carried-forward rows are valid listings. On **incremental runs**, only freshly scraped rows (`_carried_forward = FALSE`) are processed to avoid re-merging unchanged data.
+
+### `bronze_listings.reverse_geocoded`
+
+Coordinate-level lookup table populated by the `reverse_geocode` task. Keyed on `(latitude, longitude)` at `NUMERIC(10,7)` precision — exact match with bronze coordinates. Multiple listings at the same coordinates share one geocoded row.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `latitude` | NUMERIC(10,7) | PK (part 1) |
+| `longitude` | NUMERIC(10,7) | PK (part 2) |
+| `display_name` | TEXT | Full Nominatim display name |
+| `road` | TEXT | Street name (e.g. "Rua de Aveiro") |
+| `house_number` | TEXT | Door number |
+| `postcode` | TEXT | Portuguese postal code (e.g. "3800-123") |
+| `city_district` | TEXT | City district / bairro |
+| `city` | TEXT | City / town / village |
+| `raw_response` | JSONB | Full Nominatim JSON response |
+| `_geocoded_at` | TIMESTAMPTZ | When the row was geocoded |
+
+**Source:** Local Nominatim container (`mediagis/nominatim:4.4`) with Portugal OSM data at `http://nominatim:8080`. Rate limit: 0.02s between requests (~50 req/s). Batch commits every 100 rows.
 
 ### Indexes
 
-- `idx_idealista_source_id` — `(source_listing_id)`
+- `idx_idealista_property_id` — `(_property_id)`
 - `idx_idealista_scrape_date` — `(_scrape_date)`
-- `idx_idealista_operation` — `(operation_type, _scrape_date)`
-- `idx_idealista_location` — `(district_raw, municipality_raw)`
+- `idx_idealista_operation` — `(_operation, _scrape_date)`
+- `idx_idealista_distrito` — `(_distrito)`
+- `idx_reverse_geocoded_postcode` — `(postcode)` on `reverse_geocoded`
 
 ---
 
-## Field parsing logic
+## Silver & Gold — dbt layer
 
-The bronze loader parses ZenRows JSON fields into typed columns:
+All parsing, type casting, and enrichment happens in dbt models. Bronze stores raw data; silver produces analysis-ready tables.
 
-| Parser | Logic | Example |
-|--------|-------|---------|
-| `_parse_price` | Strip spaces/commas, cast to float | `125000` → `125000.00` |
-| `_parse_area` | Extract first numeric from string | `"95 m²"` → `95.0` |
-| `_parse_floor` | Extract integer; ground/rés-do-chão = 0 | `"3rd floor"` → `3` |
-| `_parse_bool_feature` | Case-insensitive substring search in features list | `["Elevador", ...]` → `has_elevator = true` |
-| `_parse_energy_class` | Extract letter grade; isento/exempt = NULL | `"d"` → `"D"` |
-| `_parse_construction_year` | Regex on features: "Construído em YYYY" | `"Construído em 1969"` → `1969` |
-| `_parse_location_hierarchy` | Positional: `[district, municipality, parish]` | `["Beja", "Beja", "Santiago Maior..."]` |
-| `_parse_date` (modified_at) | Unix timestamp ms → YYYY-MM-DD | `1770624998000` → `2026-02-09` |
+### Full automation chain
+
+```
+idealista_ingestion (daily 03:00)
+    → idealista_bronze_load (auto-triggered)
+        ├─ list_minio_files ──┐
+        │                     ├── load_listings → validate_counts → reverse_geocode → trigger_dbt
+        └─ create_table ──────┘
+            → dbt_scoped_build (stg_idealista+ → 2 models)
+```
+
+Each bronze DAG triggers `dbt_scoped_build` with its own selector (`-s <model>+`), rebuilding only downstream models. `dbt_full_pipeline` (Cosmos, all 18 models) is kept for manual full runs.
+
+### Data flow
+
+```
+bronze_listings.raw_idealista
+    ↓ (view)
+staging_dbt.stg_idealista           -- Column rename + aliasing
+    ↓
+silver_properties.unified_listings  -- Type casting, feature extraction, geocoding
+    ↓ (joins)
+gold_analytics.dim_geography        -- Spatial join (ST_Within → geo_key)
+gold_analytics.dim_property_type    -- Two-pass join (type + subtype → property_type_key)
+bronze_listings.reverse_geocoded    -- LEFT JOIN for address enrichment + postal codes
+```
+
+### `silver_properties.unified_listings`
+
+Incremental merge on `source_listing_id`. 1,495 unique listings (Aveiro, sale + rent).
+
+**Address enrichment:** Raw Idealista addresses are often just parish/neighborhood names (e.g. "Esgueira", "Sá-Barrocas"). The model LEFT JOINs `reverse_geocoded` to enrich addresses:
+- If the raw address lacks a street prefix (Rua, Avenida, Travessa, etc.), use Nominatim's `road` + `house_number`
+- If the raw address already has a street prefix, keep it (Idealista's is likely better)
+- `postal_code` always comes from Nominatim
+
+**Result:** Street address coverage improved from 58% → 93%. Postal code coverage: 0% → 100%.
+
+**Human-readable property types:** `property_type`, `property_subtype`, `property_type_group` columns carry Portuguese labels directly (e.g. "Apartamento", "Moradia Independente") alongside the FK `property_type_key`.
+
+**Transformation pipeline** (8 CTEs):
+
+| CTE | What it does |
+|-----|--------------|
+| `source_data` | Filter valid rows; incremental: only fresh rows after last run |
+| `deduplicated` / `latest` | `ROW_NUMBER()` by `property_id` — keep most recent scrape |
+| `parsed` | Type casting: TEXT → NUMERIC, SMALLINT, VARCHAR. Floor codes (`bj`→-1, `ss`→-2, `st`/`en`→0). Condition labels to Portuguese (`good`→`Bom estado`, `newdevelopment`→`Novo`, `renew`→`Para recuperar`). Energy class normalization (`aplus`→`A+`, `bminus`→`B-`) |
+| `with_features` | JSONB extraction via `JSONB_ARRAY_ELEMENTS_TEXT` + regex: construction year, orientation, heating type, num floors, gross/useful area, typology |
+| `with_flags` | Boolean feature flags from concatenated text: elevator, parking, terrace, garden, pool, AC, storage, wardrobes, furnished, new development |
+| `with_geometry` | PostGIS: `ST_MakePoint` → EPSG:4326 + `ST_Transform` → EPSG:3763 |
+| `with_geo` | Spatial join to `dim_geography` via `ST_Within(point, freguesia_geom)` |
+| `with_type` | Two-pass join to `dim_property_type`: exact (type+subtype), then fallback (type only) |
+| `with_hash` | MD5 dedup hash, price per sqm (useful + gross), lifecycle flags |
+
+**SCD (Slowly Changing Dimension) fields:**
+
+| Column | Full refresh | Incremental merge |
+|--------|-------------|-------------------|
+| `first_seen_date` | `scrape_date` | Preserved from original insert |
+| `initial_price_eur` | `price_eur` | Preserved from original insert |
+| `price_change_count` | `0` | `+1` when `price_eur` differs from existing |
+| `listing_age_days` | `0` | `last_seen_date - first_seen_date` |
+| `_created_at` | `NOW()` | Preserved from original insert |
+
+These are protected via dbt's `merge_update_columns` — excluded columns are never overwritten by the merge.
+
+**`is_active` — staleness-based deactivation:**
+
+The ZenRows `status` field is almost always `'active'` at scrape time — it doesn't reflect listings that are later removed from Idealista. Instead, `is_active` uses a **3-day staleness rule**:
+
+| Condition | `is_active` |
+|-----------|-------------|
+| `status != 'active'` (rare — only 3 rows in bronze have this) | `FALSE` |
+| `last_seen_date < CURRENT_DATE - 3 days` (not in recent scrapes) | `FALSE` |
+| Otherwise | `TRUE` |
+
+Two-layer implementation:
+1. **In the SELECT** — new/refreshed rows get `is_active` computed via CASE expression
+2. **Post-hook UPDATE** — after every merge, sweeps all existing rows and sets `is_active = FALSE` for listings not seen in 3+ days (catches rows not in the current batch)
+
+**Feature extraction coverage** (Aveiro, 1,495 listings):
+
+| Field | Coverage | Source pattern |
+|-------|----------|----------------|
+| `typology` | 96% | `^T\d` in `property_features` |
+| `construction_year` | 50% | `Construído em \d{4}` |
+| `orientation` | 23% | `Orientação (.+)` |
+| `heating_type` | 23% | `Aquecimento (.+)` / `Não tem aquecimento` |
+| `has_ac` | — | `ar condicionado` in equipment |
+| `has_wardrobes` | — | `roupeiros embutidos` |
+| `has_elevator` | — | `elevador` / `ascensor` |
+
+### `gold_analytics.dim_property_type`
+
+Static dimension (16 rows). Maps Idealista raw `property_type` + `property_subtype` to Portuguese labels.
+
+| type_group | tipo | Count |
+|------------|------|-------|
+| Apartamento | Apartamento | 948 |
+| Moradia | Moradia | 501 |
+| Moradia | Moradia Rustica | 46 |
+
+### `gold_analytics.dim_geography`
+
+3,049 rows (mainland + islands). Freguesia-level with CAOP boundaries + Census 2021 demographics. Used for spatial join via `ST_Within`.
+
+### Tests (25 on `unified_listings`, 6 on `dim_property_type`)
+
+- Unique + not_null: `listing_key`, `source_listing_id`
+- Accepted values: `source` (idealista), `operation_type` (sale/rent), `condition` (Portuguese), `energy_class` (A+ to G), `property_type` (Apartamento/Moradia/Moradia Rústica/Habitação), `property_type_group` (Apartamento/Moradia)
+- Range checks: `price_eur` (100–50M), `latitude` (36.9–42.2), `longitude` (-9.6 to -6.1), `construction_year` (1800–2030)
+- Relationships: `geo_key` → `dim_geography`, `property_type_key` → `dim_property_type`
+- Warn-level: `postal_code` not_null (some rural areas may lack postcodes)
 
 ---
 
@@ -334,11 +461,13 @@ The bronze loader parses ZenRows JSON fields into typed columns:
 | Issue | Detail | Resolution |
 |-------|--------|------------|
 | Lisboa/Porto may exceed 1,800 listing cap | Idealista caps search at ~1,800 results per URL | Log warning when hit; split by municipality in `DISTRITO_SEARCH_URLS` config |
-| `modified_at` ≠ original listing date | ZenRows has no original `listing_date` field | Use `modified_at` as best proxy; documented in column mapping |
-| `construction_year` only 43% coverage | Only present when listing includes "Construído em YYYY" in features | Silver layer may parse from description text for additional coverage |
-| `agent_type` always NULL | ZenRows does not expose agent type | No resolution needed — not critical for analysis |
+| Discovery pagination overlap | Same listing can appear on multiple pages → duplicate rows in bronze | Deduplication added in ingestion DAG (`dict.fromkeys`); silver deduplicates via `ROW_NUMBER()` |
+| `modified_at` ≠ original listing date | ZenRows has no original `listing_date` field | Use `modified_at` as best proxy |
+| `construction_year` ~50% coverage | Only present when listing includes "Construído em YYYY" in features | Could parse from `property_description` for additional coverage |
+| `property_subtype` ~60% NULL | Many listings only have `property_type` without subtype | Two-pass dim join: exact match first, then fallback to type-only |
 | Madeira/Azores not covered | Only 18 continental distritos configured | Add island URLs to `DISTRITO_SEARCH_URLS` when needed |
-| `useful_area_m2` vs `gross_area_m2` | ZenRows has `lot_size_usable` and `lot_size` but distinction is imperfect | Silver layer to reconcile using `property_features` text |
+| `useful_area_m2` vs `gross_area_m2` | `lot_size` is primary (useful), `lot_size_usable` is secondary (gross) | Silver layer uses `COALESCE` with feature-extracted areas as fallback |
+| `ACTIVE_DISTRITOS` set to Aveiro only | Config currently limits scheduled runs to Aveiro | Change to `None` in `idealista_config.py` for all 18 distritos |
 
 ---
 

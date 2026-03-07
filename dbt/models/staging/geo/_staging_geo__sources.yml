@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: bronze_geo
+    database: house4house
+    schema: bronze_geo
+    tables:
+      - name: raw_caop_freguesias
+        description: "CAOP 2025 parish boundaries. 3,049 rows. EPSG:3763."
+        columns:
+          - name: dtmnfr
+            description: "6-digit code: distrito(2) + municipio(2) + freguesia(2)"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
+
+      - name: raw_caop_municipios
+        description: "CAOP 2025 municipality boundaries. 278 rows. EPSG:3763."
+
+      - name: raw_caop_distritos
+        description: "CAOP 2025 district boundaries. 18 rows. EPSG:3763."
