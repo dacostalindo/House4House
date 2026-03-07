@@ -2909,7 +2909,7 @@ dags/
 | Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` (38 EU countries, JSON-stat API) | — | ✅ Done |
 | dbt restructure + Cosmos | — | 2 | Domain staging (`geo/`, `ine/`, `listings/`, `macro/`, `location/`), Cosmos DbtTaskGroup, silver skeletons | `staging_dbt.stg_*` (11 views), `silver_market.macro_timeseries` | ✅ Done |
 | Geocoding pipeline | — | 2 | Reverse geocoding via Nominatim → `bronze_listings.reverse_geocoded` (1,334 coords, 100% postal code coverage). Address enrichment in `unified_listings` (58% → 93% street addresses) | `bronze_listings.reverse_geocoded`, `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
-| `dim_time` seed | — | 0.5 | Date dimension 2000–2035 with fiscal year, holidays | `gold_analytics.dim_time` | |
+| `dim_time` seed | — | 0.5 | Date dimension 2000–2035 via dbt_utils.date_spine (13,149 rows). YYYYMMDD integer key, ISO day-of-week, INE quarter labels | `gold_analytics.dim_time` | ✅ Done |
 | `dim_property_type` seed | — | 0.5 | 16-row static dimension: Idealista raw type/subtype → Portuguese labels (tipo, subtipo, type_group) | `gold_analytics.dim_property_type` | ✅ Done |
 
 **Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Scoped dbt triggers (`dbt_scoped_build`) wired to all 8 bronze DAGs.
