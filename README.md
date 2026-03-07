@@ -2931,17 +2931,17 @@ dags/
 
 ### Sprint 4 — Location Scores & Market Stats (Weeks 7-8)
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Transport stops model | S10 | 1 | Map OSM fclass → stop_type, spatial join → geo_key, reproject to 3763 | `silver_location.transport_stops` |
-| OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key | `silver_location.osm_pois` |
-| Transport proximity scores | S10 | 2 | Nearest metro/train distance per listing via PostGIS `ST_Distance` | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_train_m) |
-| POI density / walkability | S09 | 2 | Count amenities within 500m/1km per listing | `gold_analytics.property_location_scores` (walkability_score, restaurants_500m, supermarkets_1km) |
-| Drive-time via OSRM | S11 | 3 | Batch routing: listing → city center, airport, nearest hospital | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) |
-| Composite location score | — | 1 | Weighted combination of transport + walkability + drive-time | `gold_analytics.property_location_scores` (overall_location_score) |
-| Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, turnover | `gold_analytics.neighbourhood_market_stats` |
-| Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — |
-| PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Transport stops model | S10 | 1 | Map OSM fclass → stop_type (48.9K rows), spatial join → geo_key (96.5% coverage), reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
+| OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key | `silver_location.osm_pois` | |
+| Transport proximity scores | S10 | 2 | Nearest metro/train distance per listing via PostGIS `ST_Distance` | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_train_m) | |
+| POI density / walkability | S09 | 2 | Count amenities within 500m/1km per listing | `gold_analytics.property_location_scores` (walkability_score, restaurants_500m, supermarkets_1km) | |
+| Drive-time via OSRM | S11 | 3 | Batch routing: listing → city center, airport, nearest hospital | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) | |
+| Composite location score | — | 1 | Weighted combination of transport + walkability + drive-time | `gold_analytics.property_location_scores` (overall_location_score) | |
+| Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, turnover | `gold_analytics.neighbourhood_market_stats` | |
+| Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | |
+| PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` | |
 
 **Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `osm_pois` populated.
 

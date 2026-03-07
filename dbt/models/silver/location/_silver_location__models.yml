@@ -37,32 +37,57 @@ models:
 
   - name: transport_stops
     description: >
-      SKELETON (Sprint 5) — OSM transport stops cleaned and classified by mode.
-      Depends on: stg_osm_transport, dim_geography.
-      Transformations: osm_id TEXT → BIGINT, fclass → stop_type mapping (rail, bus, metro, tram, ferry),
-      dual-projection geometries, spatial join to dim_geography for geo_key.
+      OSM transport stops classified by mode (~48.9K rows).
+      fclass mapped to stop_type (rail, bus, tram, ferry, taxi, air).
+      Dual-projection geometries (4326 + 3763), spatial join to dim_geography for geo_key.
+      Source: Geofabrik Portugal gis_osm_transport_free layer.
     columns:
       - name: stop_key
-        description: "Surrogate key (BIGINT)"
+        description: "Surrogate key via ROW_NUMBER ordered by osm_id"
+        tests:
+          - unique
+          - not_null
       - name: stop_name
-        description: "Transport stop name from OSM"
+        description: "Transport stop name from OSM (may be NULL for unnamed stops)"
       - name: stop_type
-        description: "Transport mode: rail, bus, metro, tram, ferry — mapped from OSM fclass"
+        description: "Transport mode: rail, bus, tram, metro, ferry, taxi, air — mapped from OSM fclass"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['rail', 'bus', 'tram', 'metro', 'ferry', 'taxi', 'air', 'other']
       - name: operator
-        description: "Transport operator name from OSM tags (e.g. CP, Metro do Porto)"
+        description: "NULL — not available in Geofabrik extract. Placeholder for future enrichment"
       - name: is_interchange
-        description: "TRUE if stop serves multiple transport modes"
+        description: "NULL — placeholder for future multi-modal hub classification"
       - name: geo_key
-        description: "FK to dim_geography via ST_Within spatial join"
+        description: "FK to dim_geography via ST_Within spatial join. NULL for stops outside mainland freguesias"
+      - name: distrito_code
+        description: "2-digit distrito code from dim_geography (e.g. '11' for Lisboa)"
+      - name: distrito_name
+        description: "Distrito name (e.g. 'Lisboa')"
+      - name: concelho_code
+        description: "4-digit concelho code from dim_geography (e.g. '1106' for Lisboa)"
+      - name: concelho_name
+        description: "Concelho/municipality name (e.g. 'Lisboa')"
+      - name: freguesia_name
+        description: "Freguesia/parish name from dim_geography"
       - name: latitude
-        description: "WGS84 latitude (NUMERIC(10,7))"
+        description: "WGS84 latitude extracted via ST_Y(geom)"
+        tests:
+          - not_null
       - name: longitude
-        description: "WGS84 longitude (NUMERIC(10,7))"
+        description: "WGS84 longitude extracted via ST_X(geom)"
+        tests:
+          - not_null
       - name: geom
         description: "PostGIS POINT in SRID 4326 (WGS84). GIST-indexed"
+        tests:
+          - not_null
       - name: geom_pt
-        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance"
+        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance calculations"
+        tests:
+          - not_null
       - name: is_planned
-        description: "TRUE if stop is planned/under construction (not yet operational)"
+        description: "Always FALSE — OSM data represents existing infrastructure"
       - name: _updated_at
         description: "Timestamp of last dbt build run"

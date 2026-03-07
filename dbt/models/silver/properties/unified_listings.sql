@@ -60,6 +60,19 @@ latest AS (
     SELECT * FROM deduplicated WHERE _rn = 1
 ),
 
+-- Lifecycle dates per property from ALL bronze rows (not just source_data)
+-- first_seen_date = earliest scrape where listing was actually fetched (not carried forward)
+-- last_seen_date  = most recent scrape (any row)
+lifecycle AS (
+    SELECT
+        property_id,
+        MIN(scrape_date) FILTER (WHERE _carried_forward = FALSE) AS true_first_seen,
+        MAX(scrape_date)                                         AS true_last_seen
+    FROM {{ ref('stg_idealista') }}
+    WHERE listing_url IS NOT NULL AND price_raw IS NOT NULL
+    GROUP BY property_id
+),
+
 -- Core type casting
 parsed AS (
     SELECT
@@ -407,17 +420,20 @@ SELECT
 
     -- Lifecycle (SCD)
     {% if is_incremental() %}
-    COALESCE(existing.first_seen_date, h.last_seen_date)
+    COALESCE(existing.first_seen_date, lc.true_first_seen, h.last_seen_date)
     {% else %}
-    h.last_seen_date
+    COALESCE(lc.true_first_seen, h.last_seen_date)
     {% endif %}                                  AS first_seen_date,
-    h.last_seen_date,
+    COALESCE(lc.true_last_seen, h.last_seen_date) AS last_seen_date,
     {% if is_incremental() %}
-    (h.last_seen_date - COALESCE(existing.first_seen_date, h.last_seen_date))::INTEGER
+    (COALESCE(lc.true_last_seen, h.last_seen_date) - COALESCE(existing.first_seen_date, lc.true_first_seen, h.last_seen_date))::INTEGER
     {% else %}
-    0
+    (COALESCE(lc.true_last_seen, h.last_seen_date) - COALESCE(lc.true_first_seen, h.last_seen_date))::INTEGER
     {% endif %}                                  AS listing_age_days,
-    h.is_active,
+    CASE
+        WHEN COALESCE(lc.true_last_seen, h.last_seen_date) < CURRENT_DATE - 3 THEN FALSE
+        ELSE h.is_active
+    END                                          AS is_active,
     {% if is_incremental() %}
     (COALESCE(existing.price_change_count, 0)
         + CASE WHEN existing.price_eur IS DISTINCT FROM h.price_eur THEN 1 ELSE 0 END
@@ -440,6 +456,8 @@ SELECT
     NOW()                                        AS _updated_at
 
 FROM with_hash h
+LEFT JOIN lifecycle lc
+    ON lc.property_id = h.source_listing_id
 LEFT JOIN {{ source('bronze_listings', 'reverse_geocoded') }} gc
     ON h.latitude = gc.latitude
     AND h.longitude = gc.longitude
