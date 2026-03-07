@@ -135,7 +135,7 @@ create_table ─────┘
 | Schedule | None (auto-triggered by `idealista_ingestion`, or manual) |
 | Idempotency | `DELETE WHERE _scrape_date = today` before INSERT |
 | Reverse geocode | Incremental — only new `(lat, lon)` pairs not yet in `reverse_geocoded` |
-| dbt trigger | `TriggerDagRunOperator` → `dbt_full_pipeline` (all 18 models, ~30s) |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` (`stg_idealista+` — 2 models) |
 | Tags | `idealista`, `bronze`, `listings`, `postgis` |
 
 ---
@@ -241,8 +241,10 @@ idealista_ingestion (daily 03:00)
         ├─ list_minio_files ──┐
         │                     ├── load_listings → validate_counts → reverse_geocode → trigger_dbt
         └─ create_table ──────┘
-            → dbt_full_pipeline (18 models, ~30s)
+            → dbt_scoped_build (stg_idealista+ → 2 models)
 ```
+
+Each bronze DAG triggers `dbt_scoped_build` with its own selector (`-s <model>+`), rebuilding only downstream models. `dbt_full_pipeline` (Cosmos, all 18 models) is kept for manual full runs.
 
 ### Data flow
 
@@ -296,6 +298,20 @@ Incremental merge on `source_listing_id`. 1,495 unique listings (Aveiro, sale + 
 | `_created_at` | `NOW()` | Preserved from original insert |
 
 These are protected via dbt's `merge_update_columns` — excluded columns are never overwritten by the merge.
+
+**`is_active` — staleness-based deactivation:**
+
+The ZenRows `status` field is almost always `'active'` at scrape time — it doesn't reflect listings that are later removed from Idealista. Instead, `is_active` uses a **3-day staleness rule**:
+
+| Condition | `is_active` |
+|-----------|-------------|
+| `status != 'active'` (rare — only 3 rows in bronze have this) | `FALSE` |
+| `last_seen_date < CURRENT_DATE - 3 days` (not in recent scrapes) | `FALSE` |
+| Otherwise | `TRUE` |
+
+Two-layer implementation:
+1. **In the SELECT** — new/refreshed rows get `is_active` computed via CASE expression
+2. **Post-hook UPDATE** — after every merge, sweeps all existing rows and sets `is_active = FALSE` for listings not seen in 3+ days (catches rows not in the current batch)
 
 **Feature extraction coverage** (Aveiro, 1,495 listings):
 

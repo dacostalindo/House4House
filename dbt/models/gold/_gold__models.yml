@@ -4,64 +4,192 @@ models:
   - name: dim_geography
     description: >
       Geography dimension at the freguesia (parish) level.
-      Combines CAOP administrative boundaries with Census 2021 demographics.
-      3,049 rows (mainland Portugal + islands).
+      Combines CAOP administrative boundaries with Census 2021 demographics from BGRI.
+      3,049 rows (mainland Portugal). Foundation for all spatial joins.
+      Sources: stg_caop_freguesias (boundaries), stg_bgri_freguesia_agg (demographics).
+      GIST-indexed on both freguesia_geom (4326) and freguesia_geom_pt (3763).
     columns:
+      # ── Identity ────────────────────────────────────────────────────────────
       - name: geo_key
-        description: "Surrogate integer key, deterministic via ROW_NUMBER"
+        description: "Surrogate integer key via ROW_NUMBER ordered by freguesia_code. Deterministic across rebuilds"
         tests:
           - unique
           - not_null
 
       - name: freguesia_code
-        description: "6-digit DTMNFR code — natural key"
+        description: "6-digit DTMNFR code (distrito 2 + municipio 2 + freguesia 2). Natural business key"
         tests:
           - unique
           - not_null
 
+      # ── Administrative hierarchy ────────────────────────────────────────────
       - name: distrito_code
+        description: "2-digit distrito code (e.g. '01' for Aveiro). Derived from LEFT(dtmnfr, 2) in stg_caop_freguesias"
         tests:
           - not_null
+
+      - name: distrito_name
+        description: "Distrito name (e.g. 'Aveiro')"
 
       - name: concelho_code
+        description: "4-digit concelho/municipality code (e.g. '0105' for Aveiro). Derived from LEFT(dtmnfr, 4)"
         tests:
           - not_null
+
+      - name: concelho_name
+        description: "Concelho/municipality name (e.g. 'Aveiro')"
 
       - name: freguesia_name
+        description: "Freguesia/parish name (e.g. 'Glória e Vera Cruz')"
         tests:
           - not_null
 
+      # ── NUTS classification ─────────────────────────────────────────────────
+      - name: nut_i
+        description: "NUTS I region (e.g. 'Continente')"
+      - name: nut_ii
+        description: "NUTS II region (e.g. 'Centro')"
+      - name: nut_iii
+        description: "NUTS III region (e.g. 'Região de Aveiro')"
+
+      - name: postal_code_4
+        description: "4-digit postal code prefix. Currently NULL — placeholder for future enrichment"
+
+      # ── Geometry ────────────────────────────────────────────────────────────
       - name: freguesia_geom
-        description: "MultiPolygon in EPSG:4326"
+        description: "MultiPolygon boundary in EPSG:4326 (WGS84). GIST-indexed. Used for ST_Within spatial joins with listing coordinates"
         tests:
           - not_null
 
       - name: freguesia_geom_pt
-        description: "MultiPolygon in EPSG:3763"
+        description: "MultiPolygon boundary in EPSG:3763 (PT-TM06/ETRS89). GIST-indexed. Used for metric area/distance calculations"
         tests:
           - not_null
 
+      - name: centroid
+        description: "POINT centroid of freguesia in EPSG:4326. Computed via ST_Centroid(geom_4326)"
+
       - name: area_km2
+        description: "Parish area in km2 (area_ha / 100, rounded to 3 decimals)"
         tests:
           - not_null
+
+      # ── Census 2021 demographics ────────────────────────────────────────────
+      - name: population_2021
+        description: "Total population from BGRI Census 2021. SUM(n_individuos) at freguesia level. NULL for 302 CAOP codes not in BGRI"
+
+      - name: households_2021
+        description: "Total private households from BGRI Census 2021. NULL for codes not in BGRI"
+
+      - name: pop_density_km2
+        description: "Population density: population_2021 / area_km2. Rounded to 2 decimals. NULL when area is 0"
+
+      - name: median_age
+        description: "Weighted average age from BGRI age bands. Not a true median — approximation using midpoints (7, 19.5, 44.5, 77.5)"
+
+      - name: foreign_resident_pct
+        description: "Percentage of foreign residents. Currently NULL — deferred until INE Census indicators are fetched with district-level chunking"
+
+      # ── SCD Type 2 metadata ─────────────────────────────────────────────────
+      - name: source_caop_year
+        description: "CAOP release year from dbt_project.yml var('caop_year')"
+      - name: valid_from
+        description: "SCD validity start date (CAOP year Jan 1st)"
+      - name: valid_to
+        description: "SCD validity end date. NULL = currently valid"
+      - name: is_current
+        description: "Always TRUE — SCD Type 2 not yet implemented (single CAOP version)"
 
   - name: dim_property_type
     description: >
       Static dimension mapping Idealista raw property_type + property_subtype
-      to standardized Portuguese labels and groupings. ~16 rows.
+      to standardized Portuguese labels and groupings. 16 rows defined as SQL VALUES clause.
+      Two-pass join in unified_listings: exact match (type + subtype), then fallback (type only where subtype IS NULL).
     columns:
       - name: property_type_key
+        description: "Surrogate integer key (1-16). Stable across rebuilds"
         tests:
           - unique
           - not_null
       - name: source_type
+        description: "Raw Idealista property_type (e.g. 'flat', 'chalet', 'countryHouse', 'homes')"
         tests:
           - not_null
+      - name: source_subtype
+        description: "Raw Idealista property_subtype (e.g. 'studio', 'duplex', 'independantHouse'). NULL for type-only fallback rows"
       - name: tipo
+        description: "Portuguese property type label (e.g. 'Apartamento', 'Moradia', 'Moradia Rustica', 'Habitacao')"
         tests:
           - not_null
+      - name: subtipo
+        description: "Portuguese subtype label (e.g. 'Duplex', 'Geminada', 'Quinta'). NULL for type-only entries"
       - name: type_group
+        description: "Broad grouping for market segmentation: 'Apartamento' or 'Moradia'"
         tests:
           - not_null
           - accepted_values:
               values: ['Apartamento', 'Moradia']
+
+  - name: ref_imt_brackets
+    description: >
+      IMT (Imposto Municipal sobre Transmissoes) transfer tax brackets.
+      Progressive rates by buyer type: primary_residence (6 brackets, 0-8%),
+      secondary/investment (5 brackets, 1-7.5%), other_urban (1 flat rate 6.5%),
+      rural (1 flat rate 5%). 16 rows total.
+      Source: Autoridade Tributaria, 2025. Materialized as SQL VALUES clause.
+    columns:
+      - name: bracket_id
+        description: "Unique bracket identifier (1-16)"
+        tests:
+          - unique
+          - not_null
+      - name: bracket_type
+        description: "Buyer/property category: primary_residence, secondary, other_urban, rural"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['primary_residence', 'secondary', 'other_urban', 'rural']
+      - name: min_value
+        description: "Bracket lower bound (EUR, inclusive). 0.00 for first bracket"
+      - name: max_value
+        description: "Bracket upper bound (EUR, exclusive). 999999999.99 for top bracket"
+      - name: rate
+        description: "Marginal tax rate as decimal (e.g. 0.0200 = 2%)"
+        tests:
+          - not_null
+      - name: deduction
+        description: "Fixed deduction amount in EUR for progressive calculation"
+      - name: valid_year
+        description: "Year these brackets apply (2025)"
+        tests:
+          - not_null
+
+  - name: ref_imi_rates
+    description: >
+      IMI (Imposto Municipal sobre Imoveis) annual property tax rates per municipality.
+      Urban rates set by each municipality (range 0.30%-0.45%); rural rate is 0.80% nationwide.
+      278 mainland municipalities matching dim_geography.concelho_code.
+      Source: Portal das Financas, 2025. Materialized as SQL VALUES clause.
+      Join to listings via dim_geography.concelho_code for tax cost estimation.
+    columns:
+      - name: municipality_code
+        description: "4-digit concelho code matching dim_geography.concelho_code (e.g. '0105' for Aveiro)"
+        tests:
+          - unique
+          - not_null
+      - name: municipality_name
+        description: "Municipality name (e.g. 'Aveiro')"
+        tests:
+          - not_null
+      - name: urban_rate
+        description: "Annual IMI rate for urban properties as decimal (e.g. 0.0035 = 0.35%). Applied to property tax value (VPT)"
+        tests:
+          - not_null
+      - name: rural_rate
+        description: "Annual IMI rate for rural properties as decimal. Always 0.0080 (0.80%) nationwide"
+        tests:
+          - not_null
+      - name: valid_year
+        description: "Year these rates apply (2025)"
+        tests:
+          - not_null

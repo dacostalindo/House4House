@@ -2,21 +2,43 @@ version: 2
 
 models:
   - name: stg_osm_pois
-    description: "OSM points of interest. View over bronze_location.raw_osm_pois."
+    description: >
+      OSM points of interest. View over bronze_location.raw_osm_pois.
+      174K point features with fclass classification (restaurant, pharmacy, school, etc.).
+      CRS: EPSG:4326. Used by osm_pois silver model (Sprint 5) for walkability scoring.
+      Source: Geofabrik Portugal GeoPackage, gis_osm_pois_free layer.
     columns:
       - name: osm_id
+        description: "OpenStreetMap node ID (TEXT). Cast to BIGINT in silver"
         tests: [not_null]
       - name: fclass
+        description: "Feature classification (e.g. 'restaurant', 'pharmacy', 'school', 'bank'). Mapped to categories in silver"
         tests: [not_null]
+      - name: name
+        description: "POI name from OSM. May be NULL for unnamed features"
+      - name: code
+        description: "Geofabrik numeric classification code"
       - name: geom
+        description: "POINT geometry in EPSG:4326. Transformed to 3763 in silver for metric operations"
         tests: [not_null]
 
   - name: stg_osm_transport
-    description: "OSM transport stops. View over bronze_location.raw_osm_transport."
+    description: >
+      OSM transport stops. View over bronze_location.raw_osm_transport.
+      ~49K point features dominated by bus_stop (47K), plus railway_station, tram_stop, etc.
+      CRS: EPSG:4326. Used by transport_stops silver model (Sprint 5) for accessibility scoring.
+      Source: Geofabrik Portugal GeoPackage, gis_osm_transport_free layer.
     columns:
       - name: osm_id
+        description: "OpenStreetMap node ID (TEXT). Cast to BIGINT in silver"
         tests: [not_null]
       - name: fclass
+        description: "Transport feature class (e.g. 'bus_stop', 'railway_station', 'tram_stop', 'subway_entrance')"
         tests: [not_null]
+      - name: name
+        description: "Stop name from OSM"
+      - name: code
+        description: "Geofabrik numeric classification code"
       - name: geom
+        description: "POINT geometry in EPSG:4326. Transformed to 3763 in silver for metric operations"
         tests: [not_null]

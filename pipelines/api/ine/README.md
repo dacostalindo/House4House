@@ -178,16 +178,18 @@ check_api → fetch_indicator.expand(33) → upload_to_minio → cleanup + log_r
 | Orchestration | Auto-triggers `ine_bronze_load` after completion (`wait_for_completion=True`) |
 | Tags | `ingestion`, `api`, `ine`, `minio` |
 
-### `ine_bronze_load` — MinIO → PostGIS
+### `ine_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-list_minio_files → create_table → load_indicators.expand(33) → validate_counts
+list_minio_files → create_table → load_indicators.expand(33) → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (auto-triggered by `ine_api_ingestion`, or manual) |
 | Idempotency | DELETE + INSERT per indicator |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_ine_indicators+` |
+| Downstream models | `stg_ine_indicators` → `census_demographics` (building aging/repair indicators) |
 | Tags | `ine`, `bronze`, `postgis` |
 
 ---
@@ -294,7 +296,7 @@ pipelines/api/ine/
 
 ### Adding indicators
 
-Add a new `APIIndicator` entry to `INE_INDICATORS` in [ine_config.py](ine_config.py). Then add the code to `INDICATOR_CODES` in [ine_bronze_dag.py](ine_bronze_dag.py). No other code changes needed.
+Add a new `APIIndicator` entry to `INE_INDICATORS` in [ine_config.py](ine_config.py). No other code changes needed — the bronze DAG derives its indicator codes from the config automatically.
 
 To find indicator codes:
 1. Browse https://www.ine.pt → choose a dataset → inspect URL for `varcd=XXXXXXX`

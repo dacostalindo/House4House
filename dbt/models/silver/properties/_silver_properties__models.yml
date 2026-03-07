@@ -5,88 +5,68 @@ models:
     description: >
       Idealista listings parsed from TEXT bronze to typed silver with Portuguese labels.
       Incremental merge on source_listing_id preserves first_seen_date and initial_price.
-      Spatial join to dim_geography; two-pass join to dim_property_type.
+      Spatial join to dim_geography for geo_key; two-pass join to dim_property_type.
+      Post-hook deactivates listings not seen for >3 days.
       ~1,495 unique listings (Aveiro district, sale + rent).
     columns:
+      # ── Identity ────────────────────────────────────────────────────────────
       - name: listing_key
-        description: "Surrogate key via ROW_NUMBER"
+        description: "Surrogate key via ROW_NUMBER — unstable across full-refreshes, use source_listing_id for joins"
         tests:
           - unique
           - not_null
 
-      - name: source_listing_id
-        description: "Idealista property_id cast to VARCHAR(50)"
-        tests:
-          - unique
-          - not_null
+      - name: property_hash
+        description: "MD5 hash of source_listing_id + operation_type + 'idealista' — deduplication key across sources"
 
       - name: source
+        description: "Data source identifier, always 'idealista' for now"
         tests:
           - not_null
           - accepted_values:
               values: ['idealista']
 
+      - name: source_listing_id
+        description: "Idealista property_id cast to VARCHAR(50) — unique business key for incremental merge"
+        tests:
+          - unique
+          - not_null
+
+      - name: listing_url
+        description: "Full Idealista listing URL for manual verification"
+
+      # ── Operation ───────────────────────────────────────────────────────────
       - name: operation_type
+        description: "'sale' or 'rent' — parsed from Idealista API operation field"
         tests:
           - not_null
           - accepted_values:
               values: ['sale', 'rent']
 
+      # ── Pricing ─────────────────────────────────────────────────────────────
       - name: price_eur
+        description: "Current listing price in EUR. Updated on each scrape via merge"
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 100
               max_value: 50000000
 
-      - name: useful_area_m2
-        tests:
-          - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 500000
-              where: "useful_area_m2 IS NOT NULL"
+      - name: price_per_sqm_useful
+        description: "price_eur / useful_area_m2, rounded to 2 decimals. NULL when useful_area_m2 is 0 or NULL"
 
-      - name: num_rooms
-        tests:
-          - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 15
-              where: "num_rooms IS NOT NULL"
+      - name: price_per_sqm_gross
+        description: "price_eur / gross_area_m2, rounded to 2 decimals. NULL when gross_area_m2 is 0 or NULL"
 
-      - name: energy_class
-        tests:
-          - accepted_values:
-              values: ['A+', 'A', 'B', 'B-', 'C', 'D', 'E', 'F', 'G']
-              where: "energy_class IS NOT NULL"
+      - name: initial_price_eur
+        description: "Price at first_seen_date. Preserved across incremental merges via COALESCE(existing, current)"
 
-      - name: condition
-        tests:
-          - accepted_values:
-              values: ['Bom estado', 'Novo', 'Para recuperar']
-              where: "condition IS NOT NULL"
+      - name: price_change_count
+        description: "Number of price changes detected across scrapes. Incremented when existing.price_eur IS DISTINCT FROM new price"
 
-      - name: latitude
-        tests:
-          - dbt_utils.accepted_range:
-              min_value: 36.9
-              max_value: 42.2
-              where: "latitude IS NOT NULL"
-
-      - name: longitude
-        tests:
-          - dbt_utils.accepted_range:
-              min_value: -9.6
-              max_value: -6.1
-              where: "longitude IS NOT NULL"
-
-      - name: geo_key
-        tests:
-          - relationships:
-              to: ref('dim_geography')
-              field: geo_key
-              where: "geo_key IS NOT NULL"
-
+      # ── Property type (from dim_property_type) ──────────────────────────────
       - name: property_type_key
+        description: "FK to dim_property_type — two-pass join: exact match on type+subtype, fallback on type only"
         tests:
           - relationships:
               to: ref('dim_property_type')
@@ -94,45 +74,195 @@ models:
               where: "property_type_key IS NOT NULL"
 
       - name: property_type
-        description: "Portuguese property type label (e.g. Apartamento, Moradia)"
+        description: "Portuguese property type label (e.g. Apartamento, Moradia) from dim_property_type"
         tests:
           - accepted_values:
               values: ['Apartamento', 'Moradia', 'Moradia Rústica', 'Habitação']
               where: "property_type IS NOT NULL"
 
       - name: property_subtype
-        description: "Portuguese property subtype label (e.g. Duplex, Geminada)"
+        description: "Portuguese subtype (e.g. Duplex, Geminada, Isolada). NULL when source has no subtype"
 
       - name: property_type_group
-        description: "Broad grouping: Apartamento or Moradia"
+        description: "Broad grouping: Apartamento or Moradia — for high-level market segmentation"
         tests:
           - accepted_values:
               values: ['Apartamento', 'Moradia']
               where: "property_type_group IS NOT NULL"
 
-      - name: is_active
-        tests:
-          - not_null
+      - name: typology
+        description: "Typology code from property_features JSONB (e.g. T0, T1, T3). Extracted via regex '^T\\d'"
 
-      - name: first_seen_date
+      # ── Physical attributes ─────────────────────────────────────────────────
+      - name: useful_area_m2
+        description: "Useful (net) area in m². From lot_size field, with fallback to 'm² úteis' in property_features"
         tests:
-          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 500000
+              where: "useful_area_m2 IS NOT NULL"
 
-      - name: last_seen_date
+      - name: gross_area_m2
+        description: "Gross (built) area in m². From lot_size_usable field, with fallback to 'm² construídos' in property_features"
+
+      - name: num_rooms
+        description: "Bedroom count, capped at 15. From bedroom_count or bedrooms_count, whichever is non-null"
         tests:
-          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 15
+              where: "num_rooms IS NOT NULL"
+
+      - name: num_bathrooms
+        description: "Bathroom count, capped at 10. From bathroom_count field"
+
+      - name: floor_number
+        description: "Floor number: -2=subsolo, -1=baixo, 0=rés-do-chão/entresolho, 1+=upper floors. Parsed from floor_raw"
+
+      - name: num_floors
+        description: "Total floors in building. Extracted from 'X andares' pattern in property_features JSONB"
 
       - name: construction_year
+        description: "Year built. Extracted from 'Construído em YYYY' pattern in property_features JSONB"
         tests:
           - dbt_utils.accepted_range:
               min_value: 1800
               max_value: 2030
               where: "construction_year IS NOT NULL"
 
+      - name: condition
+        description: "Property condition in Portuguese: 'Bom estado' (good), 'Novo' (new development), 'Para recuperar' (needs renovation)"
+        tests:
+          - accepted_values:
+              values: ['Bom estado', 'Novo', 'Para recuperar']
+              where: "condition IS NOT NULL"
+
+      - name: energy_class
+        description: "Energy certificate rating normalized to standard codes: A+, A, B, B-, C, D, E, F, G"
+        tests:
+          - accepted_values:
+              values: ['A+', 'A', 'B', 'B-', 'C', 'D', 'E', 'F', 'G']
+              where: "energy_class IS NOT NULL"
+
+      - name: orientation
+        description: "Property orientation (e.g. 'Sul, Este'). Extracted from 'Orientação ...' in property_features"
+
+      - name: heating_type
+        description: "Heating system description (e.g. 'individual: Elétrico', 'Sem aquecimento'). From property_features"
+
+      # ── Amenity flags ───────────────────────────────────────────────────────
+      - name: has_elevator
+        description: "TRUE if property_features/equipment contains 'elevador' or 'ascensor'"
+
+      - name: has_parking
+        description: "TRUE if features contain 'garagem', 'estacionamento', or 'parking'"
+
+      - name: has_terrace
+        description: "TRUE if features contain 'terraço', 'varanda', or 'balcão'"
+
+      - name: has_garden
+        description: "TRUE if features contain 'jardim' or 'garden'"
+
+      - name: has_pool
+        description: "TRUE if features contain 'piscina' or 'pool'"
+
+      - name: has_ac
+        description: "TRUE if features contain 'ar condicionado'"
+
+      - name: has_storage
+        description: "TRUE if features contain 'arrecadação'"
+
+      - name: has_wardrobes
+        description: "TRUE if features contain 'roupeiros embutidos'"
+
+      - name: is_furnished
+        description: "TRUE if features contain 'mobilado' or 'cozinha equipada'"
+
+      - name: is_new_development
+        description: "TRUE if features contain 'nova construção'"
+
+      # ── Geography ───────────────────────────────────────────────────────────
+      - name: geo_key
+        description: "FK to dim_geography — assigned via ST_Within spatial join (point-in-polygon). NULL if coordinates fall outside CAOP polygons"
+        tests:
+          - relationships:
+              to: ref('dim_geography')
+              field: geo_key
+              where: "geo_key IS NOT NULL"
+
+      - name: distrito_code
+        description: "2-digit distrito code from dim_geography (e.g. '01' for Aveiro)"
+
+      - name: distrito_name
+        description: "Distrito name from dim_geography (e.g. 'Aveiro')"
+
+      - name: concelho_code
+        description: "4-digit concelho code from dim_geography (e.g. '0105' for Aveiro municipality)"
+
+      - name: concelho_name
+        description: "Concelho/municipality name from dim_geography (e.g. 'Aveiro')"
+
+      - name: freguesia_code
+        description: "6-digit freguesia code from dim_geography (e.g. '010503' for Glória e Vera Cruz)"
+
+      - name: freguesia_name
+        description: "Freguesia/parish name from dim_geography (e.g. 'Glória e Vera Cruz')"
+
+      - name: address_clean
+        description: "Cleaned address: uses Nominatim reverse-geocoded road + house_number when original address lacks street prefix, otherwise keeps address_raw"
+
       - name: postal_code
-        description: "Portuguese postal code from Nominatim reverse geocoding"
+        description: "Portuguese postal code from Nominatim reverse geocoding (VARCHAR(10))"
         tests:
           - not_null:
               where: "latitude IS NOT NULL"
               config:
                 severity: warn
+
+      - name: latitude
+        description: "WGS84 latitude (NUMERIC(10,7)). From Idealista API coordinates"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 36.9
+              max_value: 42.2
+              where: "latitude IS NOT NULL"
+
+      - name: longitude
+        description: "WGS84 longitude (NUMERIC(10,7)). From Idealista API coordinates"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -9.6
+              max_value: -6.1
+              where: "longitude IS NOT NULL"
+
+      - name: geom
+        description: "PostGIS POINT geometry in SRID 4326 (WGS84). Built from longitude/latitude via ST_MakePoint. GIST-indexed"
+
+      - name: geom_pt
+        description: "PostGIS POINT geometry in SRID 3763 (PT-TM06/ETRS89). Transformed from geom for metric distance calculations"
+
+      # ── Lifecycle (SCD) ─────────────────────────────────────────────────────
+      - name: first_seen_date
+        description: "Date listing first appeared in scrape data. Preserved across incremental merges"
+        tests:
+          - not_null
+
+      - name: last_seen_date
+        description: "Most recent scrape_date for this listing. Updated on each merge"
+        tests:
+          - not_null
+
+      - name: listing_age_days
+        description: "Days between first_seen_date and last_seen_date. Computed as difference on merge"
+
+      - name: is_active
+        description: "TRUE if listing is active. Set FALSE when listing_status != 'active' or not seen for >3 days (post_hook)"
+        tests:
+          - not_null
+
+      # ── Audit ───────────────────────────────────────────────────────────────
+      - name: _created_at
+        description: "Timestamp when the row was first inserted. Preserved across merges via COALESCE"
+
+      - name: _updated_at
+        description: "Timestamp of last merge update. Set to NOW() on every run"

@@ -17,33 +17,10 @@ from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
-# All 33 indicator codes — kept in sync with ine_config.py
-INDICATOR_CODES = [
-    # Housing: prices
-    "0009201", "0009207", "0012234", "0012235",
-    # Housing: transactions
-    "0012785", "0012786", "0012787", "0012788",
-    # Housing: rental market
-    "0012571", "0012572", "0012573", "0012574",
-    # Housing: construction
-    "0012096", "0012778", "0011750",
-    # Housing: mortgage finance
-    "0006340", "0006341", "0008867", "0008870",
-    # Housing: sales (updated methodology)
-    "0012236",
-    # Housing: construction (additional)
-    "0012097", "0008321",
-    # Housing: building stock (Census 2021)
-    "0012575", "0012581",
-    # Demographics
-    "0001271", "0008273", "0008337",
-    # Tourism
-    "0009808",
-    # Economy
-    "0008351", "0011190",
-    # Innovation
-    "0008515", "0008519", "0008521",
-]
+# Derive indicator codes from the single source of truth in ine_config.py
+from pipelines.api.ine.ine_config import INE_INDICATORS
+
+INDICATOR_CODES = [ind.code for ind in INE_INDICATORS]
 
 
 def _parse_valor(raw: str | None) -> float | None:
@@ -367,7 +344,19 @@ def _create_dag():
         table_ready = create_table()
         loaded = load_indicators(files)
         table_ready >> loaded
-        validate_counts(loaded)
+        validated = validate_counts(loaded)
+
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+        trigger_dbt = TriggerDagRunOperator(
+            task_id="trigger_dbt_pipeline",
+            trigger_dag_id="dbt_scoped_build",
+            conf={"select": "stg_ine_indicators+"},
+            wait_for_completion=True,
+            reset_dag_run=True,
+            poke_interval=10,
+        )
+        validated >> trigger_dbt
 
     return ine_bronze_load()
 

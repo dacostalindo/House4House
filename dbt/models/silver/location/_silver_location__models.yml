@@ -1,12 +1,68 @@
 version: 2
 
 models:
-  - name: transport_stops
-    description: >
-      SKELETON — OSM transport stops cleaned and classified.
-      Sprint 5 implementation.
-
   - name: osm_pois
     description: >
-      SKELETON — OSM POIs with category grouping and geo_key.
-      Sprint 5 implementation.
+      SKELETON (Sprint 5) — OSM points of interest cleaned and classified into categories.
+      Depends on: stg_osm_pois, dim_geography.
+      Transformations: osm_id TEXT → BIGINT, fclass → category mapping (food, health, finance,
+      retail, education, green_space, other), dual-projection geometries (4326 + 3763),
+      spatial join to dim_geography for geo_key.
+    columns:
+      - name: poi_key
+        description: "Surrogate key (BIGINT)"
+      - name: osm_id
+        description: "OpenStreetMap feature ID cast from TEXT to BIGINT"
+      - name: name
+        description: "POI name from OSM (may be NULL for unnamed features)"
+      - name: fclass
+        description: "Original OSM feature class (e.g. restaurant, pharmacy, school)"
+      - name: category
+        description: >
+          Grouped category: food (restaurant, cafe, fast_food), health (pharmacy, hospital, clinic),
+          finance (bank, atm), retail (supermarket, mall, convenience), education (school, university, kindergarten),
+          green_space (park, nature_reserve), other (everything else)
+      - name: geo_key
+        description: "FK to dim_geography via ST_Within spatial join"
+      - name: latitude
+        description: "WGS84 latitude (NUMERIC(10,7))"
+      - name: longitude
+        description: "WGS84 longitude (NUMERIC(10,7))"
+      - name: geom
+        description: "PostGIS POINT in SRID 4326 (WGS84). GIST-indexed"
+      - name: geom_pt
+        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run"
+
+  - name: transport_stops
+    description: >
+      SKELETON (Sprint 5) — OSM transport stops cleaned and classified by mode.
+      Depends on: stg_osm_transport, dim_geography.
+      Transformations: osm_id TEXT → BIGINT, fclass → stop_type mapping (rail, bus, metro, tram, ferry),
+      dual-projection geometries, spatial join to dim_geography for geo_key.
+    columns:
+      - name: stop_key
+        description: "Surrogate key (BIGINT)"
+      - name: stop_name
+        description: "Transport stop name from OSM"
+      - name: stop_type
+        description: "Transport mode: rail, bus, metro, tram, ferry — mapped from OSM fclass"
+      - name: operator
+        description: "Transport operator name from OSM tags (e.g. CP, Metro do Porto)"
+      - name: is_interchange
+        description: "TRUE if stop serves multiple transport modes"
+      - name: geo_key
+        description: "FK to dim_geography via ST_Within spatial join"
+      - name: latitude
+        description: "WGS84 latitude (NUMERIC(10,7))"
+      - name: longitude
+        description: "WGS84 longitude (NUMERIC(10,7))"
+      - name: geom
+        description: "PostGIS POINT in SRID 4326 (WGS84). GIST-indexed"
+      - name: geom_pt
+        description: "PostGIS POINT in SRID 3763 (PT-TM06/ETRS89). GIST-indexed for metric distance"
+      - name: is_planned
+        description: "TRUE if stop is planned/under construction (not yet operational)"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run"

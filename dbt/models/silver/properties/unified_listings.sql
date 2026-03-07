@@ -13,6 +13,7 @@
             'has_ac', 'has_storage', 'has_wardrobes', 'is_furnished', 'is_new_development',
             'property_type_key',
             'geo_key', 'freguesia_code', 'concelho_code', 'distrito_code',
+            'distrito_name', 'concelho_name', 'freguesia_name',
             'address_clean', 'postal_code', 'latitude', 'longitude', 'geom', 'geom_pt',
             'last_seen_date', 'listing_age_days', 'is_active',
             'price_change_count',
@@ -24,7 +25,8 @@
             "CREATE INDEX IF NOT EXISTS idx_ul_op ON {{ this }} (operation_type)",
             "CREATE INDEX IF NOT EXISTS idx_ul_active ON {{ this }} (is_active) WHERE is_active",
             "CREATE INDEX IF NOT EXISTS idx_ul_hash ON {{ this }} (property_hash)",
-            "CREATE INDEX IF NOT EXISTS idx_ul_src_id ON {{ this }} (source_listing_id)"
+            "CREATE INDEX IF NOT EXISTS idx_ul_src_id ON {{ this }} (source_listing_id)",
+            "UPDATE {{ this }} SET is_active = FALSE WHERE is_active = TRUE AND last_seen_date < CURRENT_DATE - INTERVAL '3 days'"
         ]
     )
 }}
@@ -276,7 +278,10 @@ with_geo AS (
         g.geo_key,
         g.freguesia_code,
         g.concelho_code,
-        g.distrito_code
+        g.distrito_code,
+        g.distrito_name,
+        g.concelho_name,
+        g.freguesia_name
     FROM with_geometry w
     LEFT JOIN {{ ref('dim_geography') }} g
         ON ST_Within(w.geom, g.freguesia_geom)
@@ -322,7 +327,11 @@ with_hash AS (
 
         -- Lifecycle fields
         scrape_date                              AS last_seen_date,
-        COALESCE(listing_status, 'active') = 'active' AS yesctive
+        CASE
+            WHEN COALESCE(listing_status, 'active') != 'active' THEN FALSE
+            WHEN CURRENT_DATE - scrape_date > 3 THEN FALSE
+            ELSE TRUE
+        END                                      AS is_active
 
     FROM with_type
 )
@@ -381,6 +390,9 @@ SELECT
     h.freguesia_code,
     h.concelho_code,
     h.distrito_code,
+    h.distrito_name,
+    h.concelho_name,
+    h.freguesia_name,
     CASE
         WHEN gc.road IS NOT NULL
              AND h.address_raw !~ '^(Rua |Avenida |Av\.|Travessa |Largo |Praça |Alameda |Estrada |Urbanização |Beco |Calçada )'

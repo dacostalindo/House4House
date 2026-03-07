@@ -2908,24 +2908,24 @@ dags/
 | Banco de Portugal | S16 | 2 | Monthly macro data → `bronze_macro.raw_bpstat` (3 domains, 16 datasets via JSON-stat API) | — | ✅ Done |
 | Eurostat HPI | S18 | 1 | Quarterly HPI → `bronze_macro.raw_eurostat` (38 EU countries, JSON-stat API) | — | ✅ Done |
 | dbt restructure + Cosmos | — | 2 | Domain staging (`geo/`, `ine/`, `listings/`, `macro/`, `location/`), Cosmos DbtTaskGroup, silver skeletons | `staging_dbt.stg_*` (11 views), `silver_market.macro_timeseries` | ✅ Done |
-| Geocoding pipeline | — | 2 | Airflow DAG: batch Nominatim geocode + PiP fallback → lat/lon + freguesia_code on `raw_idealista` | `bronze_listings.raw_idealista` (lat/lon/freguesia cols) | |
+| Geocoding pipeline | — | 2 | Reverse geocoding via Nominatim → `bronze_listings.reverse_geocoded` (1,334 coords, 100% postal code coverage). Address enrichment in `unified_listings` (58% → 93% street addresses) | `bronze_listings.reverse_geocoded`, `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
 | `dim_time` seed | — | 0.5 | Date dimension 2000–2035 with fiscal year, holidays | `gold_analytics.dim_time` | |
-| `dim_property_type` seed | — | 0.5 | Property type taxonomy (apartment, house, land, commercial, …) | `gold_analytics.dim_property_type` | |
+| `dim_property_type` seed | — | 0.5 | 16-row static dimension: Idealista raw type/subtype → Portuguese labels (tipo, subtipo, type_group) | `gold_analytics.dim_property_type` | ✅ Done |
 
-**Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working.
+**Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Scoped dbt triggers (`dbt_scoped_build`) wired to all 8 bronze DAGs.
 
 ### Sprint 3 — Silver Layer: Unification (Weeks 5-6)
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Listing normalization | S03/S04 | 2 | Parse TEXT → typed: price "€ 350,000" → `NUMERIC`, area "120 m²" → `NUMERIC`, typology "T3" → rooms `SMALLINT` | `silver_properties.unified_listings` |
-| Address cleaning | — | 2 | Standardize Portuguese addresses: normalize street types, postal codes, remove noise | `silver_properties.unified_listings` (address_clean) |
-| Geocode join | — | 1 | Spatial join geocoded lat/lon → `dim_geography.geo_key` + freguesia/concelho/distrito codes | `silver_properties.unified_listings` (geo_key, freguesia_code) |
-| SCD Type 2 price tracking | — | 2 | Detect price changes across scrape batches, maintain first_seen/last_seen/is_active | `silver_properties.unified_listings`, `silver_properties.listing_price_history` |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Listing normalization | S03/S04 | 2 | Parse TEXT → typed: price → NUMERIC, area → NUMERIC, typology "T3" → rooms SMALLINT, floor codes, condition/energy to Portuguese, JSONB feature extraction (construction year, orientation, heating, amenity flags). Human-readable property_type/subtype/type_group columns | `silver_properties.unified_listings` | ✅ Done |
+| Address cleaning | — | 2 | Nominatim reverse geocoding enriches raw addresses: street name fallback when raw lacks prefix (Rua, Av., etc.), postal code always from Nominatim. 58% → 93% street addresses, 0% → 100% postal codes | `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
+| Geocode join | — | 1 | Spatial join via `ST_Within(point, freguesia_geom)` → `dim_geography.geo_key` + freguesia/concelho/distrito codes | `silver_properties.unified_listings` (geo_key, freguesia_code) | ✅ Done |
+| SCD Type 2 price tracking | — | 2 | Incremental merge preserves first_seen_date, initial_price_eur, _created_at. Tracks price_change_count, listing_age_days. Staleness-based is_active (3-day rule + post-hook UPDATE) | `silver_properties.unified_listings` | ✅ Done |
 | Imovirtual scraper | S05 | 7 | Second listing portal live → `bronze_listings.raw_imovirtual` | — |
 | Cross-portal dedup | — | 3 | Hash(address + area + typology) matching, fuzzy fallback | `silver_properties.unified_listings` (property_hash), `silver_properties.listing_matches` |
-| IMI/IMT reference tables | S31 | 2 | Tax bracket seed tables for yield calculations | `gold_analytics.ref_imi_brackets`, `gold_analytics.ref_imt_brackets` |
-| Census demographics model | S12 | 2 | BGRI subsection → freguesia aggregation + INE indicator pivot | `silver_geo.census_demographics`, `gold_analytics.dim_geography` (denormalized census cols) |
+| IMI/IMT reference tables | S31 | 2 | IMT transfer tax brackets (16 rows: primary/secondary/rural/other urban, 2025) and IMI municipal property tax rates (278 municipalities, urban 0.30%–0.45%). VALUES-based SQL models in gold_analytics | `gold_analytics.ref_imt_brackets`, `gold_analytics.ref_imi_rates` | ✅ Done |
+| Census demographics model | S12 | 2 | BGRI 203K subsections → 2,882 freguesias: population by age band, household size, dwelling vacancy/tenure (42% avg vacancy, 82% owner-occupied), plus INE building aging ratio and repair %. 135 BGRI codes unmatched to CAOP (boundary changes) | `silver_geo.census_demographics` | ✅ Done |
 
 **Exit criteria:** `unified_listings` with ~100K+ deduped active listings; >95% geocoded; `census_demographics` populated.
 

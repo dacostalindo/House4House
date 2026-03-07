@@ -394,7 +394,19 @@ def _create_dag():
         table_ready = create_table()
         loaded = load_datasets(files)
         table_ready >> loaded
-        validate_counts(loaded)
+        validated = validate_counts(loaded)
+
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+        trigger_dbt = TriggerDagRunOperator(
+            task_id="trigger_dbt_pipeline",
+            trigger_dag_id="dbt_scoped_build",
+            conf={"select": "stg_eurostat+"},
+            wait_for_completion=True,
+            reset_dag_run=True,
+            poke_interval=10,
+        )
+        validated >> trigger_dbt
 
     return eurostat_bronze_load()
 

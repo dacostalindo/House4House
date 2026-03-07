@@ -2,23 +2,58 @@ version: 2
 
 models:
   - name: stg_caop_freguesias
-    description: "CAOP parish boundaries with dual CRS and hierarchy codes."
+    description: >
+      CAOP parish boundaries with dual CRS and administrative hierarchy codes.
+      View over bronze_geo.raw_caop_freguesias with column renames and CRS transform.
+      Foundation for dim_geography — every spatial join resolves to a freguesia via this model.
+      Source: DGT CAOP (annual release). ~3,049 rows (mainland Portugal).
     columns:
       - name: freguesia_code
+        description: "6-digit DTMNFR code (distrito 2 + municipio 2 + freguesia 2). Natural key for all geographic joins"
         tests: [unique, not_null]
+      - name: distrito_code
+        description: "2-digit distrito code derived from LEFT(dtmnfr, 2)"
+      - name: concelho_code
+        description: "4-digit concelho code derived from LEFT(dtmnfr, 4)"
+      - name: freguesia_name
+        description: "Parish name from CAOP 'freguesia' field"
+      - name: concelho_name
+        description: "Municipality name from CAOP 'municipio' field"
+      - name: distrito_name
+        description: "District name from CAOP 'distrito_ilha' field"
+      - name: nut_i
+        description: "NUTS I region code (e.g. 'Continente')"
+      - name: nut_ii
+        description: "NUTS II region code (e.g. 'Centro')"
+      - name: nut_iii
+        description: "NUTS III region code (e.g. 'Região de Aveiro')"
+      - name: area_ha
+        description: "Parish area in hectares from CAOP"
       - name: geom_pt
+        description: "MultiPolygon boundary in EPSG:3763 (PT-TM06/ETRS89). Original CRS from CAOP"
         tests: [not_null]
       - name: geom_4326
+        description: "MultiPolygon boundary in EPSG:4326 (WGS84). Transformed via ST_Transform for spatial joins with listing coordinates"
         tests: [not_null]
 
   - name: stg_caop_distritos
-    description: "CAOP district codes and names."
+    description: >
+      CAOP district codes and names. View over bronze_geo.raw_caop_distritos.
+      18 rows (mainland Portugal districts).
     columns:
       - name: distrito_code
+        description: "2-digit district code (e.g. '01' for Aveiro)"
         tests: [unique, not_null]
+      - name: distrito_name
+        description: "District name (e.g. 'Aveiro')"
 
   - name: stg_caop_municipios
-    description: "CAOP municipality codes and names."
+    description: >
+      CAOP municipality codes and names. View over bronze_geo.raw_caop_municipios.
+      278 rows (mainland Portugal municipalities).
     columns:
       - name: concelho_code
+        description: "4-digit municipality code (e.g. '0105' for Aveiro municipality)"
         tests: [unique, not_null]
+      - name: concelho_name
+        description: "Municipality name (e.g. 'Aveiro')"

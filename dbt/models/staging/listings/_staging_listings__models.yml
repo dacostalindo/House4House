@@ -2,12 +2,63 @@ version: 2
 
 models:
   - name: stg_idealista
-    description: "Idealista listings. View over bronze_listings.raw_idealista with column renames."
+    description: >
+      Idealista listings with column renames and aliasing. View over bronze_listings.raw_idealista.
+      Filters to rows WHERE property_url IS NOT NULL.
+      Renames: property_price -> price_raw, property_type -> property_type_raw, floor -> floor_raw,
+      property_condition -> condition_raw, energy_certificate -> energy_certificate_raw,
+      address -> address_raw, status -> listing_status.
+      All values remain as raw TEXT/JSONB — type casting happens in unified_listings (silver).
+      Source: ZenRows Real Estate API via idealista_bronze_load.
     columns:
+      - name: property_id
+        description: "Idealista listing ID (TEXT). Used for deduplication in silver layer"
       - name: listing_url
+        description: "Full Idealista listing URL (e.g. https://www.idealista.pt/imovel/34729761/)"
         tests: [not_null]
       - name: operation_type
+        description: "'sale' or 'rent' — from _operation pipeline field"
         tests:
           - not_null
           - accepted_values:
               values: ['sale', 'rent']
+      - name: property_type_raw
+        description: "Raw Idealista type (e.g. 'chalet', 'flat', 'countryHouse'). Mapped to Portuguese in silver via dim_property_type"
+      - name: property_subtype_raw
+        description: "Raw Idealista subtype (e.g. 'andarMoradia', 'studio'). ~60% NULL"
+      - name: price_raw
+        description: "Raw price string from property_price. Cast to NUMERIC in silver"
+      - name: lot_size
+        description: "Primary area (useful/net) — raw TEXT. Cast to NUMERIC in silver"
+      - name: lot_size_usable
+        description: "Secondary area (gross/built) — raw TEXT. Cast to NUMERIC in silver"
+      - name: bedroom_count
+        description: "Bedroom count — raw TEXT. Some listings use bedrooms_count instead"
+      - name: bedrooms_count
+        description: "Alternate bedroom field — raw TEXT. Silver uses COALESCE(bedroom_count, bedrooms_count)"
+      - name: bathroom_count
+        description: "Bathroom count — raw TEXT"
+      - name: floor_raw
+        description: "Floor code (e.g. 'bj', 'ss', 'st', 'en', '3'). Parsed to integer in silver"
+      - name: condition_raw
+        description: "Property condition (e.g. 'good', 'newdevelopment', 'renew'). Translated to Portuguese in silver"
+      - name: energy_certificate_raw
+        description: "Energy certificate code (e.g. 'aplus', 'bminus', 'd'). Normalized to standard codes in silver"
+      - name: property_features
+        description: "JSONB array of Portuguese feature strings. Parsed in silver for construction year, orientation, heating, etc."
+      - name: property_equipment
+        description: "JSONB array of equipment strings. Parsed in silver for amenity flags (AC, wardrobes, etc.)"
+      - name: address_raw
+        description: "Raw address from Idealista. Often just parish/neighborhood name — enriched in silver via Nominatim"
+      - name: latitude
+        description: "WGS84 latitude from Idealista API. NUMERIC(10,7)"
+      - name: longitude
+        description: "WGS84 longitude from Idealista API. NUMERIC(10,7)"
+      - name: listing_status
+        description: "Listing status (e.g. 'active'). Almost always 'active' at scrape time"
+      - name: scrape_date
+        description: "Date of scrape (_scrape_date). Used for incremental filtering in silver"
+      - name: _carried_forward
+        description: "TRUE if detail data was reused from previous run (not re-fetched). Used for incremental filtering"
+      - name: distrito
+        description: "Crawl segment distrito — pipeline metadata, not from listing data"

@@ -105,16 +105,18 @@ check_api_availability → fetch_indicator(1) → upload_to_minio → cleanup + 
 | Orchestration | Auto-triggers `eurostat_bronze_load` after completion (`wait_for_completion=True`) |
 | Tags | `ingestion`, `api`, `minio`, `eurostat`, `macro`, `housing_prices`, `hpi` |
 
-### `eurostat_bronze_load` — MinIO → PostGIS
+### `eurostat_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-list_minio_files → create_table → load_datasets → validate_counts
+list_minio_files → create_table → load_datasets → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (auto-triggered by `eurostat_api_ingestion`, or manual) |
 | Idempotency | DELETE + INSERT per dataset_code |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_eurostat+` |
+| Downstream models | `stg_eurostat` → `macro_timeseries` (House Price Index, EU-wide benchmarking) |
 | Tags | `eurostat`, `bronze`, `macro`, `postgis` |
 
 ---

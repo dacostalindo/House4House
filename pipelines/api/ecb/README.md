@@ -93,16 +93,18 @@ check_api_availability → fetch_indicator.expand(3) → upload_to_minio → cle
 | Orchestration | Auto-triggers `ecb_bronze_load` after completion (`wait_for_completion=True`) |
 | Tags | `ingestion`, `api`, `minio`, `ecb`, `euribor`, `interest_rates`, `macro` |
 
-### `ecb_bronze_load` — MinIO → PostGIS
+### `ecb_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-list_minio_files → create_table → load_indicators → validate_counts
+list_minio_files → create_table → load_indicators → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
 |---------|-------|
 | Schedule | None (auto-triggered by `ecb_api_ingestion`, or manual) |
 | Idempotency | DELETE + INSERT per series key |
+| dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_ecb+` |
+| Downstream models | `stg_ecb` → `macro_timeseries` (Euribor interest rates) |
 | Tags | `ecb`, `bronze`, `euribor`, `postgis` |
 
 ---
