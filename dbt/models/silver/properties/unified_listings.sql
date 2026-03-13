@@ -41,9 +41,8 @@ WITH source_data AS (
     WHERE listing_url IS NOT NULL
       AND price_raw IS NOT NULL
     {% if is_incremental() %}
-      -- Incremental: only freshly scraped rows newer than last run
-      AND _carried_forward = FALSE
-      AND scrape_date > (SELECT MAX(last_seen_date) FROM {{ this }})
+      -- Incremental: rows newer than last run (fresh + carried-forward)
+      AND scrape_date >= (SELECT MAX(last_seen_date) FROM {{ this }})
     {% endif %}
 ),
 
@@ -51,7 +50,8 @@ deduplicated AS (
     SELECT *,
         ROW_NUMBER() OVER (
             PARTITION BY property_id
-            ORDER BY scrape_date DESC
+            -- Prefer non-carried-forward rows for attribute values
+            ORDER BY _carried_forward ASC, scrape_date DESC
         ) AS _rn
     FROM source_data
 ),
@@ -70,6 +70,9 @@ lifecycle AS (
         MAX(scrape_date)                                         AS true_last_seen
     FROM {{ ref('stg_idealista') }}
     WHERE listing_url IS NOT NULL AND price_raw IS NOT NULL
+    {% if is_incremental() %}
+      AND property_id IN (SELECT property_id FROM source_data)
+    {% endif %}
     GROUP BY property_id
 ),
 
@@ -87,9 +90,9 @@ parsed AS (
         -- Price
         NULLIF(price_raw, '')::NUMERIC(12,2)        AS price_eur,
 
-        -- Areas (lot_size = primary, lot_size_usable = secondary)
-        NULLIF(lot_size, '')::NUMERIC(10,2)          AS useful_area_m2,
-        NULLIF(lot_size_usable, '')::NUMERIC(10,2)   AS gross_area_m2,
+        -- Areas (lot_size = m² construídos = gross, lot_size_usable = m² úteis = useful)
+        NULLIF(NULLIF(lot_size_usable, '')::NUMERIC(10,2), 0)  AS useful_area_m2,
+        NULLIF(NULLIF(lot_size, '')::NUMERIC(10,2), 0)          AS gross_area_m2,
 
         -- Rooms (cap outliers)
         LEAST(
@@ -233,8 +236,8 @@ with_flags AS (
         price_eur,
 
         -- Use feature-extracted areas as fallback
-        COALESCE(useful_area_m2, useful_area_feat)   AS useful_area_m2,
-        COALESCE(gross_area_m2, gross_area_feat)     AS gross_area_m2,
+        COALESCE(useful_area_m2, useful_area_feat)    AS useful_area_m2,
+        COALESCE(gross_area_m2, gross_area_feat)      AS gross_area_m2,
 
         num_rooms,
         num_bathrooms,
@@ -303,7 +306,7 @@ with_geo AS (
 
 -- Two-pass join to dim_property_type (exact match + fallback for NULL subtype)
 with_type AS (
-    SELECT
+    SELECT DISTINCT ON (w.source_listing_id)
         w.*,
         COALESCE(exact.property_type_key, fallback.property_type_key)
                                                  AS property_type_key,
@@ -318,6 +321,7 @@ with_type AS (
     LEFT JOIN {{ ref('dim_property_type') }} fallback
         ON fallback.source_type = w.property_type_raw
         AND fallback.source_subtype IS NULL
+    ORDER BY w.source_listing_id, exact.property_type_key NULLS LAST
 ),
 
 -- Deduplication hash
@@ -339,20 +343,13 @@ with_hash AS (
         END                                      AS price_per_sqm_gross,
 
         -- Lifecycle fields
-        scrape_date                              AS last_seen_date,
-        CASE
-            WHEN COALESCE(listing_status, 'active') != 'active' THEN FALSE
-            WHEN CURRENT_DATE - scrape_date > 3 THEN FALSE
-            ELSE TRUE
-        END                                      AS is_active
+        scrape_date                              AS last_seen_date
 
     FROM with_type
 )
 
 SELECT
-    ROW_NUMBER() OVER (
-        ORDER BY h.source_listing_id
-    )::BIGINT                                    AS listing_key,
+    h.source_listing_id::BIGINT                  AS listing_key,
     h.property_hash,
 
     -- Source
@@ -432,11 +429,13 @@ SELECT
     {% endif %}                                  AS listing_age_days,
     CASE
         WHEN COALESCE(lc.true_last_seen, h.last_seen_date) < CURRENT_DATE - 3 THEN FALSE
-        ELSE h.is_active
+        WHEN COALESCE(h.listing_status, 'active') != 'active' THEN FALSE
+        ELSE TRUE
     END                                          AS is_active,
     {% if is_incremental() %}
     (COALESCE(existing.price_change_count, 0)
-        + CASE WHEN existing.price_eur IS DISTINCT FROM h.price_eur THEN 1 ELSE 0 END
+        + CASE WHEN existing.listing_key IS NOT NULL
+                AND existing.price_eur IS DISTINCT FROM h.price_eur THEN 1 ELSE 0 END
     )::SMALLINT
     {% else %}
     0::SMALLINT
@@ -459,8 +458,8 @@ FROM with_hash h
 LEFT JOIN lifecycle lc
     ON lc.property_id = h.source_listing_id
 LEFT JOIN {{ source('bronze_listings', 'reverse_geocoded') }} gc
-    ON h.latitude = gc.latitude
-    AND h.longitude = gc.longitude
+    ON ROUND(h.latitude::NUMERIC, 7) = gc.latitude
+    AND ROUND(h.longitude::NUMERIC, 7) = gc.longitude
 {% if is_incremental() %}
 LEFT JOIN {{ this }} existing
     ON existing.source_listing_id = h.source_listing_id
