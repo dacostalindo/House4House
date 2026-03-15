@@ -2912,7 +2912,7 @@ dags/
 | `dim_time` seed | — | 0.5 | Date dimension 2000–2035 via dbt_utils.date_spine (13,149 rows). YYYYMMDD integer key, ISO day-of-week, INE quarter labels | `gold_analytics.dim_time` | ✅ Done |
 | `dim_property_type` seed | — | 0.5 | 16-row static dimension: Idealista raw type/subtype → Portuguese labels (tipo, subtipo, type_group) | `gold_analytics.dim_property_type` | ✅ Done |
 
-**Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Scoped dbt triggers (`dbt_scoped_build`) wired to all 8 bronze DAGs.
+**Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Per-source Cosmos DAGs (`dbt_{source}_build`) wired to all 8 bronze DAGs.
 
 ### Sprint 3 — Silver Layer: Unification (Weeks 5-6)
 
@@ -2933,9 +2933,9 @@ dags/
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
-| Transport stops model | S10 | 1 | Map OSM fclass → stop_type (48.9K rows), spatial join → geo_key (96.5% coverage), reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
-| OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key | `silver_location.osm_pois` | |
-| Transport proximity scores | S10 | 2 | Nearest metro/train distance per listing via PostGIS `ST_Distance` | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_train_m) | |
+| Transport stops model | S10 | 1 | Map OSM fclass → stop_type (50K rows from point + polygon layers), spatial join → geo_key, source/source_id columns, reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
+| OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key (304K rows from point + polygon layers) | `silver_location.pois` | ✅ Done |
+| Transport proximity scores | S10 | 2 | Nearest stop per mode via crow-flies `ST_Distance` (EPSG:3763), exponential decay scoring with variable decay per mode, LATERAL + KNN joins. Raw distances + scores stored | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_rail_m, nearest_bus_m, metro_score, rail_score, bus_score) | |
 | POI density / walkability | S09 | 2 | Count amenities within 500m/1km per listing | `gold_analytics.property_location_scores` (walkability_score, restaurants_500m, supermarkets_1km) | |
 | Drive-time via OSRM | S11 | 3 | Batch routing: listing → city center, airport, nearest hospital | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) | |
 | Composite location score | — | 1 | Weighted combination of transport + walkability + drive-time | `gold_analytics.property_location_scores` (overall_location_score) | |
@@ -2943,7 +2943,7 @@ dags/
 | Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | |
 | PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` | |
 
-**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `osm_pois` populated.
+**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `pois` populated.
 
 ### Sprint 5 — Hedonic Model & Valuation (Weeks 9-10)
 
@@ -2983,10 +2983,12 @@ dags/
 | School data (InfoEscolas) | S22 | 5 | Schools geocoded + exam scores → spatial join | `silver_location.schools`, `gold_analytics.property_location_scores` (education_score, schools_1km) |
 | Healthcare facilities | S23 | 2 | Hospitals/clinics geocoded + type/operator | `silver_location.healthcare_facilities`, `gold_analytics.property_location_scores` (healthcare_score, nearest_hospital_m) |
 | GTFS transport schedules | S24 | 3 | Route count + service frequency enrichment | `silver_location.transport_stops` (route_count, service_frequency), `gold_analytics.property_location_scores` (transport_score recalc) |
-| Recalibrate hedonic model v2 | — | 2 | Add education_score + healthcare_score to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) |
+| pgRouting network distances | S11 | 2 | Load OSM road graph into PostGIS, build topology. Replace crow-flies with network walking distance for metro/bus/tram and driving distance for rail/airport | `gold_analytics.property_location_scores` (recalc with network distances) |
+| OSRM time-based accessibility | S11 | 2 | Batch OSRM API calls: walking time to nearest metro/bus, driving time to airport/rail. Add travel-time columns and time-based cutoffs replacing hard radius | `gold_analytics.property_location_scores` (nearest_metro_walk_min, nearest_air_drive_min) |
+| Recalibrate hedonic model v2 | — | 2 | Add education_score + healthcare_score + network-based transport scores to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) |
 | Refresh investment_opportunities | — | 1 | Recompute with improved location + valuation scores | `gold_analytics.investment_opportunities` (refreshed) |
 
-**Exit criteria:** Location scores include education + healthcare; STR intelligence live; hedonic model v2 deployed.
+**Exit criteria:** Location scores include education + healthcare; transport scores upgraded to network distances (pgRouting) and travel times (OSRM); STR intelligence live; hedonic model v2 deployed.
 
 ### Sprint 8 — UC-2 MVP + Production Hardening (Weeks 15-16)
 

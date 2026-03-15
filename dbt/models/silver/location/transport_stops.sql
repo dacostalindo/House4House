@@ -11,12 +11,13 @@
 
 -- OSM transport stops classified by mode, reprojected to 3763,
 -- and spatial-joined to dim_geography for geo_key.
--- ~48.9K rows from Geofabrik Portugal gis_osm_transport_free layer.
+-- Combines point and polygon layers via stg_osm_transport UNION.
 
 WITH classified AS (
     SELECT
         osm_id::BIGINT                              AS osm_id,
         name                                        AS stop_name,
+        'osm'                                       AS source,
         CASE fclass
             WHEN 'railway_station'  THEN 'rail'
             WHEN 'railway_halt'     THEN 'rail'
@@ -37,6 +38,8 @@ WITH classified AS (
 
 SELECT
     ROW_NUMBER() OVER (ORDER BY c.osm_id)::BIGINT   AS stop_key,
+    c.source,
+    c.osm_id::TEXT                                   AS source_id,
     c.stop_name,
     c.stop_type,
     NULL::VARCHAR(100)                               AS operator,

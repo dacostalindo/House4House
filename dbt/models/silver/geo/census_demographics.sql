@@ -9,9 +9,8 @@
 }}
 
 -- BGRI Census 2021 aggregated from 203K subsections to 3,049 freguesias.
--- Enriched with INE building condition indicators (aging ratio, repair %).
--- Deferred columns (need API chunking): employment_rate, unemployment_rate,
--- pop_higher_ed_pct, total_foreign, foreign_pct.
+-- Enriched with INE Census 2021 indicators: building condition, employment,
+-- education, foreign population, mean age, and commuting time.
 
 WITH bgri_agg AS (
     SELECT
@@ -101,6 +100,64 @@ ine_building_repair AS (
            value           AS buildings_repair_needed_pct
     FROM {{ ref('stg_ine_indicators') }}
     WHERE indicator_code = '0012581'
+),
+
+-- Employment (Census 2021, MF total)
+ine_unemployment_rate AS (
+    SELECT geographic_code AS freguesia_code, value AS unemployment_rate
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012328' AND dim_3 = 'T'
+),
+ine_activity_rate AS (
+    SELECT geographic_code AS freguesia_code, value AS activity_rate
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012317' AND dim_3 = 'T'
+),
+ine_employees_pct AS (
+    SELECT geographic_code AS freguesia_code, value AS employees_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012341' AND dim_3 = 'T'
+),
+
+-- Education (Census 2021, MF total)
+ine_higher_ed AS (
+    SELECT geographic_code AS freguesia_code, value AS higher_education_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012316' AND dim_3 = 'T'
+),
+ine_lower_secondary AS (
+    SELECT geographic_code AS freguesia_code, value AS lower_secondary_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012315' AND dim_3 = 'T'
+),
+ine_upper_secondary AS (
+    SELECT geographic_code AS freguesia_code, value AS upper_secondary_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012327' AND dim_3 = 'T'
+),
+ine_no_education AS (
+    SELECT geographic_code AS freguesia_code, value AS no_education_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012323' AND dim_3 = 'T'
+),
+
+-- Foreign population (Census 2021, MF total)
+ine_foreign_pct AS (
+    SELECT geographic_code AS freguesia_code, value AS foreign_nationality_pct
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012314' AND dim_3 = 'T'
+),
+
+-- Age & commuting (Census 2021, no dimensions)
+ine_mean_age AS (
+    SELECT geographic_code AS freguesia_code, value AS mean_age
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012374' AND LENGTH(geographic_code) = 6
+),
+ine_commuting AS (
+    SELECT geographic_code AS freguesia_code, value AS avg_commuting_time_min
+    FROM {{ ref('stg_ine_indicators') }}
+    WHERE indicator_code = '0012331' AND LENGTH(geographic_code) = 6
 )
 
 SELECT
@@ -138,6 +195,24 @@ SELECT
     ba.building_aging_ratio,
     br.buildings_repair_needed_pct,
 
+    -- INE employment indicators (Census 2021, MF total)
+    ur.unemployment_rate,
+    ar.activity_rate,
+    ep.employees_pct,
+
+    -- INE education indicators (Census 2021, MF total)
+    he.higher_education_pct,
+    ls.lower_secondary_pct,
+    us.upper_secondary_pct,
+    ne.no_education_pct,
+
+    -- INE foreign population (Census 2021, MF total)
+    fp.foreign_nationality_pct,
+
+    -- INE age & commuting (Census 2021)
+    ma.mean_age       AS ine_mean_age,
+    ct.avg_commuting_time_min,
+
     2021::SMALLINT AS census_year,
     NOW()          AS _updated_at
 
@@ -148,3 +223,23 @@ LEFT JOIN ine_building_aging ba
     ON b.freguesia_code = ba.freguesia_code
 LEFT JOIN ine_building_repair br
     ON b.freguesia_code = br.freguesia_code
+LEFT JOIN ine_unemployment_rate ur
+    ON b.freguesia_code = ur.freguesia_code
+LEFT JOIN ine_activity_rate ar
+    ON b.freguesia_code = ar.freguesia_code
+LEFT JOIN ine_employees_pct ep
+    ON b.freguesia_code = ep.freguesia_code
+LEFT JOIN ine_higher_ed he
+    ON b.freguesia_code = he.freguesia_code
+LEFT JOIN ine_lower_secondary ls
+    ON b.freguesia_code = ls.freguesia_code
+LEFT JOIN ine_upper_secondary us
+    ON b.freguesia_code = us.freguesia_code
+LEFT JOIN ine_no_education ne
+    ON b.freguesia_code = ne.freguesia_code
+LEFT JOIN ine_foreign_pct fp
+    ON b.freguesia_code = fp.freguesia_code
+LEFT JOIN ine_mean_age ma
+    ON b.freguesia_code = ma.freguesia_code
+LEFT JOIN ine_commuting ct
+    ON b.freguesia_code = ct.freguesia_code

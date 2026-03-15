@@ -350,8 +350,7 @@ def _create_dag():
 
         trigger_dbt = TriggerDagRunOperator(
             task_id="trigger_dbt_pipeline",
-            trigger_dag_id="dbt_scoped_build",
-            conf={"select": "stg_ine_indicators+"},
+            trigger_dag_id="dbt_ine_build",
             wait_for_completion=True,
             reset_dag_run=True,
             poke_interval=10,
