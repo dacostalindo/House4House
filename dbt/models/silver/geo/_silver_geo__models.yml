@@ -5,11 +5,10 @@ models:
     description: >
       BGRI Census 2021 aggregated from 203K subsections to ~3,049 freguesias.
       Population by age band, household size, dwelling vacancy/tenure,
-      plus INE building condition indicators (aging ratio, repair %).
+      plus INE Census 2021 indicators: building condition, employment, education,
+      foreign population, mean age, and commuting time.
       Joins to dim_geography via geo_key for human-readable names.
-      Source: bronze_ine.raw_bgri (BGRI subsections) + stg_ine_indicators (codes 0012575, 0012581).
-      Deferred columns (need API district-level chunking): employment_rate, unemployment_rate,
-      pop_higher_ed_pct, total_foreign, foreign_pct.
+      Source: bronze_ine.raw_bgri (BGRI subsections) + stg_ine_indicators (12 Census 2021 codes).
     columns:
       # ── Identity ────────────────────────────────────────────────────────────
       - name: geo_key
@@ -132,6 +131,62 @@ models:
           Includes buildings with small, medium, and large repairs needed.
           Joined via geographic_code = freguesia_code.
           Coverage: ~3,438 of 3,049 BGRI freguesias.
+
+      # ── INE employment indicators (Census 2021) ───────────────────────────
+      - name: unemployment_rate
+        description: >
+          Unemployment rate (%) from INE 0012328 (Census 2021, total).
+          % of economically active population aged 15+ without employment.
+          Joined via geographic_code = freguesia_code, filtered dim_3 = 'T' (total, both sexes).
+
+      - name: activity_rate
+        description: >
+          Activity rate (%) from INE 0012317 (Census 2021, total).
+          % of population aged 15+ that is economically active.
+          Joined via geographic_code = freguesia_code, filtered dim_3 = 'T' (total, both sexes).
+
+      - name: employees_pct
+        description: >
+          Proportion of employees (%) from INE 0012341 (Census 2021, total).
+          % of employed population working as employees (vs self-employed).
+          Joined via geographic_code = freguesia_code, filtered dim_3 = 'T' (total, both sexes).
+
+      # ── INE education indicators (Census 2021) ────────────────────────────
+      - name: higher_education_pct
+        description: >
+          Proportion of population with higher education (%) from INE 0012316
+          (Census 2021, total).
+
+      - name: lower_secondary_pct
+        description: >
+          Proportion of population with at least lower secondary education (%)
+          from INE 0012315 (Census 2021, total).
+
+      - name: upper_secondary_pct
+        description: >
+          Proportion of population with at least upper secondary education (%)
+          from INE 0012327 (Census 2021, total).
+
+      - name: no_education_pct
+        description: >
+          Proportion of population with no education (%) from INE 0012323
+          (Census 2021, total).
+
+      # ── INE foreign population (Census 2021) ──────────────────────────────
+      - name: foreign_nationality_pct
+        description: >
+          Proportion of resident population with foreign nationality (%)
+          from INE 0012314 (Census 2021, total).
+
+      # ── INE age & commuting (Census 2021) ─────────────────────────────────
+      - name: ine_mean_age
+        description: >
+          Mean age of resident population (years) from INE 0012374 (Census 2021).
+          More precise than the BGRI-derived median_age which uses band midpoints.
+
+      - name: avg_commuting_time_min
+        description: >
+          Average commuting time (minutes) from INE 0012331 (Census 2021).
 
       # ── Metadata ────────────────────────────────────────────────────────────
       - name: census_year

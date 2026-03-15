@@ -15,6 +15,16 @@ sources:
           - name: geom
             description: "POINT geometry in EPSG:4326"
 
+      - name: raw_osm_pois_a
+        description: "OSM POI polygons/areas (parks, schools, pools etc.). 130K+ rows. EPSG:4326."
+        columns:
+          - name: osm_id
+            tests: [not_null]
+          - name: fclass
+            tests: [not_null]
+          - name: geom
+            description: "MULTIPOLYGON geometry in EPSG:4326"
+
       - name: raw_osm_transport
         description: "OSM transport stops (bus, rail, metro). EPSG:4326."
         columns:
@@ -24,3 +34,13 @@ sources:
             tests: [not_null]
           - name: geom
             description: "POINT geometry in EPSG:4326"
+
+      - name: raw_osm_transport_a
+        description: "OSM transport polygons/areas (airports, stations, terminals). EPSG:4326."
+        columns:
+          - name: osm_id
+            tests: [not_null]
+          - name: fclass
+            tests: [not_null]
+          - name: geom
+            description: "MULTIPOLYGON geometry in EPSG:4326"

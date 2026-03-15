@@ -26,6 +26,7 @@
             "CREATE INDEX IF NOT EXISTS idx_ul_active ON {{ this }} (is_active) WHERE is_active",
             "CREATE INDEX IF NOT EXISTS idx_ul_hash ON {{ this }} (property_hash)",
             "CREATE INDEX IF NOT EXISTS idx_ul_src_id ON {{ this }} (source_listing_id)",
+            "CREATE INDEX IF NOT EXISTS idx_ul_geom_pt ON {{ this }} USING GIST(geom_pt)",
             "UPDATE {{ this }} SET is_active = FALSE WHERE is_active = TRUE AND last_seen_date < CURRENT_DATE - INTERVAL '3 days'"
         ]
     )

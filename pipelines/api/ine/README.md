@@ -1,6 +1,6 @@
-# INE API — Housing, Demographics, Tourism, Economy & Innovation (INE)
+# INE API — Housing, Demographics, Census 2021, Tourism, Economy & Innovation (INE)
 
-**Instituto Nacional de Estatística** — 33 statistical indicators fetched from the public JSON API. Time-series housing market data that complements the static BGRI Census 2021 snapshot.
+**Instituto Nacional de Estatística** — 47 statistical indicators fetched from the public JSON API. Time-series housing market data plus Census 2021 parish-level socioeconomic indicators (employment, education, foreign population, commuting) that complement the static BGRI snapshot.
 
 ---
 
@@ -13,14 +13,14 @@
 | Auth | None required (public API) |
 | Format | JSON (raw, stored as-is in MinIO) |
 | CRS | N/A (tabular data with NUTS geographic codes) |
-| Coverage | National, NUTS regions, and municipalities (varies by indicator) |
-| Refresh | Monthly ingestion (`0 6 1 * *` — 1st of each month at 06:00 UTC). All 33 indicators fetched every run. |
+| Coverage | National, NUTS regions, municipalities, and parishes (varies by indicator) |
+| Refresh | Monthly ingestion (`0 6 1 * *` — 1st of each month at 06:00 UTC). All 47 indicators fetched every run. |
 
 ---
 
 ## What it fetches
 
-33 indicators across 6 categories:
+47 indicators across 7 categories:
 
 ### Housing: prices (4)
 
@@ -89,18 +89,52 @@
 | `0008273` | Resident Population by Sex & Age Group | Annual | NUTS + municipalities |
 | `0008337` | Population Density (per km2) | Annual | Municipalities |
 
+### Census 2021: employment (4)
+
+| Code | Name | Frequency | Geography |
+|------|------|-----------|-----------|
+| `0012357` | Employment Rate (%) | Decennial | Parish |
+| `0012328` | Unemployment Rate (%) | Decennial | Parish |
+| `0012317` | Activity Rate (%) | Decennial | Parish |
+| `0012341` | Proportion of Employees (%) | Decennial | Parish |
+
+### Census 2021: education (4)
+
+| Code | Name | Frequency | Geography |
+|------|------|-----------|-----------|
+| `0012316` | Higher Education (%) | Decennial | Parish |
+| `0012315` | At Least Lower Secondary Education (%) | Decennial | Parish |
+| `0012327` | At Least Upper Secondary Education (%) | Decennial | Parish |
+| `0012323` | No Education (%) | Decennial | Parish |
+
+### Census 2021: foreign population (2)
+
+| Code | Name | Frequency | Geography |
+|------|------|-----------|-----------|
+| `0012314` | Foreign Nationality (%) | Decennial | Parish |
+| `0012353` | Foreign Localization Quotient | Decennial | Parish |
+
+### Census 2021: age & commuting (2)
+
+| Code | Name | Frequency | Geography |
+|------|------|-----------|-----------|
+| `0012374` | Mean Age of Resident Population (years) | Decennial | Parish |
+| `0012331` | Average Commuting Time (minutes) | Decennial | Parish |
+
 ### Tourism (1)
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0009808` | Tourism Overnight Stays | Monthly | NUTS regions |
 
-### Economy (2)
+### Economy (4)
 
 | Code | Name | Frequency | Geography |
 |------|------|-----------|-----------|
 | `0008351` | Consumer Price Index (CPI, Base 2012) | Annual | NUTS-II |
 | `0011190` | GDP per Capita in PPC (EU27) | Annual | NUTS |
+| `0012652` | Employees by Education Level | Annual | Municipalities |
+| `0012660` | Employees with Higher Education (%) | Annual | Municipalities |
 
 ### Innovation & technology (3)
 
@@ -119,6 +153,10 @@
 | No rental data | Median rental EUR/m2 (quarterly, NUTS-III) | Same |
 | No construction activity | Licensed buildings, completed dwellings | Same |
 | No financing context | Loan interest rates, outstanding liability | NUTS-I broadcast |
+| No employment data | Employment/unemployment/activity rates (Census 2021) | Direct parish-level join via `geocod = freguesia_code` |
+| No education levels | Higher ed %, secondary %, no education % (Census 2021) | Same |
+| No foreign population | Foreign nationality %, localization quotient (Census 2021) | Same |
+| No commuting data | Average commuting time in minutes (Census 2021) | Same |
 | Static 2021 snapshot | Time-series 2009–present | Temporal enrichment |
 
 ---
@@ -169,7 +207,7 @@ After ingestion completes, trigger **`ine_bronze_load`** from the Airflow UI (no
 ### `ine_api_ingestion` — INE API → MinIO
 
 ```
-check_api → fetch_indicator.expand(33) → upload_to_minio → cleanup + log_run_metadata → trigger_downstream
+check_api → fetch_indicator.expand(47) → upload_to_minio → cleanup + log_run_metadata → trigger_downstream
 ```
 
 | Setting | Value |
@@ -181,7 +219,7 @@ check_api → fetch_indicator.expand(33) → upload_to_minio → cleanup + log_r
 ### `ine_bronze_load` — MinIO → PostGIS → dbt
 
 ```
-list_minio_files → create_table → load_indicators.expand(33) → validate_counts → trigger_dbt_pipeline
+list_minio_files → create_table → load_indicators.expand(47) → validate_counts → trigger_dbt_pipeline
 ```
 
 | Setting | Value |
@@ -189,14 +227,14 @@ list_minio_files → create_table → load_indicators.expand(33) → validate_co
 | Schedule | None (auto-triggered by `ine_api_ingestion`, or manual) |
 | Idempotency | DELETE + INSERT per indicator |
 | dbt trigger | `TriggerDagRunOperator` → `dbt_scoped_build` with selector `stg_ine_indicators+` |
-| Downstream models | `stg_ine_indicators` → `census_demographics` (building aging/repair indicators) |
+| Downstream models | `stg_ine_indicators` → `census_demographics` (building condition + Census 2021 socioeconomic indicators) |
 | Tags | `ine`, `bronze`, `postgis` |
 
 ---
 
 ## Bronze schema
 
-### `bronze_ine.raw_indicators` — 907,533 rows (33 indicators)
+### `bronze_ine.raw_indicators` — 47 indicators
 
 | Column | Type | Description |
 |--------|------|-------------|

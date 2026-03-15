@@ -194,6 +194,62 @@ models:
         tests:
           - not_null
 
+  - name: property_location_scores
+    description: >
+      Transport proximity scores per listing. For each mode (rail, bus, tram, air, ferry),
+      finds the nearest stop via LATERAL + KNN on EPSG:3763 and applies exponential decay
+      scoring with variable decay constants. Composite transport_score is a weighted sum.
+      ~16K rows (one per listing with valid geometry). Full table rebuild.
+      Upgrade path: pgRouting network distances + OSRM travel times in Sprint 7.
+    columns:
+      - name: listing_key
+        description: "FK to unified_listings. One row per listing"
+        tests:
+          - unique
+          - not_null
+      - name: geo_key
+        description: "FK to dim_geography via unified_listings"
+      - name: nearest_rail_m
+        description: "Crow-flies distance (meters) to nearest rail station"
+      - name: nearest_rail_name
+        description: "Name of nearest rail station"
+      - name: nearest_bus_m
+        description: "Crow-flies distance (meters) to nearest bus stop"
+      - name: nearest_bus_name
+        description: "Name of nearest bus stop"
+      - name: nearest_tram_m
+        description: "Crow-flies distance (meters) to nearest tram stop"
+      - name: nearest_tram_name
+        description: "Name of nearest tram stop"
+      - name: nearest_air_m
+        description: "Crow-flies distance (meters) to nearest airport"
+      - name: nearest_air_name
+        description: "Name of nearest airport"
+      - name: nearest_ferry_m
+        description: "Crow-flies distance (meters) to nearest ferry terminal"
+      - name: nearest_ferry_name
+        description: "Name of nearest ferry terminal"
+      - name: rail_score
+        description: "Exponential decay score (0-1). Decay constant: 800m"
+        tests: [not_null]
+      - name: bus_score
+        description: "Exponential decay score (0-1). Decay constant: 350m"
+        tests: [not_null]
+      - name: tram_score
+        description: "Exponential decay score (0-1). Decay constant: 500m"
+        tests: [not_null]
+      - name: air_score
+        description: "Exponential decay score (0-1). Decay constant: 5000m"
+        tests: [not_null]
+      - name: ferry_score
+        description: "Exponential decay score (0-1). Decay constant: 500m"
+        tests: [not_null]
+      - name: transport_score
+        description: "Weighted composite: rail 0.30 + bus 0.35 + tram 0.15 + air 0.10 + ferry 0.10"
+        tests: [not_null]
+      - name: _updated_at
+        description: "Timestamp of last dbt build run"
+
   - name: dim_time
     description: >
       Date dimension covering 2000-01-01 to 2035-12-31 (~13,149 rows).

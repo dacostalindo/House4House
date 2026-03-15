@@ -311,6 +311,156 @@ INE_INDICATORS = [
         endpoint_params={"Dim1": "T"},
     ),
 
+    # ── Census 2021: employment (parish-level) ───────────────────────────
+    APIIndicator(
+        code="0012357",
+        name="census_employment_rate",
+        description=(
+            "Employment rate (%) by Geographic location "
+            "at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012328",
+        name="census_unemployment_rate",
+        description=(
+            "Unemployment rate (%) by Geographic location "
+            "at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012317",
+        name="census_activity_rate",
+        description=(
+            "Activity rate (%) by Geographic location "
+            "at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012341",
+        name="census_employees_pct",
+        description=(
+            "Proportion of employees (%) by Geographic location "
+            "at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+
+    # ── Census 2021: education (parish-level) ────────────────────────────
+    APIIndicator(
+        code="0012316",
+        name="census_higher_education_pct",
+        description=(
+            "Proportion of population with higher education (%) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012315",
+        name="census_lower_secondary_pct",
+        description=(
+            "Proportion of population with at least lower secondary education (%) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012327",
+        name="census_upper_secondary_pct",
+        description=(
+            "Proportion of population with at least upper secondary education (%) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012323",
+        name="census_no_education_pct",
+        description=(
+            "Proportion of population with no education (%) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+
+    # ── Census 2021: foreign population (parish-level) ───────────────────
+    APIIndicator(
+        code="0012314",
+        name="census_foreign_nationality_pct",
+        description=(
+            "Proportion of resident population with foreign nationality (%) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012353",
+        name="census_foreign_localization_quotient",
+        description=(
+            "Localization quotient of foreign-nationality residents (No.) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+
+    # ── Census 2021: age & commuting (parish-level) ──────────────────────
+    APIIndicator(
+        code="0012374",
+        name="census_mean_age",
+        description=(
+            "Mean age of resident population (Years) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012331",
+        name="census_avg_commuting_time",
+        description=(
+            "Average commuting time (minutes) "
+            "by Geographic location at Census 2021; Decennial (parish-level)"
+        ),
+        category="census_2021",
+        endpoint_params={"Dim1": "T"},
+    ),
+
+    # ── Employment: annual (municipality-level) ──────────────────────────
+    APIIndicator(
+        code="0012652",
+        name="employees_by_education_level",
+        description=(
+            "Employees (No.) by Geographic location (NUTS-2013), "
+            "Sex and Educational attainment level; Annual (municipality-level)"
+        ),
+        category="economy",
+        endpoint_params={"Dim1": "T"},
+    ),
+    APIIndicator(
+        code="0012660",
+        name="employees_higher_education_pct",
+        description=(
+            "Proportion of employees with higher education (%) "
+            "by Geographic location (NUTS-2013); Annual (municipality-level)"
+        ),
+        category="economy",
+        endpoint_params={"Dim1": "T"},
+    ),
+
     # ── Tourism ───────────────────────────────────────────────────────────
     APIIndicator(
         code="0009808",

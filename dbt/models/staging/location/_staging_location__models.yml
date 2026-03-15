@@ -3,42 +3,46 @@ version: 2
 models:
   - name: stg_osm_pois
     description: >
-      OSM points of interest. View over bronze_location.raw_osm_pois.
-      174K point features with fclass classification (restaurant, pharmacy, school, etc.).
-      CRS: EPSG:4326. Used by osm_pois silver model (Sprint 5) for walkability scoring.
-      Source: Geofabrik Portugal GeoPackage, gis_osm_pois_free layer.
+      OSM points of interest. UNION ALL of raw_osm_pois (174K points) and
+      raw_osm_pois_a (130K polygons converted to interior points via ST_PointOnSurface).
+      ~304K rows. CRS: EPSG:4326. Used by pois silver model for walkability scoring.
+      Source: Geofabrik Portugal GeoPackage.
     columns:
       - name: osm_id
-        description: "OpenStreetMap node ID (TEXT). Cast to BIGINT in silver"
+        description: "OpenStreetMap node/way ID (TEXT). Cast to BIGINT in silver"
         tests: [not_null]
       - name: fclass
         description: "Feature classification (e.g. 'restaurant', 'pharmacy', 'school', 'bank'). Mapped to categories in silver"
         tests: [not_null]
       - name: name
         description: "POI name from OSM. May be NULL for unnamed features"
-      - name: code
+      - name: osm_code
         description: "Geofabrik numeric classification code"
+      - name: geom_source
+        description: "Origin layer: 'point' (raw_osm_pois) or 'area' (raw_osm_pois_a)"
       - name: geom
-        description: "POINT geometry in EPSG:4326. Transformed to 3763 in silver for metric operations"
+        description: "POINT geometry in EPSG:4326. Polygons converted via ST_PointOnSurface"
         tests: [not_null]
 
   - name: stg_osm_transport
     description: >
-      OSM transport stops. View over bronze_location.raw_osm_transport.
-      ~49K point features dominated by bus_stop (47K), plus railway_station, tram_stop, etc.
-      CRS: EPSG:4326. Used by transport_stops silver model (Sprint 5) for accessibility scoring.
-      Source: Geofabrik Portugal GeoPackage, gis_osm_transport_free layer.
+      OSM transport stops. UNION ALL of raw_osm_transport (49K points) and
+      raw_osm_transport_a (1.1K polygons converted to interior points via ST_PointOnSurface).
+      ~50K rows. CRS: EPSG:4326. Used by transport_stops silver model for accessibility scoring.
+      Source: Geofabrik Portugal GeoPackage.
     columns:
       - name: osm_id
-        description: "OpenStreetMap node ID (TEXT). Cast to BIGINT in silver"
+        description: "OpenStreetMap node/way ID (TEXT). Cast to BIGINT in silver"
         tests: [not_null]
       - name: fclass
-        description: "Transport feature class (e.g. 'bus_stop', 'railway_station', 'tram_stop', 'subway_entrance')"
+        description: "Transport feature class (e.g. 'bus_stop', 'railway_station', 'tram_stop', 'airport')"
         tests: [not_null]
       - name: name
         description: "Stop name from OSM"
-      - name: code
+      - name: osm_code
         description: "Geofabrik numeric classification code"
+      - name: geom_source
+        description: "Origin layer: 'point' (raw_osm_transport) or 'area' (raw_osm_transport_a)"
       - name: geom
-        description: "POINT geometry in EPSG:4326. Transformed to 3763 in silver for metric operations"
+        description: "POINT geometry in EPSG:4326. Polygons converted via ST_PointOnSurface"
         tests: [not_null]
