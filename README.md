@@ -2942,8 +2942,12 @@ dags/
 | Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, turnover | `gold_analytics.neighbourhood_market_stats` | |
 | Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | |
 | PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` | |
+| Image classification: Claude Vision labeling | S03/S04 | 2 | Airflow DAG + structured prompt → Claude Vision API labels ~100K listings (render detection, condition 4-level, finish quality 4-level + confidence scores) → `bronze_listings.image_classifications` | `bronze_listings.image_classifications` | |
+| Image classification: human validation | S03/S04 | 0.5 | Sample 500 listings, verify Claude labels, measure agreement (target >90% per feature) | — | |
+| Image classification: CNN distillation | — | 3 | Multi-task MobileNetV2 trained on Claude labels. 3 heads: render (binary), condition (4-class), finish (4-class). ONNX export. Targets: >95% render, >85% condition, >80% finish | MinIO `s3://models/listing_classifier/v1/model.onnx` | |
+| Image classification: Airflow deployment | S03/S04 | 1 | ONNX Runtime in Airflow worker. `image_classification_dag` triggered after bronze load. dbt staging + 6 new columns in `unified_listings` | `silver_properties.unified_listings` (cv_is_render, cv_condition, cv_finish_quality + confidences) | |
 
-**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `pois` populated.
+**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `pois` populated. Image classification pipeline operational with CNN inference on new listings.
 
 ### Sprint 5 — Hedonic Model & Valuation (Weeks 9-10)
 
