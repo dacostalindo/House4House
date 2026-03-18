@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: bronze_regulatory
+    database: house4house
+    schema: bronze_regulatory
+    tables:
+      - name: raw_pdm_ordenamento
+        description: >
+          CRUS (Carta do Regime de Uso do Solo) land-use polygons from DGTERRITÓRIO WFS.
+          Nationally standardized PDM zoning data. Multi-municipality table with per-municipality
+          full-refresh loading. Covers Aveiro, Lisboa, Porto, Coimbra, Leiria.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/pdm/pdm_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "CRUS feature ID (global integer, not unique per-municipality)"
+          - name: municipality_code
+            description: "4-digit DTCC municipality code (e.g. 0105 = Aveiro, 1106 = Lisboa, 1312 = Porto)"
+          - name: municipality_name
+            description: "Municipality name in uppercase (e.g. AVEIRO, LISBOA)"
+          - name: classe
+            description: "Land classification: 'Solo Urbano', 'Solo Rústico', or 'Espaços não classificados'"
+          - name: categoria
+            description: "Land-use category within the classification (e.g. Espaço Agrícola, Espaço Urbanizado, Espaço Florestal)"
+          - name: designacao
+            description: "Full designation text from the PDM planning map (Planta de Ordenamento)"
+          - name: area_ha
+            description: "Polygon area in hectares as reported by CRUS"
+          - name: escala
+            description: "Map scale of the planning map (e.g. '1/10000', '1/25000')"
+          - name: data_publicacao_pdm
+            description: "Publication date of the municipality's active PDM"
+          - name: fonte
+            description: "Data source attribution (e.g. 'CM - Vectorial e Raster')"
+          - name: autor
+            description: "Data author (typically 'DGT' for DGTERRITÓRIO)"
+          - name: geom
+            description: "Polygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"

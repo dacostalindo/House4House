@@ -198,3 +198,69 @@ models:
 
       - name: _updated_at
         description: "Timestamp of last dbt build run (NOW())"
+
+  - name: zoning
+    description: >
+      PDM land-use zoning polygons from CRUS (Carta do Regime de Uso do Solo),
+      the nationally standardized land-use classification published by DGTERRITÓRIO.
+      Covers Aveiro, Lisboa, Porto, Coimbra, Leiria (5,472 polygons).
+      Each polygon represents a land-use zone with classification (Solo Urbano/Rústico),
+      category, and a simplified zone_category for the hedonic pricing model.
+      Use ST_Within(listing.geom_pt, zoning.geom) for spatial joins.
+    columns:
+      - name: zone_key
+        description: "Surrogate key (row number ordered by municipality_code, feature_id)"
+        tests:
+          - unique
+          - not_null
+
+      - name: municipality_code
+        description: "4-digit DTCC municipality code (e.g. 0105 = Aveiro, 1106 = Lisboa)"
+        tests:
+          - not_null
+
+      - name: municipality_name
+        description: "Municipality name (e.g. AVEIRO, LISBOA)"
+
+      - name: land_classification
+        description: "PDM land classification: 'Solo Urbano', 'Solo Rústico', or 'Espaços não classificados'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Solo Urbano', 'Solo Rústico', 'Espaços não classificados']
+
+      - name: land_category
+        description: >
+          Detailed land-use category from PDM (e.g. Espaço Urbanizado, Espaço Agrícola,
+          Espaço Florestal, Aglomerado Rural). Used to derive zone_category.
+
+      - name: land_designation
+        description: "Full designation text from the PDM planning map (Planta de Ordenamento)"
+
+      - name: zone_category
+        description: >
+          Simplified zoning category for the hedonic pricing model, derived from
+          land_classification + land_category. Values: urban_consolidated,
+          urban_expansion, urban_residential, urban_central, urban_economic,
+          urban_green, urban_special, urban_other, rural_agricultural,
+          rural_settlement, rural_forest, rural_natural, rural_tourism,
+          rural_special, rural_other, other.
+        tests:
+          - not_null
+
+      - name: area_ha
+        description: "Polygon area in hectares as reported by CRUS"
+
+      - name: geom
+        description: "Polygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Polygon geometry in EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: pdm_publication_date
+        description: "Publication date of the municipality's active PDM"
+
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"
