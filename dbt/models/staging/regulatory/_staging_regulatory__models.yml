@@ -1,9 +1,9 @@
 version: 2
 
 models:
-  - name: stg_pdm_ordenamento
+  - name: stg_crus_ordenamento
     description: >
-      Staging view over CRUS land-use polygons from bronze_regulatory.raw_pdm_ordenamento.
+      Staging view over CRUS land-use polygons from bronze_regulatory.raw_crus_ordenamento.
       Renames Portuguese field names to English, trims whitespace from text columns,
       and adds WGS84 geometry projection for spatial joins with listings.
       Source: DGTERRITÓRIO CRUS WFS endpoints for 5 municipalities.
@@ -53,6 +53,129 @@ models:
 
       - name: geom_wgs84
         description: "Polygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: _source_url
+        description: "MinIO object path of the source GeoJSON file"
+
+      - name: _load_timestamp
+        description: "Timestamp when the row was loaded into the bronze table"
+
+  - name: stg_srup_ic
+    description: >
+      Staging view over SRUP Imóveis Classificados (heritage sites) from bronze_regulatory.raw_srup_ic.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: classification
+        description: "Heritage classification (e.g. Monumento Nacional, Imóvel de Interesse Público)"
+
+      - name: designation
+        description: "Heritage site name/designation"
+
+      - name: municipalities
+        description: "Municipality name(s) where the heritage site is located"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (GeometryCollection for zones, Point for locations)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_srup_ran
+    description: >
+      Staging view over SRUP Reserva Agrícola Nacional from bronze_regulatory.raw_srup_ran.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: municipality
+        description: "Municipality name (CONCELHO)"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (GeometryCollection)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_srup_dph
+    description: >
+      Staging view over SRUP Domínio Público Hídrico from bronze_regulatory.raw_srup_dph.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: designation
+        description: "Water domain zone designation"
+
+      - name: municipalities
+        description: "Municipality name(s)"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (Polygon or GeometryCollection)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_cadastro
+    description: >
+      Staging view over Cadastro Predial parcel boundaries from bronze_regulatory.raw_cadastro.
+      Renames Portuguese/INSPIRE field names to English and adds WGS84 geometry projection.
+      Source: DGTERRITÓRIO OGC API (partial coverage — surveyed municipalities only).
+    columns:
+      - name: cadastral_ref
+        description: "Unique cadastral reference ID (e.g. AAA000338225)"
+        tests:
+          - not_null
+
+      - name: area_m2
+        description: "Official parcel area in square metres"
+
+      - name: admin_unit_code
+        description: "6-digit DTCC code (distrito+município+freguesia)"
+        tests:
+          - not_null
+
+      - name: label
+        description: "Human-readable parcel label"
+
+      - name: record_date
+        description: "Record creation date (from beginlifespanversion)"
+
+      - name: geom_pt
+        description: "MultiPolygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_4326
+        description: "MultiPolygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
 
       - name: _source_url
         description: "MinIO object path of the source GeoJSON file"

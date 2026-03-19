@@ -1,5 +1,5 @@
 """
-PDM Zoning Ingestion — CRUS WFS → MinIO
+CRUS Ingestion — WFS → MinIO
 
 Queries DGTERRITÓRIO's CRUS (Carta do Regime de Uso do Solo) WFS endpoints
 for each configured municipality and saves GeoJSON FeatureCollections to MinIO.
@@ -21,9 +21,9 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 
-from pipelines.gis.pdm.pdm_config import (
+from pipelines.gis.crus.crus_config import (
     MUNICIPALITY_BY_CODE,
-    PDM_CONFIG,
+    CRUS_CONFIG,
     CRUSMunicipalityConfig,
     NORMALIZED_FIELDS,
     normalize_field_name,
@@ -60,7 +60,7 @@ def _fetch_all_features(
     import requests
 
     url = municipality.get_feature_url()
-    log.info("[pdm] Fetching all features for %s: %s", municipality.name, url)
+    log.info("[crus] Fetching all features for %s: %s", municipality.name, url)
 
     resp = requests.get(url, timeout=timeout)
     resp.raise_for_status()
@@ -72,7 +72,7 @@ def _fetch_all_features(
         feature["properties"] = _normalize_properties(feature.get("properties", {}))
 
     log.info(
-        "[pdm] Got %d features for %s (%.1f MB)",
+        "[crus] Got %d features for %s (%.1f MB)",
         len(features),
         municipality.name,
         len(resp.content) / 1e6,
@@ -89,7 +89,7 @@ def _fetch_all_features(
 def _create_dag():
     from airflow.decorators import dag, task
 
-    cfg = PDM_CONFIG
+    cfg = CRUS_CONFIG
 
     default_args = {
         "owner": "data-engineering",
@@ -108,7 +108,7 @@ def _create_dag():
         max_active_tasks=cfg.max_active_tasks,
         tags=["ingestion", "gis", "minio"] + cfg.tags,
     )
-    def pdm_crus_ingestion():
+    def crus_ingestion():
 
         @task()
         def resolve_municipalities(**context) -> list[dict]:
@@ -131,7 +131,7 @@ def _create_dag():
                 munis = cfg.municipalities
 
             log.info(
-                "[pdm] Processing %d municipalities: %s",
+                "[crus] Processing %d municipalities: %s",
                 len(munis),
                 [m.name for m in munis],
             )
@@ -148,7 +148,7 @@ def _create_dag():
             muni = MUNICIPALITY_BY_CODE[municipality["code"]]
             url = muni.get_capabilities_url()
 
-            log.info("[pdm] Checking WFS for %s: %s", muni.name, url)
+            log.info("[crus] Checking WFS for %s: %s", muni.name, url)
             resp = requests.get(url, timeout=cfg.request_timeout_seconds)
             resp.raise_for_status()
 
@@ -158,7 +158,7 @@ def _create_dag():
                     f"(no WFS_Capabilities in response)"
                 )
 
-            log.info("[pdm] WFS available for %s", muni.name)
+            log.info("[crus] WFS available for %s", muni.name)
             return municipality
 
         @task()
@@ -177,13 +177,13 @@ def _create_dag():
                 )
 
             log.info(
-                "[pdm] Fetched %d total features for %s",
+                "[crus] Fetched %d total features for %s",
                 len(features),
                 muni.name,
             )
 
             # Write to temp file
-            tmp_dir = tempfile.mkdtemp(prefix=f"pdm_{muni.name_lower}_")
+            tmp_dir = tempfile.mkdtemp(prefix=f"crus_{muni.name_lower}_")
             geojson_path = os.path.join(tmp_dir, "crus.geojson")
 
             feature_collection = {
@@ -196,7 +196,7 @@ def _create_dag():
 
             file_size = os.path.getsize(geojson_path)
             log.info(
-                "[pdm] Wrote %s (%.1f MB, %d features)",
+                "[crus] Wrote %s (%.1f MB, %d features)",
                 geojson_path,
                 file_size / 1e6,
                 len(features),
@@ -244,7 +244,7 @@ def _create_dag():
             )
 
             minio_uri = f"s3://{cfg.minio_bucket}/{object_name}"
-            log.info("[pdm] Uploaded %s → %s", fetch_result["name"], minio_uri)
+            log.info("[crus] Uploaded %s → %s", fetch_result["name"], minio_uri)
 
             return {
                 "code": fetch_result["code"],
@@ -265,15 +265,15 @@ def _create_dag():
                 tmp_dir = result.get("tmp_dir")
                 if tmp_dir and os.path.isdir(tmp_dir):
                     shutil.rmtree(tmp_dir)
-                    log.info("[pdm] Cleaned up %s", tmp_dir)
+                    log.info("[crus] Cleaned up %s", tmp_dir)
 
         @task()
         def log_summary(upload_results: list[dict]):
             """Log ingestion summary."""
             total = sum(r["feature_count"] for r in upload_results)
-            log.info("[pdm] Ingestion complete: %d features across %d municipalities", total, len(upload_results))
+            log.info("[crus] Ingestion complete: %d features across %d municipalities", total, len(upload_results))
             for r in upload_results:
-                log.info("[pdm]   %s: %d features → %s", r["name"], r["feature_count"], r["minio_uri"])
+                log.info("[crus]   %s: %d features → %s", r["name"], r["feature_count"], r["minio_uri"])
 
         # --- Task wiring ---
         municipalities = resolve_municipalities()
@@ -297,7 +297,7 @@ def _create_dag():
             )
             uploaded >> trigger_bronze_dag
 
-    return pdm_crus_ingestion()
+    return crus_ingestion()
 
 
 dag = _create_dag()

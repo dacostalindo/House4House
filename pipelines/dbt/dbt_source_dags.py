@@ -80,9 +80,17 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "select": ["stg_eurostat+"],
         "tags": ["dbt", "cosmos", "eurostat"],
     },
-    "pdm": {
-        "select": ["stg_pdm_ordenamento+"],
-        "tags": ["dbt", "cosmos", "pdm"],
+    "crus": {
+        "select": ["stg_crus_ordenamento+"],
+        "tags": ["dbt", "cosmos", "crus"],
+    },
+    "cadastro": {
+        "select": ["stg_cadastro+"],
+        "tags": ["dbt", "cosmos", "cadastro"],
+    },
+    "srup": {
+        "select": ["stg_srup_ic+", "stg_srup_ran+", "stg_srup_dph+"],
+        "tags": ["dbt", "cosmos", "srup"],
     },
 }
 

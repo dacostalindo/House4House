@@ -12,5 +12,5 @@ SELECT
     ST_Transform(geom, 4326) AS geom_wgs84,
     _source_url,
     _load_timestamp
-FROM {{ source('bronze_regulatory', 'raw_pdm_ordenamento') }}
+FROM {{ source('bronze_regulatory', 'raw_crus_ordenamento') }}
 WHERE geom IS NOT NULL

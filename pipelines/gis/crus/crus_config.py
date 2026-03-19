@@ -1,5 +1,5 @@
 """
-PDM Zoning — CRUS WFS Ingestion Configuration
+CRUS WFS Ingestion Configuration
 
 Data source: DGTERRITÓRIO CRUS (Carta do Regime de Uso do Solo)
 Nationally standardized land-use classification extracted from each
@@ -136,14 +136,14 @@ NORMALIZED_FIELDS: set[str] = {
 # ---------------------------------------------------------------------------
 
 MINIO_BUCKET = "raw"
-MINIO_PREFIX = "pdm"
-# Paths: raw/pdm/{municipality_name_lower}/{YYYYMMDD}/crus.geojson
+MINIO_PREFIX = "crus"
+# Paths: raw/crus/{municipality_name_lower}/{YYYYMMDD}/crus.geojson
 
 # ---------------------------------------------------------------------------
 # Bronze table
 # ---------------------------------------------------------------------------
 
-BRONZE_SCHEMA_TABLE = "bronze_regulatory.raw_pdm_ordenamento"
+BRONZE_SCHEMA_TABLE = "bronze_regulatory.raw_crus_ordenamento"
 
 # ---------------------------------------------------------------------------
 # Rate limiting
@@ -158,14 +158,14 @@ WFS_REQUEST_TIMEOUT_SECONDS: int = 120
 
 
 @dataclass
-class PDMIngestionConfig:
-    """All parameters for the PDM/CRUS ingestion pipeline."""
+class CRUSIngestionConfig:
+    """All parameters for the CRUS ingestion pipeline."""
 
-    dag_id: str = "pdm_crus_ingestion"
-    source_name: str = "pdm"
+    dag_id: str = "crus_ingestion"
+    source_name: str = "crus"
     description: str = (
         "CRUS WFS ingestion — queries DGTERRITÓRIO for standardized "
-        "PDM land-use data per municipality, stores GeoJSON in MinIO."
+        "land-use data per municipality, stores GeoJSON in MinIO."
     )
 
     municipalities: list[CRUSMunicipalityConfig] = field(
@@ -185,11 +185,11 @@ class PDMIngestionConfig:
     max_active_runs: int = 1
     max_active_tasks: int = 2
 
-    trigger_dag_id: str = "pdm_crus_bronze_load"
+    trigger_dag_id: str = "crus_bronze_load"
 
-    tags: list[str] = field(default_factory=lambda: ["pdm", "crus", "zoning"])
+    tags: list[str] = field(default_factory=lambda: ["crus", "zoning"])
     retries: int = 2
     retry_delay_minutes: int = 5
 
 
-PDM_CONFIG = PDMIngestionConfig()
+CRUS_CONFIG = CRUSIngestionConfig()

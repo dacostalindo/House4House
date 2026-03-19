@@ -42,4 +42,4 @@ SELECT
     o.geom_wgs84,
     o.pdm_publication_date,
     NOW() AS _updated_at
-FROM {{ ref('stg_pdm_ordenamento') }} o
+FROM {{ ref('stg_crus_ordenamento') }} o

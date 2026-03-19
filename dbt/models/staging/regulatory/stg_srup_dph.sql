@@ -1,0 +1,25 @@
+SELECT
+    feature_id,
+    category,
+    feature_type,
+    TRIM(properties->>'DESIGNACAO')      AS designation,
+    TRIM(properties->>'ESTADO')          AS status,
+    TRIM(properties->>'MUNICIPIOS')      AS municipalities,
+    TRIM(properties->>'LOCAL')           AS location,
+    TRIM(properties->>'REGIAO')          AS region,
+    TRIM(properties->>'SERVIDAO')        AS restriction_type,
+    TRIM(properties->>'SERV_LEI')        AS restriction_law,
+    TRIM(properties->>'SERV_DR')         AS restriction_decree,
+    TRIM(properties->>'SERV_DATA')       AS restriction_date,
+    TRIM(properties->>'SERV_HIPERLINK')  AS restriction_url,
+    TRIM(properties->>'LEI_TIPO')        AS law_type,
+    TRIM(properties->>'SITUACAO')        AS situation,
+    TRIM(properties->>'TUTELA')          AS authority,
+    (properties->>'AREA_HA')::DOUBLE PRECISION AS area_ha,
+    properties,
+    geom,
+    ST_Transform(geom, 4326) AS geom_wgs84,
+    _source_url,
+    _load_timestamp
+FROM {{ source('bronze_regulatory', 'raw_srup_dph') }}
+WHERE geom IS NOT NULL

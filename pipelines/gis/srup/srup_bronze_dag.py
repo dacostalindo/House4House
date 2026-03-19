@@ -1,10 +1,10 @@
 """
-PDM Bronze Loading — CRUS GeoJSON → PostGIS
+SRUP Bronze Loading — GeoJSON → PostGIS
 
-Loads CRUS GeoJSON files from MinIO into bronze_regulatory.raw_pdm_ordenamento.
-One table for all municipalities — per-municipality full-refresh (DELETE + INSERT).
+Loads SRUP GeoJSON files from MinIO into per-category bronze tables.
+Properties stored as JSONB — field extraction happens in dbt staging models.
 
-Trigger manually or via TriggerDagRunOperator from pdm_crus_ingestion.
+Trigger manually or via TriggerDagRunOperator from srup_ingestion.
 """
 
 from __future__ import annotations
@@ -16,9 +16,9 @@ import shutil
 import tempfile
 from datetime import timedelta
 
-from pipelines.gis.pdm.pdm_config import (
-    BRONZE_SCHEMA_TABLE,
-    MUNICIPALITIES,
+from pipelines.gis.srup.srup_config import (
+    ALL_CATEGORIES,
+    BRONZE_TABLES,
     MINIO_BUCKET,
     MINIO_PREFIX,
 )
@@ -26,45 +26,40 @@ from pipelines.gis.pdm.pdm_config import (
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Bronze table DDL
+# Bronze table DDL (shared schema for all SRUP categories)
 # ---------------------------------------------------------------------------
 
-CREATE_TABLE_SQL = f"""
-CREATE TABLE IF NOT EXISTS {BRONZE_SCHEMA_TABLE} (
-    feature_id          INTEGER,
-    municipality_code   VARCHAR(4),
-    municipality_name   VARCHAR(100),
-    classe              VARCHAR(50),
-    categoria           VARCHAR(200),
-    designacao          TEXT,
-    area_ha             DOUBLE PRECISION,
-    escala              VARCHAR(10),
-    data_publicacao_pdm TIMESTAMPTZ,
-    fonte               VARCHAR(30),
-    autor               VARCHAR(10),
-    geom                GEOMETRY(GEOMETRY, 3763),
-    _source_url         TEXT,
-    _load_timestamp     TIMESTAMPTZ DEFAULT NOW()
-);
-"""
 
-CREATE_INDEXES_SQL = f"""
-CREATE INDEX IF NOT EXISTS idx_pdm_ord_geom
-    ON {BRONZE_SCHEMA_TABLE} USING GIST(geom);
-CREATE INDEX IF NOT EXISTS idx_pdm_ord_muni
-    ON {BRONZE_SCHEMA_TABLE} (municipality_code);
-"""
+def _create_table_sql(table: str) -> str:
+    return f"""
+    CREATE TABLE IF NOT EXISTS {table} (
+        feature_id      INTEGER,
+        category        VARCHAR(10),
+        feature_type    TEXT,
+        properties      JSONB,
+        geom            GEOMETRY(GEOMETRY, 3763),
+        _source_url     TEXT,
+        _load_timestamp TIMESTAMPTZ DEFAULT NOW()
+    );
+    """
 
-INSERT_SQL = f"""
-INSERT INTO {BRONZE_SCHEMA_TABLE} (
-    feature_id, municipality_code, municipality_name,
-    classe, categoria, designacao, area_ha, escala,
-    data_publicacao_pdm, fonte, autor,
+
+def _create_indexes_sql(table: str) -> str:
+    short = table.split(".")[-1]  # e.g. "raw_srup_ic"
+    return f"""
+    CREATE INDEX IF NOT EXISTS idx_{short}_geom
+        ON {table} USING GIST(geom);
+    CREATE INDEX IF NOT EXISTS idx_{short}_props
+        ON {table} USING GIN(properties);
+    """
+
+
+INSERT_TEMPLATE = """
+INSERT INTO {table} (
+    feature_id, category, feature_type, properties,
     geom, _source_url
 ) VALUES (
-    %s, %s, %s,
-    %s, %s, %s, %s, %s,
-    %s, %s, %s,
+    %s, %s, %s, %s,
     ST_SetSRID(ST_GeomFromGeoJSON(%s), 3763),
     %s
 )
@@ -86,19 +81,19 @@ def _create_dag():
     }
 
     @dag(
-        dag_id="pdm_crus_bronze_load",
-        description="Load CRUS GeoJSON from MinIO into PostGIS bronze table",
+        dag_id="srup_bronze_load",
+        description="Load SRUP GeoJSON from MinIO into PostGIS bronze tables",
         schedule=None,
         start_date=None,
         catchup=False,
         default_args=default_args,
-        tags=["pdm", "crus", "bronze", "postgis", "zoning"],
+        tags=["srup", "bronze", "postgis", "constraints"],
     )
-    def pdm_crus_bronze_load():
+    def srup_bronze_load():
 
         @task()
         def fetch_from_minio() -> dict:
-            """Find the latest CRUS GeoJSON files in MinIO for each municipality."""
+            """Find the latest SRUP GeoJSON files in MinIO for each category."""
             from minio import Minio
             from airflow.models import Variable
 
@@ -112,11 +107,11 @@ def _create_dag():
                 secure=False,
             )
 
-            tmp_dir = tempfile.mkdtemp(prefix="pdm_bronze_")
+            tmp_dir = tempfile.mkdtemp(prefix="srup_bronze_")
             files: list[dict] = []
 
-            for muni in MUNICIPALITIES:
-                prefix = f"{MINIO_PREFIX}/{muni.name_lower}/"
+            for category in ALL_CATEGORIES:
+                prefix = f"{MINIO_PREFIX}/{category}/"
                 objects = list(
                     client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True)
                 )
@@ -126,29 +121,28 @@ def _create_dag():
 
                 if not geojson_objects:
                     log.warning(
-                        "[pdm] No GeoJSON found for %s at %s%s",
-                        muni.name,
+                        "[srup] No GeoJSON found for %s at %s%s",
+                        category,
                         MINIO_BUCKET,
                         prefix,
                     )
                     continue
 
                 latest = sorted(geojson_objects, key=lambda o: o.object_name)[-1]
-                local_path = os.path.join(tmp_dir, f"{muni.name_lower}_crus.geojson")
+                local_path = os.path.join(tmp_dir, f"{category}.geojson")
                 client.fget_object(MINIO_BUCKET, latest.object_name, local_path)
 
                 file_size = os.path.getsize(local_path)
                 log.info(
-                    "[pdm] Downloaded %s (%.1f MB) for %s",
+                    "[srup] Downloaded %s (%.1f MB) for %s",
                     latest.object_name,
                     file_size / 1e6,
-                    muni.name,
+                    category,
                 )
 
                 files.append(
                     {
-                        "code": muni.code,
-                        "name": muni.name,
+                        "category": category,
                         "local_path": local_path,
                         "minio_object": latest.object_name,
                     }
@@ -156,14 +150,14 @@ def _create_dag():
 
             if not files:
                 raise RuntimeError(
-                    "No CRUS GeoJSON files found in MinIO for any municipality"
+                    "No SRUP GeoJSON files found in MinIO for any category"
                 )
 
             return {"tmp_dir": tmp_dir, "files": files}
 
         @task()
-        def create_table(fetch_result: dict) -> dict:
-            """Create bronze table if it doesn't exist."""
+        def create_tables(fetch_result: dict) -> dict:
+            """Create bronze tables if they don't exist."""
             import psycopg2
             from airflow.models import Variable
 
@@ -177,17 +171,20 @@ def _create_dag():
             conn.autocommit = True
             cur = conn.cursor()
 
-            cur.execute(CREATE_TABLE_SQL)
-            cur.execute(CREATE_INDEXES_SQL)
-            log.info("[pdm] Ensured table %s exists", BRONZE_SCHEMA_TABLE)
+            for file_info in fetch_result["files"]:
+                category = file_info["category"]
+                table = BRONZE_TABLES[category]
+                cur.execute(_create_table_sql(table))
+                cur.execute(_create_indexes_sql(table))
+                log.info("[srup] Ensured table %s exists", table)
 
             cur.close()
             conn.close()
             return fetch_result
 
         @task()
-        def load_municipalities(fetch_result: dict) -> list[dict]:
-            """Load all municipalities' CRUS GeoJSON into the bronze table."""
+        def load_categories(fetch_result: dict) -> list[dict]:
+            """Load all categories' GeoJSON into their bronze tables."""
             import psycopg2
             import psycopg2.extras
             from airflow.models import Variable
@@ -201,31 +198,27 @@ def _create_dag():
             )
             try:
                 cur = conn.cursor()
-
                 results = []
+
                 for file_info in fetch_result["files"]:
-                    code = file_info["code"]
-                    name = file_info["name"]
+                    category = file_info["category"]
                     local_path = file_info["local_path"]
                     source_url = file_info["minio_object"]
+                    table = BRONZE_TABLES[category]
 
-                    log.info("[pdm] Loading %s (%s) from %s", name, code, local_path)
+                    log.info("[srup] Loading %s from %s", category, local_path)
 
                     with open(local_path, "r", encoding="utf-8") as f:
                         fc = json.load(f)
 
                     features = fc.get("features", [])
-                    log.info("[pdm] Parsed %d features for %s", len(features), name)
+                    log.info("[srup] Parsed %d features for %s", len(features), category)
 
-                    # Per-municipality full refresh
-                    cur.execute(
-                        f"DELETE FROM {BRONZE_SCHEMA_TABLE} WHERE municipality_code = %s",
-                        (code,),
-                    )
-                    deleted = cur.rowcount
-                    if deleted:
-                        log.info("[pdm] Deleted %d existing rows for %s", deleted, name)
+                    # Full refresh per category
+                    cur.execute(f"TRUNCATE {table}")
+                    log.info("[srup] Truncated %s", table)
 
+                    insert_sql = INSERT_TEMPLATE.format(table=table)
                     rows = []
                     for feat in features:
                         props = feat.get("properties", {})
@@ -236,26 +229,23 @@ def _create_dag():
                         rows.append(
                             (
                                 props.get("ID"),
-                                props.get("DTCC", code),
-                                props.get("Municipio", name),
-                                props.get("Classe"),
-                                props.get("Categoria"),
-                                props.get("Designacao_PlantaOrdenamento"),
-                                props.get("Area_Ha"),
-                                props.get("Escala_PlantaOrdenamento"),
-                                props.get("Data_PublicacaoPDM"),
-                                props.get("Fonte"),
-                                props.get("Autor"),
+                                category,
+                                feat.get("id", ""),  # WFS feature type hint
+                                json.dumps(props, ensure_ascii=False),
                                 json.dumps(geom),
                                 source_url,
                             )
                         )
 
-                    psycopg2.extras.execute_batch(cur, INSERT_SQL, rows, page_size=500)
+                    psycopg2.extras.execute_batch(cur, insert_sql, rows, page_size=500)
                     conn.commit()
 
-                    log.info("[pdm] Loaded %d rows into %s for %s", len(rows), BRONZE_SCHEMA_TABLE, name)
-                    results.append({"code": code, "name": name, "rows_loaded": len(rows)})
+                    log.info(
+                        "[srup] Loaded %d rows into %s", len(rows), table
+                    )
+                    results.append(
+                        {"category": category, "table": table, "rows_loaded": len(rows)}
+                    )
 
                 cur.close()
             finally:
@@ -264,11 +254,7 @@ def _create_dag():
 
         @task()
         def validate_counts(load_results: list[dict]) -> dict:
-            """Verify row counts per municipality are reasonable.
-
-            load_results is accepted as a parameter to establish the Airflow
-            dependency chain (ensures validation runs after loading).
-            """
+            """Verify row counts per category are reasonable."""
             import psycopg2
             from airflow.models import Variable
 
@@ -281,22 +267,22 @@ def _create_dag():
             )
             try:
                 cur = conn.cursor()
-                cur.execute(
-                    f"SELECT municipality_code, COUNT(*) FROM {BRONZE_SCHEMA_TABLE} "
-                    f"GROUP BY municipality_code ORDER BY municipality_code"
-                )
-                counts = dict(cur.fetchall())
+                counts = {}
+                for result in load_results:
+                    table = result["table"]
+                    cur.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = cur.fetchone()[0]
+                    counts[result["category"]] = count
+                    log.info("[srup] %s: %d rows", table, count)
                 cur.close()
             finally:
                 conn.close()
 
             total = sum(counts.values())
-            log.info("[pdm] Total rows in %s: %d", BRONZE_SCHEMA_TABLE, total)
-            for code, count in counts.items():
-                log.info("[pdm]   %s: %d rows", code, count)
+            log.info("[srup] Total rows across all tables: %d", total)
 
             if total == 0:
-                raise ValueError(f"No rows in {BRONZE_SCHEMA_TABLE} after loading")
+                raise ValueError("No rows in any SRUP bronze table after loading")
 
             return {"counts": counts, "total": total}
 
@@ -306,14 +292,12 @@ def _create_dag():
             tmp_dir = fetch_result.get("tmp_dir")
             if tmp_dir and os.path.isdir(tmp_dir):
                 shutil.rmtree(tmp_dir)
-                log.info("[pdm] Cleaned up %s", tmp_dir)
+                log.info("[srup] Cleaned up %s", tmp_dir)
 
         # --- Task wiring ---
         fetched = fetch_from_minio()
-        tables_ready = create_table(fetched)
-
-        load_results = load_municipalities(tables_ready)
-
+        tables_ready = create_tables(fetched)
+        load_results = load_categories(tables_ready)
         validated = validate_counts(load_results)
         cleanup_temp(fetched, validated)
 
@@ -321,14 +305,14 @@ def _create_dag():
 
         trigger_dbt = TriggerDagRunOperator(
             task_id="trigger_dbt_pipeline",
-            trigger_dag_id="dbt_pdm_build",
+            trigger_dag_id="dbt_srup_build",
             wait_for_completion=True,
             reset_dag_run=True,
             poke_interval=10,
         )
         validated >> trigger_dbt
 
-    return pdm_crus_bronze_load()
+    return srup_bronze_load()
 
 
 dag = _create_dag()

@@ -5,13 +5,14 @@ sources:
     database: house4house
     schema: bronze_regulatory
     tables:
-      - name: raw_pdm_ordenamento
+      - name: raw_crus_ordenamento
         description: >
           CRUS (Carta do Regime de Uso do Solo) land-use polygons from DGTERRITÓRIO WFS.
-          Nationally standardized PDM zoning data. Multi-municipality table with per-municipality
-          full-refresh loading. Covers Aveiro, Lisboa, Porto, Coimbra, Leiria.
+          Nationally standardized land-use classification extracted from each municipality's
+          active PDM. Multi-municipality table with per-municipality full-refresh loading.
+          Covers Aveiro, Lisboa, Porto, Coimbra, Leiria.
           CRS: EPSG:3763 (PT-TM06/ETRS89).
-          Source: pipelines/gis/pdm/pdm_bronze_dag.py
+          Source: pipelines/gis/crus/crus_bronze_dag.py
         columns:
           - name: feature_id
             description: "CRUS feature ID (global integer, not unique per-municipality)"
@@ -37,6 +38,105 @@ sources:
             description: "Data author (typically 'DGT' for DGTERRITÓRIO)"
           - name: geom
             description: "Polygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_ic
+        description: >
+          SRUP Imóveis Classificados (heritage sites) from DGTERRITÓRIO WFS.
+          National endpoint — includes both protection zones (polygons) and
+          point locations. Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'ic'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (21 fields including CLASSIFICACAO, DESIGNACAO, MUNICIPIOS, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (GeometryCollection for zones, Point for locations)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_ran
+        description: >
+          SRUP Reserva Agrícola Nacional (agricultural reserve) from DGTERRITÓRIO WFS.
+          National endpoint — agricultural protection zones. Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'ran'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (7 fields including CONCELHO, DINAMICA, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (GeometryCollection)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_dph
+        description: >
+          SRUP Domínio Público Hídrico (public water domain) from DGTERRITÓRIO WFS.
+          National endpoint — conditioned and prohibited occupation zones along waterways.
+          Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'dph'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (18 fields including DESIGNACAO, MUNICIPIOS, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (Polygon or GeometryCollection)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_cadastro
+        description: >
+          Cadastro Predial (Property Cadastre) parcel boundaries from DGTERRITÓRIO OGC API.
+          Official legal property parcels with cadastral references and areas.
+          Coverage: partial (municipalities surveyed 2000-2007).
+          GeoJSON ingested via API pagination, transformed from EPSG:4326 to EPSG:3763 on insert.
+          Source: pipelines/gis/cadastro/cadastro_bronze_dag.py
+        columns:
+          - name: inspireid
+            description: "EU INSPIRE standard identifier for the parcel"
+          - name: nationalcadastralreference
+            description: "Unique cadastral ID (e.g. AAA000338225)"
+          - name: areavalue
+            description: "Official parcel area in m²"
+          - name: administrativeunit
+            description: "6-digit DTCC code (distrito+município+freguesia)"
+          - name: label
+            description: "Human-readable parcel label"
+          - name: validfrom
+            description: "Start of validity period"
+          - name: validto
+            description: "End of validity period (NULL if still valid)"
+          - name: beginlifespanversion
+            description: "Record creation date"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
           - name: _source_url
             description: "MinIO object path of the source GeoJSON file"
           - name: _load_timestamp
