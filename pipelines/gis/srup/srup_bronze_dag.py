@@ -184,10 +184,16 @@ def _create_dag():
 
         @task()
         def load_categories(fetch_result: dict) -> list[dict]:
-            """Load all categories' GeoJSON into their bronze tables."""
+            """Load all categories' GeoJSON into their bronze tables.
+
+            Inserts features in small batches to keep memory usage low
+            (RAN GeoJSON can be 360 MB with very large polygon geometries).
+            """
             import psycopg2
             import psycopg2.extras
             from airflow.models import Variable
+
+            BATCH_SIZE = 50
 
             conn = psycopg2.connect(
                 host=Variable.get("WAREHOUSE_HOST"),
@@ -216,35 +222,54 @@ def _create_dag():
 
                     # Full refresh per category
                     cur.execute(f"TRUNCATE {table}")
+                    conn.commit()
                     log.info("[srup] Truncated %s", table)
 
                     insert_sql = INSERT_TEMPLATE.format(table=table)
-                    rows = []
+                    batch: list[tuple] = []
+                    total_rows = 0
+
                     for feat in features:
                         props = feat.get("properties", {})
                         geom = feat.get("geometry")
                         if geom is None:
                             continue
 
-                        rows.append(
+                        batch.append(
                             (
                                 props.get("ID"),
                                 category,
-                                feat.get("id", ""),  # WFS feature type hint
+                                feat.get("id", ""),
                                 json.dumps(props, ensure_ascii=False),
                                 json.dumps(geom),
                                 source_url,
                             )
                         )
 
-                    psycopg2.extras.execute_batch(cur, insert_sql, rows, page_size=500)
-                    conn.commit()
+                        if len(batch) >= BATCH_SIZE:
+                            psycopg2.extras.execute_batch(
+                                cur, insert_sql, batch, page_size=BATCH_SIZE
+                            )
+                            conn.commit()
+                            total_rows += len(batch)
+                            batch.clear()
+
+                    # Flush remaining
+                    if batch:
+                        psycopg2.extras.execute_batch(
+                            cur, insert_sql, batch, page_size=BATCH_SIZE
+                        )
+                        conn.commit()
+                        total_rows += len(batch)
+
+                    # Free memory before next category
+                    del features, fc
 
                     log.info(
-                        "[srup] Loaded %d rows into %s", len(rows), table
+                        "[srup] Loaded %d rows into %s", total_rows, table
                     )
                     results.append(
-                        {"category": category, "table": table, "rows_loaded": len(rows)}
+                        {"category": category, "table": table, "rows_loaded": total_rows}
                     )
 
                 cur.close()

@@ -2,14 +2,14 @@
 
 # Portugal Real Estate Data Warehouse — MVP Blueprint
 ## Complete Technical Architecture: Sources, Stack, Models & Delivery Plan
-### Scoped to 24 Data Sources (P0 + P1 + P2) for Minimum Viable Product
+### Scoped to 31 Data Sources (P0 + P1 + P2) for Minimum Viable Product
 
 ---
 
 ## Table of Contents
 
-1. Business Use Cases
-2. MVP Data Sources (24 Sources)
+1. Business Use Cases (UC-1, UC-2, UC-3)
+2. MVP Data Sources (31 Sources)
 3. Technology Stack
 4. Infrastructure & Deployment
 5. Conceptual Architecture (Medallion Pattern)
@@ -19,7 +19,7 @@
 9. Spatial Data Strategy
 10. Dependency Graph & Critical Path
 11. Orchestration & Scheduling
-12. Sprint Plan (8 Sprints / 16 Weeks)
+12. Sprint Plan (10 Sprints / 22 Weeks)
 13. Data Quality Framework
 14. Risk Register & Mitigation
 15. Resource Requirements & Costs
@@ -82,13 +82,51 @@
 5. **Absorption rate forecasting** — time-to-sell based on pricing strategy
 6. **Sensitivity analysis** — price elasticity by segment and location
 
+### UC-3: Land Development Opportunity Detection
+
+**Users:** Land developers, real estate promoters, investment funds, municipal development offices
+
+**Business Questions:**
+- Which plots of land in urban expansion or rehabilitation zones are potentially available for development?
+- Under current zoning (CRUS), what can be built on a given plot? (density, height, use type)
+- Is the plot inside an ARU (tax benefits for rehabilitation)?
+- What SRUP constraints apply? (RAN, REN, DPH, heritage protection)
+- What is the current land use (COS)? Is it vacant, agricultural, or already built?
+- What cadastral parcels compose the site? What is the total assemblable area?
+- Who is the owner? (via NumeroMatriz + Dicofre → Caderneta Predial lookup at Finanças)
+- Is there active construction or recent building permits nearby?
+- What is the estimated development return (land cost vs. built value at local €/m²)?
+
+**Decision Output:** A ranked list of development sites with a composite score combining buildability, constraint clearance, vacancy status, assemblable area, and estimated development margin.
+
+**What makes a plot a development opportunity:**
+- Located in a CRUS urban expansion or urbanizable zone but currently vacant or underutilized (COS non-artificial land use)
+- No blocking SRUP constraints (RAN, REN, DPH, heritage protection) — or constraints are manageable
+- Assemblable area from contiguous BUPI parcels exceeds minimum viable development size
+- Building coverage ratio is low (few or no existing structures per MS Building Footprints)
+- Estimated development return (GBA × local €/m² from UC-1 hedonic model minus land + construction cost) exceeds target margin
+- Ownership is traceable via NumeroMatriz + Dicofre → Caderneta Predial at Finanças
+
+**Analytical layers needed:**
+1. **Vacant/underutilized land detection** — cross-reference COS (non-artificial land use) with CRUS (urban expansion/urbanizable zones) to find mismatches = development opportunity. Validate with building footprints (P1) to confirm no existing structures. Also detect underutilized parcels: low building coverage ratio in prime urban zones.
+2. **Buildability assessment** — CRUS zoning parameters (Solo Urbano subcategory) determine what can be built; SRUP constraints determine what cannot
+3. **Parcel assembly analysis** — BUPI parcels within opportunity zones, grouped by spatial contiguity using `ST_ClusterDBSCAN` on touching/overlapping parcels, with total area and NumeroMatriz for ownership lookup
+4. **ARU overlay** — flag sites inside urban rehabilitation areas for tax benefit eligibility
+5. **Construction activity detection** — two-phase approach:
+   - *P1: Building footprints* — Microsoft Global ML Building Footprints (~5M polygons for Portugal). Spatial join against BUPI parcels to flag plots with/without existing structures and compute coverage ratio (building area / parcel area).
+   - *P2: Sentinel-1 SAR change detection* — cloud-independent radar imagery (C-band, 6-day revisit). Compare backscatter intensity between baseline and current dates; parcels with ΔdB > 3dB = new hard surfaces (construction). Optional coherence analysis to distinguish active construction from completed structures. Access via Copernicus Data Space / Planetary Computer STAC API.
+6. **Development economics model** — estimate GBA from zoning params × local €/m² from UC-1 hedonic model, minus estimated land + construction cost. *Dependency: requires UC-1 hedonic model.*
+7. **Competition scan** — reuse UC-1's `neighbourhood_market_stats` (nearby active listings and recent transactions) rather than building a separate layer
+
+**Note on ownership:** BUPI provides `NumeroMatriz` + `Dicofre` per parcel → lookup key to **Caderneta Predial** (property tax record at Autoridade Tributária), which contains owner name, fiscal address, assessed tax value (VPT), construction year, and area. The Caderneta is a public document retrievable at any Finanças office or Portal das Finanças. The system identifies the opportunity; the user retrieves ownership for specific plots of interest.
+
 ---
 
-## 2. MVP Data Sources (24 Sources)
+## 2. MVP Data Sources (31 Sources)
 
 ### 2.1 Scope Decision
 
-This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + P4). All deferred fields are nullable in the data models — when P3/P4 sources are added later, the models automatically incorporate them without schema changes.
+This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + P4). All deferred fields are nullable in the data models — when P3/P4 sources are added later, the models automatically incorporate them without schema changes.
 
 **Deferred sources and their impact on models:**
 
@@ -96,7 +134,7 @@ This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + 
 |---|---|---|
 | S07 | Casa Sapo (third listing portal) | Listings coverage drops ~5-10%; acceptable for MVP |
 | S13 | ADENE Energy Certificates | Use `energy_class` from listing data instead; lose kWh/m² detail |
-| S21 | INE Building Permits | Remove from trajectory model; use listing volume trends as proxy |
+| S21 | INE Building Permits | Promoted to P2 for UC-3 construction activity validation |
 | S25 | IMPIC Construction Costs | Use simplified cost lookup table based on market research |
 | S27 | Municipal Noise Maps | Remove `noise_level_db` from hedonic model; minor accuracy loss |
 | S28 | PVGIS Solar Potential | Use simplified orientation premium reference table |
@@ -110,34 +148,44 @@ This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + 
 
 ### 2.2 Source-to-Use-Case Mapping
 
-| # | Data Source | UC-1 | UC-2 | Tier |
-|---|---|:---:|:---:|---|
-| S08 | CAOP Boundaries (DGT) | ● | ● | P0 |
-| S12 | INE Census 2021 | ● | ● | P0 |
-| S01 | INE — Transaction Prices | ● | ● | P0 |
-| S03 | Idealista — Sale Listings | ● | ● | P0 |
-| S04 | Idealista — Rental Listings | ● | ○ | P0 |
-| S09 | OpenStreetMap — POIs | ● | ● | P0 |
-| S10 | OpenStreetMap — Transport Stops | ● | ● | P0 |
-| S11 | OpenStreetMap — Road Network (OSRM) | ● | ● | P0 |
-| S17 | ECB — Euribor Rates | ● | ● | P0 |
-| S16 | Banco de Portugal (BPStat) | ● | ● | P0 |
-| S05 | Imovirtual — Sale Listings | ● | ● | P1 |
-| S15 | Inside Airbnb | ● | ○ | P1 |
-| S18 | Eurostat — House Price Index | ● | ● | P1 |
-| S19 | PDM Zoning (Lisbon + Porto) | ● | ● | P1 |
-| S31 | AT — IMI/IMT Tax Rates | ● | ○ | P1 |
-| S02 | Confidencial Imobiliário (SIR) | ● | ● | P2 |
-| S06 | Imovirtual — Rental Listings | ● | ○ | P2 |
-| S14 | RNAL — AL Licenses | ● | ○ | P2 |
-| S20 | ARU Boundaries | ● | ○ | P2 |
-| S22 | InfoEscolas — School Quality | ● | ● | P2 |
-| S23 | SNS — Healthcare Facilities | ● | ● | P2 |
-| S24 | GTFS — Transport Schedules | ● | ● | P2 |
-| S29 | INE — Rental Price Index | ● | ○ | P2 |
-| S34 | Competitive Developments (scraped) | ○ | ● | P2 |
+| # | Data Source | UC-1 | UC-2 | UC-3 | Tier |
+|---|---|:---:|:---:|:---:|---|
+| S08 | CAOP Boundaries (DGT) | ● | ● | ● | P0 |
+| S12 | INE Census 2021 | ● | ● | ○ | P0 |
+| S01 | INE — Transaction Prices | ● | ● | ○ | P0 |
+| S03 | Idealista — Sale Listings | ● | ● | ○ | P0 |
+| S04 | Idealista — Rental Listings | ● | ○ | | P0 |
+| S09 | OpenStreetMap — POIs | ● | ● | | P0 |
+| S10 | OpenStreetMap — Transport Stops | ● | ● | | P0 |
+| S11 | OpenStreetMap — Road Network (OSRM) | ● | ● | | P0 |
+| S17 | ECB — Euribor Rates | ● | ● | | P0 |
+| S16 | Banco de Portugal (BPStat) | ● | ● | | P0 |
+| S05 | Imovirtual — Sale Listings | ● | ● | | P1 |
+| S15 | Inside Airbnb | ● | ○ | | P1 |
+| S18 | Eurostat — House Price Index | ● | ● | | P1 |
+| S19 | PDM Zoning (Lisbon + Porto) | ● | ● | ● | P1 |
+| S31 | AT — IMI/IMT Tax Rates | ● | ○ | | P1 |
+| S38 | BUPI — Simplified Cadastral Parcels | | | ● | P1 |
+| S39 | COS 2023 — Land Use/Cover | ○ | | ● | P1 |
+| S40 | CRUS — Vectorized PDM Zoning | ○ | | ● | P1 |
+| S41 | SRUP — Property Constraints (IC/RAN/DPH) | ○ | | ● | P1 |
+| S42 | MS Building Footprints | | | ● | P1 |
+| S44 | Cadastro Predial (Formal Cadastre) | | | ● | P1 |
+| S02 | Confidencial Imobiliário (SIR) | ● | ● | | P2 |
+| S06 | Imovirtual — Rental Listings | ● | ○ | | P2 |
+| S14 | RNAL — AL Licenses | ● | ○ | | P2 |
+| S20 | ARU Boundaries | ● | ○ | ● | P2 |
+| S21 | INE Building Permits | | | ○ | P2 |
+| S22 | InfoEscolas — School Quality | ● | ● | | P2 |
+| S23 | SNS — Healthcare Facilities | ● | ● | | P2 |
+| S24 | GTFS — Transport Schedules | ● | ● | | P2 |
+| S29 | INE — Rental Price Index | ● | ○ | | P2 |
+| S34 | Competitive Developments (scraped) | ○ | ● | | P2 |
+| S43 | Sentinel-1 SAR Change Detection | | | ○ | P2 |
 
 **Legend:** ● = Critical | ○ = Enrichment
+
+**Note on S19/S40:** S19 (PDM Zoning Lisbon + Porto) is the original MVP source. S40 (CRUS) is the vectorized PDM from DGTERRITÓRIO WFS, covering 5 municipalities (Aveiro, Lisboa, Porto, Coimbra, Leiria). S40 supersedes S19 for covered municipalities — same underlying PDM data, better access mechanism via WFS.
 
 ### 2.3 Detailed Source Specifications
 
@@ -273,7 +321,75 @@ This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + 
 - **Refresh:** Annual (January)
 - **Role:** Tax computation for net yield analysis; IMT as transaction cost in investment models
 
-#### P2 — Enhancement (9 sources)
+**S38 — BUPI Simplified Cadastral Parcels (RGG)**
+- **URL:** https://dados.gov.pt/en/datasets/representacao-grafica-georreferenciada/
+- **Data:** Georeferenced property boundary polygons from the BUPi simplified cadastral registration system. 3.25M parcels covering 152 municipalities in continental Portugal.
+- **Format:** GeoPackage (`.gpkg`) inside a `.zip` archive
+- **CRS:** ETRS89 / PT-TM06 — EPSG:3763 (projected, metres)
+- **Fields:** ProcessoId, NumeroMatriz (tax matrix number for ownership lookup), Dicofre (6-digit parish code), Concelho, Freguesia, Area_m2
+- **Ingestion:** HTTP download → MinIO → PostGIS (GIS ingestion + GPKG bronze templates)
+- **Volume:** ~3.25M parcels, ~1.4 GB GPKG
+- **Refresh:** Monthly
+- **License:** CC-BY 4.0
+- **Role:** Critical for UC-3 — parcel assembly, ownership lookup (NumeroMatriz + Dicofre → Caderneta Predial)
+
+**S39 — COS 2023 Land Use/Cover (Carta de Uso e Ocupação do Solo)**
+- **URL:** https://dados.gov.pt/en/datasets/carta-de-uso-e-ocupacao-do-solo-cos-serie-2-nova/
+- **Data:** National land use/cover classification with 4-level hierarchical nomenclature
+- **Format:** GeoPackage (`.gpkg`) inside a `.zip` archive
+- **CRS:** ETRS89 / PT-TM06 — EPSG:3763
+- **Fields:** COS2023_ID, COS2023_Lg (4-level code), DT, CC, FR, Area_Ha
+- **Ingestion:** HTTP download → MinIO → PostGIS (GIS ingestion + GPKG bronze templates)
+- **Volume:** ~784K polygons, ~500 MB GPKG
+- **Refresh:** ~5 years (next revision ~2028)
+- **License:** Open
+- **Role:** Critical for UC-3 — vacant land detection (non-artificial land use in urban zones)
+
+**S40 — CRUS Vectorized PDM Zoning**
+- **URL:** DGT WFS (SDISNITWFS endpoints per municipality)
+- **Data:** Vectorized PDM (Plano Director Municipal) zoning from CRUS — Solo Urbano/Rústico classification with subcategories
+- **Format:** GeoJSON via WFS 2.0.0
+- **CRS:** ETRS89 / PT-TM06 — EPSG:3763
+- **Coverage:** 5 municipalities (Aveiro, Lisboa, Porto, Coimbra, Leiria)
+- **Ingestion:** WFS GetFeature → GeoJSON → MinIO → PostGIS
+- **Volume:** ~5K zone polygons, ~100 MB
+- **Refresh:** Static (PDM revision ~every 10 years)
+- **Note:** Supersedes S19 for covered municipalities — same underlying PDM data, WFS access
+- **Role:** Critical for UC-3 — buildability assessment (what can be built where)
+
+**S41 — SRUP Property Constraints (Servidões e Restrições de Utilidade Pública)**
+- **URL:** DGT WFS (SRUP_IC, SRUP_RAN, SRUP_DPH endpoints)
+- **Data:** Property easements and restrictions — heritage sites (IC), agricultural reserve (RAN), public water domain (DPH)
+- **Format:** GeoJSON via WFS 2.0.0
+- **CRS:** EPSG:4326 (WGS84)
+- **Ingestion:** WFS GetFeature → GeoJSON → MinIO → PostGIS (per category)
+- **Volume:** ~3,676 IC features, ~268 RAN features, ~7 DPH features
+- **Refresh:** Ad-hoc
+- **Role:** Critical for UC-3 — constraint overlay (what cannot be built); enrichment for UC-1
+
+**S42 — Microsoft Global ML Building Footprints**
+- **URL:** https://github.com/microsoft/GlobalMLBuildingFootprints
+- **Data:** Building polygons for Portugal, ML-extracted from aerial/satellite imagery
+- **Format:** GeoJSON partitioned by country; also available via Overture Maps
+- **CRS:** EPSG:4326 (WGS84)
+- **Ingestion:** HTTP download → MinIO → PostGIS
+- **Volume:** ~5M building polygons for Portugal, ~1.5-2 GB
+- **Refresh:** Annual
+- **License:** ODbL
+- **Quality note:** ML-extracted footprints may have false positives (shadows, containers) and false negatives (small structures). Acceptable for screening; specific sites should be verified with aerial imagery.
+- **Role:** Critical for UC-3 — vacant plot detection, building coverage ratio per parcel
+
+**S44 — Cadastro Predial (Formal Cadastre)**
+- **URL:** DGT OGC API (country-wide, partial coverage)
+- **Data:** Official surveyed property parcel boundaries (higher accuracy than BUPI)
+- **Format:** GeoJSON via OGC API Features
+- **CRS:** ETRS89 / PT-TM06 — EPSG:3763
+- **Ingestion:** OGC API → GeoJSON → MinIO → PostGIS
+- **Volume:** Partial coverage (~50% of municipalities)
+- **Refresh:** Ad-hoc
+- **Role:** Enrichment for UC-3 — validates BUPI boundaries for specific sites of interest
+
+#### P2 — Enhancement (11 sources)
 
 **S02 — Confidencial Imobiliário (SIR Index)**
 - **URL:** https://ci-iberica.com
@@ -355,6 +471,24 @@ This MVP retains **24 data sources** (P0 + P1 + P2) and defers 13 sources (P3 + 
 - **Volume:** ~50-200 active projects (Lisbon + Porto metro areas)
 - **Refresh:** Monthly
 - **Role:** Competitive landscape for UC-2 pricing strategy
+
+**S21 — INE Building Permits**
+- **URL:** https://www.ine.pt (API)
+- **Data:** Licensed construction activity by municipality — new buildings, renovations, demolitions
+- **Format:** JSON (API)
+- **Ingestion:** REST API → Bronze (same pipeline as S01)
+- **Volume:** ~50K records
+- **Refresh:** Monthly
+- **Role:** UC-3 — active construction validation; building permit counts near opportunity sites
+
+**S43 — Sentinel-1 SAR Change Detection**
+- **URL:** Copernicus Data Space (https://dataspace.copernicus.eu) / Microsoft Planetary Computer (STAC API)
+- **Data:** C-band SAR radar imagery, 5×20m resolution, 6-day revisit cycle, cloud-independent
+- **Processing:** Backscatter change detection (ΔdB between baseline and current dates) + optional InSAR coherence analysis. Per-parcel zonal statistics against BUPI geometries.
+- **Pipeline:** rasterio/SNAP + Python zonal stats → PostGIS (runs outside dbt)
+- **Volume:** Per-parcel flags (~50 MB processed output)
+- **Refresh:** Monthly (or on-demand)
+- **Role:** UC-3 — active construction detection; parcels with ΔdB > 3dB indicate new hard surfaces
 
 ---
 
@@ -681,6 +815,20 @@ CREATE SCHEMA metadata;
 │  │  │  │  project_pricing_summary (materialized view)   │     │    │       │
 │  │  │  └────────────────────────────────────────────────┘     │    │       │
 │  │  └─────────────────────────────────────────────────────────┘    │       │
+│  │                                                                 │       │
+│  │  ┌─────────────────────────────────────────────────────────┐    │       │
+│  │  │  UC-3: LAND DEVELOPMENT OPPORTUNITIES                   │    │       │
+│  │  │                                                         │    │       │
+│  │  │  parcel_buildability ──── zoning + constraints overlay   │    │       │
+│  │  │  development_sites ──── opportunity scoring              │    │       │
+│  │  │  site_parcels ──── BUPI parcel assembly                  │    │       │
+│  │  │          │                                              │    │       │
+│  │  │          ▼                                              │    │       │
+│  │  │  ┌────────────────────────────────────────────────┐     │    │       │
+│  │  │  │  development_sites (materialized table)        │     │    │       │
+│  │  │  │  Composite opportunity_score per site           │     │    │       │
+│  │  │  └────────────────────────────────────────────────┘     │    │       │
+│  │  └─────────────────────────────────────────────────────────┘    │       │
 │  └─────────────────────────────────────────────────────────────────┘       │
 └────────────────────────────────┬───────────────────────────────────────────┘
                                  │
@@ -748,6 +896,21 @@ Airflow DAG (post-ingestion) → dbt run
             → Python/SQL hedonic model scoring
               → gold_analytics.property_valuation
                 → gold_reporting.investment_opportunities
+```
+
+### Flow E: Spatial Analysis (UC-3 Land Opportunities)
+```
+COS (land use) + CRUS (zoning) + SRUP (constraints) + BUPI (parcels) + Building Footprints
+  → stg_* (staging views — CRS alignment to EPSG:3763)
+    → silver_geo.parcel_buildability (pre-filtered to CRUS municipality extents)
+      → ST_ClusterDBSCAN (parcel contiguity grouping)
+        → gold_analytics.development_sites (opportunity scoring)
+        → gold_analytics.site_parcels (parcel-to-site mapping)
+
+CRS alignment strategy:
+  - BUPI, COS, CRUS, Cadastro: native EPSG:3763 (no transform needed)
+  - SRUP IC/RAN/DPH, Building Footprints: EPSG:4326 → ST_Transform to 3763 at staging
+  - All spatial joins performed in EPSG:3763 (projected, metres — accurate area/distance)
 ```
 
 ---
@@ -938,6 +1101,47 @@ Airflow DAG (post-ingestion) → dbt run
                     │  estimated_revpar             │
                     └──────────────────────────────┘
 ```
+
+### 7.5 UC-3 Conceptual Model: Land Development Opportunities
+
+```
+                    ┌─────────────────────┐
+                    │   DEVELOPMENT SITE  │
+                    │   (opportunity)     │
+                    └──────────┬──────────┘
+                               │
+       ┌───────────────┬───────┼───────┬───────────────┐
+       │               │       │       │               │
+┌──────┴───────┐ ┌─────┴─────┐ │ ┌─────┴─────┐ ┌──────┴───────┐
+│ BUILDABILITY │ │  PARCELS  │ │ │ ECONOMICS │ │ CONSTRUCTION │
+│              │ │  (BUPI)   │ │ │           │ │  ACTIVITY    │
+│ zone_categ   │ │           │ │ │ total_area│ │              │
+│ land_class   │ │ process_id│ │ │ est_gba   │ │ has_building │
+│ is_urban_exp │ │ matrix_num│ │ │ local_€m2 │ │ coverage_%   │
+│ srup_flags   │ │ dicofre   │ │ │ est_rev   │ │ sar_delta_db │
+│ ren_overlap  │ │ area_m2   │ │ │ est_cost  │ │ is_active    │
+│ is_aru       │ │ owner_key │ │ │ est_margin│ │ permit_flag  │
+└──────────────┘ └───────────┘ │ └───────────┘ └──────────────┘
+                               │
+                ┌──────────────┼──────────────┐
+                │              │              │
+         ┌──────┴───────┐ ┌───┴──────┐ ┌─────┴──────┐
+         │  LAND USE    │ │ BUILDING │ │ COMPETITION│
+         │  (COS)       │ │ FOOTPRINT│ │  (UC-1)    │
+         │ cos_level_1  │ │ (MS)     │ │            │
+         │ is_vacant    │ │          │ │ nearby_lst │
+         │ is_agri      │ │ bldg_area│ │ recent_txn │
+         │ is_built     │ │ bldg_cnt │ │ avg_eur_m2 │
+         └──────────────┘ └──────────┘ └────────────┘
+```
+
+**Key relationships:**
+- Each **development site** is composed of one or more contiguous **BUPI parcels** (grouped via `ST_ClusterDBSCAN`)
+- **Buildability** is determined by CRUS zoning (what can be built) intersected with SRUP constraints (what cannot)
+- **Land use** from COS 2023 detects vacant/underutilized parcels in urban zones
+- **Building footprints** (MS) validate vacancy and compute building coverage per parcel
+- **Economics** reuses UC-1's hedonic model for local €/m² estimates
+- **Construction activity** (P2) uses Sentinel-1 SAR change detection for cloud-independent monitoring
 
 ---
 
@@ -1624,6 +1828,148 @@ CREATE TABLE bronze_geo.raw_aru_zones (
 CREATE INDEX idx_aru_geom ON bronze_geo.raw_aru_zones USING GIST(geom);
 ```
 
+#### Regulatory & Cadastral Sources (S38-S44)
+
+```sql
+-- S38 — BUPI Simplified Cadastral Parcels (~3,250,000 rows)
+-- Source: dados.gov.pt GeoPackage, EPSG:3763, monthly refresh
+-- Fields: processoid (BUPi ID), numeromatriz (tax matrix → ownership lookup),
+--         dicofre (6-digit parish code), concelho, freguesia, area_m2
+CREATE TABLE bronze_regulatory.raw_bupi (
+    processoid      INTEGER,
+    numeromatriz    TEXT,
+    dicofre         VARCHAR(6),
+    concelho        TEXT,
+    freguesia       TEXT,
+    area_m2         DOUBLE PRECISION,
+    geom            GEOMETRY(MULTIPOLYGON, 3763),
+    _source_url     TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_bupi_geom ON bronze_regulatory.raw_bupi USING GIST(geom);
+CREATE INDEX idx_raw_bupi_dicofre ON bronze_regulatory.raw_bupi(dicofre);
+CREATE INDEX idx_raw_bupi_concelho ON bronze_regulatory.raw_bupi(concelho);
+
+-- S39 — COS 2023 Land Use/Cover (~784,000 rows)
+-- Source: dados.gov.pt GeoPackage, EPSG:3763, ~5-year refresh
+-- Fields: cos2023_lg (4-level hierarchical code), dt/cc/fr (admin codes), area_ha
+CREATE TABLE bronze_geo.raw_cos2023 (
+    cos2023_id      INTEGER,
+    cos2023_lg      TEXT,
+    dt              TEXT,
+    cc              TEXT,
+    fr              TEXT,
+    area_ha         DOUBLE PRECISION,
+    geom            GEOMETRY(MULTIPOLYGON, 3763),
+    _source_url     TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_cos2023_geom ON bronze_geo.raw_cos2023 USING GIST(geom);
+CREATE INDEX idx_raw_cos2023_lg ON bronze_geo.raw_cos2023(cos2023_lg);
+
+-- S40 — CRUS Vectorized PDM Zoning (~5,000 rows, 5 municipalities)
+-- Source: DGT WFS, EPSG:3763, static (PDM revision ~10yr)
+-- Supersedes S19 for covered municipalities
+CREATE TABLE bronze_regulatory.raw_crus_ordenamento (
+    id              TEXT,
+    municipio       TEXT,
+    categoria       TEXT,
+    subcategoria    TEXT,
+    area_ha         DOUBLE PRECISION,
+    geom            GEOMETRY(MULTIPOLYGON, 3763),
+    _source_url     TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_crus_geom ON bronze_regulatory.raw_crus_ordenamento USING GIST(geom);
+CREATE INDEX idx_raw_crus_municipio ON bronze_regulatory.raw_crus_ordenamento(municipio);
+CREATE INDEX idx_raw_crus_cat ON bronze_regulatory.raw_crus_ordenamento(municipio, categoria);
+
+-- S41 — SRUP Heritage Sites IC (~3,676 rows)
+-- Source: DGT WFS, EPSG:4326 (GEOMETRYCOLLECTION — staging transforms to 3763)
+CREATE TABLE bronze_regulatory.raw_srup_ic (
+    id              TEXT,
+    designacao      TEXT,
+    classificacao   TEXT,
+    municipios      TEXT,
+    servidao        TEXT,
+    area_ha         DOUBLE PRECISION,
+    geom            GEOMETRY(GEOMETRYCOLLECTION, 4326),
+    _feature_type   TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+
+-- S41 — SRUP Agricultural Reserve RAN (~268 rows)
+CREATE TABLE bronze_regulatory.raw_srup_ran (
+    id              TEXT,
+    concelho        TEXT,
+    dinamica        TEXT,
+    servidao        TEXT,
+    geom            GEOMETRY(GEOMETRYCOLLECTION, 4326),
+    _feature_type   TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+
+-- S41 — SRUP Public Water Domain DPH (~7 rows)
+CREATE TABLE bronze_regulatory.raw_srup_dph (
+    id              TEXT,
+    designacao      TEXT,
+    municipios      TEXT,
+    servidao        TEXT,
+    area_ha         DOUBLE PRECISION,
+    geom            GEOMETRY(GEOMETRYCOLLECTION, 4326),
+    _feature_type   TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+
+-- S44 — Cadastro Predial / Formal Cadastre (partial coverage)
+-- Source: DGT OGC API, EPSG:3763
+CREATE TABLE bronze_regulatory.raw_cadastro (
+    objectid        INTEGER,
+    ipr             TEXT,
+    secao           TEXT,
+    parcela         TEXT,
+    dicofre         VARCHAR(6),
+    area_m2         DOUBLE PRECISION,
+    geom            GEOMETRY(MULTIPOLYGON, 3763),
+    _source_url     TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_cadastro_geom ON bronze_regulatory.raw_cadastro USING GIST(geom);
+CREATE INDEX idx_raw_cadastro_dicofre ON bronze_regulatory.raw_cadastro(dicofre);
+
+-- S42 — MS Building Footprints (~5M rows, P1 — not yet ingested)
+-- Source: GitHub/Overture Maps, EPSG:4326, ML-extracted from aerial imagery
+CREATE TABLE bronze_geo.raw_building_footprints (
+    bf_id           SERIAL PRIMARY KEY,
+    height          DOUBLE PRECISION,
+    confidence      DOUBLE PRECISION,
+    geom            GEOMETRY(POLYGON, 4326),
+    _source         TEXT,
+    _load_timestamp TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_bf_geom ON bronze_geo.raw_building_footprints USING GIST(geom);
+
+-- S43 — Sentinel-1 SAR Change Detection (P2 — not yet ingested)
+-- Per-parcel backscatter change metrics. No redundant geometry — uses processoid FK to raw_bupi.
+-- Pipeline: rasterio/SNAP + Python zonal stats → PostGIS (runs outside dbt)
+CREATE TABLE bronze_geo.raw_sar_change (
+    sar_id              SERIAL PRIMARY KEY,
+    processoid          INTEGER,
+    dicofre             VARCHAR(6),
+    baseline_date       DATE,
+    current_date        DATE,
+    orbit_direction     TEXT,
+    mean_backscatter_db DOUBLE PRECISION,
+    delta_db            DOUBLE PRECISION,
+    coherence           DOUBLE PRECISION,
+    pixel_count         INTEGER,
+    _pipeline_run       TEXT,
+    _load_timestamp     TIMESTAMPTZ
+);
+CREATE INDEX idx_raw_sar_processoid ON bronze_geo.raw_sar_change(processoid);
+CREATE INDEX idx_raw_sar_dicofre ON bronze_geo.raw_sar_change(dicofre);
+```
+
 ### 8.3 Silver Layer — Cleaned, Conformed, Geocoded
 
 #### Unified Listings (anchor table for all property analysis)
@@ -1948,6 +2294,126 @@ CREATE TABLE silver_market.str_registry (
     _updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_str_geom ON silver_market.str_registry USING GIST(geom);
+```
+
+#### Geo & Regulatory (UC-3 foundation)
+
+```sql
+-- silver_geo.land_use — COS 2023 enriched with hierarchy and boolean flags (~784K rows)
+-- Source: stg_cos2023 + COS nomenclature hierarchy lookup
+-- Materialization: dbt table
+CREATE TABLE silver_geo.land_use (
+    land_use_key         BIGSERIAL PRIMARY KEY,
+    id                   INTEGER NOT NULL,
+    land_use_code        TEXT NOT NULL,           -- COS 4-level code (e.g. "1.1.1.01")
+    land_use_label       TEXT,
+    area_ha              DOUBLE PRECISION,
+    land_use_level1      TEXT,                    -- Level 1 (e.g. "Territórios artificializados")
+    land_use_level2      TEXT,                    -- Level 2
+    land_use_level3      TEXT,                    -- Level 3
+    land_use_category    TEXT,                    -- Grouped category
+    is_urban             BOOLEAN,
+    is_residential       BOOLEAN,
+    is_agricultural      BOOLEAN,
+    is_forest            BOOLEAN,
+    freguesia_code       TEXT,
+    concelho_code        TEXT,
+    distrito_code        TEXT,
+    geom                 GEOMETRY(MULTIPOLYGON, 3763),
+    geom_wgs84           GEOMETRY(MULTIPOLYGON, 4326),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_land_use_geom ON silver_geo.land_use USING GIST(geom);
+CREATE INDEX idx_land_use_code ON silver_geo.land_use(land_use_code);
+
+-- silver_geo.zoning — CRUS PDM zoning enriched (~5K rows, 5 municipalities)
+-- Source: stg_crus_ordenamento
+-- Materialization: dbt table
+CREATE TABLE silver_geo.zoning (
+    zone_key             BIGSERIAL PRIMARY KEY,
+    municipality_code    TEXT,
+    municipality_name    TEXT NOT NULL,
+    land_classification  TEXT,                    -- Solo Urbano / Solo Rústico
+    land_category        TEXT,                    -- Subcategory
+    land_designation     TEXT,                    -- Detailed designation
+    zone_category        TEXT,                    -- Grouped zone type
+    area_ha              DOUBLE PRECISION,
+    pdm_publication_date DATE,
+    geom                 GEOMETRY(MULTIPOLYGON, 3763),
+    geom_wgs84           GEOMETRY(MULTIPOLYGON, 4326),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_zoning_geom ON silver_geo.zoning USING GIST(geom);
+CREATE INDEX idx_zoning_municipality ON silver_geo.zoning(municipality_name);
+
+-- silver_geo.building_footprints — MS Building Footprints cleaned (P1 — not yet ingested)
+-- Source: stg_building_footprints (ST_Transform from 4326 to 3763)
+CREATE TABLE silver_geo.building_footprints (
+    bf_id                INTEGER PRIMARY KEY,
+    area_m2              DOUBLE PRECISION,
+    height               DOUBLE PRECISION,        -- nullable
+    confidence           DOUBLE PRECISION,
+    geom_pt              GEOMETRY(POLYGON, 3763),
+    geom_4326            GEOMETRY(POLYGON, 4326),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_bf_geom_pt ON silver_geo.building_footprints USING GIST(geom_pt);
+
+-- silver_geo.parcel_buildability — UC-3 core model
+-- Each BUPI parcel enriched with zoning, land use, constraints, and building coverage.
+-- Pre-filtered to CRUS municipality extents (~500K of 3.25M parcels).
+-- Materialization: dbt TABLE (not view) — estimated refresh ~15-20 min.
+-- Spatial join strategy: filter BUPI to ST_Within(crus_extent), then LEFT JOIN against
+--   zoning (centroid), land_use (largest overlap), SRUP (ST_Intersects), footprints (area ratio)
+CREATE TABLE silver_geo.parcel_buildability (
+    process_id           INTEGER NOT NULL,
+    dicofre              VARCHAR(6) NOT NULL,
+    matrix_number        TEXT,
+    parish               TEXT,
+    municipality         TEXT,
+    parcel_area_m2       DOUBLE PRECISION,
+    geom_pt              GEOMETRY(MULTIPOLYGON, 3763),
+    geom_4326            GEOMETRY(MULTIPOLYGON, 4326),
+    -- Zoning (from CRUS spatial join)
+    zone_category        TEXT,                    -- Solo Urbano / Solo Rústico
+    zone_subcategory     TEXT,
+    is_urban             BOOLEAN,
+    is_urban_expansion   BOOLEAN,
+    is_rural             BOOLEAN,
+    -- Land use (from COS spatial join)
+    cos_level_1          TEXT,
+    cos_level_2          TEXT,
+    is_vacant            BOOLEAN,
+    is_agricultural      BOOLEAN,
+    is_built             BOOLEAN,
+    -- Constraints (from SRUP spatial joins)
+    srup_ran_flag        BOOLEAN DEFAULT FALSE,
+    srup_dph_flag        BOOLEAN DEFAULT FALSE,
+    srup_ic_flag         BOOLEAN DEFAULT FALSE,
+    srup_ren_flag        BOOLEAN DEFAULT FALSE,   -- P2 (REN not yet ingested)
+    -- Building coverage (from footprints spatial join)
+    has_building         BOOLEAN,
+    building_count       INTEGER DEFAULT 0,
+    building_coverage_pct NUMERIC(5,4),           -- 0.0000 to 1.0000
+    -- ARU (P2)
+    is_aru               BOOLEAN DEFAULT FALSE,
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_pb_geom ON silver_geo.parcel_buildability USING GIST(geom_pt);
+CREATE INDEX idx_pb_dicofre ON silver_geo.parcel_buildability(dicofre);
+CREATE INDEX idx_pb_municipality ON silver_geo.parcel_buildability(municipality);
+
+-- silver_geo.parcel_construction_activity — construction signals per parcel (P2)
+-- Source: stg_bupi JOIN stg_sar_change + stg_building_permits
+CREATE TABLE silver_geo.parcel_construction_activity (
+    process_id           INTEGER NOT NULL,
+    dicofre              VARCHAR(6),
+    sar_delta_db         DOUBLE PRECISION,        -- backscatter change
+    sar_coherence        DOUBLE PRECISION,        -- InSAR coherence (0-1)
+    sar_is_active        BOOLEAN,                 -- delta_db > 3.0 AND pixel_count >= 5
+    permit_count_nearby  INTEGER DEFAULT 0,       -- INE building permits within municipality
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 #### Reference Tables
@@ -2583,7 +3049,69 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
-### 8.7 Gold Reporting — Fact Tables & Materialized Views
+### 8.7 Gold Layer — UC-3: Land Development Opportunities
+
+```sql
+-- gold_analytics.development_sites — opportunity-scored development sites
+-- Each site is a cluster of contiguous BUPI parcels in urban/urbanizable zones.
+-- Contiguity algorithm: ST_ClusterDBSCAN(geom_pt, eps := 0, minpoints := 1)
+-- Source: silver_geo.parcel_buildability grouped by ST_ClusterDBSCAN clusters
+CREATE TABLE gold_analytics.development_sites (
+    site_key             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    geom                 GEOMETRY(MULTIPOLYGON, 3763), -- ST_Union of component parcels
+    municipality         TEXT NOT NULL,
+    parish               TEXT,
+    dicofre              VARCHAR(6),
+    total_area_m2        DOUBLE PRECISION,
+    parcel_count         INTEGER,
+    -- Zoning
+    zone_category        TEXT,                    -- Solo Urbano / Solo Rústico (majority)
+    land_classification  TEXT,
+    -- Land use
+    cos_level_1          TEXT,                    -- Dominant COS level 1
+    is_vacant            BOOLEAN,
+    is_agricultural      BOOLEAN,
+    is_built             BOOLEAN,
+    -- Building coverage
+    has_building         BOOLEAN,
+    building_coverage_pct NUMERIC(5,4),           -- Aggregate across site parcels
+    -- Constraints
+    srup_ran_flag        BOOLEAN DEFAULT FALSE,
+    srup_ren_flag        BOOLEAN DEFAULT FALSE,
+    srup_dph_flag        BOOLEAN DEFAULT FALSE,
+    srup_ic_flag         BOOLEAN DEFAULT FALSE,
+    -- ARU
+    is_aru               BOOLEAN DEFAULT FALSE,
+    -- Economics (dependency on UC-1 hedonic model)
+    est_gba_m2           DOUBLE PRECISION,        -- Estimated gross building area
+    local_eur_per_m2     NUMERIC(10,2),           -- From UC-1 hedonic model
+    est_revenue          NUMERIC(14,2),
+    est_cost             NUMERIC(14,2),
+    est_margin           NUMERIC(14,2),
+    -- Scoring
+    opportunity_score    NUMERIC(5,2),            -- Composite score 0-100
+    -- P2 enrichment
+    sar_activity_flag    BOOLEAN,                 -- Sentinel-1 SAR (nullable until P2)
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_dev_sites_geom ON gold_analytics.development_sites USING GIST(geom);
+CREATE INDEX idx_dev_sites_municipality ON gold_analytics.development_sites(municipality);
+CREATE INDEX idx_dev_sites_score ON gold_analytics.development_sites(opportunity_score DESC);
+
+-- gold_analytics.site_parcels — BUPI parcels per development site
+-- Links individual parcels to their parent development site.
+-- NumeroMatriz + Dicofre → Caderneta Predial for ownership lookup.
+CREATE TABLE gold_analytics.site_parcels (
+    site_key             UUID REFERENCES gold_analytics.development_sites(site_key),
+    process_id           INTEGER NOT NULL,
+    matrix_number        TEXT,                    -- NumeroMatriz (ownership lookup key)
+    dicofre              VARCHAR(6),
+    area_m2              DOUBLE PRECISION,
+    PRIMARY KEY (site_key, process_id)
+);
+```
+
+### 8.8 Gold Reporting — Fact Tables & Materialized Views
 
 #### Fact: Market Transactions
 
@@ -2786,6 +3314,37 @@ LAYER 6 — UC-2 Pricing (Sprint 8)
   S34 Competitive Developments
   absorption_rate_model + location_price_premiums
   ──► unit_pricing_recommendation (UC-2 MVP)
+
+LAYER 7 — UC-3 Land Opportunities (Sprint 9-11, post-MVP)
+
+  Bronze (existing):
+    raw_bupi + raw_cos2023 + raw_crus_ordenamento + raw_srup_ic/ran/dph + raw_cadastro
+    ──► stg_bupi, stg_cos2023, stg_crus_ordenamento, stg_srup_*, stg_cadastro
+
+  Bronze (new — P1):
+    raw_building_footprints ──► stg_building_footprints
+
+  Bronze (new — P2):
+    raw_sar_change ──► stg_sar_change
+    (SAR pipeline: Sentinel-1 GRD → rasterio/SNAP → zonal stats per BUPI parcel → PostGIS)
+
+  Silver (existing, newly documented):
+    stg_cos2023 ──► silver_geo.land_use
+    stg_crus_ordenamento ──► silver_geo.zoning
+
+  Silver (new — P1):
+    stg_bupi ⊕ zoning ⊕ land_use ⊕ stg_srup_* ⊕ building_footprints
+    ──► silver_geo.parcel_buildability
+    (pre-filtered to CRUS municipality extents, materialized table)
+
+  Silver (new — P2):
+    stg_bupi ⊕ stg_sar_change ⊕ stg_building_permits
+    ──► silver_geo.parcel_construction_activity
+
+  Gold:
+    parcel_buildability → ST_ClusterDBSCAN → site aggregation
+    ⊕ parcel_construction_activity (P2)
+    ──► gold_analytics.development_sites + site_parcels
 ```
 
 ### 10.2 Critical Path
@@ -2797,8 +3356,14 @@ S08 + S12 ──► dim_geography ──► S03 geocoding ──► unified_list
       ──► investment_opportunities (UC-1 MVP at Week 12)
         ──► UC-2 additions (Week 16)
 
+UC-3 critical path (post-MVP, Weeks 17-22):
+  S42 Building Footprints + existing bronze (BUPI/COS/CRUS/SRUP)
+    ──► parcel_buildability ──► development_sites (UC-3 MVP at Week 19)
+      ──► SAR + ARU + REN enrichment (Week 22)
+
 Critical path to UC-1: 6 sprints (12 weeks)
 Critical path to UC-2: 8 sprints (16 weeks)
+Critical path to UC-3: 11 sprints (22 weeks) — requires UC-1 hedonic model
 ```
 
 ---
@@ -2830,6 +3395,20 @@ dags/
 │   ├── dag_sns_facilities.py            # Sprint 7 — Quarterly
 │   ├── dag_gtfs_import.py               # Sprint 7 — Quarterly
 │   └── dag_competitive_devs.py          # Sprint 8 — Monthly
+│   # UC-3 (Sprint 9+)
+│   ├── bupi_ingestion.py                 # Sprint 9 — Monthly (exists)
+│   ├── bupi_bronze_load.py               # Sprint 9 — Triggered (exists)
+│   ├── cos_ingestion.py                  # Sprint 9 — Ad-hoc (exists)
+│   ├── cos_bronze_load.py                # Sprint 9 — Triggered (exists)
+│   ├── crus_ingestion.py                 # Sprint 9 — Ad-hoc (exists)
+│   ├── crus_bronze_load.py               # Sprint 9 — Triggered (exists)
+│   ├── srup_ingestion.py                 # Sprint 9 — Ad-hoc (exists)
+│   ├── srup_bronze_load.py               # Sprint 9 — Triggered (exists)
+│   ├── cadastro_ingestion.py             # Sprint 9 — Ad-hoc (exists)
+│   ├── cadastro_bronze_load.py           # Sprint 9 — Triggered (exists)
+│   ├── building_footprints_ingestion.py  # Sprint 9 — Annual (P1)
+│   ├── building_footprints_bronze_load.py # Sprint 9 — Triggered (P1)
+│   └── sar_ingestion.py                  # Sprint 10 — Monthly (P2)
 ├── transformation/
 │   ├── dag_dbt_silver.py                # Daily — all Silver models
 │   ├── dag_dbt_gold.py                  # Daily — all Gold models
@@ -2871,7 +3450,7 @@ dags/
 
 ---
 
-## 12. Sprint Plan (8 Sprints / 16 Weeks)
+## 12. Sprint Plan (10 Sprints / 22 Weeks)
 
 ### Sprint 1 — Infrastructure & Geography (Weeks 1-2)
 
@@ -3013,6 +3592,35 @@ dags/
 
 **🏁 MILESTONE 2 (Week 16): UC-2 MVP LIVE + Production Release.**
 
+### Sprint 9 — UC-3: Land Development Opportunities (Weeks 17-19)
+
+**Prerequisite:** UC-1 hedonic model must be complete before economics model task.
+
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| MS Building Footprints ingestion | S42 | 2 | ~5M polygons → MinIO → PostGIS | `bronze_geo.raw_building_footprints` |
+| Building footprints staging + silver model | S42 | 2 | Cleaned footprints with EPSG:3763 | `stg_building_footprints`, `silver_geo.building_footprints` |
+| Vacant land detection model | S39/S40 | 3 | COS non-artificial × CRUS urban zones → candidate sites | `silver_geo.parcel_buildability` (is_vacant, is_agricultural flags) |
+| Constraint overlay | S41 | 2 | SRUP flags per parcel (RAN/REN/DPH/IC) | `silver_geo.parcel_buildability` (srup_*_flag columns) |
+| Parcel assembly (ST_ClusterDBSCAN) | S38 | 4 | Contiguous BUPI parcels grouped into development sites | `gold_analytics.development_sites`, `gold_analytics.site_parcels` |
+| Development economics model | UC-1 | 3 | GBA estimate × local €/m² → revenue, cost, margin | `gold_analytics.development_sites` (est_* columns) |
+| Opportunity scoring + materialized table | — | 2 | Composite opportunity_score per site | `gold_analytics.development_sites` (opportunity_score) |
+| Metabase: Land Opportunities Dashboard | — | 2 | Map + ranked sites + zoning filter + constraint flags | — |
+| **Total** | | **20** | (15 working days × 1.5 engineers = 22.5 available) | |
+
+**🏁 MILESTONE 3 (Week 19): UC-3 MVP LIVE.**
+
+### Sprint 10 — UC-3 Enhancements (Weeks 20-22)
+
+| Task | Source | Days | Deliverable | Affected tables |
+|---|---|---|---|---|
+| Sentinel-1 SAR pipeline | S43 | 9 | Change detection → construction activity flags per parcel | `bronze_geo.raw_sar_change`, `stg_sar_change`, `silver_geo.parcel_construction_activity` |
+| ARU boundaries ingestion | S20 | 2 | ARU overlay → is_aru flag on development sites | `silver_geo.parcel_buildability` (is_aru), `gold_analytics.development_sites` |
+| INE Building Permits | S21 | 2 | Permit data → active construction validation | `bronze_ine.raw_building_permits`, `stg_building_permits` |
+| REN ingestion (SRUP Phase 2) | S41 | 3 | Ecological reserve → ren_flag on sites | `bronze_regulatory.raw_srup_ren`, `stg_srup_ren` |
+| UC-3 model recalibration | — | 2 | Incorporate SAR + ARU + REN + permits into opportunity_score | `gold_analytics.development_sites` (recalibrated) |
+| **Total** | | **18** | (15 working days × 1.5 engineers = 22.5 available) | |
+
 ---
 
 ## 13. Data Quality Framework
@@ -3068,6 +3676,13 @@ models:
 | Distribution | `unified_listings.price_per_sqm` | Median €500-€20,000 | Warning |
 | Referential | All Silver tables | All geo_key references valid | Critical |
 | Spatial | All geocoded tables | All points within Portugal bbox | Critical |
+| Volume | `bronze_regulatory.raw_bupi` | ≥ 3M rows after load | Critical |
+| Not null | `parcel_buildability.process_id` | 0% null | Critical |
+| Not null | `parcel_buildability.dicofre` | 0% null | Critical |
+| Range | `parcel_buildability.building_coverage_pct` | 0.0 to 1.0 | Warning |
+| Range | `development_sites.opportunity_score` | 0 to 100 | Warning |
+| Referential | `site_parcels.site_key` | All FK valid → development_sites | Critical |
+| Accepted values | `parcel_buildability.zone_category` | Solo Urbano, Solo Rústico, NULL | Warning |
 
 ### 13.3 Pipeline Metadata
 
@@ -3102,6 +3717,13 @@ CREATE TABLE metadata.pipeline_runs (
 | R6 | Server failure / data loss | Med | High | Daily pg_dump + MinIO backup to Hetzner Storage Box |
 | R7 | InfoEscolas JS-heavy, breaks scraper | Med | Low | Education score stays NULL; model handles gracefully |
 | R8 | RNAL scraping blocked | Med | Med | Use Inside Airbnb as STR proxy; submit FOI request |
+| R9 | CRUS coverage limited to 5 municipalities | High | High | Expand CRUS WFS queries to more municipalities; use COS as fallback for zoning |
+| R10 | Sentinel-1 SAR processing complexity + skills gap | Med | Med | Start with building footprints (P1); SAR is enrichment (P2), not blocking. May need remote sensing contractor. |
+| R11 | BUPI parcel boundaries are declaration-based (not surveyed) | Med | Low | Acceptable for analytical screening; formal cadastre (S44) validates specific sites |
+| R12 | Spatial join performance at scale (3.25M × 784K × 5M) | Med | High | Pre-filter BUPI to CRUS municipality extents (~500K parcels); materialize intermediate tables; partition by municipality |
+| R13 | Building footprint false positives/negatives (ML quality) | Med | Med | Acceptable for screening; flag low-confidence matches; specific sites verified via aerial imagery |
+| R14 | COS 2023 temporal lag (2-3 years old) | Med | Med | Land classified as vacant in 2023 may already be developed. SAR (P2) partially mitigates; building footprints (P1) provide more recent signal |
+| R15 | UC-3 economics model depends on UC-1 hedonic model | High | High | Sprint 9 economics task blocked until UC-1 complete. Fallback: use INE average €/m² by municipality |
 
 ---
 
@@ -3138,7 +3760,9 @@ Optional: CI license (€2-10K/year), Google Maps API (~€50-100/month if Nomin
 | 6 | 11-12 | 18 | UC-1 output | 🏁 **UC-1 MVP** |
 | 7 | 13-14 | 21 | Enhancements + UC-2 prep | Model v2 |
 | 8 | 15-16 | 26 | UC-2 output + production | 🏁 **UC-2 MVP** |
-| **Total** | **16** | **148** | | **Both use cases live** |
+| 9 | 17-19 | 20 | UC-3 MVP: building footprints, parcel buildability, opportunity scoring | 🏁 **UC-3 MVP** |
+| 10 | 20-22 | 18 | UC-3 enhancements: SAR, ARU, REN, building permits | UC-3 v2 |
+| **Total** | **22** | **186** | | **All three use cases live** |
 
 ### 15.4 Data Volume Estimates (MVP)
 
@@ -3156,8 +3780,15 @@ Optional: CI license (€2-10K/year), Google Maps API (~€50-100/month if Nomin
 | Transport stops | ~30K stops | 50 MB | Quarterly |
 | Schools + Healthcare | ~13K facilities | 70 MB | Annual |
 | Location scores | matches listing count | 500 MB | Weekly |
+| BUPI cadastral parcels (S38) | ~3.25M polygons | 2 GB | Monthly |
+| COS 2023 land use (S39) | ~784K polygons | 500 MB | ~5 years |
+| CRUS zoning (S40) | ~5K zones (5 municipalities) | 100 MB | Ad-hoc |
+| SRUP constraints (S41) | ~4K features (IC+RAN+DPH) | 400 MB | Ad-hoc |
+| Cadastro Predial (S44) | partial coverage | 300 MB | Ad-hoc |
+| MS Building Footprints (S42) | ~5M polygons | 1.5-2 GB | Annual |
+| Sentinel-1 SAR processed (S43) | per-parcel flags | 50 MB | Monthly |
 
-**Total estimated: ~20 GB in PostgreSQL + ~30 GB in MinIO**
+**Total estimated: ~28 GB in PostgreSQL + ~35 GB in MinIO**
 
 ---
 
@@ -3173,15 +3804,24 @@ Once MVP is stable (Week 16+), layer in deferred sources:
 | S27 Noise Maps (LX/Porto) | noise_level_db in hedonic + pricing | +2-3% R²; noise_discount in UC-2 |
 | S13 ADENE Certificates (if FOI) | kWh/m², CO2, detailed energy | Better energy premium |
 
-### Phase 2B — Supply Pipeline & Costs (Weeks 21-24)
+### Phase 2D — Land Development Intelligence (Weeks 17-22, UC-3)
+
+| Source | Value Add |
+|---|---|
+| S42 MS Building Footprints | Vacant plot detection, building coverage per parcel |
+| S43 Sentinel-1 SAR | Active construction detection (cloud-independent) |
+| S20 ARU Boundaries | Tax benefit flagging for rehabilitation zones |
+| S21 INE Building Permits | Authorized construction validation |
+| SRUP REN (Phase 2) | Ecological reserve constraint (critical for buildability) |
+
+### Phase 2B — Supply Pipeline & Costs (Weeks 23-26)
 
 | Source | Value Add |
 |---|---|
 | S25 IMPIC Construction Costs | Calibrate renovation cost model with real indices |
-| S21 INE Building Permits | Add building permits to trajectory model |
 | S28 PVGIS Solar | Precise sun exposure for orientation premiums |
 
-### Phase 2C — Coverage & Niche (Weeks 25+)
+### Phase 2C — Coverage & Niche (Weeks 27+)
 
 | Source | Value Add |
 |---|---|
@@ -3223,6 +3863,18 @@ All deferred fields are nullable — models automatically incorporate new featur
 | All daily DAGs succeeding | ≥ 95% success rate (2 weeks) | Yes |
 | Data freshness | No source > 2× expected interval | No |
 | Documentation | Data dictionary complete | No |
+
+### Milestone 3: UC-3 MVP (Week 19)
+
+| Criteria | Target | Hard Fail? |
+|---|---|---|
+| BUPI parcels loaded | ≥ 3M parcels | Yes |
+| CRUS zoning loaded | ≥ 5 municipalities | Yes |
+| Building footprints loaded | ≥ 4M footprints for Portugal | Yes |
+| Opportunity sites identified | Sites in ≥ 4 of 5 CRUS municipalities | Yes |
+| Spatial join coverage | 100% of BUPI parcels within CRUS extents processed | Yes |
+| parcel_buildability materialization | Refreshes in < 30 minutes | No |
+| Metabase Land Dashboard | Accessible with working filters | Yes |
 
 ### MVP Hedonic Model Feature Coverage
 

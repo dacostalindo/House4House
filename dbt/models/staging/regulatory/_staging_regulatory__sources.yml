@@ -111,6 +111,33 @@ sources:
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
 
+      - name: raw_bupi
+        description: >
+          BUPI simplified cadastral property parcels (RGG) from dados.gov.pt.
+          ~3.25M MultiPolygon parcels covering 152 municipalities in continental Portugal.
+          Georeferenced property boundaries from the BUPi registration system.
+          GPKG layer: rgg_{date}_opendata (auto-detected). Monthly refresh. EPSG:3763.
+          Source: pipelines/gis/bupi/bupi_bronze_dag.py
+        columns:
+          - name: processoid
+            description: "BUPi process identifier (unique integer)"
+          - name: numeromatriz
+            description: "Property tax matrix number (string, may contain commas for multiple entries)"
+          - name: dicofre
+            description: "6-digit parish code: distrito(2) + concelho(2) + freguesia(2)"
+          - name: concelho
+            description: "Municipality name (e.g. 'Pombal', 'Bragança')"
+          - name: freguesia
+            description: "Parish name"
+          - name: area_m2
+            description: "Parcel area in square metres"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoPackage file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
       - name: raw_cadastro
         description: >
           Cadastro Predial (Property Cadastre) parcel boundaries from DGTERRITÓRIO OGC API.

@@ -144,6 +144,46 @@ models:
       - name: geom_wgs84
         description: "Geometry reprojected to EPSG:4326 (WGS84)"
 
+  - name: stg_bupi
+    description: >
+      Staging view over BUPI simplified cadastral parcels from bronze_regulatory.raw_bupi.
+      Renames Portuguese field names to English and adds WGS84 geometry projection.
+      ~3.25M property parcels covering 152 municipalities (rural Portugal).
+      Source: dados.gov.pt RGG dataset (monthly GPKG release). CC-BY 4.0.
+    columns:
+      - name: process_id
+        description: "BUPi process identifier (unique integer)"
+        tests:
+          - not_null
+
+      - name: matrix_number
+        description: "Property tax matrix number (NumeroMatriz)"
+
+      - name: dicofre
+        description: "6-digit parish code: distrito(2) + concelho(2) + freguesia(2)"
+        tests:
+          - not_null
+
+      - name: municipality
+        description: "Municipality name (Concelho)"
+
+      - name: parish
+        description: "Parish name (Freguesia)"
+
+      - name: area_m2
+        description: "Parcel area in square metres"
+
+      - name: geom_pt
+        description: "MultiPolygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_4326
+        description: "MultiPolygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: _load_timestamp
+        description: "Timestamp when the row was loaded into the bronze table"
+
   - name: stg_cadastro
     description: >
       Staging view over Cadastro Predial parcel boundaries from bronze_regulatory.raw_cadastro.

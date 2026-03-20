@@ -84,6 +84,10 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "select": ["stg_crus_ordenamento+"],
         "tags": ["dbt", "cosmos", "crus"],
     },
+    "bupi": {
+        "select": ["stg_bupi+"],
+        "tags": ["dbt", "cosmos", "bupi"],
+    },
     "cadastro": {
         "select": ["stg_cadastro+"],
         "tags": ["dbt", "cosmos", "cadastro"],
