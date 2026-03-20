@@ -514,9 +514,8 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 | **Spatial Python** | GeoPandas + Shapely | 0.14 / 2.0 | Geo ETL, spatial operations in Python. |
 | **ML / Stats** | scikit-learn + statsmodels | latest | Hedonic regression model training and evaluation. |
 | **Viz: BI** | Metabase | 0.48+ | Business dashboards — Investment Board and Pricing Board. |
-| **Viz: Spatial** | QGIS + Kepler.gl | 3.34 / 2.5 | Spatial analysis and map visualization. |
-| **Viz: Custom** | Streamlit | 1.30+ | Custom apps — property valuation tool, pricing simulator. |
-| **API Serving** | PostgREST or FastAPI | latest | Internal data API for external tools. |
+| **Viz: Spatial** | QGIS + Kepler.gl | 3.34 / 3.0 | Spatial analysis (QGIS) and interactive map visualization (Kepler.gl embedded in Streamlit via `streamlit-keplergl`). |
+| **Viz: Custom** | Streamlit | 1.30+ | Host for Kepler.gl maps + custom apps — property valuator, pricing simulator, site analyzer. |
 | **Data Quality** | dbt tests + Great Expectations | latest | Schema validation, freshness checks, anomaly detection. |
 | **Language** | Python | 3.12 | Everything — scrapers, ETL, ML, utilities. |
 | **Version Control** | Git + GitHub | — | All dbt models, Airflow DAGs, scraper code. |
@@ -613,13 +612,31 @@ services:
       - "5001:5000"
     command: osrm-routed --algorithm mld /data/portugal-latest.osrm
 
-  # ── Visualization ──
+  # ── Visualization & Serving ──
   metabase:
-    image: metabase/metabase
+    image: metabase/metabase:v0.48.0
     depends_on:
       - postgres
     ports:
       - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+      MB_DB_HOST: postgres
+
+  streamlit:
+    build:
+      context: ./apps
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    ports:
+      - "8501:8501"
+    environment:
+      DATABASE_URL: postgres://streamlit:${STREAMLIT_DB_PASSWORD}@postgres:5432/re_warehouse
 
   # ── Headless Browser ──
   selenium:
@@ -836,16 +853,19 @@ CREATE SCHEMA metadata;
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    SERVING LAYER                                             │
 │                                                                             │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
-│  │ Metabase           │  │ Streamlit Apps      │  │ PostgREST / FastAPI │  │
-│  │ Investment board    │  │ Property valuation  │  │ Internal data API   │  │
-│  │ Pricing dashboard  │  │ Pricing simulator   │  │ for external tools  │  │
-│  └────────────────────┘  └────────────────────┘  └──────────────────────┘  │
-│  ┌────────────────────┐  ┌────────────────────┐                            │
-│  │ QGIS / Kepler.gl   │  │ Jupyter Notebooks  │                            │
-│  │ Spatial analysis   │  │ Hedonic model       │                            │
-│  │ Map visualisation  │  │ training & eval     │                            │
-│  └────────────────────┘  └────────────────────┘                            │
+│  ┌────────────────────┐  ┌──────────────────────────────┐                  │
+│  │ Metabase :3000     │  │ Streamlit :8501               │                  │
+│  │ Investment board    │  │ Property Valuator (UC-1)      │                  │
+│  │ Pricing dashboard  │  │ Pricing Simulator (UC-2)      │                  │
+│  │ Land opportunities │  │ Site Analyzer (UC-3)          │                  │
+│  │ KPIs, tables,      │  │ ┌──────────────────────────┐ │                  │
+│  │ charts, filters    │  │ │ Kepler.gl (embedded)     │ │                  │
+│  └────────────────────┘  │ │ Investment Map (UC-1)    │ │                  │
+│                           │ │ Parcel Explorer (UC-3)   │ │                  │
+│  ┌────────────────────┐  │ │ Opportunity Heatmap(UC-3)│ │                  │
+│  │ QGIS               │  │ └──────────────────────────┘ │                  │
+│  │ Spatial analysis   │  └──────────────────────────────┘                  │
+│  └────────────────────┘                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -3473,8 +3493,10 @@ dags/
 | Build OSRM | S11 | 2 | Routing engine serving Portugal (car :5050, walking :5051, cycling :5052) | ✅ Done |
 | Setup Nominatim | (S11 PBF) | 1 | Geocoder operational on :8088 (forward + reverse) | ✅ Done |
 | Start CI license enquiry | S02 | — | Email sent | Pending |
+| Metabase docker-compose + DB roles | — | 0.5 | Metabase running on :3000, connected to warehouse with read-only role | Pending |
+| Streamlit base app + Dockerfile + streamlit-keplergl | — | 1 | Streamlit on :8501 with placeholder pages, Kepler.gl rendering test | Pending |
 
-**Exit criteria:** All bronze tables populated; dim_geography live; Nominatim + OSRM responding.
+**Exit criteria:** All bronze tables populated; dim_geography live; Nominatim + OSRM responding; Metabase + Streamlit accessible.
 
 ### Sprint 2 — Core Market Data (Weeks 3-4)
 
@@ -3550,7 +3572,9 @@ dags/
 | Renovation opportunity | (ref table) | 3 | Match undervalued listings to reno cost estimates → post-reno value, ROI % | `gold_analytics.renovation_opportunity` |
 | Neighbourhood trajectory | — | 3 | YoY price trend + population growth + vacancy change + catalyst proximity → trajectory score | `gold_analytics.neighbourhood_trajectory` |
 | Investment opportunities view | — | 2 | Composite ranking: valuation gap × yield × trajectory × location → **UC-1 LIVE** | `gold_analytics.investment_opportunities` (materialized view) |
-| Metabase: Investment Dashboard | — | 3 | Map + ranked table + filters (budget, yield threshold, location, property type) | — |
+| Serving: Investment Dashboard (Metabase) | — | 3 | KPIs, ranked table, yield vs. price scatter, filters (budget, location, typology, min yield) | — |
+| Serving: Investment Map (Kepler.gl) | — | 1 | Listing points colored by valuation gap, neighbourhood trajectory polygons, infrastructure catalysts | — |
+| Serving: Property Valuator (Streamlit) | — | 1 | Enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | — |
 | INE Rental Price Index | S29 | 0.5 | Official rent indices → `bronze_ine.raw_indicators` (already ingested, add to dbt) | `silver_market.macro_timeseries` (new indicator rows) |
 | ARU boundaries | S20 | 2 | Urban Rehabilitation Areas → spatial overlay with listings | `silver_geo.zoning` (is_aru flag), `gold_analytics.hedonic_features` (is_aru) |
 
@@ -3584,7 +3608,8 @@ dags/
 | Development projects import | — | 2 | Developer project data entry (units, typologies, target prices) | `gold_analytics.development_projects` |
 | Unit pricing recommendation | — | 3 | Per-unit: base €/m² × premiums × market position → recommended price, **UC-2 LIVE** | `gold_analytics.unit_pricing_recommendation` |
 | Project pricing summary | — | 1 | Roll up unit recommendations → project GDV, margin, sell-through timeline | `gold_analytics.project_pricing_summary` |
-| Metabase: Pricing Dashboard | — | 3 | Unit matrix + competition map + absorption chart | — |
+| Serving: Pricing Dashboard (Metabase) | — | 3 | Unit pricing matrix, competition map (2km radius), absorption timeline, floor/view premium chart | — |
+| Serving: Pricing Simulator (Streamlit) | — | 1 | Select development project → adjust unit attributes → see recommended price, margin, absorption forecast | — |
 | CI data integration (if license) | S02 | 3 | Transaction prices → validate hedonic predictions, calibrate gap % | `silver_properties.unified_listings` (transaction_price), `gold_analytics.property_valuation` (recalibrated) |
 | Data quality monitoring | — | 2 | dbt tests + source freshness alerts + row count anomaly detection | All models |
 | Documentation | — | 2 | Data dictionary + user guide + lineage diagrams | — |
@@ -3605,8 +3630,10 @@ dags/
 | Parcel assembly (ST_ClusterDBSCAN) | S38 | 4 | Contiguous BUPI parcels grouped into development sites | `gold_analytics.development_sites`, `gold_analytics.site_parcels` |
 | Development economics model | UC-1 | 3 | GBA estimate × local €/m² → revenue, cost, margin | `gold_analytics.development_sites` (est_* columns) |
 | Opportunity scoring + materialized table | — | 2 | Composite opportunity_score per site | `gold_analytics.development_sites` (opportunity_score) |
-| Metabase: Land Opportunities Dashboard | — | 2 | Map + ranked sites + zoning filter + constraint flags | — |
-| **Total** | | **20** | (15 working days × 1.5 engineers = 22.5 available) | |
+| Serving: Land Dashboard (Metabase) | — | 2 | Map of development sites (choropleth by opportunity_score), ranked table, zoning filter, constraint toggles | — |
+| Serving: Parcel Explorer (Kepler.gl) | — | 2 | BUPI parcels colored by buildability, SRUP constraints (toggle), COS land use (toggle), building footprints (toggle) | — |
+| Serving: Site Analyzer (Streamlit) | — | 1 | Click on map → assemblable parcels, zoning params, constraints, ownership keys, estimated GBA + return | — |
+| **Total** | | **23** | (15 working days × 1.5 engineers = 22.5 available) | |
 
 **🏁 MILESTONE 3 (Week 19): UC-3 MVP LIVE.**
 
@@ -3837,6 +3864,134 @@ All deferred fields are nullable — models automatically incorporate new featur
 
 ---
 
+## 17. Serving Layer
+
+### 17.1 Overview
+
+| Component | Purpose | Users | Technology |
+|-----------|---------|-------|------------|
+| **Metabase** | BI dashboards — KPIs, ranked tables, filters, charts (non-map analytics) | Business users, investors, developers | Metabase OSS 0.48+ (Docker) |
+| **Kepler.gl** | Rich geospatial visualization for all use cases — polygon rendering, multi-layer overlays, heatmaps | All users (spatial exploration) | Kepler.gl 3.0 embedded in Streamlit via `streamlit-keplergl` |
+| **Streamlit** | Host for Kepler maps + custom interactive tools — site analyzer, valuator, pricing simulator | All users (task-specific workflows) | Streamlit 1.30+ (Docker) |
+
+**API serving deferred.** PostgREST/FastAPI not needed for MVP — users interact via Metabase dashboards and Streamlit/Kepler apps. Add API layer later if external integrations are needed.
+
+**Why Kepler.gl for all use cases:** All three use cases are fundamentally spatial — listings (UC-1), developments (UC-2), and parcels (UC-3) are all geolocated. Kepler.gl handles points, polygons, heatmaps, and multi-layer toggling natively with GPU-accelerated rendering for millions of features. Metabase handles the non-spatial analytics (tables, charts, KPIs, filters).
+
+### 17.2 Docker Compose Services
+
+```yaml
+# Metabase — BI Dashboards (KPIs, tables, charts, filters)
+metabase:
+  image: metabase/metabase:v0.48.0
+  ports:
+    - "3000:3000"
+  environment:
+    MB_DB_TYPE: postgres
+    MB_DB_DBNAME: metabase
+    MB_DB_PORT: 5432
+    MB_DB_USER: metabase
+    MB_DB_PASS: ${METABASE_DB_PASSWORD}
+    MB_DB_HOST: warehouse
+  depends_on:
+    - warehouse
+
+# Streamlit + Kepler.gl — Maps & Custom Apps
+# Kepler.gl embedded via streamlit-keplergl package (no separate container)
+streamlit:
+  build:
+    context: ./apps
+    dockerfile: Dockerfile
+  ports:
+    - "8501:8501"
+  environment:
+    DATABASE_URL: postgres://streamlit:${STREAMLIT_DB_PASSWORD}@warehouse:5432/warehouse
+  depends_on:
+    - warehouse
+```
+
+**Two containers only.** Kepler.gl runs embedded inside Streamlit via the `streamlit-keplergl` Python package — no separate service needed.
+
+### 17.3 PostgreSQL Roles for Serving
+
+```sql
+-- Metabase read-only role (dashboards, KPIs, charts)
+CREATE ROLE metabase LOGIN PASSWORD '${METABASE_DB_PASSWORD}';
+GRANT USAGE ON SCHEMA gold_analytics, silver_geo, silver_properties, silver_market TO metabase;
+GRANT SELECT ON ALL TABLES IN SCHEMA gold_analytics TO metabase;
+GRANT SELECT ON ALL TABLES IN SCHEMA silver_geo TO metabase;
+GRANT SELECT ON ALL TABLES IN SCHEMA silver_properties TO metabase;
+GRANT SELECT ON ALL TABLES IN SCHEMA silver_market TO metabase;
+
+-- Streamlit + Kepler.gl read-only role (maps, custom apps)
+CREATE ROLE streamlit LOGIN PASSWORD '${STREAMLIT_DB_PASSWORD}';
+GRANT USAGE ON SCHEMA gold_analytics, silver_geo, silver_properties TO streamlit;
+GRANT SELECT ON ALL TABLES IN SCHEMA gold_analytics TO streamlit;
+GRANT SELECT ON ALL TABLES IN SCHEMA silver_geo TO streamlit;
+GRANT SELECT ON ALL TABLES IN SCHEMA silver_properties TO streamlit;
+```
+
+### 17.4 Dashboard & App Inventory
+
+**Metabase Dashboards:**
+
+| Dashboard | Use Case | Key Visualizations | Sprint |
+|-----------|----------|-------------------|--------|
+| Investment Board | UC-1 | Map of opportunities, ranked table by investment_score, yield vs. price scatter, filters (budget, location, typology, min yield) | Sprint 6 |
+| Pricing Board | UC-2 | Unit pricing matrix, competition map (2km radius), absorption timeline, floor/view premium chart | Sprint 8 |
+| Land Opportunities | UC-3 | Map of development sites (choropleth by opportunity_score), ranked table, zoning filter, constraint toggles (RAN/DPH/IC), parcel drill-down | Sprint 9 |
+
+**Kepler.gl Maps (embedded in Streamlit):**
+
+| Map | Use Case | Layers | Sprint |
+|-----|----------|--------|--------|
+| Investment Map | UC-1 | Listing points colored by valuation gap, neighbourhood trajectory polygons, infrastructure catalysts | Sprint 6 |
+| Parcel Explorer | UC-3 | BUPI parcels colored by buildability, SRUP constraint polygons (toggle), COS land use (toggle), building footprints (toggle), CRUS zoning boundaries | Sprint 9 |
+| Opportunity Heatmap | UC-3 | Hexbin aggregation of opportunity_score, development site polygons, ARU overlay | Sprint 9 |
+
+**Streamlit Apps:**
+
+| App | Use Case | Features | Sprint |
+|-----|----------|----------|--------|
+| Property Valuator | UC-1 | Enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | Sprint 6 |
+| Pricing Simulator | UC-2 | Select development project → adjust unit attributes → see recommended price, margin, absorption forecast | Sprint 8 |
+| Site Analyzer | UC-3 | Click on map → show assemblable parcels, zoning params, constraints, ownership keys (NumeroMatriz), estimated GBA + return | Sprint 9 |
+
+### 17.5 Serving Layer Architecture Diagram
+
+```
+                    ┌──────────────────────────────────────────┐
+                    │              END USERS                     │
+                    │                                            │
+                    │  Investors   Developers   Analysts   GIS  │
+                    └──────┬─────────┬──────────┬─────────┬────┘
+                           │         │          │         │
+                    ┌──────▼──┐  ┌───▼────────┐           │
+                    │Metabase │  │ Streamlit   │           │
+                    │ :3000   │  │  :8501      │           │
+                    │         │  │             │           │
+                    │Dashboard│  │ Custom Apps │           │
+                    │  KPIs   │  │ ┌─────────┐│           │
+                    │ Tables  │  │ │Kepler.gl││           │
+                    │ Filters │  │ │(embedded)││           │
+                    │ Charts  │  │ │ Maps     ││           │
+                    │         │  │ └─────────┘│           │
+                    └────┬────┘  └─────┬──────┘           │
+                         │             │                   │
+                         └──────┬──────┘                   │
+                                │                          │
+                         ┌──────▼──────┐                   │
+                         │  PostgreSQL  │◄─────────────────┘
+                         │  (warehouse) │   QGIS direct
+                         │              │   connection
+                         │ gold_analytics│
+                         │ silver_geo    │
+                         │ silver_*      │
+                         └──────────────┘
+```
+
+---
+
 ## Go/No-Go Milestones
 
 ### Milestone 1: UC-1 MVP (Week 12)
@@ -3851,6 +4006,8 @@ All deferred fields are nullable — models automatically incorporate new featur
 | investment_yield available | ≥ 80% of listings with rental comps | No |
 | neighbourhood_trajectory | ≥ 80% of active freguesias | No |
 | Metabase Investment Dashboard | Accessible with working filters | Yes |
+| Investment Map (Kepler.gl) | Listing points rendered with valuation gap coloring | Yes |
+| Property Valuator (Streamlit) | Address lookup returns predicted value + comps | No |
 
 ### Milestone 2: UC-2 MVP + Production (Week 16)
 
@@ -3863,6 +4020,8 @@ All deferred fields are nullable — models automatically incorporate new featur
 | All daily DAGs succeeding | ≥ 95% success rate (2 weeks) | Yes |
 | Data freshness | No source > 2× expected interval | No |
 | Documentation | Data dictionary complete | No |
+| Metabase Pricing Dashboard | Accessible with unit matrix + competition map | Yes |
+| Pricing Simulator (Streamlit) | Unit attribute adjustment returns recommended price | No |
 
 ### Milestone 3: UC-3 MVP (Week 19)
 
@@ -3875,6 +4034,8 @@ All deferred fields are nullable — models automatically incorporate new featur
 | Spatial join coverage | 100% of BUPI parcels within CRUS extents processed | Yes |
 | parcel_buildability materialization | Refreshes in < 30 minutes | No |
 | Metabase Land Dashboard | Accessible with working filters | Yes |
+| Parcel Explorer (Kepler.gl) | BUPI parcels rendered with buildability coloring + constraint toggles | Yes |
+| Site Analyzer (Streamlit) | Click-to-analyze workflow returns parcel assembly + zoning + economics | No |
 
 ### MVP Hedonic Model Feature Coverage
 
