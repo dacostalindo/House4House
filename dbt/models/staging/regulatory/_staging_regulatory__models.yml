@@ -222,3 +222,86 @@ models:
 
       - name: _load_timestamp
         description: "Timestamp when the row was loaded into the bronze table"
+
+  - name: stg_sce_pce
+    description: >
+      Staging view over SCE Pre-Energy Certificates from bronze_regulatory.raw_sce_pce.
+      Deduplicates by doc_number (latest scrape wins), casts date strings to DATE,
+      normalizes energy class and municipality names, and flags PCE vs CE documents.
+      PCE certificates are issued per apartment/fraction before construction — a proxy
+      for upcoming new development activity.
+      Source: sce.pt portal (scraped via nodriver).
+    columns:
+      - name: doc_number
+        description: "SCE document number (e.g. SCE0000399459443)"
+        tests:
+          - not_null
+          - unique
+
+      - name: address
+        description: "Address from the search results table (morada)"
+
+      - name: fraction
+        description: "Fraction from search results table"
+
+      - name: locality
+        description: "Locality name"
+
+      - name: municipality
+        description: "Municipality name, uppercased and trimmed"
+        tests:
+          - not_null
+
+      - name: status
+        description: "Certificate status (e.g. 'Válido', 'Revogado')"
+
+      - name: replacement_doc
+        description: "Replacement document number if superseded"
+
+      - name: document_type
+        description: "Document type (e.g. 'Pré-Certificado', 'Certificado')"
+
+      - name: energy_class
+        description: "Energy class (A+, A, B, B-, C, D, E, F), uppercased and trimmed"
+
+      - name: issued_date
+        description: "Issuance date cast to DATE from YYYY/MM/DD format"
+
+      - name: valid_until
+        description: "Validity date cast to DATE from YYYY/MM/DD format"
+
+      - name: parish
+        description: "Parish name from the detail popup"
+
+      - name: expert_number
+        description: "Qualified expert number (e.g. PQ00883)"
+
+      - name: land_registry
+        description: "Land registry office name (conservatória)"
+
+      - name: registry_number
+        description: "Land registry entry number (sob o número)"
+
+      - name: matrix_article
+        description: "Property tax matrix article number (artigo matricial)"
+
+      - name: autonomous_fraction
+        description: "Autonomous fraction from the detail popup"
+
+      - name: is_pce
+        description: "True if document is a pre-certificate (Pré-Certificado or DCR)"
+
+      - name: src_distrito_code
+        description: "Distrito code used in the scraping query"
+
+      - name: src_concelho_code
+        description: "Concelho code used in the scraping query"
+
+      - name: src_freguesia_code
+        description: "Freguesia code used in the scraping query"
+
+      - name: scrape_date
+        description: "Date the data was scraped"
+
+      - name: loaded_at
+        description: "Timestamp when the row was loaded into the bronze table"

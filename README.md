@@ -182,6 +182,7 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 | S29 | INE — Rental Price Index | ● | ○ | | P2 |
 | S34 | Competitive Developments (scraped) | ○ | ● | | P2 |
 | S43 | Sentinel-1 SAR Change Detection | | | ○ | P2 |
+| S45 | SCE — Energy Certificates (PCE) | ● | ● | | P1 |
 
 **Legend:** ● = Critical | ○ = Enrichment
 
@@ -388,6 +389,16 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 - **Volume:** Partial coverage (~50% of municipalities)
 - **Refresh:** Ad-hoc
 - **Role:** Enrichment for UC-3 — validates BUPI boundaries for specific sites of interest
+
+**S45 — SCE Energy Certificates (PCE)**
+- **URL:** https://www.sce.pt/pesquisa-certificados/
+- **Data:** Pre-Energy Certificates (PCE) — issued for new construction before occupation license. Proxy for upcoming housing supply. Includes energy class, address, parish, issuance/validity dates, expert number, land registry reference
+- **Format:** HTML (server-rendered, Cloudflare Turnstile protected)
+- **Ingestion:** nodriver (undetected Chrome) + Xvfb virtual display → JSONL → MinIO → PostGIS. **Flow S — scraping ingestion template**
+- **Volume:** ~680K PCE records nationally; ~80K for current 3-distrito scope (Aveiro, Coimbra, Leiria)
+- **Refresh:** Weekly (new pre-certificates issued as construction starts)
+- **Coverage:** Aveiro, Coimbra, Leiria (3 distritos). Expandable to all 22 distritos
+- **Role:** UC-1 energy class enrichment for listings; UC-2 new construction supply signal; new build detection via PCE issuance
 
 #### P2 — Enhancement (11 sources)
 
@@ -3470,9 +3481,14 @@ dags/
 
 ---
 
-## 12. Sprint Plan (10 Sprints / 22 Weeks)
+## 12. Sprint Plan (9 Sprints / 18 Weeks)
 
-### Sprint 1 — Infrastructure & Geography (Weeks 1-2)
+> **Last updated:** 2026-03-22. Revised to reflect actual implementation state and incorporate UC-3 GIS
+> data already ingested (BUPI, COS, CRUS, SRUP, Cadastro). UC-1 remains first — the hedonic model is
+> foundational for both UC-2 pricing and UC-3 development economics. OSRM drive-time routing deferred
+> from Sprint 4 to Sprint 8 (crow-flies proxy sufficient for MVP hedonic model).
+
+### Sprint 1 — Infrastructure & Geography (Weeks 1-2) ✅ COMPLETE
 
 | Task | Source | Days | Deliverable | Status |
 |---|---|---|---|---|
@@ -3498,7 +3514,7 @@ dags/
 
 **Exit criteria:** All bronze tables populated; dim_geography live; Nominatim + OSRM responding; Metabase + Streamlit accessible.
 
-### Sprint 2 — Core Market Data (Weeks 3-4)
+### Sprint 2 — Core Market Data (Weeks 3-4) ✅ COMPLETE
 
 | Task | Source | Days | Deliverable | Tables affected | Status |
 |---|---|---|---|---|---|
@@ -3515,7 +3531,7 @@ dags/
 
 **Exit criteria:** Idealista flowing daily; macro indicators loaded; dbt Cosmos pipeline operational; geocoding working. Per-source Cosmos DAGs (`dbt_{source}_build`) wired to all 8 bronze DAGs.
 
-### Sprint 3 — Silver Layer: Unification (Weeks 5-6)
+### Sprint 3 — Silver Layer: Unification + UC-3 GIS Foundation (Weeks 5-6) ✅ MOSTLY COMPLETE
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
@@ -3523,130 +3539,131 @@ dags/
 | Address cleaning | — | 2 | Nominatim reverse geocoding enriches raw addresses: street name fallback when raw lacks prefix (Rua, Av., etc.), postal code always from Nominatim. 58% → 93% street addresses, 0% → 100% postal codes | `silver_properties.unified_listings` (address_clean, postal_code) | ✅ Done |
 | Geocode join | — | 1 | Spatial join via `ST_Within(point, freguesia_geom)` → `dim_geography.geo_key` + freguesia/concelho/distrito codes | `silver_properties.unified_listings` (geo_key, freguesia_code) | ✅ Done |
 | SCD Type 2 price tracking | — | 2 | Incremental merge preserves first_seen_date, initial_price_eur, _created_at. Tracks price_change_count, listing_age_days. Staleness-based is_active (3-day rule + post-hook UPDATE) | `silver_properties.unified_listings` | ✅ Done |
-| Imovirtual scraper | S05 | 7 | Second listing portal live → `bronze_listings.raw_imovirtual` | — |
-| Cross-portal dedup | — | 3 | Hash(address + area + typology) matching, fuzzy fallback | `silver_properties.unified_listings` (property_hash), `silver_properties.listing_matches` |
 | IMI/IMT reference tables | S31 | 2 | IMT transfer tax brackets (16 rows: primary/secondary/rural/other urban, 2025) and IMI municipal property tax rates (278 municipalities, urban 0.30%–0.45%). VALUES-based SQL models in gold_analytics | `gold_analytics.ref_imt_brackets`, `gold_analytics.ref_imi_rates` | ✅ Done |
 | Census demographics model | S12 | 2 | BGRI 203K subsections → 2,882 freguesias: population by age band, household size, dwelling vacancy/tenure (42% avg vacancy, 82% owner-occupied), plus INE building aging ratio and repair %. 135 BGRI codes unmatched to CAOP (boundary changes) | `silver_geo.census_demographics` | ✅ Done |
+| Ingest BUPI cadastral parcels → MinIO → PostGIS | S38 | 2 | 3.25M parcel polygons with NumeroMatriz ownership keys | `bronze_regulatory.raw_bupi` | ✅ Done |
+| Ingest COS 2023 land use → MinIO → PostGIS | S39 | 2 | 784K polygons, 4-level COS hierarchy | `bronze_geo.raw_cos2023` | ✅ Done |
+| Ingest CRUS zoning → PostGIS | S40 | 1 | DGT WFS: Solo Urbano/Rústico classification (5 municipalities) | `bronze_regulatory.raw_crus_*` | ✅ Done |
+| Ingest SRUP constraints → PostGIS | S41 | 1 | IC (heritage), RAN (agricultural reserve), DPH (water domain) | `bronze_regulatory.raw_srup_*` | ✅ Done |
+| Ingest Cadastro Predial → PostGIS | S44 | 1 | OGC API Features → formal surveyed boundaries (partial coverage) | `bronze_regulatory.raw_cadastro` | ✅ Done |
+| Ingest PDM Zoning (LX + Porto) | S19 | 1 | ArcGIS REST → municipal zoning polygons | `bronze_regulatory.raw_pdm_*` | ✅ Done |
+| dbt staging: regulatory sources | S38/S39/S40/S41/S44 | 2 | `stg_bupi`, `stg_cos2023`, `stg_crus_ordenamento`, `stg_srup_ic`, `stg_srup_ran`, `stg_srup_dph`, `stg_cadastro` | `staging_dbt.stg_*` | ✅ Done |
+| Silver: land use model | S39 | 1 | COS 2023 features with hierarchy, boolean flags (`is_urban`, `is_residential`, `is_agricultural`, `is_forest`), freguesia assignment | `silver_geo.land_use` | ✅ Done |
+| Silver: zoning model | S40/S19 | 1 | CRUS/PDM normalized zone_category classification, buildability params | `silver_geo.zoning` | ✅ Done |
+| Imovirtual scraper | S05 | 7 | Second listing portal live → `bronze_listings.raw_imovirtual` | — | Deferred |
+| Cross-portal dedup | — | 3 | Hash(address + area + typology) matching, fuzzy fallback | `silver_properties.unified_listings` (property_hash), `silver_properties.listing_matches` | Deferred |
 
-**Exit criteria:** `unified_listings` with ~100K+ deduped active listings; >95% geocoded; `census_demographics` populated.
+**Exit criteria:** `unified_listings` with ~100K+ active listings; >95% geocoded; `census_demographics` populated. UC-3 GIS data ingested and staged: BUPI, COS, CRUS, SRUP, Cadastro, PDM all bronze-loaded with staging models operational.
 
-### Sprint 4 — Location Scores & Market Stats (Weeks 7-8)
+### Sprint 4 — Image Classification + Location Scores (Weeks 7-8) 🔄 IN PROGRESS
+
+**Goal:** Run image classification pilot + production, complete location scoring. OSRM drive-time deferred — crow-flies KNN is sufficient for MVP hedonic model.
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
 | Transport stops model | S10 | 1 | Map OSM fclass → stop_type (50K rows from point + polygon layers), spatial join → geo_key, source/source_id columns, reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
 | OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key (304K rows from point + polygon layers) | `silver_location.pois` | ✅ Done |
-| Transport proximity scores | S10 | 2 | Nearest stop per mode via crow-flies `ST_Distance` (EPSG:3763), exponential decay scoring with variable decay per mode, LATERAL + KNN joins. Raw distances + scores stored | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_rail_m, nearest_bus_m, metro_score, rail_score, bus_score) | |
-| POI density / walkability | S09 | 2 | Count amenities within 500m/1km per listing | `gold_analytics.property_location_scores` (walkability_score, restaurants_500m, supermarkets_1km) | |
-| Drive-time via OSRM | S11 | 3 | Batch routing: listing → city center, airport, nearest hospital | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) | |
-| Composite location score | — | 1 | Weighted combination of transport + walkability + drive-time | `gold_analytics.property_location_scores` (overall_location_score) | |
-| Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, turnover | `gold_analytics.neighbourhood_market_stats` | |
-| Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | |
-| PDM Zoning (LX + Porto) | S19 | 3 | Municipal zoning polygons → spatial overlay with listings | `silver_geo.zoning` | |
-| Image classification: Claude Vision labeling | S03/S04 | 2 | Airflow DAG + structured prompt → Claude Vision API labels ~100K listings (render detection, condition 4-level, finish quality 4-level + confidence scores) → `bronze_listings.image_classifications` | `bronze_listings.image_classifications` | |
-| Image classification: human validation | S03/S04 | 0.5 | Sample 500 listings, verify Claude labels, measure agreement (target >90% per feature) | — | |
-| Image classification: CNN distillation | — | 3 | Multi-task MobileNetV2 trained on Claude labels. 3 heads: render (binary), condition (4-class), finish (4-class). ONNX export. Targets: >95% render, >85% condition, >80% finish | MinIO `s3://models/listing_classifier/v1/model.onnx` | |
-| Image classification: Airflow deployment | S03/S04 | 1 | ONNX Runtime in Airflow worker. `image_classification_dag` triggered after bronze load. dbt staging + 6 new columns in `unified_listings` | `silver_properties.unified_listings` (cv_is_render, cv_condition, cv_finish_quality + confidences) | |
+| Model comparison: Haiku vs Sonnet | S03/S04 | 0.5 | Test both models on 30 images (same sample). Compare accuracy on render/condition/finish. Decide model per feature | — | 🔄 In Progress |
+| Image classification: pilot run (200 listings) | S03/S04 | 1 | Run `image_classification_dag` with LIMIT 200. Validate JSON parse rate, measure cost (~$3.80), check `stg_image_classifications` passthrough | `bronze_listings.image_classifications` | 🔄 In Progress |
+| Image classification: full production run (~16K) | S03/S04 | 2 | Airflow DAG with tag-based image selection + heuristic shortcuts → Claude Vision API labels ~16K listings (3 features × confidence scores, ~$304 at Sonnet) → `bronze_listings.image_classifications`. Each property_id classified once only | `bronze_listings.image_classifications` | Pending |
+| Image classification: human validation | S03/S04 | 0.5 | Sample 500 listings, verify Claude labels, measure agreement (target >90% per feature) | — | Pending |
+| Image classification: dbt integration | S03/S04 | 0.5 | dbt staging model (per-listing aggregation) + LEFT JOIN to unified_listings → 6 new cv_* columns | `silver_properties.unified_listings` (cv_is_render, cv_condition, cv_finish_quality + confidences) | Pending |
+| Floor plan extraction | S03/S04 | 1 | Claude Vision extracts room-level areas from all listings with floor plans (~5,405 listings across all conditions, ~$162). Structured JSON: room name → area m². Benchmarks room sizes by location/typology/condition | `bronze_listings.floor_plan_extractions` | Pending |
+| Transport proximity scores (crow-flies) | S10 | 1 | Run existing `property_location_scores` model: 5× LATERAL KNN joins on `transport_stops`, exponential decay scoring with variable decay per mode | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_rail_m, nearest_bus_m) | Pending |
+| POI amenity proximity scores | S09 | 2 | Add LATERAL joins to `property_location_scores` against `pois` model: nearest school, hospital, supermarket, park within 500m/1km. POI density as walkability proxy | `gold_analytics.property_location_scores` (amenity_score, restaurants_500m, supermarkets_1km) | Pending |
+| Composite location score | — | 0.5 | Weighted combination of transport + amenity scores | `gold_analytics.property_location_scores` (overall_location_score) | Pending |
+| ~~Drive-time via OSRM~~ | ~~S11~~ | ~~3~~ | ~~Batch routing: listing → city center, airport, nearest hospital~~ | — | Deferred to Sprint 8 |
 
-**Exit criteria:** Every listing has location scores; neighbourhood stats computed; `transport_stops` and `pois` populated. Image classification pipeline operational with CNN inference on new listings.
+**Exit criteria:** Image classification pipeline operational with Claude Vision; cv_* columns populated in `unified_listings`. Transport + amenity proximity scores computed for all listings. Floor plan room dimensions extracted.
 
 ### Sprint 5 — Hedonic Model & Valuation (Weeks 9-10)
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Hedonic feature assembly | — | 3 | Join `unified_listings` + `property_location_scores` + `census_demographics` + `neighbourhood_market_stats` + `zoning` into feature vector | `gold_analytics.hedonic_features` |
-| Hedonic model training | — | 5 | OLS/Ridge regression on log(price_sqm) ~ property + location + neighbourhood features | Model artifact (pickle/ONNX) |
-| Model validation | — | 2 | Cross-validation: R² ≥ 0.73, MAPE < 18%; residual analysis by geography | Validation report |
-| Property comparables | — | 3 | KNN on feature space: top-10 similar listings within 2km, same typology band | `gold_analytics.property_comparables` |
-| Property valuation | — | 2 | Predicted €/m² + comp-weighted €/m² → blended fair value, gap %, signal (undervalued/fair/overpriced) | `gold_analytics.property_valuation` |
-| Seed renovation cost table | — | 1 | Manual €/m² estimates by scope (cosmetic, light, full, structural) | `gold_analytics.ref_renovation_costs` |
-| Seed area catalysts | — | 2 | Known infrastructure projects (metro extensions, hospitals, university campuses) with geo + timeline | `gold_analytics.ref_area_catalysts` |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, QoQ price trend, dominant property type, CV condition distribution | `gold_analytics.neighbourhood_market_stats` | Pending |
+| Hedonic feature assembly | — | 3 | Join `unified_listings` + `property_location_scores` + `census_demographics` + `neighbourhood_market_stats` + `zoning` into feature vector. Filters: `operation_type = 'sale'`, `is_active = TRUE`, `price_eur BETWEEN 20000 AND 5000000` | `gold_analytics.hedonic_features` | Pending |
+| Hedonic model training | — | 5 | OLS/Ridge regression on log(price_sqm) ~ property + location + neighbourhood + cv_condition + cv_finish_quality features. Image classification features expected to improve R² | Model artifact (pickle/joblib) | Pending |
+| Model validation | — | 2 | Cross-validation: R² ≥ 0.73, MAPE < 18%; residual analysis by geography | Validation report | Pending |
+| Property comparables | — | 3 | KNN on feature space: top-10 similar listings within 2km, same typology band | `gold_analytics.property_comparables` | Pending |
+| Property valuation | — | 2 | Predicted €/m² + comp-weighted €/m² → blended fair value, gap %, signal (undervalued/fair/overpriced) | `gold_analytics.property_valuation` | Pending |
 
-**Exit criteria:** Every sale listing has predicted fair value and `valuation_signal` (undervalued / fair / overpriced).
+**Exit criteria:** Every sale listing has predicted fair value and `valuation_signal` (undervalued / fair / overpriced). Hedonic model serves as foundation for UC-1 investment scoring, UC-2 pricing, and UC-3 development economics.
 
 ### Sprint 6 — UC-1 MVP: Investment Opportunities (Weeks 11-12)
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Investment yield analysis | S04/S15/S31 | 4 | LTR yield (€/m² rent ÷ price), STR yield (Airbnb RevPAR × occupancy), net of IMI/IMT/condominium | `gold_analytics.investment_yield_analysis` |
-| Renovation opportunity | (ref table) | 3 | Match undervalued listings to reno cost estimates → post-reno value, ROI % | `gold_analytics.renovation_opportunity` |
-| Neighbourhood trajectory | — | 3 | YoY price trend + population growth + vacancy change + catalyst proximity → trajectory score | `gold_analytics.neighbourhood_trajectory` |
-| Investment opportunities view | — | 2 | Composite ranking: valuation gap × yield × trajectory × location → **UC-1 LIVE** | `gold_analytics.investment_opportunities` (materialized view) |
-| Serving: Investment Dashboard (Metabase) | — | 3 | KPIs, ranked table, yield vs. price scatter, filters (budget, location, typology, min yield) | — |
-| Serving: Investment Map (Kepler.gl) | — | 1 | Listing points colored by valuation gap, neighbourhood trajectory polygons, infrastructure catalysts | — |
-| Serving: Property Valuator (Streamlit) | — | 1 | Enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | — |
-| INE Rental Price Index | S29 | 0.5 | Official rent indices → `bronze_ine.raw_indicators` (already ingested, add to dbt) | `silver_market.macro_timeseries` (new indicator rows) |
-| ARU boundaries | S20 | 2 | Urban Rehabilitation Areas → spatial overlay with listings | `silver_geo.zoning` (is_aru flag), `gold_analytics.hedonic_features` (is_aru) |
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Seed renovation cost table | — | 1 | Manual €/m² estimates by scope (cosmetic, light, full, structural) | `gold_analytics.ref_renovation_costs` | Pending |
+| Seed area catalysts | — | 1 | Known infrastructure projects (metro extensions, hospitals, university campuses) with geo + timeline | `gold_analytics.ref_area_catalysts` | Pending |
+| Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | Pending |
+| Investment yield analysis | S04/S15/S31 | 3 | LTR yield (€/m² rent ÷ price), STR yield (Airbnb RevPAR × occupancy), net of IMI/IMT/condominium | `gold_analytics.investment_yield_analysis` | Pending |
+| Renovation opportunity | (ref table) | 2 | Match undervalued listings to reno cost estimates → post-reno value, ROI % | `gold_analytics.renovation_opportunity` | Pending |
+| Neighbourhood trajectory | — | 2 | YoY price trend + population growth + vacancy change + catalyst proximity → trajectory score | `gold_analytics.neighbourhood_trajectory` | Pending |
+| Investment opportunities view | — | 2 | Composite ranking: valuation gap × yield × trajectory × location → **UC-1 LIVE** | `gold_analytics.investment_opportunities` (materialized view) | Pending |
+| Serving: Investment Dashboard (Metabase) | — | 2 | KPIs, ranked table, yield vs. price scatter, filters (budget, location, typology, min yield) | — | Pending |
+| Serving: Investment Map (Kepler.gl) | — | 2 | Listing points colored by valuation gap, neighbourhood trajectory polygons, infrastructure catalysts | — | Pending |
+| Serving: Property Valuator (Streamlit) | — | 2 | Enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | — | Pending |
 
-**🏁 MILESTONE 1 (Week 12): UC-1 MVP LIVE.** Investors can query ranked opportunities.
+**🏁 MILESTONE 1 (Week 12): UC-1 MVP LIVE.** Investors can query ranked opportunities. Hedonic model unlocks UC-2 and UC-3.
 
-### Sprint 7 — Enhancements + UC-2 Foundation (Weeks 13-14)
+### Sprint 7 — UC-2 MVP: Pricing Strategy (Weeks 13-14)
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Imovirtual rentals | S06 | 1 | Second rental source → `bronze_listings.raw_imovirtual` rentals | `silver_properties.unified_listings` (new rows) |
-| RNAL scraping | S14 | 5 | AL license registry → `bronze_listings.raw_rnal` | — |
-| STR registry (RNAL + Airbnb) | S14/S15 | 2 | Merge RNAL licenses + Airbnb listings → licensed vs unlicensed STR map | `silver_properties.str_registry`, `gold_analytics.investment_yield_analysis` (licensing risk) |
-| School data (InfoEscolas) | S22 | 5 | Schools geocoded + exam scores → spatial join | `silver_location.schools`, `gold_analytics.property_location_scores` (education_score, schools_1km) |
-| Healthcare facilities | S23 | 2 | Hospitals/clinics geocoded + type/operator | `silver_location.healthcare_facilities`, `gold_analytics.property_location_scores` (healthcare_score, nearest_hospital_m) |
-| GTFS transport schedules | S24 | 3 | Route count + service frequency enrichment | `silver_location.transport_stops` (route_count, service_frequency), `gold_analytics.property_location_scores` (transport_score recalc) |
-| pgRouting network distances | S11 | 2 | Load OSM road graph into PostGIS, build topology. Replace crow-flies with network walking distance for metro/bus/tram and driving distance for rail/airport | `gold_analytics.property_location_scores` (recalc with network distances) |
-| OSRM time-based accessibility | S11 | 2 | Batch OSRM API calls: walking time to nearest metro/bus, driving time to airport/rail. Add travel-time columns and time-based cutoffs replacing hard radius | `gold_analytics.property_location_scores` (nearest_metro_walk_min, nearest_air_drive_min) |
-| Recalibrate hedonic model v2 | — | 2 | Add education_score + healthcare_score + network-based transport scores to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) |
-| Refresh investment_opportunities | — | 1 | Recompute with improved location + valuation scores | `gold_analytics.investment_opportunities` (refreshed) |
+**Note:** Hedonic model from Sprint 5 provides the foundation for pricing decomposition and unit premiums.
 
-**Exit criteria:** Location scores include education + healthcare; transport scores upgraded to network distances (pgRouting) and travel times (OSRM); STR intelligence live; hedonic model v2 deployed.
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Competitive developments | S34 | 3 | Cluster `is_new_development = TRUE` listings by location (ST_ClusterDBSCAN, eps=200m), extract project-level aggregates: unit count, price range, typology mix, avg €/m² | `silver_properties.competitive_developments` | Pending |
+| Absorption rate model | — | 3 | Per-development: monthly absorption using `first_seen_date`, `last_seen_date`, `is_active`. Per-market: absorption by typology and price band | `gold_analytics.absorption_rate_model` | Pending |
+| Location price premiums | — | 2 | Extract hedonic coefficients as lookup: metro proximity → €/m² premium | `gold_analytics.location_price_premiums` | Pending |
+| Unit premiums calibration | — | 2 | Floor/view/orientation → premium/discount lookup from hedonic residuals. Uses `floor_plan_rooms` for area-by-room optimization | `gold_analytics.ref_unit_premiums` | Pending |
+| Unit pricing recommendation | — | 2 | Per-unit: base €/m² × premiums × market position → recommended price, **UC-2 LIVE** | `gold_analytics.unit_pricing_recommendation` | Pending |
+| Project pricing summary | — | 1 | Roll up unit recommendations → project GDV, margin, sell-through timeline | `gold_analytics.project_pricing_summary` | Pending |
+| Serving: Pricing Dashboard (Metabase) | — | 2 | Unit pricing matrix, competition map (2km radius), absorption timeline, floor/view premium chart | — | Pending |
+| Serving: Pricing Simulator (Streamlit) | — | 2 | Select development project → adjust unit attributes → see recommended price, margin, absorption forecast | — | Pending |
 
-### Sprint 8 — UC-2 MVP + Production Hardening (Weeks 15-16)
+**🏁 MILESTONE 2 (Week 14): UC-2 MVP LIVE.** Developers can price new units with market-calibrated premiums.
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Competitive developments | S34 | 5 | Competing new-build projects mapped + unit inventory | `silver_properties.competitive_developments` |
-| Absorption rate model | — | 3 | Days-on-market by segment (type × location × price band) | `gold_analytics.absorption_rate_model` |
-| Location price premiums | — | 2 | Extract hedonic coefficients as lookup: metro proximity → €/m² premium | `gold_analytics.location_price_premiums` |
-| Unit premiums calibration | — | 2 | Floor/view/orientation → premium/discount lookup from hedonic residuals | `gold_analytics.ref_unit_premiums` |
-| Development projects import | — | 2 | Developer project data entry (units, typologies, target prices) | `gold_analytics.development_projects` |
-| Unit pricing recommendation | — | 3 | Per-unit: base €/m² × premiums × market position → recommended price, **UC-2 LIVE** | `gold_analytics.unit_pricing_recommendation` |
-| Project pricing summary | — | 1 | Roll up unit recommendations → project GDV, margin, sell-through timeline | `gold_analytics.project_pricing_summary` |
-| Serving: Pricing Dashboard (Metabase) | — | 3 | Unit pricing matrix, competition map (2km radius), absorption timeline, floor/view premium chart | — |
-| Serving: Pricing Simulator (Streamlit) | — | 1 | Select development project → adjust unit attributes → see recommended price, margin, absorption forecast | — |
-| CI data integration (if license) | S02 | 3 | Transaction prices → validate hedonic predictions, calibrate gap % | `silver_properties.unified_listings` (transaction_price), `gold_analytics.property_valuation` (recalibrated) |
-| Data quality monitoring | — | 2 | dbt tests + source freshness alerts + row count anomaly detection | All models |
-| Documentation | — | 2 | Data dictionary + user guide + lineage diagrams | — |
-| Backup + recovery test | — | 1 | pg_dump restore verified, WAL archiving confirmed | — |
+### Sprint 8 — UC-3 MVP: Land Development Opportunities (Weeks 15-17)
 
-**🏁 MILESTONE 2 (Week 16): UC-2 MVP LIVE + Production Release.**
+**Prerequisite:** UC-1 hedonic model complete (Sprint 5) — enables real development economics (GDV = GBA × predicted €/m²).
 
-### Sprint 9 — UC-3: Land Development Opportunities (Weeks 17-19)
+**Note:** All UC-3 GIS data ingestion and staging was completed in Sprint 3. BUPI (3.25M parcels), COS (784K polygons), CRUS (5 municipalities), SRUP (IC/RAN/DPH), Cadastro, and PDM are all bronze-loaded with staging and silver models operational. This sprint builds only the analytical models and serving layer on top.
 
-**Prerequisite:** UC-1 hedonic model must be complete before economics model task.
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| MS Building Footprints ingestion | S42 | 2 | ~5M polygons → MinIO → PostGIS | `bronze_geo.raw_building_footprints` | Pending |
+| Building footprints staging + silver model | S42 | 2 | Cleaned footprints with EPSG:3763 | `stg_building_footprints`, `silver_geo.building_footprints` | Pending |
+| Seed construction cost table | — | 0.5 | CSV seed: €/m² by typology, quality tier, region (INE indices + RICS benchmarks) | `gold_analytics.ref_construction_costs` | Pending |
+| Density extraction from zoning | S40/S19 | 1 | Parse max_floors, max_density_index, max_coverage_ratio from `land_designation` text in `zoning`. Zone_category defaults where not parseable | Enhanced `silver_geo.zoning` | Pending |
+| Vacant land detection model | S39/S40 | 2 | BUPI parcels WHERE `land_use.is_urban = FALSE` (COS) AND `zoning.zone_category IN ('urban_expansion', 'urban_consolidated')` (CRUS). Boolean flags: `is_vacant`, `is_buildable`, `is_agricultural` | `gold_analytics.vacant_parcels` | Pending |
+| Constraint overlay | S41 | 1 | Per-parcel: `ST_Intersects` with `stg_srup_ran`, `stg_srup_dph`, `stg_srup_ic`. Constraint severity: 0=none, 1=DPH buffer, 2=RAN partial, 3=RAN full, 4=heritage | `gold_analytics.parcel_constraints` | Pending |
+| Parcel assembly (ST_ClusterDBSCAN) | S38 | 3.5 | Cluster adjacent vacant buildable parcels via `ST_ClusterDBSCAN(geom_pt, eps=5, minpoints=1)`. Pre-filter to candidates only (~50-100K parcels). Aggregate: total_area_m2, parcel_count, combined geometry (`ST_UnaryUnion`) | `gold_analytics.development_sites`, `gold_analytics.site_parcels` | Pending |
+| Development economics model | UC-1 | 4 | Per assembly: GBA = area × density_index × coverage_ratio. GDV = GBA × predicted €/m² (from hedonic model). Construction cost = GBA × `ref_construction_costs`. Land residual = GDV × (1 - margin) - costs. ROI metrics | `gold_analytics.development_sites` (est_* columns) | Pending |
+| Opportunity scoring | — | 2 | Composite opportunity_score: buildability (0.25), constraint clearance (0.20), assemblable area (0.20), development margin (0.25), location score (0.10) | `gold_analytics.development_sites` (opportunity_score) | Pending |
+| OSRM drive-time integration | S11 | 3 | Batch OSRM API: listing → city center, airport, nearest hospital. Upgrade `property_location_scores` from crow-flies to real travel time. Improves hedonic R² | `gold_analytics.property_location_scores` (drive_city_center_min, drive_airport_min) | Pending |
+| Serving: Land Dashboard (Metabase) | — | 2 | Vacant land inventory by municipality, top 20 sites by ROI, constraint distribution, zoning filter | — | Pending |
+| Serving: Parcel Explorer (Kepler.gl) | — | 4 | BUPI parcels colored by buildability, SRUP constraint layers (toggle), COS land use (toggle), building footprints (toggle), CRUS boundaries. `ST_SimplifyPreserveTopology` for zoom-level performance | — | Pending |
+| Serving: Site Analyzer (Streamlit) | — | 3 | Click on map → assemblable parcels, zoning params, constraint summary, estimated GBA, projected GDV, residual land value, ROI | — | Pending |
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| MS Building Footprints ingestion | S42 | 2 | ~5M polygons → MinIO → PostGIS | `bronze_geo.raw_building_footprints` |
-| Building footprints staging + silver model | S42 | 2 | Cleaned footprints with EPSG:3763 | `stg_building_footprints`, `silver_geo.building_footprints` |
-| Vacant land detection model | S39/S40 | 3 | COS non-artificial × CRUS urban zones → candidate sites | `silver_geo.parcel_buildability` (is_vacant, is_agricultural flags) |
-| Constraint overlay | S41 | 2 | SRUP flags per parcel (RAN/REN/DPH/IC) | `silver_geo.parcel_buildability` (srup_*_flag columns) |
-| Parcel assembly (ST_ClusterDBSCAN) | S38 | 4 | Contiguous BUPI parcels grouped into development sites | `gold_analytics.development_sites`, `gold_analytics.site_parcels` |
-| Development economics model | UC-1 | 3 | GBA estimate × local €/m² → revenue, cost, margin | `gold_analytics.development_sites` (est_* columns) |
-| Opportunity scoring + materialized table | — | 2 | Composite opportunity_score per site | `gold_analytics.development_sites` (opportunity_score) |
-| Serving: Land Dashboard (Metabase) | — | 2 | Map of development sites (choropleth by opportunity_score), ranked table, zoning filter, constraint toggles | — |
-| Serving: Parcel Explorer (Kepler.gl) | — | 2 | BUPI parcels colored by buildability, SRUP constraints (toggle), COS land use (toggle), building footprints (toggle) | — |
-| Serving: Site Analyzer (Streamlit) | — | 1 | Click on map → assemblable parcels, zoning params, constraints, ownership keys, estimated GBA + return | — |
-| **Total** | | **23** | (15 working days × 1.5 engineers = 22.5 available) | |
+**🏁 MILESTONE 3 (Week 17): UC-3 MVP LIVE.** Land developers can screen development opportunities with real economics.
 
-**🏁 MILESTONE 3 (Week 19): UC-3 MVP LIVE.**
+### Sprint 9 — Enhancements + Production Hardening (Weeks 18-20)
 
-### Sprint 10 — UC-3 Enhancements (Weeks 20-22)
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| ARU boundaries | S20 | 2 | Urban Rehabilitation Areas → spatial overlay with listings + development sites | `silver_geo.zoning` (is_aru flag), `gold_analytics.development_sites` | Pending |
+| Imovirtual scraper | S05 | 5 | Second listing portal live → `bronze_listings.raw_imovirtual` | — | Pending |
+| Cross-portal dedup | — | 3 | Hash(address + area + typology) matching, fuzzy fallback | `silver_properties.unified_listings` (property_hash) | Pending |
+| RNAL scraping | S14 | 5 | AL license registry → `bronze_listings.raw_rnal` | — | Pending |
+| INE Building Permits | S21 | 2 | Permit data → active construction validation for UC-3 sites | `bronze_ine.raw_building_permits`, `stg_building_permits` | Pending |
+| REN ingestion (SRUP Phase 2) | S41 | 3 | Ecological reserve → ren_flag on sites | `bronze_regulatory.raw_srup_ren`, `stg_srup_ren` | Pending |
+| Recalibrate hedonic model v2 | — | 2 | Add OSRM travel times + ARU flag to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) | Pending |
+| UC-3 model recalibration | — | 1 | Incorporate ARU + REN + permits into opportunity_score | `gold_analytics.development_sites` (recalibrated) | Pending |
+| CI data integration (if license) | S02 | 3 | Transaction prices → validate hedonic predictions, calibrate gap % | `silver_properties.unified_listings` (transaction_price) | Pending |
+| Data quality monitoring | — | 2 | dbt tests + source freshness alerts + row count anomaly detection | All models | Pending |
+| Documentation | — | 2 | Data dictionary + user guide + lineage diagrams | — | Pending |
 
-| Task | Source | Days | Deliverable | Affected tables |
-|---|---|---|---|---|
-| Sentinel-1 SAR pipeline | S43 | 9 | Change detection → construction activity flags per parcel | `bronze_geo.raw_sar_change`, `stg_sar_change`, `silver_geo.parcel_construction_activity` |
-| ARU boundaries ingestion | S20 | 2 | ARU overlay → is_aru flag on development sites | `silver_geo.parcel_buildability` (is_aru), `gold_analytics.development_sites` |
-| INE Building Permits | S21 | 2 | Permit data → active construction validation | `bronze_ine.raw_building_permits`, `stg_building_permits` |
-| REN ingestion (SRUP Phase 2) | S41 | 3 | Ecological reserve → ren_flag on sites | `bronze_regulatory.raw_srup_ren`, `stg_srup_ren` |
-| UC-3 model recalibration | — | 2 | Incorporate SAR + ARU + REN + permits into opportunity_score | `gold_analytics.development_sites` (recalibrated) |
-| **Total** | | **18** | (15 working days × 1.5 engineers = 22.5 available) | |
+**Exit criteria:** Second listing portal live; hedonic model v2 deployed; UC-3 enriched with ARU + REN + permits; production monitoring in place.
 
 ---
 
@@ -3779,17 +3796,16 @@ Optional: CI license (€2-10K/year), Google Maps API (~€50-100/month if Nomin
 
 | Sprint | Weeks | Eng-Days | Theme | Milestone |
 |---|---|---|---|---|
-| 1 | 1-2 | 14 | Infrastructure + geography | Platform live |
-| 2 | 3-4 | 15 | Core market data | Data flowing |
-| 3 | 5-6 | 20 | Silver unification + dedup | Unified listings |
-| 4 | 7-8 | 16 | Location scores | Properties enriched |
+| 1 | 1-2 | 14 | Infrastructure + geography | ✅ Platform live |
+| 2 | 3-4 | 15 | Core market data | ✅ Data flowing |
+| 3 | 5-6 | 20 | Silver unification + UC-3 GIS foundation | ✅ Unified listings + GIS data banked |
+| 4 | 7-8 | 10 | Image classification + location scores | 🔄 CV pipeline + amenity scores |
 | 5 | 9-10 | 18 | Hedonic model + valuation | Valuations live |
-| 6 | 11-12 | 18 | UC-1 output | 🏁 **UC-1 MVP** |
-| 7 | 13-14 | 21 | Enhancements + UC-2 prep | Model v2 |
-| 8 | 15-16 | 26 | UC-2 output + production | 🏁 **UC-2 MVP** |
-| 9 | 17-19 | 20 | UC-3 MVP: building footprints, parcel buildability, opportunity scoring | 🏁 **UC-3 MVP** |
-| 10 | 20-22 | 18 | UC-3 enhancements: SAR, ARU, REN, building permits | UC-3 v2 |
-| **Total** | **22** | **186** | | **All three use cases live** |
+| 6 | 11-12 | 18 | UC-1: investment opportunities + serving | 🏁 **UC-1 MVP** |
+| 7 | 13-14 | 17 | UC-2: pricing strategy + serving | 🏁 **UC-2 MVP** |
+| 8 | 15-17 | 28 | UC-3: land analytics + serving (GIS data ready from Sprint 3) | 🏁 **UC-3 MVP** |
+| 9 | 18-20 | 30 | Enhancements: Imovirtual, ARU, REN, hedonic v2, production hardening | All UCs enhanced |
+| **Total** | **20** | **170** | | **All three use cases live** |
 
 ### 15.4 Data Volume Estimates (MVP)
 

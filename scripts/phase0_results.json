@@ -1,0 +1,1642 @@
+[
+  {
+    "property_id": "33601422",
+    "listing_url": "https://www.idealista.pt/imovel/33601422",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/24/4f/b7/253568644.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/47/1e/0a/253568654.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/a1/d5/4a/253568743.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.88,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.82,
+        "input_tokens": 4414,
+        "output_tokens": 78,
+        "cost_usd": 0.00384,
+        "latency_s": 2.8
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 4414,
+        "output_tokens": 73,
+        "cost_usd": 0.01434,
+        "latency_s": 2.1
+      }
+    }
+  },
+  {
+    "property_id": "34849810",
+    "listing_url": "https://www.idealista.pt/imovel/34849810",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "livingRoom",
+      "corridor"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/66/33/79/309830994.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/38/d7/af/309830993.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/a7/c7/80/309830990.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.92,
+        "condition_label": "renovated",
+        "condition_confidence": 0.88,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 2.3
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.01634,
+        "latency_s": 2.3
+      }
+    }
+  },
+  {
+    "property_id": "34882736",
+    "listing_url": "https://www.idealista.pt/imovel/34882736",
+    "condition": "good",
+    "selected_tags": [
+      "facade",
+      "entranceExit",
+      "facade"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/72/32/f6/311221914.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/1f/ee/99/311221979.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/ca/e3/b9/311221915.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5068,
+        "output_tokens": 78,
+        "cost_usd": 0.00437,
+        "latency_s": 1.6
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5068,
+        "output_tokens": 73,
+        "cost_usd": 0.0163,
+        "latency_s": 2.0
+      }
+    }
+  },
+  {
+    "property_id": "34887360",
+    "listing_url": "https://www.idealista.pt/imovel/34887360",
+    "condition": "good",
+    "selected_tags": [
+      "facade",
+      "livingRoom",
+      "terrace"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/82/92/02/311399094.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/a1/18/b6/311399093.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/ae/df/0a/311399091.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.01634,
+        "latency_s": 2.1
+      }
+    }
+  },
+  {
+    "property_id": "33126814",
+    "listing_url": "https://www.idealista.pt/imovel/33126814",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "livingRoom",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/aa/bd/35/232545127.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/be/0c/d9/232545123.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b6/b7/3f/232545125.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 5044,
+        "output_tokens": 78,
+        "cost_usd": 0.00435,
+        "latency_s": 2.6
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5044,
+        "output_tokens": 73,
+        "cost_usd": 0.01623,
+        "latency_s": 2.7
+      }
+    }
+  },
+  {
+    "property_id": "34835431",
+    "listing_url": "https://www.idealista.pt/imovel/34835431",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/62/e4/bc/309209411.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/01/84/8d/309209784.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/3b/ac/b8/309209394.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.78,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.82,
+        "input_tokens": 5000,
+        "output_tokens": 78,
+        "cost_usd": 0.00431,
+        "latency_s": 2.2
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 5000,
+        "output_tokens": 73,
+        "cost_usd": 0.01609,
+        "latency_s": 2.3
+      }
+    }
+  },
+  {
+    "property_id": "33843597",
+    "listing_url": "https://www.idealista.pt/imovel/33843597",
+    "condition": "good",
+    "selected_tags": [
+      "bathroom",
+      "facade",
+      "facade"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/8f/1e/06/267943951.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/84/90/48/275284620.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/a3/29/c0/267943926.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.9,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5000,
+        "output_tokens": 79,
+        "cost_usd": 0.00432,
+        "latency_s": 2.2
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.9,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.95,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5000,
+        "output_tokens": 74,
+        "cost_usd": 0.01611,
+        "latency_s": 2.5
+      }
+    }
+  },
+  {
+    "property_id": "34884893",
+    "listing_url": "https://www.idealista.pt/imovel/34884893",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/d0/8a/a9/311299592.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/9f/4b/42/311299611.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/c9/06/44/311299622.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5044,
+        "output_tokens": 78,
+        "cost_usd": 0.00435,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.8,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5044,
+        "output_tokens": 73,
+        "cost_usd": 0.01623,
+        "latency_s": 2.2
+      }
+    }
+  },
+  {
+    "property_id": "34239396",
+    "listing_url": "https://www.idealista.pt/imovel/34239396",
+    "condition": "good",
+    "selected_tags": [
+      "kitchen",
+      "bedroom",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/39/73/43/286118568.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/fc/b0/68/286118579.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/9a/07/2c/286118525.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 4972,
+        "output_tokens": 78,
+        "cost_usd": 0.00429,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "habitable",
+        "condition_confidence": 0.8,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.75,
+        "input_tokens": 4972,
+        "output_tokens": 73,
+        "cost_usd": 0.01601,
+        "latency_s": 2.4
+      }
+    }
+  },
+  {
+    "property_id": "34585655",
+    "listing_url": "https://www.idealista.pt/imovel/34585655",
+    "condition": "good",
+    "selected_tags": [
+      "facade",
+      "facade",
+      "unknown"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/75/42/49/299597678.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e6/54/a7/299597679.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/94/3a/65/299597680.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 79,
+        "cost_usd": 0.00436,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 74,
+        "cost_usd": 0.01628,
+        "latency_s": 2.5
+      }
+    }
+  },
+  {
+    "property_id": "34773314",
+    "listing_url": "https://www.idealista.pt/imovel/34773314",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/af/74/10/306907488.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/f1/d5/c7/306907414.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/cb/ab/75/306907479.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.96,
+        "input_tokens": 5011,
+        "output_tokens": 78,
+        "cost_usd": 0.00432,
+        "latency_s": 2.5
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5011,
+        "output_tokens": 73,
+        "cost_usd": 0.01613,
+        "latency_s": 2.6
+      }
+    }
+  },
+  {
+    "property_id": "34008738",
+    "listing_url": "https://www.idealista.pt/imovel/34008738",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/13/26/41/276283699.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/d7/7e/2e/276283893.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/97/1f/1a/276283721.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5044,
+        "output_tokens": 78,
+        "cost_usd": 0.00435,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5044,
+        "output_tokens": 73,
+        "cost_usd": 0.01623,
+        "latency_s": 2.4
+      }
+    }
+  },
+  {
+    "property_id": "34564194",
+    "listing_url": "https://www.idealista.pt/imovel/34564194",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/de/7c/48/298825283.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e7/54/1d/298824280.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/fa/39/71/298825282.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.99,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.99,
+        "input_tokens": 4522,
+        "output_tokens": 78,
+        "cost_usd": 0.00393,
+        "latency_s": 1.5
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.95,
+        "input_tokens": 4522,
+        "output_tokens": 78,
+        "cost_usd": 0.01474,
+        "latency_s": 10.6
+      }
+    }
+  },
+  {
+    "property_id": "34853816",
+    "listing_url": "https://www.idealista.pt/imovel/34853816",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/8c/54/dd/310001023.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/db/bb/30/310001021.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e1/72/cd/310001068.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.92,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 4942,
+        "output_tokens": 78,
+        "cost_usd": 0.00427,
+        "latency_s": 2.2
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 4942,
+        "output_tokens": 73,
+        "cost_usd": 0.01592,
+        "latency_s": 2.1
+      }
+    }
+  },
+  {
+    "property_id": "34832177",
+    "listing_url": "https://www.idealista.pt/imovel/34832177",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/c5/73/bd/309108602.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b4/78/56/309108599.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/5d/25/e1/309108664.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.96,
+        "input_tokens": 4946,
+        "output_tokens": 78,
+        "cost_usd": 0.00427,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.95,
+        "input_tokens": 4946,
+        "output_tokens": 73,
+        "cost_usd": 0.01593,
+        "latency_s": 11.4
+      }
+    }
+  },
+  {
+    "property_id": "34680209",
+    "listing_url": "https://www.idealista.pt/imovel/34680209",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "plan"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/43/8b/3b/303351472.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/4f/be/99/303351206.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e8/ef/1f/303351967.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 5054,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 1.6
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 5054,
+        "output_tokens": 73,
+        "cost_usd": 0.01626,
+        "latency_s": 2.1
+      }
+    }
+  },
+  {
+    "property_id": "34571638",
+    "listing_url": "https://www.idealista.pt/imovel/34571638",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "room"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/eb/6b/59/299092914.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/50/be/b7/299092579.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/270/id.pro.pt.image.master/47/7a/1a/299092823.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 4996,
+        "output_tokens": 78,
+        "cost_usd": 0.00431,
+        "latency_s": 3.6
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 4996,
+        "output_tokens": 78,
+        "cost_usd": 0.01616,
+        "latency_s": 12.0
+      }
+    }
+  },
+  {
+    "property_id": "34872005",
+    "listing_url": "https://www.idealista.pt/imovel/34872005",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "bathroom",
+      "facade",
+      "unknown"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/c1/16/db/310754793.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/81/17/43/310753282.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/ef/ca/37/310754800.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 4864,
+        "output_tokens": 78,
+        "cost_usd": 0.0042,
+        "latency_s": 2.0
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 4864,
+        "output_tokens": 78,
+        "cost_usd": 0.01576,
+        "latency_s": 2.6
+      }
+    }
+  },
+  {
+    "property_id": "34712989",
+    "listing_url": "https://www.idealista.pt/imovel/34712989",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/14/34/7b/304545022.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/4a/41/3c/304545026.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/c1/fc/39/304544729.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5044,
+        "output_tokens": 78,
+        "cost_usd": 0.00435,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 5044,
+        "output_tokens": 73,
+        "cost_usd": 0.01623,
+        "latency_s": 11.5
+      }
+    }
+  },
+  {
+    "property_id": "34684736",
+    "listing_url": "https://www.idealista.pt/imovel/34684736",
+    "condition": "newdevelopment",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/8b/ed/5d/303524710.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/36/5d/d1/303524689.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/bf/ec/7f/303524699.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.96,
+        "input_tokens": 5044,
+        "output_tokens": 78,
+        "cost_usd": 0.00435,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.95,
+        "input_tokens": 5044,
+        "output_tokens": 73,
+        "cost_usd": 0.01623,
+        "latency_s": 2.2
+      }
+    }
+  },
+  {
+    "property_id": "34618804",
+    "listing_url": "https://www.idealista.pt/imovel/34618804",
+    "condition": "renew",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "bedroom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e1/f1/54/301093969.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b4/85/39/301093963.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/79/3d/89/301093966.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.98,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.99,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.95,
+        "input_tokens": 4414,
+        "output_tokens": 79,
+        "cost_usd": 0.00385,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 4414,
+        "output_tokens": 74,
+        "cost_usd": 0.01435,
+        "latency_s": 13.3
+      }
+    }
+  },
+  {
+    "property_id": "33901876",
+    "listing_url": "https://www.idealista.pt/imovel/33901876",
+    "condition": "renew",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "bedroom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/72/11/e9/271292265.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/06/37/13/271292259.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/88/f6/df/271292256.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.92,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 4972,
+        "output_tokens": 79,
+        "cost_usd": 0.00429,
+        "latency_s": 1.9
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.9,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.85,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 4972,
+        "output_tokens": 74,
+        "cost_usd": 0.01603,
+        "latency_s": 1.8
+      }
+    }
+  },
+  {
+    "property_id": "34735015",
+    "listing_url": "https://www.idealista.pt/imovel/34735015",
+    "condition": "renew",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/21/82/8f/305483556.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/cb/74/7a/305483547.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/bf/c0/e3/305483526.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 5056,
+        "output_tokens": 73,
+        "cost_usd": 0.01626,
+        "latency_s": 11.3
+      }
+    }
+  },
+  {
+    "property_id": "32564071",
+    "listing_url": "https://www.idealista.pt/imovel/32564071",
+    "condition": "renew",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e3/fa/5b/300766778.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/7b/9f/9f/300766784.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/11/7a/b7/211405291.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.85,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 5052,
+        "output_tokens": 79,
+        "cost_usd": 0.00436,
+        "latency_s": 2.0
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.85,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.8,
+        "input_tokens": 5052,
+        "output_tokens": 73,
+        "cost_usd": 0.01625,
+        "latency_s": 2.4
+      }
+    }
+  },
+  {
+    "property_id": "34662676",
+    "listing_url": "https://www.idealista.pt/imovel/34662676",
+    "condition": "renew",
+    "selected_tags": [
+      "facade",
+      "facade",
+      "facade"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/9e/61/de/306128611.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/57/30/48/306128612.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b7/1b/2e/306128613.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.92,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 74,
+        "cost_usd": 0.01628,
+        "latency_s": 13.4
+      }
+    }
+  },
+  {
+    "property_id": "34706482",
+    "listing_url": "https://www.idealista.pt/imovel/34706482",
+    "condition": "renew",
+    "selected_tags": [
+      "facade",
+      "swimmingPool",
+      "swimmingPool"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/94/96/b2/305454188.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/da/0a/54/305454190.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/10/11/00/305454189.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 2.0
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5056,
+        "output_tokens": 73,
+        "cost_usd": 0.01626,
+        "latency_s": 2.5
+      }
+    }
+  },
+  {
+    "property_id": "34246629",
+    "listing_url": "https://www.idealista.pt/imovel/34246629",
+    "condition": "renew",
+    "selected_tags": [
+      "views",
+      "views",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/3b/ca/e4/296556317.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/7e/24/1d/296556319.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/d3/10/e7/296556318.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.97,
+        "input_tokens": 5044,
+        "output_tokens": 79,
+        "cost_usd": 0.00435,
+        "latency_s": 3.0
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5044,
+        "output_tokens": 74,
+        "cost_usd": 0.01624,
+        "latency_s": 11.6
+      }
+    }
+  },
+  {
+    "property_id": "32790863",
+    "listing_url": "https://www.idealista.pt/imovel/32790863",
+    "condition": "renew",
+    "selected_tags": [
+      "facade",
+      "facade",
+      "facade"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b5/45/85/283199771.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/f0/5c/cc/283199772.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/3a/a2/0a/283199773.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 79,
+        "cost_usd": 0.00436,
+        "latency_s": 2.2
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.98,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 74,
+        "cost_usd": 0.01628,
+        "latency_s": 2.1
+      }
+    }
+  },
+  {
+    "property_id": "34850147",
+    "listing_url": "https://www.idealista.pt/imovel/34850147",
+    "condition": "renew",
+    "selected_tags": [
+      "bathroom",
+      "facade",
+      "facade"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/d6/96/1d/309847497.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/1c/57/d6/309846231.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e1/3a/31/309847475.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": false,
+        "render_confidence": 0.95,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.92,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 5056,
+        "output_tokens": 79,
+        "cost_usd": 0.00436,
+        "latency_s": 2.1
+      },
+      "sonnet": {
+        "is_render": false,
+        "render_confidence": 0.9,
+        "condition_label": "needs_renovation",
+        "condition_confidence": 0.95,
+        "finish_quality": "basic",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 5056,
+        "output_tokens": 74,
+        "cost_usd": 0.01628,
+        "latency_s": 12.2
+      }
+    }
+  },
+  {
+    "property_id": "34174340",
+    "listing_url": "https://www.idealista.pt/imovel/34174340",
+    "condition": "renew",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/a6/64/95/283466175.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/c4/74/fc/307428252.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/4b/07/9f/283466173.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5056,
+        "output_tokens": 78,
+        "cost_usd": 0.00436,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5056,
+        "output_tokens": 73,
+        "cost_usd": 0.01626,
+        "latency_s": 2.3
+      }
+    }
+  },
+  {
+    "property_id": "34505773",
+    "listing_url": "https://www.idealista.pt/imovel/34505773",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "livingRoom",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/78/7e/88/306655983.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/68/cc/e0/306656158.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/f3/3c/fb/306656157.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 4954,
+        "output_tokens": 78,
+        "cost_usd": 0.00428,
+        "latency_s": 1.9
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 4954,
+        "output_tokens": 73,
+        "cost_usd": 0.01596,
+        "latency_s": 14.1
+      }
+    }
+  },
+  {
+    "property_id": "34705998",
+    "listing_url": "https://www.idealista.pt/imovel/34705998",
+    "condition": "",
+    "selected_tags": [
+      "facade",
+      "livingRoom",
+      "terrace"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/27/0a/8b/308530921.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b1/f0/a4/304376474.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/6b/bf/38/308530887.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.97,
+        "input_tokens": 4996,
+        "output_tokens": 78,
+        "cost_usd": 0.00431,
+        "latency_s": 2.0
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 4996,
+        "output_tokens": 73,
+        "cost_usd": 0.01608,
+        "latency_s": 2.5
+      }
+    }
+  },
+  {
+    "property_id": "33932620",
+    "listing_url": "https://www.idealista.pt/imovel/33932620",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/96/92/a2/272766302.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/f1/93/5f/272766563.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/0a/3f/5c/272766546.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.96,
+        "input_tokens": 4494,
+        "output_tokens": 78,
+        "cost_usd": 0.00391,
+        "latency_s": 2.3
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.9,
+        "input_tokens": 4494,
+        "output_tokens": 73,
+        "cost_usd": 0.01458,
+        "latency_s": 11.6
+      }
+    }
+  },
+  {
+    "property_id": "33990658",
+    "listing_url": "https://www.idealista.pt/imovel/33990658",
+    "condition": "",
+    "selected_tags": [
+      "facade",
+      "views",
+      "unknown"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/24/6e/ac/307945899.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/db/ae/b9/307945766.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/58/f8/da/307945907.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 4990,
+        "output_tokens": 78,
+        "cost_usd": 0.0043,
+        "latency_s": 1.9
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.9,
+        "condition_label": "renovated",
+        "condition_confidence": 0.85,
+        "finish_quality": "standard",
+        "finish_quality_confidence": 0.75,
+        "input_tokens": 4990,
+        "output_tokens": 73,
+        "cost_usd": 0.01606,
+        "latency_s": 2.0
+      }
+    }
+  },
+  {
+    "property_id": "34766297",
+    "listing_url": "https://www.idealista.pt/imovel/34766297",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "livingRoom",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/e0/2c/fb/306651799.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/b5/51/c3/306651735.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/bf/cf/78/306651795.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 4954,
+        "output_tokens": 78,
+        "cost_usd": 0.00428,
+        "latency_s": 1.8
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.92,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.88,
+        "input_tokens": 4954,
+        "output_tokens": 73,
+        "cost_usd": 0.01596,
+        "latency_s": 12.0
+      }
+    }
+  },
+  {
+    "property_id": "34712066",
+    "listing_url": "https://www.idealista.pt/imovel/34712066",
+    "condition": "",
+    "selected_tags": [
+      "bathroom",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/81/da/78/304513308.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/09/c1/aa/304513306.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/7e/4c/e2/304513094.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.98,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.97,
+        "input_tokens": 4888,
+        "output_tokens": 78,
+        "cost_usd": 0.00422,
+        "latency_s": 1.7
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.95,
+        "input_tokens": 4888,
+        "output_tokens": 73,
+        "cost_usd": 0.01576,
+        "latency_s": 2.0
+      }
+    }
+  },
+  {
+    "property_id": "34672279",
+    "listing_url": "https://www.idealista.pt/imovel/34672279",
+    "condition": "",
+    "selected_tags": [
+      "bathroom",
+      "livingRoom",
+      "views"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/7a/5c/72/303068591.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/33/61/d4/303068588.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/1c/37/03/303068586.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.96,
+        "input_tokens": 5036,
+        "output_tokens": 78,
+        "cost_usd": 0.00434,
+        "latency_s": 1.4
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5036,
+        "output_tokens": 73,
+        "cost_usd": 0.0162,
+        "latency_s": 12.4
+      }
+    }
+  },
+  {
+    "property_id": "34032622",
+    "listing_url": "https://www.idealista.pt/imovel/34032622",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/28/81/c1/277364549.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/aa/87/e9/307890460.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/d1/8f/18/277364547.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5014,
+        "output_tokens": 78,
+        "cost_usd": 0.00432,
+        "latency_s": 2.9
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5014,
+        "output_tokens": 73,
+        "cost_usd": 0.01614,
+        "latency_s": 2.3
+      }
+    }
+  },
+  {
+    "property_id": "34032629",
+    "listing_url": "https://www.idealista.pt/imovel/34032629",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/28/81/c1/277364549.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/aa/87/e9/307890460.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/23/7a/54/277364215.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5014,
+        "output_tokens": 78,
+        "cost_usd": 0.00432,
+        "latency_s": 3.5
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5014,
+        "output_tokens": 73,
+        "cost_usd": 0.01614,
+        "latency_s": 10.4
+      }
+    }
+  },
+  {
+    "property_id": "34032582",
+    "listing_url": "https://www.idealista.pt/imovel/34032582",
+    "condition": "",
+    "selected_tags": [
+      "kitchen",
+      "facade",
+      "livingRoom"
+    ],
+    "selected_urls": [
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/28/81/c1/277364549.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/aa/87/e9/307890460.webp",
+      "https://img4.idealista.pt/blur/WEB_DETAIL-XL-L/0/id.pro.pt.image.master/23/7a/54/277364215.webp"
+    ],
+    "models": {
+      "haiku": {
+        "is_render": true,
+        "render_confidence": 0.98,
+        "condition_label": "renovated",
+        "condition_confidence": 0.95,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.92,
+        "input_tokens": 5014,
+        "output_tokens": 78,
+        "cost_usd": 0.00432,
+        "latency_s": 1.1
+      },
+      "sonnet": {
+        "is_render": true,
+        "render_confidence": 0.95,
+        "condition_label": "renovated",
+        "condition_confidence": 0.9,
+        "finish_quality": "premium",
+        "finish_quality_confidence": 0.85,
+        "input_tokens": 5014,
+        "output_tokens": 73,
+        "cost_usd": 0.01614,
+        "latency_s": 1.9
+      }
+    }
+  }
+]

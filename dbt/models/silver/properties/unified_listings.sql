@@ -17,6 +17,9 @@
             'address_clean', 'postal_code', 'latitude', 'longitude', 'geom', 'geom_pt',
             'last_seen_date', 'listing_age_days', 'is_active',
             'price_change_count',
+            'cv_is_render', 'cv_condition', 'cv_condition_confidence',
+            'cv_finish_quality', 'cv_finish_quality_confidence',
+            'cv_model_version', 'cv_classified_at',
             '_updated_at'
         ],
         post_hook=[
@@ -447,6 +450,15 @@ SELECT
     h.price_eur
     {% endif %}                                  AS initial_price_eur,
 
+    -- Computer vision (from image_classification_dag)
+    cv.is_render                                 AS cv_is_render,
+    cv.condition_label                           AS cv_condition,
+    cv.condition_confidence                      AS cv_condition_confidence,
+    cv.finish_quality                            AS cv_finish_quality,
+    cv.finish_quality_confidence                 AS cv_finish_quality_confidence,
+    cv.model_used                                AS cv_model_version,
+    cv._classified_at                            AS cv_classified_at,
+
     -- Audit
     {% if is_incremental() %}
     COALESCE(existing._created_at, NOW())
@@ -461,6 +473,8 @@ LEFT JOIN lifecycle lc
 LEFT JOIN {{ source('bronze_listings', 'reverse_geocoded') }} gc
     ON ROUND(h.latitude::NUMERIC, 7) = gc.latitude
     AND ROUND(h.longitude::NUMERIC, 7) = gc.longitude
+LEFT JOIN {{ ref('stg_image_classifications') }} cv
+    ON cv.property_id = h.source_listing_id
 {% if is_incremental() %}
 LEFT JOIN {{ this }} existing
     ON existing.source_listing_id = h.source_listing_id

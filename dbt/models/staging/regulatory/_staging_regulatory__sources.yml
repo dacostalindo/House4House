@@ -168,3 +168,60 @@ sources:
             description: "MinIO object path of the source GeoJSON file"
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_sce_pce
+        description: >
+          SCE Pre-Energy Certificates (PCE) scraped from the sce.pt portal.
+          Each row is one pre-certificate per apartment/fraction — a proxy for
+          upcoming new construction. Includes table data and detail popup fields.
+          Coverage: Aveiro, Coimbra, Leiria (3 distritos).
+          Source: pipelines/scraping/sce/sce_bronze_dag.py
+        columns:
+          - name: doc_number
+            description: "SCE document number (e.g. SCE0000399459443)"
+          - name: morada
+            description: "Address from the search results table"
+          - name: fracao
+            description: "Fraction from the search results table (often '0')"
+          - name: localidade
+            description: "Locality name"
+          - name: concelho
+            description: "Municipality name"
+          - name: estado
+            description: "Certificate status (e.g. 'Válido', 'Revogado')"
+          - name: doc_substituto
+            description: "Replacement document number (if superseded)"
+          - name: tipo_documento
+            description: "Document type (e.g. 'Pré-Certificado', 'Certificado')"
+          - name: classe_energetica
+            description: "Energy class (A+, A, B, B-, C, D, E, F) from popup image"
+          - name: data_emissao
+            description: "Issuance date in YYYY/MM/DD format"
+          - name: data_validade
+            description: "Validity date in YYYY/MM/DD format"
+          - name: freguesia_detail
+            description: "Parish name from the detail popup"
+          - name: perito_num
+            description: "Qualified expert number (e.g. PQ00883)"
+          - name: conservatoria
+            description: "Land registry office name"
+          - name: sob_o_num
+            description: "Land registry entry number"
+          - name: artigo_matricial
+            description: "Property tax matrix article number"
+          - name: fracao_autonoma
+            description: "Autonomous fraction from the detail popup"
+          - name: query_distrito
+            description: "Distrito code used in the query"
+          - name: query_concelho
+            description: "Concelho code used in the query"
+          - name: query_freguesia
+            description: "Freguesia code used in the query"
+          - name: _scrape_date
+            description: "Date the data was scraped"
+          - name: _batch_id
+            description: "Batch identifier for the load run"
+          - name: _ingested_at
+            description: "Timestamp when the row was loaded into PostGIS"
+          - name: _minio_path
+            description: "MinIO object path of the source JSONL file"

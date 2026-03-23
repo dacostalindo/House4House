@@ -96,6 +96,14 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "select": ["stg_srup_ic+", "stg_srup_ran+", "stg_srup_dph+"],
         "tags": ["dbt", "cosmos", "srup"],
     },
+    "cos": {
+        "select": ["stg_cos2023+"],
+        "tags": ["dbt", "cosmos", "cos"],
+    },
+    "sce": {
+        "select": ["stg_sce_pce+"],
+        "tags": ["dbt", "cosmos", "sce"],
+    },
 }
 
 

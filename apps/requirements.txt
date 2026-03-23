@@ -1,0 +1,6 @@
+streamlit==1.41.0
+streamlit-keplergl==0.3.0
+psycopg2-binary==2.9.9
+geopandas==0.14.4
+pandas==2.2.3
+sqlalchemy==2.0.36
