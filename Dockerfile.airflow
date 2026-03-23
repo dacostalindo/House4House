@@ -2,6 +2,18 @@ FROM apache/airflow:2.10.4-python3.12
 
 # pyogrio bundles its own GDAL wheels — no system GDAL packages needed.
 # pyproj is required to parse EPSG codes from WKT CRS strings.
+
+# Install Chromium + Xvfb for nodriver-based scraping (SCE portal).
+# Xvfb provides a virtual display so Chromium runs in "headed" mode,
+# which is required for Cloudflare Turnstile to auto-solve.
+USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        chromium \
+        xvfb \
+        xauth \
+    && rm -rf /var/lib/apt/lists/*
+
 USER airflow
 
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -11,5 +23,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     minio==7.2.7 \
     requests==2.31.0 \
     tenacity \
+    anthropic \
+    beautifulsoup4 \
+    nodriver \
     dbt-postgres==1.9.0 \
     astronomer-cosmos[dbt-postgres]

@@ -18,3 +18,21 @@ sources:
 
       - name: raw_caop_distritos
         description: "CAOP 2025 district boundaries. 18 rows. EPSG:3763."
+
+      - name: raw_cos2023
+        description: >
+          COS 2023 (Carta de Uso e Ocupação do Solo) land-use/cover polygons from DGT.
+          ~784K MultiPolygons with 4-level hierarchical classification for continental Portugal.
+          GPKG layer: COS2023v1. Download from geo2.dgterritorio.gov.pt. EPSG:3763.
+          Source: pipelines/gis/cos/cos_bronze_dag.py
+        columns:
+          - name: id
+            description: "Feature identifier from GPKG (GPKG field: ID)"
+          - name: cos23_n4_c
+            description: "4-level land-use code (e.g. '1.1.1.1'). GPKG field: COS23_n4_C"
+          - name: cos23_n4_l
+            description: "Land-use label in Portuguese. GPKG field: COS23_n4_L"
+          - name: area_ha
+            description: "Polygon area in hectares. GPKG field: AREA_ha"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"

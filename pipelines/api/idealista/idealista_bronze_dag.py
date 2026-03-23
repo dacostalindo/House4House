@@ -646,14 +646,15 @@ def _create_dag():
 
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
-        trigger_dbt = TriggerDagRunOperator(
-            task_id="trigger_dbt_pipeline",
-            trigger_dag_id="dbt_idealista_build",
+        # Image classification runs next, then triggers dbt on completion
+        trigger_cv = TriggerDagRunOperator(
+            task_id="trigger_image_classification",
+            trigger_dag_id="image_classification",
             wait_for_completion=True,
             reset_dag_run=True,
             poke_interval=10,
         )
-        geocoded >> trigger_dbt
+        geocoded >> trigger_cv
 
     return idealista_bronze_load()
 

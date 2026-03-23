@@ -241,6 +241,36 @@ models:
       - name: geom_pt
         description: "PostGIS POINT geometry in SRID 3763 (PT-TM06/ETRS89). Transformed from geom for metric distance calculations"
 
+      # ── Computer Vision (from image_classification_dag) ────────────────────
+      - name: cv_is_render
+        description: "TRUE if Claude Vision detected a 3D render/CGI (not a real photograph)"
+
+      - name: cv_condition
+        description: "3-level condition from Claude Vision: needs_renovation, habitable, renovated"
+        tests:
+          - accepted_values:
+              values: ['needs_renovation', 'habitable', 'renovated']
+              where: "cv_condition IS NOT NULL"
+
+      - name: cv_condition_confidence
+        description: "Claude Vision confidence for condition_label (0.000-1.000)"
+
+      - name: cv_finish_quality
+        description: "3-level interior finish quality from Claude Vision: basic, standard, premium"
+        tests:
+          - accepted_values:
+              values: ['basic', 'standard', 'premium']
+              where: "cv_finish_quality IS NOT NULL"
+
+      - name: cv_finish_quality_confidence
+        description: "Claude Vision confidence for finish_quality (0.000-1.000)"
+
+      - name: cv_model_version
+        description: "Claude model used for classification (e.g. claude-sonnet-4-20250514)"
+
+      - name: cv_classified_at
+        description: "Timestamp when Claude Vision classified this listing"
+
       # ── Lifecycle (SCD) ─────────────────────────────────────────────────────
       - name: first_seen_date
         description: "Date listing first appeared in scrape data. Preserved across incremental merges"

@@ -21,3 +21,27 @@ sources:
         description: >
           Reverse geocoded address data from Nominatim, keyed by (latitude, longitude).
           Incrementally populated by the reverse_geocode task in idealista_bronze_dag.
+
+      - name: image_classifications
+        description: >
+          Claude Vision image classifications. 1 row per property_id.
+          Render detection, condition assessment (4 levels), finish quality (4 levels).
+          Populated by image_classification_dag.
+        columns:
+          - name: property_id
+            description: "FK to raw_idealista.property_id — UNIQUE constraint"
+          - name: condition_label
+            description: "needs_full_renovation | needs_cosmetic_update | move_in_ready | recently_renovated"
+          - name: finish_quality
+            description: "basic | standard | premium | luxury"
+
+      - name: floor_plan_extractions
+        description: >
+          Claude Vision floor plan extractions. 1 row per plan image.
+          Room-level areas, typology, floor label.
+          Populated by image_classification_dag.
+        columns:
+          - name: property_id
+            description: "FK to raw_idealista.property_id — multiple rows per property (multi-floor)"
+          - name: rooms
+            description: "JSONB mapping canonical room names to area in m²"

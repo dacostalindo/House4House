@@ -1,0 +1,25 @@
+{
+  "_comment": "Example config for batch scraping multiple regions",
+  "_distrito_codes": {
+    "1": "AVEIRO", "2": "BEJA", "3": "BRAGA", "4": "BRAGANCA",
+    "5": "C BRANCO", "6": "COIMBRA", "7": "EVORA", "8": "FARO",
+    "9": "GUARDA", "10": "LEIRIA", "11": "LISBOA", "12": "PORTALEGRE",
+    "13": "PORTO", "14": "SANTAREM", "15": "SETUBAL",
+    "16": "VIANA DO CASTELO", "17": "VILA REAL", "18": "VISEU",
+    "19": "ANGRA DO HEROISMO", "20": "HORTA", "21": "PONTA DELGADA",
+    "22": "FUNCHAL"
+  },
+  "_concelho_codes_lisboa": {
+    "1": "ALENQUER", "2": "ARRUDA DOS VINHOS", "3": "AZAMBUJA",
+    "4": "CADAVAL", "5": "CASCAIS", "6": "LISBOA", "7": "LOURES",
+    "8": "LOURINHÃ", "9": "MAFRA", "10": "OEIRAS", "11": "SINTRA",
+    "12": "SOBRAL DE MONTE AGRAÇO", "13": "TORRES VEDRAS",
+    "14": "VILA FRANCA DE XIRA", "15": "AMADORA", "16": "ODIVELAS"
+  },
+  "regions": [
+    {"distrito": 11, "concelho": 5, "label": "Cascais"},
+    {"distrito": 11, "concelho": 6, "label": "Lisboa"},
+    {"distrito": 11, "concelho": 10, "label": "Oeiras"},
+    {"distrito": 13, "label": "Porto (full district)"}
+  ]
+}

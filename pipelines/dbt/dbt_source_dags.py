@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from airflow.decorators import dag
+from airflow.decorators import dag, task
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
 from cosmos.profiles import PostgresUserPasswordProfileMapping
 
@@ -80,6 +80,30 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "select": ["stg_eurostat+"],
         "tags": ["dbt", "cosmos", "eurostat"],
     },
+    "crus": {
+        "select": ["stg_crus_ordenamento+"],
+        "tags": ["dbt", "cosmos", "crus"],
+    },
+    "bupi": {
+        "select": ["stg_bupi+"],
+        "tags": ["dbt", "cosmos", "bupi"],
+    },
+    "cadastro": {
+        "select": ["stg_cadastro+"],
+        "tags": ["dbt", "cosmos", "cadastro"],
+    },
+    "srup": {
+        "select": ["stg_srup_ic+", "stg_srup_ran+", "stg_srup_dph+"],
+        "tags": ["dbt", "cosmos", "srup"],
+    },
+    "cos": {
+        "select": ["stg_cos2023+"],
+        "tags": ["dbt", "cosmos", "cos"],
+    },
+    "sce": {
+        "select": ["stg_sce_pce+"],
+        "tags": ["dbt", "cosmos", "sce"],
+    },
 }
 
 
@@ -104,7 +128,7 @@ def _create_source_dag(source: str, config: dict):
         tags=config.get("tags", ["dbt", "cosmos"]),
     )
     def source_dag():
-        DbtTaskGroup(
+        dbt_build = DbtTaskGroup(
             group_id="dbt_build",
             project_config=PROJECT_CONFIG,
             profile_config=PROFILE_CONFIG,
@@ -116,6 +140,28 @@ def _create_source_dag(source: str, config: dict):
                 "install_deps": True,
             },
         )
+
+        @task(trigger_rule="all_success")
+        def regenerate_docs():
+            """Regenerate dbt docs (catalog.json + manifest.json).
+
+            The static files in target/ are updated in place. If dbt docs serve
+            is already running it will pick up changes on next page load.
+            """
+            import subprocess
+
+            dbt_bin = str(EXECUTION_CONFIG.dbt_executable_path)
+            project_dir = str(DBT_PROJECT_DIR)
+
+            subprocess.run(
+                [dbt_bin, "docs", "generate", "--profiles-dir", project_dir],
+                cwd=project_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        dbt_build >> regenerate_docs()
 
     return source_dag()
 

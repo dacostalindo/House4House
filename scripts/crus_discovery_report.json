@@ -1,0 +1,2238 @@
+{
+  "timestamp": "2026-03-23T19:28:18.937358+00:00",
+  "summary": {
+    "total_probed": 278,
+    "available": 184,
+    "unavailable": 94,
+    "errors": 0,
+    "coverage_pct": 66.2
+  },
+  "available": [
+    {
+      "code": "0101",
+      "name": "Agueda",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Agueda_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0101_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0102",
+      "name": "Albergaria-a-Velha",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Albergaria_a_Velha_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0102_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0103",
+      "name": "Anadia",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Anadia_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0103_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0104",
+      "name": "Arouca",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Arouca_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0104_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0105",
+      "name": "Aveiro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Aveiro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0105_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0106",
+      "name": "Castelo de Paiva",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castelo_de_Paiva_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0106_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0107",
+      "name": "Espinho",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Espinho_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0107_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0108",
+      "name": "Estarreja",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Estarreja_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0108_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0109",
+      "name": "Santa Maria da Feira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Santa_Maria_da_Feira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0109_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0110",
+      "name": "Ilhavo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Ilhavo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0110_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0111",
+      "name": "Mealhada",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mealhada_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0111_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0112",
+      "name": "Murtosa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Murtosa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0112_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0113",
+      "name": "Oliveira de Azemeis",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Oliveira_de_Azemeis_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0113_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0114",
+      "name": "Oliveira do Bairro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Oliveira_do_Bairro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0114_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0115",
+      "name": "Ovar",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Ovar_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0115_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0116",
+      "name": "Sao Joao da Madeira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sao_Joao_da_Madeira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0116_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0117",
+      "name": "Sever do Vouga",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sever_do_Vouga_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0117_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0118",
+      "name": "Vagos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vagos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0118_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0119",
+      "name": "Vale de Cambra",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vale_de_Cambra_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0119_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0201",
+      "name": "Aljustrel",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Aljustrel_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0201_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0202",
+      "name": "Almodavar",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Almodovar_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0202_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0203",
+      "name": "Alvito",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alvito_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0203_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0204",
+      "name": "Barrancos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Barrancos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0204_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0205",
+      "name": "Beja",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Beja_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0205_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0206",
+      "name": "Castro Verde",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castro_Verde_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0206_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0207",
+      "name": "Cuba",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Cuba_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0207_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0208",
+      "name": "Ferreira do Alentejo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Ferreira_do_Alentejo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0208_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0209",
+      "name": "Mertola",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mertola_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0209_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0210",
+      "name": "Moura",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Moura_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0210_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0211",
+      "name": "Odemira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Odemira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0211_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0212",
+      "name": "Ourique",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Ourique_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0212_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0213",
+      "name": "Serpa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Serpa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0213_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0214",
+      "name": "Vidigueira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vidigueira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0214_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0301",
+      "name": "Amares",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Amares_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0301_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0302",
+      "name": "Barcelos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Barcelos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0302_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0303",
+      "name": "Braga",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Braga_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0303_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0304",
+      "name": "Cabeceiras de Basto",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Cabeceiras_de_Basto_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0304_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0305",
+      "name": "Celorico de Basto",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Celorico_de_Basto_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0305_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0306",
+      "name": "Esposende",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Esposende_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0306_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0307",
+      "name": "Fafe",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Fafe_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0307_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0308",
+      "name": "Guimaraes",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Guimaraes_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0308_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0309",
+      "name": "Povoa de Lanhoso",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Povoa_de_Lanhoso_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0309_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0310",
+      "name": "Terras de Bouro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Terras_de_Bouro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0310_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0311",
+      "name": "Vieira do Minho",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vieira_do_Minho_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0311_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0312",
+      "name": "Vila Nova de Famalicao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Nova_de_Famalicao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0312_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0313",
+      "name": "Vila Verde",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Verde_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0313_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0314",
+      "name": "Vizela",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vizela_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0314_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0401",
+      "name": "Alfandega da Fe",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alfandega_da_Fe_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0401_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0402",
+      "name": "Braganca",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Braganca_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0402_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0403",
+      "name": "Carrazeda de Ansiaes",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Carrazeda_de_Ansiaes_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0403_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0404",
+      "name": "Freixo de Espada a Cinta",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Freixo_de_Espada_a_Cinta_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0404_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0405",
+      "name": "Macedo de Cavaleiros",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Macedo_de_Cavaleiros_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0405_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0406",
+      "name": "Miranda do Douro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Miranda_do_Douro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0406_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0407",
+      "name": "Mirandela",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mirandela_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0407_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0408",
+      "name": "Mogadouro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mogadouro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0408_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0409",
+      "name": "Torre de Moncorvo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Torre_de_Moncorvo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0409_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0410",
+      "name": "Vila Flor",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Flor_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0410_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0411",
+      "name": "Vimioso",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vimioso_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0411_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0412",
+      "name": "Vinhais",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vinhais_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0412_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0501",
+      "name": "Belmonte",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Belmonte_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0501_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0502",
+      "name": "Castelo Branco",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castelo_Branco_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0502_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0503",
+      "name": "Covilha",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Covilha_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0503_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0504",
+      "name": "Fundao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Fundao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0504_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0505",
+      "name": "Idanha-a-Nova",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Idanha_a_Nova_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0505_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0506",
+      "name": "Oleiros",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Oleiros_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0506_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0507",
+      "name": "Penamacor",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Penamacor_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0507_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0508",
+      "name": "Proenca-a-Nova",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Proenca_a_Nova_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0508_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0509",
+      "name": "Serta",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Serta_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0509_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0510",
+      "name": "Vila de Rei",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_de_Rei_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0510_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0511",
+      "name": "Vila Velha de Rodao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Velha_de_Rodao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0511_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0601",
+      "name": "Arganil",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Arganil_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0601_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0602",
+      "name": "Cantanhede",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Cantanhede_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0602_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0603",
+      "name": "Coimbra",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Coimbra_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0603_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0604",
+      "name": "Condeixa-a-Nova",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Condeixa_a_Nova_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0604_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0605",
+      "name": "Figueira da Foz",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Figueira_da_Foz_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0605_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0606",
+      "name": "Gois",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Gois_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0606_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0607",
+      "name": "Lousa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Lousa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0607_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0608",
+      "name": "Mira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0608_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0609",
+      "name": "Miranda do Corvo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Miranda_do_Corvo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0609_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0610",
+      "name": "Montemor-o-Velho",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Montemor_o_Velho_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0610_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0611",
+      "name": "Oliveira do Hospital",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Oliveira_do_Hospital_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0611_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0612",
+      "name": "Pampilhosa da Serra",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Pampilhosa_da_Serra_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0612_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0613",
+      "name": "Penacova",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Penacova_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0613_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0614",
+      "name": "Penela",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Penela_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0614_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0615",
+      "name": "Soure",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Soure_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0615_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0616",
+      "name": "Tabua",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Tabua_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0616_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0617",
+      "name": "Vila Nova de Poiares",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Nova_de_Poiares_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0617_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0701",
+      "name": "Alandroal",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alandroal_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0701_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0702",
+      "name": "Arraiolos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Arraiolos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0702_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0703",
+      "name": "Borba",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Borba_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0703_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0704",
+      "name": "Estremoz",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Estremoz_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0704_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0705",
+      "name": "Evora",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Evora_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0705_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0706",
+      "name": "Montemor-o-Novo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Montemor_o_Novo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0706_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0707",
+      "name": "Mora",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mora_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0707_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0708",
+      "name": "Mourao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mourao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0708_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0709",
+      "name": "Portel",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Portel_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0709_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0710",
+      "name": "Redondo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Redondo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0710_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0711",
+      "name": "Reguengos de Monsaraz",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Reguengos_de_Monsaraz_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0711_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0712",
+      "name": "Vendas Novas",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vendas_Novas_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0712_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0713",
+      "name": "Viana do Alentejo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Viana_do_Alentejo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0713_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0714",
+      "name": "Vila Vicosa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Vicosa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0714_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0801",
+      "name": "Albufeira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Albufeira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0801_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0802",
+      "name": "Alcoutim",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alcoutim_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0802_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0803",
+      "name": "Aljezur",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Aljezur_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0803_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0804",
+      "name": "Castro Marim",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castro_Marim_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0804_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0805",
+      "name": "Faro",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Faro_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0805_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0806",
+      "name": "Lagoa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Lagoa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0806_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0807",
+      "name": "Lagos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Lagos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0807_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0808",
+      "name": "Loule",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Loule_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0808_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0809",
+      "name": "Monchique",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Monchique_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0809_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0810",
+      "name": "Olhao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Olhao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0810_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0811",
+      "name": "Portimao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Portimao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0811_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0812",
+      "name": "Sao Bras de Alportel",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sao_Bras_de_Alportel_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0812_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0813",
+      "name": "Silves",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Silves_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0813_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0814",
+      "name": "Tavira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Tavira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0814_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0815",
+      "name": "Vila do Bispo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_do_Bispo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0815_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0816",
+      "name": "Vila Real de Santo Antonio",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Real_de_Santo_Antonio_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0816_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0901",
+      "name": "Aguiar da Beira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Aguiar_da_Beira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0901_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0902",
+      "name": "Almeida",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Almeida_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0902_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0903",
+      "name": "Celorico da Beira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Celorico_da_Beira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0903_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0904",
+      "name": "Figueira de Castelo Rodrigo",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Figueira_de_Castelo_Rodrigo_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0904_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0905",
+      "name": "Fornos de Algodres",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Fornos_de_Algodres_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0905_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0906",
+      "name": "Gouveia",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Gouveia_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0906_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0907",
+      "name": "Guarda",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Guarda_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0907_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0908",
+      "name": "Manteigas",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Manteigas_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0908_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0909",
+      "name": "Meda",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Meda_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0909_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0910",
+      "name": "Pinhel",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Pinhel_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0910_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0911",
+      "name": "Sabugal",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sabugal_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0911_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0912",
+      "name": "Seia",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Seia_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0912_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0913",
+      "name": "Trancoso",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Trancoso_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0913_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "0914",
+      "name": "Vila Nova de Foz Coa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Nova_de_Foz_Coa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_0914_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1002",
+      "name": "Alvaiazere",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alvaiazere_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1002_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1003",
+      "name": "Ansiao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Ansiao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1003_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1004",
+      "name": "Batalha",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Batalha_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1004_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1005",
+      "name": "Bombarral",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Bombarral_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1005_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1006",
+      "name": "Caldas da Rainha",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Caldas_da_Rainha_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1006_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1007",
+      "name": "Castanheira de Pera",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castanheira_de_Pera_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1007_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1008",
+      "name": "Figueiro dos Vinhos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Figueiro_dos_Vinhos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1008_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1009",
+      "name": "Leiria",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Leiria_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1009_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1010",
+      "name": "Marinha Grande",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Marinha_Grande_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1010_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1011",
+      "name": "Nazare",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Nazare_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1011_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1012",
+      "name": "Obidos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Obidos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1012_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1013",
+      "name": "Pedrogao Grande",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Pedrogao_Grande_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1013_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1014",
+      "name": "Peniche",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Peniche_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1014_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1015",
+      "name": "Pombal",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Pombal_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1015_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1016",
+      "name": "Porto de Mos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Porto_de_Mos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1016_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1101",
+      "name": "Alenquer",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alenquer_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1101_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1102",
+      "name": "Amadora",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Arruda_dos_Vinhos_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1102_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1103",
+      "name": "Arruda dos Vinhos",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Azambuja_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1103_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1104",
+      "name": "Azambuja",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Cadaval_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1104_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1105",
+      "name": "Cadaval",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Cascais_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1105_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1106",
+      "name": "Lisboa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Lisboa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1106_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1107",
+      "name": "Loures",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Loures_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1107_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1109",
+      "name": "Mafra",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Mafra_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1109_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1110",
+      "name": "Oeiras",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Oeiras_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1110_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1111",
+      "name": "Sintra",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sintra_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1111_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1112",
+      "name": "Sobral de Monte Agraco",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sobral_de_Monte_Agraco_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1112_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1113",
+      "name": "Torres Vedras",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Torres_Vedras_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1113_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1114",
+      "name": "Vila Franca de Xira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vila_Franca_de_Xira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1114_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1115",
+      "name": "Cascais",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Amadora_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1115_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1116",
+      "name": "Odivelas",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Odivelas_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1116_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1203",
+      "name": "Avis",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Avis_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1203_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1204",
+      "name": "Campo Maior",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Campo_Maior_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1204_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1205",
+      "name": "Castelo de Vide",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Castelo_de_Vide_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1205_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1206",
+      "name": "Crato",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Crato_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1206_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1207",
+      "name": "Elvas",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Elvas_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1207_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1209",
+      "name": "Gaviao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Gaviao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1209_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1210",
+      "name": "Marvao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Marvao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1210_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1211",
+      "name": "Monforte",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Monforte_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1211_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1212",
+      "name": "Nisa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Nisa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1212_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1304",
+      "name": "Gondomar",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Gondomar_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1304_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1311",
+      "name": "Penafiel",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Penafiel_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1311_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1401",
+      "name": "Abrantes",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Abrantes_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1401_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1403",
+      "name": "Almeirim",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Almeirim_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1403_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1413",
+      "name": "Macao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Macao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1413_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1417",
+      "name": "Sardoal",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sardoal_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1417_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1501",
+      "name": "Alcacer do Sal",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Alcacer_do_Sal_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1501_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1505",
+      "name": "Grandola",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Grandola_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1505_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1604",
+      "name": "Moncao",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Moncao_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1604_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1608",
+      "name": "Valenca",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Valenca_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1608_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1702",
+      "name": "Boticas",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Boticas_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1702_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1710",
+      "name": "Sabrosa",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Sabrosa_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1710_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1807",
+      "name": "Moimenta da Beira",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Moimenta_da_Beira_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1807_1/WFService.aspx",
+      "error": null
+    },
+    {
+      "code": "1824",
+      "name": "Vouzela",
+      "available": true,
+      "feature_type": "gmgml:CRUS_Vouzela_V",
+      "url": "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_1824_1/WFService.aspx",
+      "error": null
+    }
+  ],
+  "unavailable": [
+    {
+      "code": "1001",
+      "name": "Alcobaca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1108",
+      "name": "Lourinha",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1201",
+      "name": "Alter do Chao",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1202",
+      "name": "Arronches",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1208",
+      "name": "Fronteira",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1213",
+      "name": "Ponte de Sor",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1214",
+      "name": "Portalegre",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1215",
+      "name": "Sousel",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1301",
+      "name": "Amarante",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1302",
+      "name": "Baiao",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1303",
+      "name": "Felgueiras",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1305",
+      "name": "Lousada",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1306",
+      "name": "Maia",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1307",
+      "name": "Marco de Canaveses",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1308",
+      "name": "Matosinhos",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1309",
+      "name": "Pacos de Ferreira",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1310",
+      "name": "Paredes",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1312",
+      "name": "Porto",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1313",
+      "name": "Povoa de Varzim",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1314",
+      "name": "Santo Tirso",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1315",
+      "name": "Valongo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1316",
+      "name": "Vila do Conde",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1317",
+      "name": "Vila Nova de Gaia",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1318",
+      "name": "Trofa",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1402",
+      "name": "Alcanena",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1404",
+      "name": "Alpiarca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "Timeout"
+    },
+    {
+      "code": "1405",
+      "name": "Benavente",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1406",
+      "name": "Cartaxo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1407",
+      "name": "Chamusca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1408",
+      "name": "Constancia",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1409",
+      "name": "Coruche",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1410",
+      "name": "Entroncamento",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1411",
+      "name": "Ferreira do Zezere",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1412",
+      "name": "Golega",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1414",
+      "name": "Rio Maior",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1415",
+      "name": "Salvaterra de Magos",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1416",
+      "name": "Santarem",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1418",
+      "name": "Tomar",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1419",
+      "name": "Torres Novas",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1420",
+      "name": "Vila Nova da Barquinha",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1421",
+      "name": "Ourem",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1502",
+      "name": "Alcochete",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1503",
+      "name": "Almada",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1504",
+      "name": "Barreiro",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1506",
+      "name": "Moita",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1507",
+      "name": "Montijo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1508",
+      "name": "Palmela",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1509",
+      "name": "Santiago do Cacem",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1510",
+      "name": "Seixal",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1511",
+      "name": "Sesimbra",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1512",
+      "name": "Setubal",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1513",
+      "name": "Sines",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1601",
+      "name": "Arcos de Valdevez",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1602",
+      "name": "Caminha",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1603",
+      "name": "Melgaco",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1605",
+      "name": "Paredes de Coura",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1606",
+      "name": "Ponte da Barca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1607",
+      "name": "Ponte de Lima",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1609",
+      "name": "Viana do Castelo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1610",
+      "name": "Vila Nova de Cerveira",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1701",
+      "name": "Alijo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1703",
+      "name": "Chaves",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1704",
+      "name": "Mesao Frio",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1705",
+      "name": "Mondim de Basto",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1706",
+      "name": "Montalegre",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1707",
+      "name": "Murca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1708",
+      "name": "Peso da Regua",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1709",
+      "name": "Ribeira de Pena",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1711",
+      "name": "Santa Marta de Penaguiao",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1712",
+      "name": "Valpacos",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1713",
+      "name": "Vila Pouca de Aguiar",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1714",
+      "name": "Vila Real",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1801",
+      "name": "Armamar",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1802",
+      "name": "Carregal do Sal",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1803",
+      "name": "Castro Daire",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1804",
+      "name": "Cinfaes",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1805",
+      "name": "Lamego",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1806",
+      "name": "Mangualde",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1808",
+      "name": "Mortagua",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1809",
+      "name": "Nelas",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1810",
+      "name": "Oliveira de Frades",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1811",
+      "name": "Penalva do Castelo",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1812",
+      "name": "Penedono",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1813",
+      "name": "Resende",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1814",
+      "name": "Santa Comba Dao",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1815",
+      "name": "Sao Joao da Pesqueira",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1816",
+      "name": "Sao Pedro do Sul",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1817",
+      "name": "Satao",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1818",
+      "name": "Sernancelhe",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1819",
+      "name": "Tabuaco",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1820",
+      "name": "Tarouca",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1821",
+      "name": "Tondela",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1822",
+      "name": "Vila Nova de Paiva",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    },
+    {
+      "code": "1823",
+      "name": "Viseu",
+      "available": false,
+      "feature_type": null,
+      "url": null,
+      "error": "No WFS_Capabilities in response"
+    }
+  ]
+}

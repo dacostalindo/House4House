@@ -1,0 +1,227 @@
+version: 2
+
+sources:
+  - name: bronze_regulatory
+    database: house4house
+    schema: bronze_regulatory
+    tables:
+      - name: raw_crus_ordenamento
+        description: >
+          CRUS (Carta do Regime de Uso do Solo) land-use polygons from DGTERRITÓRIO WFS.
+          Nationally standardized land-use classification extracted from each municipality's
+          active PDM. Multi-municipality table with per-municipality full-refresh loading.
+          Covers Aveiro, Lisboa, Porto, Coimbra, Leiria.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/crus/crus_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "CRUS feature ID (global integer, not unique per-municipality)"
+          - name: municipality_code
+            description: "4-digit DTCC municipality code (e.g. 0105 = Aveiro, 1106 = Lisboa, 1312 = Porto)"
+          - name: municipality_name
+            description: "Municipality name in uppercase (e.g. AVEIRO, LISBOA)"
+          - name: classe
+            description: "Land classification: 'Solo Urbano', 'Solo Rústico', or 'Espaços não classificados'"
+          - name: categoria
+            description: "Land-use category within the classification (e.g. Espaço Agrícola, Espaço Urbanizado, Espaço Florestal)"
+          - name: designacao
+            description: "Full designation text from the PDM planning map (Planta de Ordenamento)"
+          - name: area_ha
+            description: "Polygon area in hectares as reported by CRUS"
+          - name: escala
+            description: "Map scale of the planning map (e.g. '1/10000', '1/25000')"
+          - name: data_publicacao_pdm
+            description: "Publication date of the municipality's active PDM"
+          - name: fonte
+            description: "Data source attribution (e.g. 'CM - Vectorial e Raster')"
+          - name: autor
+            description: "Data author (typically 'DGT' for DGTERRITÓRIO)"
+          - name: geom
+            description: "Polygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_ic
+        description: >
+          SRUP Imóveis Classificados (heritage sites) from DGTERRITÓRIO WFS.
+          National endpoint — includes both protection zones (polygons) and
+          point locations. Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'ic'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (21 fields including CLASSIFICACAO, DESIGNACAO, MUNICIPIOS, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (GeometryCollection for zones, Point for locations)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_ran
+        description: >
+          SRUP Reserva Agrícola Nacional (agricultural reserve) from DGTERRITÓRIO WFS.
+          National endpoint — agricultural protection zones. Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'ran'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (7 fields including CONCELHO, DINAMICA, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (GeometryCollection)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_dph
+        description: >
+          SRUP Domínio Público Hídrico (public water domain) from DGTERRITÓRIO WFS.
+          National endpoint — conditioned and prohibited occupation zones along waterways.
+          Properties stored as JSONB.
+          CRS: EPSG:3763 (PT-TM06/ETRS89).
+          Source: pipelines/gis/srup/srup_bronze_dag.py
+        columns:
+          - name: feature_id
+            description: "Feature ID from WFS"
+          - name: category
+            description: "SRUP category key: 'dph'"
+          - name: feature_type
+            description: "WFS feature type identifier"
+          - name: properties
+            description: "All WFS properties as JSONB (18 fields including DESIGNACAO, MUNICIPIOS, SERVIDAO, etc.)"
+          - name: geom
+            description: "Geometry in EPSG:3763 (Polygon or GeometryCollection)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_bupi
+        description: >
+          BUPI simplified cadastral property parcels (RGG) from dados.gov.pt.
+          ~3.25M MultiPolygon parcels covering 152 municipalities in continental Portugal.
+          Georeferenced property boundaries from the BUPi registration system.
+          GPKG layer: rgg_{date}_opendata (auto-detected). Monthly refresh. EPSG:3763.
+          Source: pipelines/gis/bupi/bupi_bronze_dag.py
+        columns:
+          - name: processoid
+            description: "BUPi process identifier (unique integer)"
+          - name: numeromatriz
+            description: "Property tax matrix number (string, may contain commas for multiple entries)"
+          - name: dicofre
+            description: "6-digit parish code: distrito(2) + concelho(2) + freguesia(2)"
+          - name: concelho
+            description: "Municipality name (e.g. 'Pombal', 'Bragança')"
+          - name: freguesia
+            description: "Parish name"
+          - name: area_m2
+            description: "Parcel area in square metres"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoPackage file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_cadastro
+        description: >
+          Cadastro Predial (Property Cadastre) parcel boundaries from DGTERRITÓRIO OGC API.
+          Official legal property parcels with cadastral references and areas.
+          Coverage: partial (municipalities surveyed 2000-2007).
+          GeoJSON ingested via API pagination, transformed from EPSG:4326 to EPSG:3763 on insert.
+          Source: pipelines/gis/cadastro/cadastro_bronze_dag.py
+        columns:
+          - name: inspireid
+            description: "EU INSPIRE standard identifier for the parcel"
+          - name: nationalcadastralreference
+            description: "Unique cadastral ID (e.g. AAA000338225)"
+          - name: areavalue
+            description: "Official parcel area in m²"
+          - name: administrativeunit
+            description: "6-digit DTCC code (distrito+município+freguesia)"
+          - name: label
+            description: "Human-readable parcel label"
+          - name: validfrom
+            description: "Start of validity period"
+          - name: validto
+            description: "End of validity period (NULL if still valid)"
+          - name: beginlifespanversion
+            description: "Record creation date"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_sce_pce
+        description: >
+          SCE Pre-Energy Certificates (PCE) scraped from the sce.pt portal.
+          Each row is one pre-certificate per apartment/fraction — a proxy for
+          upcoming new construction. Includes table data and detail popup fields.
+          Coverage: Aveiro, Coimbra, Leiria (3 distritos).
+          Source: pipelines/scraping/sce/sce_bronze_dag.py
+        columns:
+          - name: doc_number
+            description: "SCE document number (e.g. SCE0000399459443)"
+          - name: morada
+            description: "Address from the search results table"
+          - name: fracao
+            description: "Fraction from the search results table (often '0')"
+          - name: localidade
+            description: "Locality name"
+          - name: concelho
+            description: "Municipality name"
+          - name: estado
+            description: "Certificate status (e.g. 'Válido', 'Revogado')"
+          - name: doc_substituto
+            description: "Replacement document number (if superseded)"
+          - name: tipo_documento
+            description: "Document type (e.g. 'Pré-Certificado', 'Certificado')"
+          - name: classe_energetica
+            description: "Energy class (A+, A, B, B-, C, D, E, F) from popup image"
+          - name: data_emissao
+            description: "Issuance date in YYYY/MM/DD format"
+          - name: data_validade
+            description: "Validity date in YYYY/MM/DD format"
+          - name: freguesia_detail
+            description: "Parish name from the detail popup"
+          - name: perito_num
+            description: "Qualified expert number (e.g. PQ00883)"
+          - name: conservatoria
+            description: "Land registry office name"
+          - name: sob_o_num
+            description: "Land registry entry number"
+          - name: artigo_matricial
+            description: "Property tax matrix article number"
+          - name: fracao_autonoma
+            description: "Autonomous fraction from the detail popup"
+          - name: query_distrito
+            description: "Distrito code used in the query"
+          - name: query_concelho
+            description: "Concelho code used in the query"
+          - name: query_freguesia
+            description: "Freguesia code used in the query"
+          - name: _scrape_date
+            description: "Date the data was scraped"
+          - name: _batch_id
+            description: "Batch identifier for the load run"
+          - name: _ingested_at
+            description: "Timestamp when the row was loaded into PostGIS"
+          - name: _minio_path
+            description: "MinIO object path of the source JSONL file"

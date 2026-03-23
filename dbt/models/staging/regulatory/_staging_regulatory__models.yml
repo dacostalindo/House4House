@@ -1,0 +1,307 @@
+version: 2
+
+models:
+  - name: stg_crus_ordenamento
+    description: >
+      Staging view over CRUS land-use polygons from bronze_regulatory.raw_crus_ordenamento.
+      Renames Portuguese field names to English, trims whitespace from text columns,
+      and adds WGS84 geometry projection for spatial joins with listings.
+      Source: DGTERRITÓRIO CRUS WFS endpoints for 5 municipalities.
+    columns:
+      - name: feature_id
+        description: "CRUS feature ID (global integer from DGTERRITÓRIO)"
+        tests:
+          - not_null
+
+      - name: municipality_code
+        description: "4-digit DTCC municipality code (e.g. 0105 = Aveiro)"
+        tests:
+          - not_null
+
+      - name: municipality_name
+        description: "Municipality name, trimmed (e.g. AVEIRO, LISBOA)"
+
+      - name: land_classification
+        description: "PDM land classification: 'Solo Urbano' (urban), 'Solo Rústico' (rural), or 'Espaços não classificados' (unclassified)"
+        tests:
+          - not_null
+
+      - name: land_category
+        description: >
+          Detailed land-use category within the classification.
+          Urban examples: Espaço Urbanizado, Espaço Urbanizável, Espaço de Uso Especial.
+          Rural examples: Espaço Agrícola, Espaço Florestal, Aglomerado Rural.
+        tests:
+          - not_null
+
+      - name: land_designation
+        description: "Full designation text from the PDM planning map (Planta de Ordenamento), trimmed"
+
+      - name: area_ha
+        description: "Polygon area in hectares as reported by CRUS"
+
+      - name: map_scale
+        description: "Scale of the PDM planning map (e.g. '1/10000', '1/25000')"
+
+      - name: pdm_publication_date
+        description: "Publication date of the municipality's active PDM"
+
+      - name: geom
+        description: "Polygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Polygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: _source_url
+        description: "MinIO object path of the source GeoJSON file"
+
+      - name: _load_timestamp
+        description: "Timestamp when the row was loaded into the bronze table"
+
+  - name: stg_srup_ic
+    description: >
+      Staging view over SRUP Imóveis Classificados (heritage sites) from bronze_regulatory.raw_srup_ic.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: classification
+        description: "Heritage classification (e.g. Monumento Nacional, Imóvel de Interesse Público)"
+
+      - name: designation
+        description: "Heritage site name/designation"
+
+      - name: municipalities
+        description: "Municipality name(s) where the heritage site is located"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (GeometryCollection for zones, Point for locations)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_srup_ran
+    description: >
+      Staging view over SRUP Reserva Agrícola Nacional from bronze_regulatory.raw_srup_ran.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: municipality
+        description: "Municipality name (CONCELHO)"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (GeometryCollection)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_srup_dph
+    description: >
+      Staging view over SRUP Domínio Público Hídrico from bronze_regulatory.raw_srup_dph.
+      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
+      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+    columns:
+      - name: feature_id
+        description: "Feature ID from WFS"
+        tests:
+          - not_null
+
+      - name: designation
+        description: "Water domain zone designation"
+
+      - name: municipalities
+        description: "Municipality name(s)"
+
+      - name: restriction_type
+        description: "Type of restriction/easement (servidão)"
+
+      - name: geom
+        description: "Geometry in EPSG:3763 (Polygon or GeometryCollection)"
+        tests:
+          - not_null
+
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+
+  - name: stg_bupi
+    description: >
+      Staging view over BUPI simplified cadastral parcels from bronze_regulatory.raw_bupi.
+      Renames Portuguese field names to English and adds WGS84 geometry projection.
+      ~3.25M property parcels covering 152 municipalities (rural Portugal).
+      Source: dados.gov.pt RGG dataset (monthly GPKG release). CC-BY 4.0.
+    columns:
+      - name: process_id
+        description: "BUPi process identifier (unique integer)"
+        tests:
+          - not_null
+
+      - name: matrix_number
+        description: "Property tax matrix number (NumeroMatriz)"
+
+      - name: dicofre
+        description: "6-digit parish code: distrito(2) + concelho(2) + freguesia(2)"
+        tests:
+          - not_null
+
+      - name: municipality
+        description: "Municipality name (Concelho)"
+
+      - name: parish
+        description: "Parish name (Freguesia)"
+
+      - name: area_m2
+        description: "Parcel area in square metres"
+
+      - name: geom_pt
+        description: "MultiPolygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_4326
+        description: "MultiPolygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: _load_timestamp
+        description: "Timestamp when the row was loaded into the bronze table"
+
+  - name: stg_cadastro
+    description: >
+      Staging view over Cadastro Predial parcel boundaries from bronze_regulatory.raw_cadastro.
+      Renames Portuguese/INSPIRE field names to English and adds WGS84 geometry projection.
+      Source: DGTERRITÓRIO OGC API (partial coverage — surveyed municipalities only).
+    columns:
+      - name: cadastral_ref
+        description: "Unique cadastral reference ID (e.g. AAA000338225)"
+        tests:
+          - not_null
+
+      - name: area_m2
+        description: "Official parcel area in square metres"
+
+      - name: admin_unit_code
+        description: "6-digit DTCC code (distrito+município+freguesia)"
+        tests:
+          - not_null
+
+      - name: label
+        description: "Human-readable parcel label"
+
+      - name: record_date
+        description: "Record creation date (from beginlifespanversion)"
+
+      - name: geom_pt
+        description: "MultiPolygon geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_4326
+        description: "MultiPolygon geometry reprojected to EPSG:4326 (WGS84) for spatial joins with listings"
+
+      - name: _source_url
+        description: "MinIO object path of the source GeoJSON file"
+
+      - name: _load_timestamp
+        description: "Timestamp when the row was loaded into the bronze table"
+
+  - name: stg_sce_pce
+    description: >
+      Staging view over SCE Pre-Energy Certificates from bronze_regulatory.raw_sce_pce.
+      Deduplicates by doc_number (latest scrape wins), casts date strings to DATE,
+      normalizes energy class and municipality names, and flags PCE vs CE documents.
+      PCE certificates are issued per apartment/fraction before construction — a proxy
+      for upcoming new development activity.
+      Source: sce.pt portal (scraped via nodriver).
+    columns:
+      - name: doc_number
+        description: "SCE document number (e.g. SCE0000399459443)"
+        tests:
+          - not_null
+          - unique
+
+      - name: address
+        description: "Address from the search results table (morada)"
+
+      - name: fraction
+        description: "Fraction from search results table"
+
+      - name: locality
+        description: "Locality name"
+
+      - name: municipality
+        description: "Municipality name, uppercased and trimmed"
+        tests:
+          - not_null
+
+      - name: status
+        description: "Certificate status (e.g. 'Válido', 'Revogado')"
+
+      - name: replacement_doc
+        description: "Replacement document number if superseded"
+
+      - name: document_type
+        description: "Document type (e.g. 'Pré-Certificado', 'Certificado')"
+
+      - name: energy_class
+        description: "Energy class (A+, A, B, B-, C, D, E, F), uppercased and trimmed"
+
+      - name: issued_date
+        description: "Issuance date cast to DATE from YYYY/MM/DD format"
+
+      - name: valid_until
+        description: "Validity date cast to DATE from YYYY/MM/DD format"
+
+      - name: parish
+        description: "Parish name from the detail popup"
+
+      - name: expert_number
+        description: "Qualified expert number (e.g. PQ00883)"
+
+      - name: land_registry
+        description: "Land registry office name (conservatória)"
+
+      - name: registry_number
+        description: "Land registry entry number (sob o número)"
+
+      - name: matrix_article
+        description: "Property tax matrix article number (artigo matricial)"
+
+      - name: autonomous_fraction
+        description: "Autonomous fraction from the detail popup"
+
+      - name: is_pce
+        description: "True if document is a pre-certificate (Pré-Certificado or DCR)"
+
+      - name: src_distrito_code
+        description: "Distrito code used in the scraping query"
+
+      - name: src_concelho_code
+        description: "Concelho code used in the scraping query"
+
+      - name: src_freguesia_code
+        description: "Freguesia code used in the scraping query"
+
+      - name: scrape_date
+        description: "Date the data was scraped"
+
+      - name: loaded_at
+        description: "Timestamp when the row was loaded into the bronze table"

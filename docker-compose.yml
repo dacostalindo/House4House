@@ -1,11 +1,14 @@
 # House4House data platform
 # Services: Airflow (webserver + scheduler) + MinIO + PostGIS warehouse + OSRM routing + Nominatim geocoding
+#           + Metabase (BI dashboards) + Streamlit/Kepler.gl (maps + custom apps)
 #
 # Start:  docker compose up -d
 # Stop:   docker compose down
 # Logs:   docker compose logs -f airflow-webserver
 # UI:     http://localhost:8080  (Airflow)
 #         http://localhost:9001  (MinIO console)
+#         http://localhost:3000  (Metabase)
+#         http://localhost:8501  (Streamlit)
 
 x-airflow-common: &airflow-common
   build:
@@ -50,6 +53,7 @@ services:
       POSTGRES_DB: airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
@@ -63,6 +67,8 @@ services:
       POSTGRES_USER: warehouse
       POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD}
       POSTGRES_DB: house4house
+      METABASE_DB_PASSWORD: ${METABASE_DB_PASSWORD}
+      STREAMLIT_DB_PASSWORD: ${STREAMLIT_DB_PASSWORD}
     volumes:
       - warehouse_data:/var/lib/postgresql/data
       - ./warehouse/init:/docker-entrypoint-initdb.d
@@ -94,6 +100,7 @@ services:
         airflow variables set OSRM_CYCLING_URL http://osrm-cycling:5000 &&
         airflow variables set NOMINATIM_URL http://nominatim:8080 &&
         airflow variables set ZENROWS_API_KEY ${ZENROWS_API_KEY} &&
+        airflow variables set ANTHROPIC_API_KEY ${ANTHROPIC_API_KEY} &&
         airflow connections add warehouse_postgres --conn-type postgres --conn-host warehouse --conn-port 5432 --conn-schema house4house --conn-login warehouse --conn-password ${WAREHOUSE_PASSWORD} || true &&
         echo 'All Airflow variables and connections set'
       "
@@ -180,9 +187,45 @@ services:
       - "5052:5000"
     restart: unless-stopped
 
+  # ── Serving Layer ──────────────────────────────────────────────────────────
+  metabase:
+    image: metabase/metabase:v0.48.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      warehouse:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase_internal
+      MB_DB_PASS: ${METABASE_INTERNAL_DB_PASSWORD}
+      MB_DB_HOST: postgres
+      JAVA_TOOL_OPTIONS: "-Xmx512m"
+    volumes:
+      - metabase_plugins:/plugins
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: ./apps
+      dockerfile: Dockerfile
+    depends_on:
+      warehouse:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      DATABASE_URL: postgresql://streamlit:${STREAMLIT_DB_PASSWORD}@warehouse:5432/house4house
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   warehouse_data:
   minio_data:
   osrm_data:
   nominatim_data:
+  metabase_plugins:

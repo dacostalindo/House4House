@@ -36,6 +36,28 @@ models:
         description: "MultiPolygon boundary in EPSG:4326 (WGS84). Transformed via ST_Transform for spatial joins with listing coordinates"
         tests: [not_null]
 
+  - name: stg_cos2023
+    description: >
+      COS 2023 land-use/cover classification staging view.
+      View over bronze_geo.raw_cos2023 with column renames and CRS transform.
+      ~784K MultiPolygons covering all mainland Portugal.
+      Source: DGT COS 2023 (Series 2, GPKG layer COS2023v1). CC-BY 4.0.
+    columns:
+      - name: id
+        description: "Feature identifier from GPKG (GPKG field: ID)"
+      - name: land_use_code
+        description: "4-level hierarchical code (e.g. '1.1.1.1' = continuous vertical residential)"
+        tests: [not_null]
+      - name: land_use_label
+        description: "Portuguese label for the land-use code"
+      - name: area_ha
+        description: "Polygon area in hectares (GPKG field: AREA_ha)"
+      - name: geom_pt
+        description: "MultiPolygon in EPSG:3763 (PT-TM06/ETRS89)"
+        tests: [not_null]
+      - name: geom_4326
+        description: "MultiPolygon in EPSG:4326 (WGS84) for spatial joins with listings"
+
   - name: stg_caop_distritos
     description: >
       CAOP district codes and names. View over bronze_geo.raw_caop_distritos.
