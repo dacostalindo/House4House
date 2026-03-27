@@ -203,7 +203,7 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
         # Task 2: Scrape a single region (mapped dynamically)
         # ------------------------------------------------------------------
 
-        @task(execution_timeout=timedelta(hours=4), max_active_tis_per_dag=4)
+        @task(execution_timeout=timedelta(hours=12), max_active_tis_per_dag=4)
         def scrape_region(region_dict: dict) -> dict:
             """
             Scrape all data for a single region.
