@@ -53,7 +53,7 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "tags": ["dbt", "cosmos", "osm"],
     },
     "idealista": {
-        "select": ["stg_idealista+"],
+        "select": ["stg_idealista+", "stg_image_classifications+", "stg_floor_plans+"],
         "tags": ["dbt", "cosmos", "idealista"],
     },
     "caop": {

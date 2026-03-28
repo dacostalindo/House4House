@@ -178,8 +178,8 @@ models:
       - name: is_furnished
         description: "TRUE if features contain 'mobilado' or 'cozinha equipada'"
 
-      - name: is_new_development
-        description: "TRUE if features contain 'nova construção'"
+      - name: is_new_development_combined
+        description: "TRUE if Claude Vision detected render images (cv_is_render). CV render detection is the source of truth for new development status"
 
       # ── Geography ───────────────────────────────────────────────────────────
       - name: geo_key
@@ -296,3 +296,53 @@ models:
 
       - name: _updated_at
         description: "Timestamp of last merge update. Set to NOW() on every run"
+
+  - name: floor_plan_rooms
+    description: >
+      One row per room per floor plan image. Unnests the rooms JSONB from
+      stg_floor_plans, drops NULL areas, and maps room names to standardized
+      categories. Join to unified_listings via property_id = source_listing_id
+      for price, geography, and property attributes.
+    columns:
+      - name: property_id
+        description: "Idealista property_id — join to unified_listings.source_listing_id"
+        tests:
+          - not_null
+
+      - name: typology
+        description: "Typology extracted by CV from the floor plan image (e.g. T0, T1, T3). May differ from Idealista typology"
+
+      - name: floor_label
+        description: "Floor label extracted by CV (e.g. 'Piso 1', 'RC', 'Cave'). NULL if not identifiable"
+
+      - name: total_area_m2
+        description: "Total area in m² as read from the floor plan image. May include garages/balconies unlike Idealista useful_area_m2"
+
+      - name: num_bedrooms
+        description: "Bedroom count extracted by CV from this floor plan image"
+
+      - name: num_bathrooms
+        description: "Bathroom count extracted by CV from this floor plan image"
+
+      - name: has_terrace
+        description: "TRUE if CV detected a terrace/balcony in this floor plan"
+
+      - name: terrace_area_m2
+        description: "Terrace area in m² if extracted from the plan"
+
+      - name: extraction_confidence
+        description: "CV confidence score for the floor plan extraction (0.000-1.000)"
+
+      - name: room_name
+        description: "Original room name from CV extraction (e.g. quarto_1, sala, wc_2)"
+
+      - name: room_category
+        description: "Standardized room category: bedroom, bathroom, living_room, kitchen, hallway, balcony, storage, garage, office, other"
+        tests:
+          - accepted_values:
+              values: ['bedroom', 'bathroom', 'living_room', 'kitchen', 'hallway', 'balcony', 'storage', 'garage', 'office', 'other']
+
+      - name: room_area_m2
+        description: "Room area in m² as extracted by CV from the floor plan. NULL areas are excluded"
+        tests:
+          - not_null

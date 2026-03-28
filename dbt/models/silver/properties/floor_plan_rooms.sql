@@ -4,9 +4,9 @@
     )
 }}
 
--- Aggregated room stats from floor plan extractions.
--- Unnests the rooms JSONB into one row per room per listing,
--- then joins to dim_geography and unified_listings for segmentation.
+-- One row per room per floor plan image.
+-- Unnests the rooms JSONB, drops NULL areas, and maps room names to categories.
+-- Join to unified_listings via property_id = source_listing_id for context.
 
 WITH plan_rooms AS (
     SELECT
@@ -26,21 +26,7 @@ WITH plan_rooms AS (
     WHERE fp.rooms IS NOT NULL
       AND jsonb_typeof(fp.rooms) = 'object'
       AND fp.rooms != '{}'::JSONB
-),
-
-with_listing AS (
-    SELECT
-        pr.*,
-        ul.operation_type,
-        ul.condition,
-        ul.property_type_group,
-        ul.distrito_name,
-        ul.concelho_name,
-        ul.freguesia_name,
-        ul.geo_key
-    FROM plan_rooms pr
-    LEFT JOIN {{ ref('unified_listings') }} ul
-        ON pr.property_id = ul.source_listing_id
+      AND room_entry.value IS NOT NULL
 )
 
 SELECT
@@ -54,13 +40,18 @@ SELECT
     terrace_area_m2,
     extraction_confidence,
     room_name,
-    room_area_m2,
-    operation_type,
-    condition,
-    property_type_group,
-    distrito_name,
-    concelho_name,
-    freguesia_name,
-    geo_key
+    CASE
+        WHEN room_name ~* '^(quarto|suite)' THEN 'bedroom'
+        WHEN room_name ~* '^wc'             THEN 'bathroom'
+        WHEN room_name ~* '^sala'           THEN 'living_room'
+        WHEN room_name ~* '^cozinha'        THEN 'kitchen'
+        WHEN room_name ~* '^hall'           THEN 'hallway'
+        WHEN room_name ~* '^varanda'        THEN 'balcony'
+        WHEN room_name ~* '^arrumos'        THEN 'storage'
+        WHEN room_name ~* '^garagem'        THEN 'garage'
+        WHEN room_name ~* '^escritorio'     THEN 'office'
+        ELSE 'other'
+    END                                     AS room_category,
+    room_area_m2
 
-FROM with_listing
+FROM plan_rooms
