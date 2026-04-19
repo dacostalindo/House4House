@@ -104,6 +104,10 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "select": ["stg_sce_pce+"],
         "tags": ["dbt", "cosmos", "sce"],
     },
+    "remax": {
+        "select": ["stg_remax_developments+", "stg_remax_units+"],
+        "tags": ["dbt", "cosmos", "remax", "developments"],
+    },
 }
 
 
