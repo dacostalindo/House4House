@@ -13,9 +13,12 @@ Reusable across: SCE energy certificates, and any future scraping source.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import random
+import signal
 import shutil
 import tempfile
 import time
@@ -113,13 +116,160 @@ class ScrapingIngestionConfig:
     start_date: Optional[datetime] = None
 
     # --- Orchestration ---
-    trigger_dag_id: Optional[str] = None
+    trigger_dag_id: Optional[str | list[str]] = None
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
     retries: int = 2
     retry_delay_minutes: int = 5
     email_on_failure: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Browser context (nodriver timeout + restart wrapper)
+# ---------------------------------------------------------------------------
+
+
+class BrowserContext:
+    """Wraps a nodriver browser + page with timeout-safe operations and restart capability.
+
+    Every ``page.evaluate()`` and ``page.get()`` call goes through this wrapper,
+    which adds ``asyncio.wait_for`` timeouts.  When Chrome freezes, callers catch
+    ``asyncio.TimeoutError`` and call ``restart()`` to kill the browser, launch a
+    fresh instance, re-solve Turnstile, and continue scraping.
+
+    Restart limits are **adaptive**: the per-window counter resets after 5
+    consecutive successful concelhos (``record_success()``), while a hard circuit
+    breaker (``total_restarts = 10``) prevents infinite loops.
+    """
+
+    def __init__(self, browser, page, config: ScrapingIngestionConfig):
+        self.browser = browser
+        self.page = page
+        self.config = config
+        self.page_count = 0          # pages scraped since last restart
+        self.restart_count = 0       # resets after sustained success
+        self.total_restarts = 0      # never resets — circuit breaker
+        self.success_streak = 0      # consecutive successful concelhos
+
+    # -- timeout-safe wrappers -----------------------------------------------
+
+    async def evaluate(self, js: str, timeout: int = 60):
+        """``page.evaluate()`` with ``asyncio.wait_for`` timeout."""
+        return await asyncio.wait_for(self.page.evaluate(js), timeout=timeout)
+
+    async def get(self, url: str, timeout: int = 90):
+        """``page.get()`` with ``asyncio.wait_for`` timeout."""
+        result = await asyncio.wait_for(self.page.get(url), timeout=timeout)
+        self.page = result if result is not None else self.page
+        return self.page
+
+    async def reload(self, timeout: int = 90):
+        """``page.reload()`` with timeout."""
+        return await asyncio.wait_for(self.page.reload(), timeout=timeout)
+
+    # -- proactive restart ---------------------------------------------------
+
+    def increment_page_count(self):
+        self.page_count += 1
+
+    def needs_proactive_restart(self) -> bool:
+        interval = self.config.browser_restart_interval
+        return interval > 0 and self.page_count >= interval
+
+    # -- adaptive restart limits ---------------------------------------------
+
+    def record_success(self):
+        """Call after each successful concelho to track stability."""
+        self.success_streak += 1
+        if self.success_streak >= 5:
+            self.restart_count = 0  # Chrome is stable, reset window
+
+    # -- browser restart -----------------------------------------------------
+
+    async def restart(self):
+        """Kill browser, start fresh, navigate to landing, validate Turnstile."""
+        if self.total_restarts >= 10:
+            raise RuntimeError(
+                f"Circuit breaker: {self.total_restarts} total browser restarts exceeded"
+            )
+
+        log.warning(
+            "[%s] Restarting browser (window #%d, total #%d, after %d pages)...",
+            self.config.source_name, self.restart_count + 1,
+            self.total_restarts + 1, self.page_count,
+        )
+
+        # Kill old browser — with force-kill fallback
+        self._kill_browser()
+        await asyncio.sleep(2)
+
+        # Launch new browser (same retry logic as _scrape_with_nodriver)
+        import nodriver as uc
+
+        kwargs = {
+            "headless": self.config.headless,
+            "sandbox": False,
+            "browser_args": ["--disable-dev-shm-usage", "--disable-gpu"],
+        }
+        if self.config.browser_executable_path:
+            kwargs["browser_executable_path"] = self.config.browser_executable_path
+
+        for attempt in range(3):
+            try:
+                self.browser = await uc.start(**kwargs)
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                log.warning("[%s] Browser relaunch attempt %d failed, retrying...",
+                            self.config.source_name, attempt + 1)
+                await asyncio.sleep(3 * (attempt + 1))
+
+        self.page = await self.browser.get(self.config.landing_url)
+
+        # Wait for Turnstile + validate form is interactive
+        wait_secs = self.config.turnstile_wait_seconds or 10
+        await asyncio.sleep(wait_secs)
+
+        for validation_attempt in range(3):
+            try:
+                has_form = await asyncio.wait_for(
+                    self.page.evaluate(
+                        "typeof jQuery !== 'undefined' "
+                        "&& jQuery('#frm_pesquisaCE').length > 0"
+                    ),
+                    timeout=10,
+                )
+                if has_form:
+                    break
+            except (asyncio.TimeoutError, Exception):
+                pass
+            extra_wait = 15 * (validation_attempt + 2)  # 30s, 45s, 60s
+            log.warning("[%s] Turnstile not solved, waiting %ds more...",
+                        self.config.source_name, extra_wait)
+            await asyncio.sleep(extra_wait)
+
+        self.restart_count += 1
+        self.total_restarts += 1
+        self.success_streak = 0
+        self.page_count = 0
+        log.info("[%s] Browser restarted successfully (total: %d)",
+                 self.config.source_name, self.total_restarts)
+
+    def _kill_browser(self):
+        """Stop browser gracefully, force-kill if it hangs."""
+        try:
+            self.browser.stop()
+        except Exception:
+            pass
+        # Force-kill by PID if the process is still around
+        pid = getattr(getattr(self.browser, '_process', None), 'pid', None)
+        if pid:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +353,7 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
         # Task 2: Scrape a single region (mapped dynamically)
         # ------------------------------------------------------------------
 
-        @task(execution_timeout=timedelta(hours=12), max_active_tis_per_dag=4)
+        @task(execution_timeout=timedelta(hours=12), max_active_tis_per_dag=2)
         def scrape_region(region_dict: dict) -> dict:
             """
             Scrape all data for a single region.
@@ -337,13 +487,21 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
         if config.trigger_dag_id:
             from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
-            trigger_downstream = TriggerDagRunOperator(
-                task_id="trigger_downstream",
-                trigger_dag_id=config.trigger_dag_id,
-                wait_for_completion=True,
-                reset_dag_run=True,
+            dag_ids = (
+                config.trigger_dag_id
+                if isinstance(config.trigger_dag_id, list)
+                else [config.trigger_dag_id]
             )
-            metadata >> trigger_downstream
+            prev = metadata
+            for dag_id in dag_ids:
+                trigger = TriggerDagRunOperator(
+                    task_id=f"trigger_{dag_id}",
+                    trigger_dag_id=dag_id,
+                    wait_for_completion=True,
+                    reset_dag_run=True,
+                )
+                prev >> trigger
+                prev = trigger
 
     return scraping_ingestion_dag()
 
@@ -398,9 +556,12 @@ def _ensure_display():
 
 
 def _scrape_with_nodriver(region: ScrapingRegion, config: ScrapingIngestionConfig) -> list[dict]:
-    """Scrape using nodriver (undetected Chrome)."""
-    import asyncio
+    """Scrape using nodriver (undetected Chrome).
 
+    Creates a ``BrowserContext`` that wraps the browser + page with
+    timeout-safe operations and restart capability, then passes it to
+    ``config.scrape_fn``.
+    """
     # If running in headed mode (for Turnstile), ensure a virtual display exists
     if not config.headless:
         _ensure_display()
@@ -430,15 +591,25 @@ def _scrape_with_nodriver(region: ScrapingRegion, config: ScrapingIngestionConfi
                             config.source_name, attempt + 1)
                 await asyncio.sleep(3 * (attempt + 1))
 
+        ctx = None
         try:
             page = await browser.get(config.landing_url)
             # Wait for Turnstile to auto-solve
             wait_secs = config.turnstile_wait_seconds or 10
             log.info("[%s] Waiting %ds for Turnstile...", config.source_name, wait_secs)
             await asyncio.sleep(wait_secs)
-            return await config.scrape_fn(page, region, config)
+
+            ctx = BrowserContext(browser, page, config)
+            return await config.scrape_fn(ctx, region, config)
         finally:
-            browser.stop()
+            # Browser ref may have changed after restarts — use ctx if available
+            if ctx is not None:
+                ctx._kill_browser()
+            else:
+                try:
+                    browser.stop()
+                except Exception:
+                    pass
 
     # nodriver is async — run in a new event loop
     try:

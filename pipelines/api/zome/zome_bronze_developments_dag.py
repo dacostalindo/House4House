@@ -1,0 +1,9 @@
+"""Zome PT bronze loading DAG — load developments from MinIO to PostGIS.
+
+To trigger: Airflow UI → zome_bronze_load_developments → Trigger DAG
+"""
+
+from pipelines.api.zome.zome_config import ZOME_BRONZE_DEVELOPMENTS_CONFIG
+from pipelines.scraping.template.scraping_bronze_template import create_bronze_loading_dag
+
+dag = create_bronze_loading_dag(ZOME_BRONZE_DEVELOPMENTS_CONFIG)
