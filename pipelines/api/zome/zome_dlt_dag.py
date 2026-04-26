@@ -108,7 +108,7 @@ with DAG(
         "UPSERT sidecar heartbeats for last_seen_date, separate task for refs."
     ),
     schedule="0 6 * * 1",
-    start_date=datetime(2026, 4, 27),  # Mon following day-0 cutover
+    start_date=datetime(2026, 1, 1),  # static past date; manual triggers must satisfy this
     catchup=False,
     max_active_runs=1,
     default_args=default_args,

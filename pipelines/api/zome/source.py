@@ -247,12 +247,10 @@ def developments() -> Iterable[dict]:
 )
 def developments_state() -> Iterable[dict]:
     today = date.today()
-    load_id = dlt.current.load_id()
     for raw in _fetch_page("/rest/v1/tab_ventures", offset=0, limit=PAGE_SIZE):
         yield {
             "venture_id": raw.get("id"),
             "last_seen_date": today,
-            "last_load_id": load_id,
         }
 
 
@@ -281,12 +279,10 @@ def listings() -> Iterable[dict]:
 )
 def listings_state() -> Iterable[dict]:
     today = date.today()
-    load_id = dlt.current.load_id()
     for raw in _iter_paginated("/rest/v1/tab_listing_list"):
         yield {
             "listing_id": raw.get("id"),
             "last_seen_date": today,
-            "last_load_id": load_id,
         }
 
 
