@@ -27,4 +27,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
     beautifulsoup4 \
     nodriver \
     dbt-postgres==1.9.0 \
-    astronomer-cosmos[dbt-postgres]
+    astronomer-cosmos[dbt-postgres] \
+    "dlt[postgres]~=1.25.0"

@@ -37,6 +37,7 @@ x-airflow-common: &airflow-common
     - ./dbt:/opt/airflow/dbt
     - /var/run/docker.sock:/var/run/docker.sock
     - osrm_data:/osrm-data
+    - dlt_state:/opt/airflow/dlt_state
   depends_on:
     postgres:
       condition: service_healthy
@@ -232,3 +233,4 @@ volumes:
   osrm_data:
   nominatim_data:
   metabase_plugins:
+  dlt_state:
