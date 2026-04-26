@@ -231,9 +231,10 @@ with DAG(
                     (load_id,),
                 )
                 rows = cur.fetchall()
-                if not rows or any(r[0] != "loaded_data" for r in rows):
+                # dlt _dlt_loads.status is bigint: 0 = success, non-zero = failure.
+                if not rows or any(r[0] != 0 for r in rows):
                     raise RuntimeError(
-                        f"_dlt_loads for load_id={load_id} not status=loaded_data: {rows}"
+                        f"_dlt_loads for load_id={load_id} not status=0 (success): {rows}"
                     )
                 cur.execute(
                     f"SELECT count(*) FROM {DATASET_NAME}.listings "
