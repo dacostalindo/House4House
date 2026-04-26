@@ -1,0 +1,1331 @@
+{
+  "_metadata": {
+    "source": "Zome Portugal — Supabase REST API",
+    "base_url": "https://luvskhnljpxllkxpeasu.supabase.co/rest/v1/",
+    "schema": "pt_prod",
+    "extracted_at": "2026-04-19",
+    "table_counts": {
+      "tab_ventures": "296",
+      "tab_listing_list": "8972",
+      "tab_hubs": "79",
+      "tab_regions": "3430",
+      "tab_ventures_group_images": "5150",
+      "tab_listing_state": "8",
+      "tab_typology": "17",
+      "tab_listing_businesstype": "2"
+    }
+  },
+  "tab_ventures": {
+    "_sample_size": 3,
+    "_total": "296",
+    "data": [
+      {
+        "id": 195024,
+        "createdat": "2026-04-01T19:06:13",
+        "emid": "EMPT195024",
+        "nome": "Vivendas do Olival - Amarante",
+        "idhub": 164,
+        "deschub": "ZOME Felgueiras",
+        "idconsultor": 15065,
+        "nomeconsultor": "Sabrina Carvalho",
+        "idlocalizacaolevel1": 13,
+        "idlocalizacaolevel2": 192,
+        "idlocalizacaolevel3": "130112",
+        "idlocalizacaolevel4": null,
+        "idlocalizacaolevel5": null,
+        "localizacaolevel1": "Porto",
+        "localizacaolevel2": "Amarante",
+        "localizacaolevel3": "Fregim",
+        "localizacaolevel4": null,
+        "localizacaolevel5": null,
+        "imoveisdisponiveis": 3,
+        "imoveisreservados": 0,
+        "imoveisvendidos": 0,
+        "idestado": 1,
+        "tipologiagrupos": "T3",
+        "geocoordinateslat": "",
+        "geocoordinateslong": "",
+        "acabamento": "https://images.zome.pt/venture/mapaAcabamentos/2/0/2/6/0/4/0/1/mapadeacabamentos_20260401180951.docx",
+        "gallery": {
+          "lres": [
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/091_20260401181318.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/10_20260401181334.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/img3299_20260401181323.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/img3297_20260401181331.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/img3298_20260401181328.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/habitacoes2_20260401181337.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/03b_20260401181343.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/02_20260401181347.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/01_20260401181350.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/04_20260401181352.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/6/0/4/0/1/img20260331wa0001_20260401181456.jpg"
+          ],
+          "mres": [
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/091_20260401181318.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/10_20260401181334.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/img3299_20260401181323.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/img3297_20260401181331.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/img3298_20260401181328.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/habitacoes2_20260401181337.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/03b_20260401181343.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/02_20260401181347.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/01_20260401181350.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/04_20260401181352.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/6/0/4/0/1/img20260331wa0001_20260401181456.jpg"
+          ],
+          "hres": [
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/091_20260401181318.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/10_20260401181334.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/img3299_20260401181323.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/img3297_20260401181331.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/img3298_20260401181328.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/habitacoes2_20260401181337.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/03b_20260401181343.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/02_20260401181347.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/01_20260401181350.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/04_20260401181352.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/6/0/4/0/1/img20260331wa0001_20260401181456.jpg"
+          ]
+        },
+        "video": null,
+        "virtualreality": null,
+        "gruposweb": "[{\"imagem\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/thumbs\\/100\\/2\\/0\\/2\\/6\\/0\\/4\\/0\\/1\\/img20260401wa0014_20260401185535.jpg\",\"nome\":\"Moradia T3\"}]",
+        "descricaocompleta": "{\"EN\":{\"sw055s05\":\"\"},\"ES\":{\"sw055s05\":\"\"},\"FR\":{\"sw055s05\":\"\"},\"NL\":{\"sw055s05\":\"\"},\"DE\":{\"sw055s05\":\"\"},\"IT\":{\"sw055s05\":\"\"},\"CN\":{\"sw055s05\":\"\"},\"PT\":{\"sw055s05\":\"<div>Empreendimento habitacional localizado na freguesia de Fregim, concelho de Amarante, inserido num terreno com \\u00e1rea total de 2.108m\\u00b2.<\\/div><div><br><\\/div><div>O projeto contempla dois conjuntos de moradias geminadas em regime de propriedade horizontal, distribu\\u00eddas por cave e r\\u00e9s do ch\\u00e3o, destinadas a habita\\u00e7\\u00e3o. No total, o empreendimento ser\\u00e1 composto por cinco fra\\u00e7\\u00f5es aut\\u00f3nomas, com uma \\u00e1rea coberta de 799,19m\\u00b2 e \\u00e1rea descoberta de 1.227,82m\\u00b2.<\\/div><div><br><\\/div><div>Destaca-se pela sua organiza\\u00e7\\u00e3o funcional e enquadramento numa zona tranquila, ideal para quem procura qualidade de vida e proximidade \\u00e0 natureza.<br><br><div>3 raz\\u00f5es para comprar com a Zome&nbsp;<\\/div><div><br><\\/div><div>+ acompanhamento<\\/div><div>&nbsp;<\\/div><div>Com uma prepara\\u00e7\\u00e3o e experi\\u00eancia \\u00fanica no mercado imobili\\u00e1rio, os consultores Zome p\\u00f5em toda a sua dedica\\u00e7\\u00e3o em dar-lhe o melhor acompanhamento, orientando-o com a m\\u00e1xima confian\\u00e7a, na dire\\u00e7\\u00e3o certa das suas necessidades e ambi\\u00e7\\u00f5es.&nbsp;<\\/div><div><br><\\/div><div>Daqui para a frente, vamos criar uma rela\\u00e7\\u00e3o pr\\u00f3xima e escutar com aten\\u00e7\\u00e3o as suas expectativas, porque a nossa prioridade \\u00e9 a sua felicidade! Porque \\u00e9 importante que sinta que est\\u00e1 acompanhado, e que estamos consigo sempre.&nbsp;<\\/div><div><br><\\/div><div>+ simples&nbsp;<\\/div><div><br><\\/div><div>Os consultores Zome t\\u00eam uma forma\\u00e7\\u00e3o \\u00fanica no mercado, ancorada na partilha de experi\\u00eancia pr\\u00e1tica entre profissionais e fortalecida pelo conhecimento de neuroci\\u00eancia aplicada que lhes permite simplificar e tornar mais eficaz a sua experi\\u00eancia imobili\\u00e1ria.&nbsp;<\\/div><div><br><\\/div><div>Deixe para tr\\u00e1s os pesadelos burocr\\u00e1ticos porque na Zome encontra o apoio total de uma equipa experiente e multidisciplinar que lhe d\\u00e1 suporte pr\\u00e1tico em todos os aspetos fundamentais, para que a sua experi\\u00eancia imobili\\u00e1ria supere as expectativas.&nbsp;<\\/div><div><br><\\/div><div>+ feliz&nbsp;&nbsp;<\\/div><div><br><\\/div><div>O nosso maior valor \\u00e9 entregar-lhe felicidade!&nbsp;<\\/div><div><br><\\/div><div>Liberte-se de preocupa\\u00e7\\u00f5es e ganhe o tempo de qualidade que necessita para se dedicar ao que lhe faz mais feliz.&nbsp;<\\/div><div><br><\\/div><div>Agimos diariamente para trazer mais valor \\u00e0 sua vida com o aconselhamento fi\\u00e1vel de que precisa para, juntos, conseguirmos atingir os melhores resultados.&nbsp;<\\/div><div><br><\\/div><div>Com a Zome nunca vai estar perdido ou desacompanhado e encontrar\\u00e1 algo que n\\u00e3o tem pre\\u00e7o: a sua m\\u00e1xima tranquilidade!&nbsp;<\\/div><div><br><\\/div><div>\\u00c9 assim que se vai sentir ao longo de toda a experi\\u00eancia: Tranquilo, seguro, confort\\u00e1vel e... FELIZ!&nbsp;&nbsp;<\\/div><div><br><\\/div><div>Notas:&nbsp;<\\/div><div>1. Caso seja um consultor imobili\\u00e1rio, este im\\u00f3vel est\\u00e1 dispon\\u00edvel para partilha de neg\\u00f3cio. N\\u00e3o hesite em apresentar aos seus clientes compradores e fale connosco para agendar a sua visita.<\\/div><div>2. Para maior facilidade na identifica\\u00e7\\u00e3o deste im\\u00f3vel, por favor, refira o respetivo ID ZMPT ou o respetivo agente que lhe tenha enviado a sugest\\u00e3o.<\\/div><\\/div>\"}}",
+        "grupos": "[{\"id\":\"24240\",\"imagemdestaque\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/6\\/0\\/4\\/0\\/1\\/img20260401wa0014_20260401185400.jpg\",\"nome\":\"T3\",\"desc\":\"Grupo T3\",\"totalativos\":3,\"totallistings\":3,\"preco\":\"405.000\",\"moedaimovel_descl\":\"\",\"moedaimovel_descr\":\" \\u20ac\"}]",
+        "emailconsultor": "sabrinacarvalho@zome.pt",
+        "moradahubconsultor": "Felgueiras",
+        "imagemconsultor": "https://profiles-app.zome.pt/thumbs/300/imgPerfil15065_20251128145127.png",
+        "hiddenuserwebsite": null,
+        "contactoconsultor": "923 172 835",
+        "contactoconsultor351": "1",
+        "contactoconsultorcodedial": "+351",
+        "contactohub": "932 213 504",
+        "contactohub351": null,
+        "contactohubcodedial": "+351",
+        "imagemhub": null,
+        "dataentradarede": "2026-04-01T19:01:44",
+        "precosemformatacao": 405000,
+        "mostrarprecowebsite": true,
+        "idang": 153915,
+        "geolocation": null,
+        "regiao": [
+          24,
+          2210,
+          2213
+        ],
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "valorprestacao": null,
+        "preco": "405.000",
+        "whatsappconsultor": false,
+        "exclusividade": true,
+        "url_user_link": "sabrinacarvalho-U30444",
+        "showmapsandstreeview": null,
+        "nameunaccent": "vivendas do olival amarante",
+        "showmoradaemp": null,
+        "singlephone_hub": null
+      },
+      {
+        "id": 194827,
+        "createdat": "2025-06-06T13:49:12",
+        "emid": "EMPT194827",
+        "nome": "Sol Nascente",
+        "idhub": 35,
+        "deschub": "ZOME PR1ME",
+        "idconsultor": 10076,
+        "nomeconsultor": "Olga Fionik",
+        "idlocalizacaolevel1": 15,
+        "idlocalizacaolevel2": 219,
+        "idlocalizacaolevel3": "150710",
+        "idlocalizacaolevel4": null,
+        "idlocalizacaolevel5": null,
+        "localizacaolevel1": "Setúbal",
+        "localizacaolevel2": "Montijo",
+        "localizacaolevel3": "Montijo e Afonsoeiro",
+        "localizacaolevel4": null,
+        "localizacaolevel5": null,
+        "imoveisdisponiveis": 2,
+        "imoveisreservados": 0,
+        "imoveisvendidos": 0,
+        "idestado": 1,
+        "tipologiagrupos": "T3",
+        "geocoordinateslat": "38.704533746897795",
+        "geocoordinateslong": "-8.962129400646976",
+        "acabamento": "https://images.zome.pt/venture/mapaAcabamentos/2/0/2/5/0/6/0/4/mapaacabamentos129_20250604130920.pdf",
+        "gallery": {
+          "lres": [
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138541_20250604142705.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138542_20250604142729.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138553_20250604142746.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at113855_20250604142759.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138551_20250604142841.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138543_20250604142817.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138544_20250604142828.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138555_20250604143652.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at113854_20250604142857.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138554_20250604142907.jpeg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6325_20250604142920.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/20250526153023_20250604142932.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/plantapiso1copia_20250604143056.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6619_20250604143138.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6618_20250604143409.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6620_20250604143413.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6614_20250604143431.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/5/0/6/0/4/img6612_20250604143451.jpg"
+          ],
+          "mres": [
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138541_20250604142705.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138542_20250604142729.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138553_20250604142746.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at113855_20250604142759.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138551_20250604142841.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138543_20250604142817.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138544_20250604142828.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138555_20250604143652.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at113854_20250604142857.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138554_20250604142907.jpeg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6325_20250604142920.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/20250526153023_20250604142932.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/plantapiso1copia_20250604143056.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6619_20250604143138.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6618_20250604143409.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6620_20250604143413.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6614_20250604143431.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/5/0/6/0/4/img6612_20250604143451.jpg"
+          ],
+          "hres": [
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138541_20250604142705.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138542_20250604142729.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138553_20250604142746.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at113855_20250604142759.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138551_20250604142841.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138543_20250604142817.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138544_20250604142828.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138555_20250604143652.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at113854_20250604142857.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/whatsappimage20250604at1138554_20250604142907.jpeg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6325_20250604142920.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/20250526153023_20250604142932.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/plantapiso1copia_20250604143056.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6619_20250604143138.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6618_20250604143409.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6620_20250604143413.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6614_20250604143431.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/5/0/6/0/4/img6612_20250604143451.jpg"
+          ]
+        },
+        "video": null,
+        "virtualreality": null,
+        "gruposweb": "[{\"imagem\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/thumbs\\/100\\/2\\/0\\/2\\/5\\/0\\/6\\/0\\/5\\/whatsappimage20250604at1138542_20250605122720.jpeg\",\"nome\":\"Apartamento T3\"}]",
+        "descricaocompleta": "{\"EN\":{\"sw055s05\":\"New Development \\u2013 Sol Nascente in Montijo<div>T3 and T3+1 apartments under construction in a modern building with only 12 units (3 apartments per floor).<\\/div><div><span>The&nbsp;T3 units&nbsp;offer&nbsp;149 m\\u00b2 gross area and 113 m\\u00b2 of usable area, each with&nbsp;2 balconies.<br>Available with&nbsp;parking space (5 units)&nbsp;or&nbsp;private box garage (4 units).<\\/span><\\/div><div>There are also&nbsp;three T3+1 Duplex apartments&nbsp;featuring&nbsp;private terraces of 60 m\\u00b2, 81 m\\u00b2, and 86 m\\u00b2, with open views over the city.Features and amenities include:<ul><li>Elevator<\\/li><li>Balconies<\\/li><li>Fully equipped kitchen with AeG+ appliances<\\/li><li>False ceilings with LED lighting throughout the apartment<\\/li><li>Bathtub screens or flat shower trays<\\/li><li>Electric thermal blinds<\\/li><li>Aluminium tilt-and-turn windows with thermal break<\\/li><li>HTW air conditioning<\\/li><li>Heat pump system<\\/li><li>Energy certification: Class \\u2018A\\u2019<\\/li><li>Automatic gates<\\/li><li>Reinforced security doors<\\/li><\\/ul>Expected delivery: May 2026The location is strategically convenient, close to services, shops, and supermarkets:<ul><li>Pingo Doce supermarket&nbsp;<\\/li><li>CTT post office&nbsp;<\\/li><\\/ul><span>Easy access to main roads:&nbsp;A2, A33, and&nbsp;Vasco da Gama Bridge.<br>Just&nbsp;5 km from the ferry terminal&nbsp;with connection to&nbsp;Cais do Sodr\\u00e9 (Lisbon).<\\/span><span>Nearby shopping centers include&nbsp;Alegro Montijo&nbsp;and&nbsp;Freeport Outlet in Alcochete, offering excellent convenience.<br>Only&nbsp;25 minutes from the future Lisbon Airport.<\\/span>Built by Helder e Mestre, a reputable construction company established in 1977, known for high-quality construction and finishes. With numerous projects completed in residential, commercial, and service sectors, the company continues to improve with each development\\u2014both in quality and design\\u2014always maintaining close support to clients, including reliable after-sales service.Se quiseres tamb\\u00e9m posso fazer uma vers\\u00e3o mais curta, ideal para portais internacionais tipo Idealista Global, Rightmove, etc. \\u00c9 s\\u00f3 dizer!<\\/div>\"},\"ES\":{\"sw055s05\":\"\"},\"FR\":{\"sw055s05\":\"\"},\"NL\":{\"sw055s05\":\"\"},\"DE\":{\"sw055s05\":\"\"},\"IT\":{\"sw055s05\":\"\"},\"CN\":{\"sw055s05\":\"\"},\"PT\":{\"sw055s05\":\"Novo Empreendimento Sol Nascente no Montijo.<div>Apartamentos tipologia T3 e T3+1 em constru\\u00e7\\u00e3o num pr\\u00e9dio com 12 apartamentos (3 apartamentos por piso).<span><b><\\/b><br><\\/span><span><b>T3 com 149 m\\u00b2 de \\u00e1rea bruta e 113 m\\u00b2 de \\u00e1rea \\u00fatil<\\/b>, todos com 2 varandas.&nbsp;<\\/span>Dispon\\u00edveis com parqueamento (5 unidades) ou box privada (4 unidades).<\\/div><div><span><b>Tr\\u00eas apartamentos tipologia T3+1 Duplex com terra\\u00e7os<\\/b> de 60 m\\u00b2, 81 m\\u00b2 e 86 m\\u00b2, com vista aberta sobre a cidade.<\\/span><br><br><\\/div><div>Tem \\u00e0 sua disposi\\u00e7\\u00e3o:<\\/div><div>- Elevador;<\\/div><div>- Varandas;<\\/div><div>- Cozinha equipada com eletrodom\\u00e9sticos AEG+;<\\/div><div>- Tetos falsos com ilumina\\u00e7\\u00e3o led na totalidade da casa;<\\/div><div>- Resguardos de banheira ou base de duche extraplana;<\\/div><div>- Estores t\\u00e9rmicos el\\u00e9tricos;<\\/div><div>- Janelas em alum\\u00ednio com oscilo batente, com corte t\\u00e9rmico;<\\/div><div>- Ar condicionado HTW;<\\/div><div>- Bomba de calor;<\\/div><div>- Classifica\\u00e7\\u00e3o energ\\u00e9tica 'A';<\\/div><div>- Port\\u00f5es autom\\u00e1ticos;<\\/div><div>- Portas blindadas;<br><br><div>Entrega prevista: maio 2026.<br><br><div>A localiza\\u00e7\\u00e3o do empreendimento \\u00e9 estrategicamente conveniente, encontrando-se pr\\u00f3ximo servi\\u00e7os, com\\u00e9rcios e supermercados a uma curta dist\\u00e2ncia. Supermercado Pingo Doce, Loja Ctt. Al\\u00e9m disso, oferece f\\u00e1cil acesso \\u00e0s principais vias rodovi\\u00e1rias, incluindo as A2, A33, e a Ponte Vasco da Gama. A apenas 5 km do cais fluvial com liga\\u00e7\\u00e3o ao Cais do Sodr\\u00e9, o empreendimento proporciona uma excelente conex\\u00e3o com o centro da cidade. Os populares centros comerciais Alegro Montijo e o Outlet Freeport Alcochete est\\u00e3o tamb\\u00e9m nas proximidades, proporcionando comodidade aos moradores. Fica 25 minutos do futuro Aeroporto.<br><br><\\/div><div>A empresa de constru\\u00e7\\u00e3o \\u201cHelder e Mestre\\u201d fundada em 1977 \\u00e9 reconhecida pela qualidade de constru\\u00e7\\u00e3o e acabamentos. Com in\\u00fameros projectos realizados at\\u00e9 ao dia de hoje, entre habita\\u00e7\\u00e3o, com\\u00e9rcio e servi\\u00e7os. Em cada novo projecto, n\\u00e3o s\\u00f3 melhora o anterior, tanto a n\\u00edvel qualitativo, como est\\u00e9tico, como continua a surpreender e inovar, sempre por perto dos clientes, dando sempre o melhor apoio em qualquer situa\\u00e7\\u00e3o, incluindo servi\\u00e7o p\\u00f3s-venda.<\\/div><\\/div><\\/div>\"}}",
+        "grupos": "[{\"id\":\"17138\",\"imagemdestaque\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/5\\/0\\/6\\/0\\/4\\/whatsappimage20250604at1138542_20250604150859.jpeg\",\"nome\":\"T3\",\"desc\":\"Grupo T3\",\"totalativos\":2,\"totallistings\":2,\"preco\":\"590.000\",\"moedaimovel_descl\":\"\",\"moedaimovel_descr\":\" \\u20ac\"}]",
+        "emailconsultor": "olga.fionik@zome.pt",
+        "moradahubconsultor": "Lisboa Restelo",
+        "imagemconsultor": "https://profiles-app.zome.pt/thumbs/300/imgPerfil10076_20250604160840.png",
+        "hiddenuserwebsite": null,
+        "contactoconsultor": "968 214 387",
+        "contactoconsultor351": "1",
+        "contactoconsultorcodedial": "+351",
+        "contactohub": "21 606 4000",
+        "contactohub351": "1",
+        "contactohubcodedial": "+351",
+        "imagemhub": "imgMkt5434_20190410124108.png",
+        "dataentradarede": "2025-06-06T14:39:47",
+        "precosemformatacao": 590000,
+        "mostrarprecowebsite": true,
+        "idang": 138917,
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            38.704533746897795,
+            -8.962129400646976
+          ]
+        },
+        "regiao": [
+          26,
+          2663
+        ],
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "valorprestacao": null,
+        "preco": "590.000",
+        "whatsappconsultor": false,
+        "exclusividade": false,
+        "url_user_link": "olga-fionik-U80794",
+        "showmapsandstreeview": null,
+        "nameunaccent": "sol nascente",
+        "showmoradaemp": 1,
+        "singlephone_hub": null
+      },
+      {
+        "id": 194135,
+        "createdat": "2023-04-17T15:48:10",
+        "emid": "EMPT194135",
+        "nome": "LUXTOWER",
+        "idhub": 3,
+        "deschub": "ZOME Business",
+        "idconsultor": 3610,
+        "nomeconsultor": "Floriano Ferreira",
+        "idlocalizacaolevel1": 3,
+        "idlocalizacaolevel2": 45,
+        "idlocalizacaolevel3": "030377",
+        "idlocalizacaolevel4": null,
+        "idlocalizacaolevel5": null,
+        "localizacaolevel1": "Braga",
+        "localizacaolevel2": "Braga",
+        "localizacaolevel3": "Nogueira, Fraião e Lamaçães",
+        "localizacaolevel4": null,
+        "localizacaolevel5": null,
+        "imoveisdisponiveis": 0,
+        "imoveisreservados": 1,
+        "imoveisvendidos": 0,
+        "idestado": 9,
+        "tipologiagrupos": "T2,T3,T4",
+        "geocoordinateslat": "41.537008539498366",
+        "geocoordinateslong": "-8.403968919018551",
+        "acabamento": "https://images.zome.pt/venture/mapaAcabamentos/2/0/2/2/0/7/2/1/v1cadernoencargosluxtowermartiforte_20220721180352.pdf",
+        "gallery": {
+          "lres": [
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/02720220718123946_20220721181530.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/03120220718123910_20220721181532.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/05620220718123941_20220721181533.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/06120220718123723_20220721181536.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/07220220718123754_20220721181537.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/08220220718123816_20220721181539.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/09420220718123826_20220721181542.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/10120220718123855_20220721181543.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/11520220718123935_20220721181545.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/128patagonia0220220718123951_20220721181547.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/13120220718125026_20220721181549.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/14220220718123915_20220721181551.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/158patagonia20220718123956_20220721181553.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/16420220718123930_20220721181554.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/17320220718123925_20220721181556.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/18220220718123732_20220721181559.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/19320220718123741_20220721181601.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/20120220718123748_20220721181603.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/21320220718123803_20220721181606.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/22120220718123810_20220721181608.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/23320220718123821_20220721181610.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/24120220718123832_20220721181612.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/25220220718123838_20220721181615.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/26320220718123845_20220721181616.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/27420220718123850_20220721181618.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/28220220718123900_20220721181620.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/29320220718123905_20220721181621.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/30420220718125031_20220721181626.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/002022071315100420220701150015ext420220701143352_20220721181628.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/012022071315101920220701145517camera220220701143324_20220721181630.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/312022071315101720220701145514camera120220701143320_20220721181632.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/322022071315151120220701150017ext520220701143356_20220721181634.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/352022071315102220220701145520camera320220701143331_20220721181635.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/362022071315150820220701150003ext320220701143348_20220721181637.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/372022071315101020220701145502camera1220220701143306_20220721181638.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/392022071315102620220701145525ext120220701143339_20220721181640.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/412022071315102020220701145518camera3120220701143326_20220721181642.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/02plantasubcavepage0001_20220721181644.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/03plantacavepage0001_20220721181647.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/04plantaresdochaopage0001_20220721181651.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/05plantapiso1page0001_20220721181653.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/06plantapiso2page0001_20220721181658.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/07plantapiso3page0001_20220721181701.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/08plantapiso4page0001_20220721181709.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/09plantapiso5page0001_20220721181713.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/10plantapiso6page0001_20220721181718.jpg",
+            "https://images.zome.pt/venture/lres/2/0/2/2/0/7/2/1/11plantapiso7page0001_20220721181722.jpg"
+          ],
+          "mres": [
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/02720220718123946_20220721181530.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/03120220718123910_20220721181532.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/05620220718123941_20220721181533.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/06120220718123723_20220721181536.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/07220220718123754_20220721181537.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/08220220718123816_20220721181539.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/09420220718123826_20220721181542.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/10120220718123855_20220721181543.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/11520220718123935_20220721181545.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/128patagonia0220220718123951_20220721181547.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/13120220718125026_20220721181549.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/14220220718123915_20220721181551.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/158patagonia20220718123956_20220721181553.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/16420220718123930_20220721181554.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/17320220718123925_20220721181556.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/18220220718123732_20220721181559.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/19320220718123741_20220721181601.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/20120220718123748_20220721181603.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/21320220718123803_20220721181606.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/22120220718123810_20220721181608.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/23320220718123821_20220721181610.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/24120220718123832_20220721181612.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/25220220718123838_20220721181615.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/26320220718123845_20220721181616.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/27420220718123850_20220721181618.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/28220220718123900_20220721181620.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/29320220718123905_20220721181621.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/30420220718125031_20220721181626.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/002022071315100420220701150015ext420220701143352_20220721181628.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/012022071315101920220701145517camera220220701143324_20220721181630.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/312022071315101720220701145514camera120220701143320_20220721181632.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/322022071315151120220701150017ext520220701143356_20220721181634.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/352022071315102220220701145520camera320220701143331_20220721181635.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/362022071315150820220701150003ext320220701143348_20220721181637.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/372022071315101020220701145502camera1220220701143306_20220721181638.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/392022071315102620220701145525ext120220701143339_20220721181640.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/412022071315102020220701145518camera3120220701143326_20220721181642.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/02plantasubcavepage0001_20220721181644.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/03plantacavepage0001_20220721181647.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/04plantaresdochaopage0001_20220721181651.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/05plantapiso1page0001_20220721181653.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/06plantapiso2page0001_20220721181658.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/07plantapiso3page0001_20220721181701.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/08plantapiso4page0001_20220721181709.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/09plantapiso5page0001_20220721181713.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/10plantapiso6page0001_20220721181718.jpg",
+            "https://images.zome.pt/venture/mres/2/0/2/2/0/7/2/1/11plantapiso7page0001_20220721181722.jpg"
+          ],
+          "hres": [
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/02720220718123946_20220721181530.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/03120220718123910_20220721181532.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/05620220718123941_20220721181533.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/06120220718123723_20220721181536.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/07220220718123754_20220721181537.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/08220220718123816_20220721181539.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/09420220718123826_20220721181542.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/10120220718123855_20220721181543.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/11520220718123935_20220721181545.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/128patagonia0220220718123951_20220721181547.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/13120220718125026_20220721181549.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/14220220718123915_20220721181551.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/158patagonia20220718123956_20220721181553.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/16420220718123930_20220721181554.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/17320220718123925_20220721181556.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/18220220718123732_20220721181559.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/19320220718123741_20220721181601.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/20120220718123748_20220721181603.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/21320220718123803_20220721181606.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/22120220718123810_20220721181608.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/23320220718123821_20220721181610.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/24120220718123832_20220721181612.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/25220220718123838_20220721181615.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/26320220718123845_20220721181616.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/27420220718123850_20220721181618.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/28220220718123900_20220721181620.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/29320220718123905_20220721181621.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/30420220718125031_20220721181626.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/002022071315100420220701150015ext420220701143352_20220721181628.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/012022071315101920220701145517camera220220701143324_20220721181630.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/312022071315101720220701145514camera120220701143320_20220721181632.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/322022071315151120220701150017ext520220701143356_20220721181634.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/352022071315102220220701145520camera320220701143331_20220721181635.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/362022071315150820220701150003ext320220701143348_20220721181637.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/372022071315101020220701145502camera1220220701143306_20220721181638.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/392022071315102620220701145525ext120220701143339_20220721181640.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/412022071315102020220701145518camera3120220701143326_20220721181642.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/02plantasubcavepage0001_20220721181644.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/03plantacavepage0001_20220721181647.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/04plantaresdochaopage0001_20220721181651.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/05plantapiso1page0001_20220721181653.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/06plantapiso2page0001_20220721181658.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/07plantapiso3page0001_20220721181701.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/08plantapiso4page0001_20220721181709.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/09plantapiso5page0001_20220721181713.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/10plantapiso6page0001_20220721181718.jpg",
+            "https://images.zome.pt/venture/hres/2/0/2/2/0/7/2/1/11plantapiso7page0001_20220721181722.jpg"
+          ]
+        },
+        "video": null,
+        "virtualreality": null,
+        "gruposweb": "[{\"imagem\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/thumbs\\/100\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/2_20220722154051.jpg\",\"nome\":\"Apartamento T3\"},{\"imagem\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/thumbs\\/100\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/3_20220722154116.jpg\",\"nome\":\"Apartamento T2\"},{\"imagem\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/thumbs\\/100\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/rsz12photo_20220722154132.jpg\",\"nome\":\"Apartamento T4\"}]",
+        "descricaocompleta": "{\"PT\":{\"sw055s05\":\"<div><b><u>Informa\\u00e7\\u00f5es:<\\/u><\\/b><\\/div><ul><li>1 apartamento T2;<\\/li><li>28 apartamentos T3;<\\/li><li>1 apartamento T4;<\\/li><li>Pr\\u00e9dio com elevador;<\\/li><li>Eletrodom\\u00e9sticos inclu\\u00eddos em cada apartamento: Forno, placa, microondas e exaustor de parede;<\\/li><li>Instala\\u00e7\\u00e3o completa de sistema de ar condicionado;<\\/li><li>Instala\\u00e7\\u00e3o de caldeira a g\\u00e1s para aquecimento de \\u00e1guas sanit\\u00e1rias e piso radiante;<\\/li><li>Instala\\u00e7\\u00e3o de ventila\\u00e7\\u00e3o mec\\u00e2nica controlada;<\\/li><li>Focos embutidos nos quartos, cozinha, sala e hall de entrada dos apartamentos e wc's;<\\/li><li>V\\u00eddeo porteiro;<\\/li><li>Pr\\u00e9-instala\\u00e7\\u00e3o de alarme anti-intrus\\u00e3o;<\\/li><li>Estores el\\u00e9tricos em alum\\u00ednio \\u00e0 cor da caixilharia;<\\/li><li>Base de duche em resina;<\\/li><li>Loi\\u00e7as sanit\\u00e1rias da marca ROCA.<\\/li><\\/ul><b><u>Proximidades:<\\/u><\\/b><ul><li>a 2 min da&nbsp; E\\/B 1 de Frai\\u00e3o.<\\/li><li>a 3 min da Escola B\\u00e1sica de Nogueira;<\\/li><li>a 5 min da Primavera.<\\/li><\\/ul><br><b><u>Proximidades (com\\u00e9rcio):<\\/u><\\/b><ul><li>a 1 min do Holmes Place;<\\/li><li>a 3 min do Supermercado Continente;<\\/li><li>a 3 min do Supermercado Lidl;<\\/li><li>a 3 min da Well's;<\\/li><li>a 3 min do McDonald's;<\\/li><li>a 3 min da Hamburgueria DeGema;<\\/li><li>a 3 min do Supermercado SuperCor;<\\/li><li>a 3 min do Posto de Combust\\u00edvel Galp;<\\/li><li>a 3 min do BurguerKing;<\\/li><li>a 3 min do Espa\\u00e7o Casa;<\\/li><li>a 3 min da Media Markt;<\\/li><li>a 3 min da Farm\\u00e1cia Pipa;<\\/li><li>a 3 min do Parque de Jogos da Gaseta;<\\/li><li>a 4 min do Gym Fitness Hut;<\\/li><li>a 5 min do Leroy Merlin.<\\/li><\\/ul>\"}}",
+        "grupos": "[{\"id\":\"1565\",\"imagemdestaque\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/3_20220722153531.jpg\",\"nome\":\"T3\",\"desc\":\"Grupo T3\",\"totalativos\":0,\"totallistings\":0,\"preco\":\"\",\"moedaimovel_descl\":\"\",\"moedaimovel_descr\":\"\"},{\"id\":\"1566\",\"imagemdestaque\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/2_20220722153808.jpg\",\"nome\":\"T2\",\"desc\":\"Grupo T2\",\"totalativos\":0,\"totallistings\":1,\"preco\":\"\",\"moedaimovel_descl\":\"\",\"moedaimovel_descr\":\" \\u20ac\"},{\"id\":\"1567\",\"imagemdestaque\":\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/2\\/0\\/7\\/2\\/2\\/rsz12photo_20220722153741.jpg\",\"nome\":\"T4\",\"desc\":\"Grupo T4\",\"totalativos\":0,\"totallistings\":0,\"preco\":\"\",\"moedaimovel_descl\":\"\",\"moedaimovel_descr\":\" \\u20ac\"}]",
+        "emailconsultor": "florianoferreira@zome.pt",
+        "moradahubconsultor": "Braga",
+        "imagemconsultor": "https://profiles-app.zome.pt/thumbs/300/imgPerfil3610_20201001183956.png",
+        "hiddenuserwebsite": null,
+        "contactoconsultor": "963 357 807",
+        "contactoconsultor351": "1",
+        "contactoconsultorcodedial": "+351",
+        "contactohub": "253 215 266",
+        "contactohub351": "1",
+        "contactohubcodedial": "+351",
+        "imagemhub": "imgMkt5434_20190410123554.png",
+        "dataentradarede": "2022-07-22T16:25:10",
+        "precosemformatacao": null,
+        "mostrarprecowebsite": null,
+        "idang": 92919,
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            41.537008539498366,
+            -8.403968919018551
+          ]
+        },
+        "regiao": [
+          3,
+          365
+        ],
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "valorprestacao": null,
+        "preco": null,
+        "whatsappconsultor": true,
+        "exclusividade": true,
+        "url_user_link": "florianoferreira-U35542",
+        "showmapsandstreeview": null,
+        "nameunaccent": "luxtower",
+        "showmoradaemp": null,
+        "singlephone_hub": null
+      }
+    ]
+  },
+  "tab_listing_list": {
+    "_sample_size": 3,
+    "_total": "8972",
+    "data": [
+      {
+        "id": 81352,
+        "createdat": "2023-04-14T17:12:53",
+        "idencode": "VmtSQ1UxSnRWbkpPVmxaVVZrUkJPUT09",
+        "idtiponegocio": 1,
+        "tipoimovel": "{\"PT\":\"Moradia\",\"EN\":\"House\",\"ES\":\"Villa\\/Chalet independiente\",\"FR\":\"Maison\",\"NL\":\"Moradia\",\"DE\":\"Moradia\",\"IT\":\"Moradia\",\"CN\":\"Moradia\"}",
+        "idtipoimovel": 2,
+        "tipologiaimovel": "{\"PT\":\"T2\",\"EN\":\"T2\",\"ES\":\"T2\",\"FR\":\"T2\",\"NL\":\"T2\",\"DE\":\"T2\",\"IT\":\"T2\",\"CN\":\"T2\"}",
+        "localizacaolevel1imovel": "Leiria",
+        "localizacaolevel2imovel": "Pombal",
+        "localizacaolevel3imovel": "Santiago e São Simão de Litém e Albergaria dos Doze",
+        "localizacaolevel4imovel": "",
+        "localizacaolevel5imovel": "",
+        "idlocalizacaolevel1imovel": 10,
+        "idlocalizacaolevel2imovel": 141,
+        "idlocalizacaolevel3imovel": "101519",
+        "idlocalizacaolevel4imovel": null,
+        "idlocalizacaolevel5imovel": null,
+        "localizacaoiso": "PT",
+        "geocoordinateslat": "39.83378715747194",
+        "geocoordinateslong": "-8.581853700019836",
+        "pid": "ZMPT546353",
+        "txttipologiaimovel": "{\"PT\":\"Moradia T2 \",\"EN\":\"House T2 \",\"ES\":\"Villa\\/Chalet independiente T2 \",\"FR\":\"Maison T2 \",\"NL\":\"Moradia T2 \",\"DE\":\"Moradia T2 \",\"IT\":\"Moradia T2 \",\"CN\":\"Moradia T2 \"}",
+        "pid_number": "546353",
+        "totalquartossuite": 2,
+        "attr_wcs": 1,
+        "attr_piscina": null,
+        "attr_garagem": null,
+        "attr_garagem_num": 1,
+        "attr_parqueamento": 1,
+        "attr_elevador": null,
+        "attr_mobilidadereduzida": 1,
+        "precoimovel": null,
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "idestadoimovel": 2,
+        "idcondicaoimovel": 5,
+        "txtcondicaoimovel": "{\"PT\":\"Para recuperar\",\"EN\":\"to rebuild\",\"ES\":\"Necesita Renovaci\\u00f3n\",\"FR\":\"A r\\u00e9nover\",\"NL\":\"Para recuperar\",\"DE\":\"Para recuperar\",\"IT\":\"Para recuperar\",\"CN\":\"Para recuperar\"}",
+        "areautilhab": 70,
+        "areabrutaconst": 140,
+        "areaterreno": 1220,
+        "areaimplement": 70,
+        "gallery": {
+          "mres": [
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0938_20210806123755.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc092101_20210806125150.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc09041_20210806125146.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0917_20210806123745.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0916_20210806123739.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0939_20210806123759.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0837_20210806123708.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0933_20210806123750.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc08041_20210806125136.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc08761_20210806125141.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc09301_20210806125156.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0882_20210806123721.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0888_20210806123727.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0907_20210806123734.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/churrasqueira01_20210806124002.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9imagem1_20210806134229.jpg"
+          ]
+        },
+        "url_detail_view_website": null,
+        "url_detail_view_link": "{\"PT\":\"moradia-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"EN\":\"house-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"ES\":\"villa_chalet_independiente-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"FR\":\"maison-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"NL\":\"moradia-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"DE\":\"moradia-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"IT\":\"moradia-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\",\"CN\":\"moradia-t2-leiria-pombal-santiago_e_sao_simao_de_litem_e_albergaria_dos_doze-ZMPT546353\"}",
+        "abbrsigned": "ZMPT",
+        "dataentradarede": "2021-08-20T11:51:09",
+        "ocultaprecoang": null,
+        "showwebsite": true,
+        "mostrarprecoangwebsite": null,
+        "showluxury": null,
+        "mostrarprecoangluxury": null,
+        "showcrypto": true,
+        "mostrarprecoangcrypto": null,
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            39.83378715747194,
+            -8.581853700019836
+          ]
+        },
+        "gallerymainimages": {
+          "mres": [
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0938_20210806123755.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0933_20210806123750.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/1/0/8/0/6/1/1/5/6/0/9/dsc0939_20210806123759.jpg"
+          ]
+        },
+        "regiao": [
+          21,
+          1951,
+          1962
+        ],
+        "precosemformatacao": null,
+        "valorprestacao": null,
+        "dataultimabaixa": null,
+        "reservadozomenow": null,
+        "valorantigo": null,
+        "idemp": null,
+        "idgroup": null,
+        "emid": null,
+        "nome_emp": null,
+        "grupo_emp": null,
+        "destaque": null,
+        "idconsultor": "VmtjMWQyTnJNWEpQVmtwUlZrUkJPUT09",
+        "moradahubconsultorid": 38,
+        "rating": 70,
+        "idtipologia": 2,
+        "lastdateupdate": "2021-12-22T15:23:13"
+      },
+      {
+        "id": 52328,
+        "createdat": "2023-04-14T17:39:45",
+        "idencode": "VmtkNFUxTnRWbkpOV0VaaFpXcEJPUT09",
+        "idtiponegocio": 1,
+        "tipoimovel": "{\"PT\":\"Apartamento\",\"EN\":\"Apartment\",\"ES\":\"Piso\\/Apartamento\",\"FR\":\"Appartement\",\"NL\":\"Apartamento\",\"DE\":\"Apartamento\",\"IT\":\"Apartamento\",\"CN\":\"Apartamento\"}",
+        "idtipoimovel": 1,
+        "tipologiaimovel": "{\"PT\":\"T3\",\"EN\":\"T3\",\"ES\":\"T3\",\"FR\":\"T3\",\"NL\":\"T3\",\"DE\":\"T3\",\"IT\":\"T3\",\"CN\":\"T3\"}",
+        "localizacaolevel1imovel": "Braga",
+        "localizacaolevel2imovel": "Braga",
+        "localizacaolevel3imovel": "Braga (São Vítor)",
+        "localizacaolevel4imovel": "",
+        "localizacaolevel5imovel": "",
+        "idlocalizacaolevel1imovel": 3,
+        "idlocalizacaolevel2imovel": 45,
+        "idlocalizacaolevel3imovel": "030351",
+        "idlocalizacaolevel4imovel": null,
+        "idlocalizacaolevel5imovel": null,
+        "localizacaoiso": "PT",
+        "geocoordinateslat": "41.5600552",
+        "geocoordinateslong": "-8.403498799999966",
+        "pid": "ZMPT535322",
+        "txttipologiaimovel": "{\"PT\":\"Apartamento T3 \",\"EN\":\"Apartment T3 \",\"ES\":\"Piso\\/Apartamento T3 \",\"FR\":\"Appartement T3 \",\"NL\":\"Apartamento T3 \",\"DE\":\"Apartamento T3 \",\"IT\":\"Apartamento T3 \",\"CN\":\"Apartamento T3 \"}",
+        "pid_number": "535322",
+        "totalquartossuite": 3,
+        "attr_wcs": 2,
+        "attr_piscina": null,
+        "attr_garagem": 3,
+        "attr_garagem_num": 1,
+        "attr_parqueamento": null,
+        "attr_elevador": 1,
+        "attr_mobilidadereduzida": 1,
+        "precoimovel": null,
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "idestadoimovel": 2,
+        "idcondicaoimovel": 3,
+        "txtcondicaoimovel": "{\"PT\":\"Usado\",\"EN\":\"Used\",\"ES\":\"Usado\",\"FR\":\"Usager\",\"NL\":\"Usado\",\"DE\":\"Usado\",\"IT\":\"Usado\",\"CN\":\"Usado\"}",
+        "areautilhab": 129,
+        "areabrutaconst": 161,
+        "areaterreno": null,
+        "areaimplement": null,
+        "gallery": {
+          "mres": [
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/3/4/img4363_20190627165234.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/5/0/3/img6069_20190627165503.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/5/0/img6030_20190627165250.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/5/8/img6034_20190627165258.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/1/8/img6039_20190627165318.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/2/8/img6041_20190627165328.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/1/5/img4353_20190627165215.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/0/9/img6037_20190627165309.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/1/3/0/img43262_20190627165130.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/1/3/5/img4327_20190627165135.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/1/4/1/img4329_20190627165141.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/4/8/img6047_20190627165348.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/5/5/img6049_20190627165355.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/3/3/6/img6044_20190627165336.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/4/1/6/img6055_20190627165416.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/4/0/5/img6053_20190627165405.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/4/2/5/img6058_20190627165425.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/4/5/0/img6061_20190627165450.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/1/4/9/img4331_20190627165149.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/1/5/7/img4337_20190627165157.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/4/2/img4365_20190627165242.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/0/4/img43482_20190627165204.jpg",
+            "https://images.zome.pt/listings/mres/2/0/1/9/0/6/2/7/1/6/5/2/2/4/img43552_20190627165224.jpg"
+          ]
+        },
+        "url_detail_view_website": null,
+        "url_detail_view_link": "{\"PT\":\"apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"EN\":\"apartment-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"ES\":\"piso_apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"FR\":\"appartement-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"NL\":\"apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"DE\":\"apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"IT\":\"apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\",\"CN\":\"apartamento-t3-braga-braga-braga_sao_vitor-ZMPT535322\"}",
+        "abbrsigned": "ZMPT",
+        "dataentradarede": "2019-06-28T16:45:36",
+        "ocultaprecoang": null,
+        "showwebsite": true,
+        "mostrarprecoangwebsite": null,
+        "showluxury": null,
+        "mostrarprecoangluxury": null,
+        "showcrypto": null,
+        "mostrarprecoangcrypto": null,
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            41.5600552,
+            -8.403498799999966
+          ]
+        },
+        "gallerymainimages": {
+          "mres": []
+        },
+        "regiao": [
+          3,
+          365,
+          368
+        ],
+        "precosemformatacao": null,
+        "valorprestacao": null,
+        "dataultimabaixa": null,
+        "reservadozomenow": null,
+        "valorantigo": null,
+        "idemp": null,
+        "idgroup": null,
+        "emid": null,
+        "nome_emp": null,
+        "grupo_emp": null,
+        "destaque": null,
+        "idconsultor": "Vmtab2QxZHJNWEpOVnpWUlZrUkJPUT09",
+        "moradahubconsultorid": 3,
+        "rating": 40,
+        "idtipologia": 3,
+        "lastdateupdate": "2019-07-31T13:19:55"
+      },
+      {
+        "id": 130718,
+        "createdat": "2025-02-21T15:13:12",
+        "idencode": "VmtaYVUxUnRVWGRPVkZwVFZrWkZPUT09",
+        "idtiponegocio": 1,
+        "tipoimovel": "{\"PT\":\"Moradia\",\"EN\":\"House\",\"ES\":\"Villa\\/Chalet independiente\",\"FR\":\"Maison\",\"NL\":\"Moradia\",\"DE\":\"Moradia\",\"IT\":\"Moradia\",\"CN\":\"Moradia\"}",
+        "idtipoimovel": 2,
+        "tipologiaimovel": "{\"PT\":\"T4\",\"EN\":\"T4\",\"ES\":\"T4\",\"FR\":\"T4\",\"NL\":\"T4\",\"DE\":\"T4\",\"IT\":\"T4\",\"CN\":\"T4\"}",
+        "localizacaolevel1imovel": "Faro",
+        "localizacaolevel2imovel": "Lagos",
+        "localizacaolevel3imovel": "São Gonçalo de Lagos",
+        "localizacaolevel4imovel": "",
+        "localizacaolevel5imovel": "",
+        "idlocalizacaolevel1imovel": 8,
+        "idlocalizacaolevel2imovel": 103,
+        "idlocalizacaolevel3imovel": "080708",
+        "idlocalizacaolevel4imovel": null,
+        "idlocalizacaolevel5imovel": null,
+        "localizacaoiso": "PT",
+        "geocoordinateslat": "37.0868448",
+        "geocoordinateslong": "-8.6736071",
+        "pid": "ZMPT573042",
+        "txttipologiaimovel": "{\"PT\":\"Moradia T4 \",\"EN\":\"House T4 \",\"ES\":\"Villa\\/Chalet independiente T4 \",\"FR\":\"Maison T4 \",\"NL\":\"Moradia T4 \",\"DE\":\"Moradia T4 \",\"IT\":\"Moradia T4 \",\"CN\":\"Moradia T4 \"}",
+        "pid_number": "573042",
+        "totalquartossuite": 4,
+        "attr_wcs": 4,
+        "attr_piscina": 1,
+        "attr_garagem": 3,
+        "attr_garagem_num": 1,
+        "attr_parqueamento": null,
+        "attr_elevador": null,
+        "attr_mobilidadereduzida": null,
+        "precoimovel": "2.400.000",
+        "moedaimovel_descl": "",
+        "moedaimovel_descr": " €",
+        "idestadoimovel": 1,
+        "idcondicaoimovel": 4,
+        "txtcondicaoimovel": "{\"PT\":\"Em constru\\u00e7\\u00e3o\",\"EN\":\"In construction\",\"ES\":\"En construcci\\u00f3n\",\"FR\":\"En construction\",\"NL\":\"Em constru\\u00e7\\u00e3o\",\"DE\":\"Em constru\\u00e7\\u00e3o\",\"IT\":\"Em constru\\u00e7\\u00e3o\",\"CN\":\"Em constru\\u00e7\\u00e3o\"}",
+        "areautilhab": 2619,
+        "areabrutaconst": 300,
+        "areaterreno": 605,
+        "areaimplement": 2625,
+        "gallery": {
+          "mres": [
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112049_20250105110548_20250105103546_2224lt12ext09_20250103085213.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112023_20250105110520_20250105103519_2224lt12ext04_20250103085129.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112017_20250105110514_20250105103514_2224lt12ext01_20250103085112.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112030_20250105110528_20250105103527_2224lt12ext06_20250103085138.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112037_20250105110535_20250105103533_2224lt12ext07_20250103085152.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112056_20250105110556_20250105103552_2224lt12ext10_20250103085221.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112044_20250105110542_20250105103540_2224lt12ext08_20250103085205.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112106_20250105110609_20250105103559_2224lt12ext11_20250103085228.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112113_20250105110617_20250105103612_2224lt12ext12_20250103085236.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112503_20250105111004_20250105104003_2224lt12ext14_20250103085243.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112004_20250105110504_20250105103505_2224lt12extmontagem02_20250103085256.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112516_20250105111019_20250105104020_2224lt12extmontagem01_20250103085250.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112520_20250105111024_20250105104024_2224lt12closet01_20250103090029.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112525_20250105111032_20250105104029_2224lt12hall01_20250103090037.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112531_20250105111039_20250105104036_2224lt12is01_20250103090050.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112536_20250105111045_20250105104042_2224lt12is02_20250103090058.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112542_20250105111053_20250105104047_2224lt12is03_20250103090106.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112547_20250105111059_20250105104053_2224lt12quarto01_20250103090117.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105112553_20250105111109_20250105104059_2224lt12quarto02_20250103090125.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105112600_20250105111116_20250105104110_2224lt12sala01_20250103090157.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113002_20250105111505_20250105104503_2224lt12sala02_20250103090206.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113026_20250105111516_20250105104517_2224lt12sala03_20250103090223.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113033_20250105111522_20250105104524_2224lt12sala04_20250103090229.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113038_20250105111527_20250105104529_2224lt12sala05_20250103090237.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113045_20250105111534_20250105104536_21andarlighthouses_20250103091359.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113046_20250105111535_20250105104537_2alcadoslighthouses_20250103091401.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113046_20250105111536_20250105104538_3corteslighthouses_20250103091405.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113047_20250105111537_20250105104539_3implantacaolighthouses5_20250103091407.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/5/20250105113048_20250105111538_20250105104540_3rchaolighthouses_20250103091411.jpg"
+          ]
+        },
+        "url_detail_view_website": null,
+        "url_detail_view_link": "{\"PT\":\"moradia-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"EN\":\"house-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"ES\":\"villa_chalet_independiente-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"FR\":\"maison-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"NL\":\"moradia-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"DE\":\"moradia-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"IT\":\"moradia-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\",\"CN\":\"moradia-t4-faro-lagos-sao_goncalo_de_lagos-ZMPT573042\"}",
+        "abbrsigned": "ZMPT",
+        "dataentradarede": "2025-02-21T15:11:19",
+        "ocultaprecoang": null,
+        "showwebsite": true,
+        "mostrarprecoangwebsite": true,
+        "showluxury": true,
+        "mostrarprecoangluxury": true,
+        "showcrypto": true,
+        "mostrarprecoangcrypto": true,
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            37.0868448,
+            -8.6736071
+          ]
+        },
+        "gallerymainimages": {
+          "mres": [
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112049_20250105110548_20250105103546_2224lt12ext09_20250103085213.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112113_20250105110617_20250105103612_2224lt12ext12_20250103085236.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112004_20250105110504_20250105103505_2224lt12extmontagem02_20250103085256.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112017_20250105110514_20250105103514_2224lt12ext01_20250103085112.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/3/20250105112023_20250105110520_20250105103519_2224lt12ext04_20250103085129.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112056_20250105110556_20250105103552_2224lt12ext10_20250103085221.jpg",
+            "https://images.zome.pt/listings/mres/2/0/2/5/0/1/0/5/1/1/1/7/1/4/20250105112106_20250105110609_20250105103559_2224lt12ext11_20250103085228.jpg"
+          ]
+        },
+        "regiao": [
+          8,
+          1301,
+          1304
+        ],
+        "precosemformatacao": 2400000,
+        "valorprestacao": null,
+        "dataultimabaixa": null,
+        "reservadozomenow": null,
+        "valorantigo": null,
+        "idemp": null,
+        "idgroup": null,
+        "emid": null,
+        "nome_emp": null,
+        "grupo_emp": null,
+        "destaque": null,
+        "idconsultor": "VmtSR1UxZHJOVVpOVnpWUlZrUkJPUT09",
+        "moradahubconsultorid": 106,
+        "rating": 90,
+        "idtipologia": 4,
+        "lastdateupdate": "2025-04-02T19:26:33"
+      }
+    ]
+  },
+  "tab_listing_state": {
+    "_note": "full table (reference)",
+    "data": [
+      {
+        "id": 4,
+        "createdat": "2023-04-14T13:52:23",
+        "description": {
+          "PT": "Em construção",
+          "EN": "In construction",
+          "ES": "En construcción",
+          "FR": "En construction",
+          "NL": "Em construção",
+          "DE": "Em construção",
+          "IT": "Em construção",
+          "CN": "Em construção"
+        }
+      },
+      {
+        "id": 7,
+        "createdat": "2023-04-14T13:52:23",
+        "description": {
+          "PT": "Não Aplicável",
+          "EN": "No applicable",
+          "ES": "No aplicable",
+          "FR": "Non Applicable",
+          "NL": "Não Aplicável",
+          "DE": "Não Aplicável",
+          "IT": "Não Aplicável",
+          "CN": "Não Aplicável"
+        }
+      },
+      {
+        "id": 1,
+        "createdat": "2023-04-14T13:52:23",
+        "description": {
+          "PT": "Novo",
+          "EN": "New",
+          "ES": "Nuevo",
+          "FR": "Neuf",
+          "NL": "Novo",
+          "DE": "Novo",
+          "IT": "Novo",
+          "CN": "Novo"
+        }
+      },
+      {
+        "id": 5,
+        "createdat": "2023-04-14T13:52:23",
+        "description": {
+          "PT": "Para recuperar",
+          "EN": "to rebuild",
+          "ES": "Necesita Renovación",
+          "FR": "A rénover",
+          "NL": "Para recuperar",
+          "DE": "Para recuperar",
+          "IT": "Para recuperar",
+          "CN": "Para recuperar"
+        }
+      },
+      {
+        "id": 2,
+        "createdat": "2023-04-14T13:52:24",
+        "description": {
+          "PT": "Renovado",
+          "EN": "Renewed",
+          "ES": "Renovado",
+          "FR": "Rénové",
+          "NL": "Renovado",
+          "DE": "Renovado",
+          "IT": "Renovado",
+          "CN": "Renovado"
+        }
+      },
+      {
+        "id": 6,
+        "createdat": "2023-04-14T13:52:24",
+        "description": {
+          "PT": "Ruína",
+          "EN": "Ruin",
+          "ES": "En ruína",
+          "FR": "Ruine",
+          "NL": "Ruína",
+          "DE": "Ruína",
+          "IT": "Ruína",
+          "CN": "Ruína"
+        }
+      },
+      {
+        "id": 9,
+        "createdat": "2023-04-14T13:52:24",
+        "description": {
+          "PT": "Semi-novo",
+          "EN": "New",
+          "ES": "Semi-nuevo",
+          "FR": "Semi-novo",
+          "NL": "Semi-novo",
+          "DE": "Semi-novo",
+          "IT": "Semi-novo",
+          "CN": "Semi-novo"
+        }
+      },
+      {
+        "id": 3,
+        "createdat": "2023-04-14T13:52:24",
+        "description": {
+          "PT": "Usado",
+          "EN": "Used",
+          "ES": "Usado",
+          "FR": "Usager",
+          "NL": "Usado",
+          "DE": "Usado",
+          "IT": "Usado",
+          "CN": "Usado"
+        }
+      }
+    ]
+  },
+  "tab_typology": {
+    "_note": "full table (reference)",
+    "data": [
+      {
+        "id": 1,
+        "createdat": "2023-04-14T13:55:31",
+        "description": {
+          "EN": "Apartment",
+          "ES": "Piso/Apartamento",
+          "FR": "Appartement",
+          "PT": "Apartamento"
+        },
+        "typology": true
+      },
+      {
+        "id": 7,
+        "createdat": "2023-04-14T13:55:31",
+        "description": {
+          "EN": "Storage house",
+          "ES": "Almacén",
+          "FR": "Entrepôt",
+          "PT": "Armazém"
+        },
+        "typology": false
+      },
+      {
+        "id": 30,
+        "createdat": "2023-04-14T13:55:31",
+        "description": {
+          "EN": "Studio",
+          "ES": "Estudio",
+          "FR": "Atelier / Studio",
+          "PT": "Atelier / Estúdio"
+        },
+        "typology": false
+      },
+      {
+        "id": 27,
+        "createdat": "2023-04-14T13:55:31",
+        "description": {
+          "EN": "Trade",
+          "ES": "Comércio",
+          "FR": "Commerce",
+          "PT": "Comércio"
+        },
+        "typology": false
+      },
+      {
+        "id": 5,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Office",
+          "ES": "Oficina",
+          "FR": "Bureau",
+          "PT": "Escritório"
+        },
+        "typology": false
+      },
+      {
+        "id": 19,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Parking",
+          "ES": "Aparcamiento",
+          "FR": "Stationnement",
+          "PT": "Estacionamento"
+        },
+        "typology": false
+      },
+      {
+        "id": 15,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Garage",
+          "ES": "Garaje cerrado",
+          "FR": "Garage",
+          "PT": "Garagem"
+        },
+        "typology": false
+      },
+      {
+        "id": 17,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Homestead",
+          "ES": "Hacienda",
+          "FR": "Domaine",
+          "PT": "Herdade"
+        },
+        "typology": true
+      },
+      {
+        "id": 28,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Hotel",
+          "ES": "Hotel",
+          "FR": "Hotel",
+          "PT": "Hotel"
+        },
+        "typology": true
+      },
+      {
+        "id": 4,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "Store",
+          "ES": "Tienda",
+          "FR": "Boutique",
+          "PT": "Loja"
+        },
+        "typology": false
+      },
+      {
+        "id": 2,
+        "createdat": "2023-04-14T13:55:32",
+        "description": {
+          "EN": "House",
+          "ES": "Villa/Chalet independiente",
+          "FR": "Maison",
+          "PT": "Moradia"
+        },
+        "typology": true
+      },
+      {
+        "id": 11,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Palace",
+          "ES": "Palacete",
+          "FR": "Villa",
+          "PT": "Palacete"
+        },
+        "typology": true
+      },
+      {
+        "id": 6,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Pavilion",
+          "ES": "Pabellón",
+          "FR": "Pavillon",
+          "PT": "Pavilhão"
+        },
+        "typology": false
+      },
+      {
+        "id": 20,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Building",
+          "ES": "Edificio",
+          "FR": "Immeuble",
+          "PT": "Prédio"
+        },
+        "typology": true
+      },
+      {
+        "id": 9,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Farm",
+          "ES": "Granja",
+          "FR": "Ferme",
+          "PT": "Quinta"
+        },
+        "typology": true
+      },
+      {
+        "id": 10,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Solar",
+          "ES": "Solar",
+          "FR": "Manoir",
+          "PT": "Solar"
+        },
+        "typology": true
+      },
+      {
+        "id": 3,
+        "createdat": "2023-04-14T13:55:33",
+        "description": {
+          "EN": "Land",
+          "ES": "Tierra",
+          "FR": "Terrain",
+          "PT": "Terreno"
+        },
+        "typology": false
+      }
+    ]
+  },
+  "tab_listing_businesstype": {
+    "_note": "full table (reference)",
+    "data": [
+      {
+        "id": 1,
+        "createdat": "2023-04-14T13:51:26",
+        "description": {
+          "PT": "Comprar",
+          "ES": "Compra",
+          "EN": "Buy"
+        }
+      },
+      {
+        "id": 2,
+        "createdat": "2023-04-14T13:51:26",
+        "description": {
+          "PT": "Arrendar",
+          "ES": "Renta",
+          "EN": "Rent"
+        }
+      }
+    ]
+  },
+  "tab_hubs": {
+    "_sample_size": 3,
+    "_total": "79",
+    "data": [
+      {
+        "id": 164,
+        "createdat": "2025-09-04T13:37:11",
+        "description": "Felgueiras",
+        "address": "Avenida Dr. Magalhães Lemos, Nº 402\r\n4610-106 Felgueiras",
+        "photo": null,
+        "geocoordinateslat": "41.36900887461958",
+        "geocoordinateslong": "-8.20149783210334",
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            41.36900887461958,
+            -8.20149783210334
+          ]
+        },
+        "active": true,
+        "group": "ZOME Felgueiras",
+        "prefixo": "felgueiras",
+        "uniqueid": 93428,
+        "phone": "932 213 504",
+        "showdialcode": false,
+        "dialcode": "+351",
+        "ami": "24118",
+        "singlephone": null,
+        "city": "Felgueiras"
+      },
+      {
+        "id": 137,
+        "createdat": "2023-08-04T11:38:06",
+        "description": "Odivelas",
+        "address": "Avenida Amália Rodrigues nº12- A/B – Jardim da Amoreira – 2620-520 – Ramada - Odivelas",
+        "photo": null,
+        "geocoordinateslat": "38.8125628",
+        "geocoordinateslong": "-9.1890832",
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            38.8125628,
+            -9.1890832
+          ]
+        },
+        "active": true,
+        "group": "ZOME Odivelas",
+        "prefixo": "odivelas",
+        "uniqueid": 87104,
+        "phone": "21 933 6124",
+        "showdialcode": false,
+        "dialcode": "+351",
+        "ami": "4247",
+        "singlephone": null,
+        "city": "Odivelas"
+      },
+      {
+        "id": 144,
+        "createdat": "2024-09-03T10:52:09",
+        "description": "Porto Boavista",
+        "address": "Avenida da Boavista, 1569\r\n4100-131 Porto",
+        "photo": null,
+        "geocoordinateslat": "41.1598153",
+        "geocoordinateslong": "-8.6447153",
+        "geolocation": {
+          "type": "Point",
+          "coordinates": [
+            41.1598153,
+            -8.6447153
+          ]
+        },
+        "active": true,
+        "group": "ZOME Porto Boavista",
+        "prefixo": "portoboavista",
+        "uniqueid": 23879,
+        "phone": "22 111 8746",
+        "showdialcode": false,
+        "dialcode": "+351",
+        "ami": "15325",
+        "singlephone": null,
+        "city": "Porto"
+      }
+    ]
+  },
+  "tab_regions": {
+    "_sample_size": 3,
+    "_total": "3430",
+    "data": [
+      {
+        "id": 1,
+        "createdat": "2024-07-24T10:09:43",
+        "parentid": null,
+        "regionid": 1,
+        "name": "Aveiro",
+        "nameunaccent": "aveiro",
+        "regionnames": [
+          "Aveiro"
+        ],
+        "zone": false,
+        "seo": "aveiro",
+        "level": 1,
+        "locale": "pt",
+        "postalcode": "",
+        "code": "01"
+      },
+      {
+        "id": 2,
+        "createdat": "2024-07-24T10:09:44",
+        "parentid": null,
+        "regionid": 2,
+        "name": "Beja",
+        "nameunaccent": "beja",
+        "regionnames": [
+          "Beja"
+        ],
+        "zone": false,
+        "seo": "beja",
+        "level": 1,
+        "locale": "pt",
+        "postalcode": "",
+        "code": "02"
+      },
+      {
+        "id": 3,
+        "createdat": "2024-07-24T10:09:44",
+        "parentid": null,
+        "regionid": 3,
+        "name": "Braga",
+        "nameunaccent": "braga",
+        "regionnames": [
+          "Braga"
+        ],
+        "zone": false,
+        "seo": "braga",
+        "level": 1,
+        "locale": "pt",
+        "postalcode": "",
+        "code": "03"
+      }
+    ]
+  },
+  "tab_ventures_group_images": {
+    "_sample_size": 3,
+    "_total": "5150",
+    "data": [
+      {
+        "id": 20588,
+        "createdat": "2025-10-31T18:54:13",
+        "idemp": 194711,
+        "gallery": "{\"lres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/5\\/0\\/1\\/0\\/8\\/imagemwhatsapp20250108as1107351cbbf61b_20250108111500.jpg\"],\"mres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/5\\/0\\/1\\/0\\/8\\/imagemwhatsapp20250108as1107351cbbf61b_20250108111500.jpg\"],\"hres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/5\\/0\\/1\\/0\\/8\\/imagemwhatsapp20250108as1107351cbbf61b_20250108111500.jpg\"]}"
+      },
+      {
+        "id": 9805,
+        "createdat": "2024-05-28T17:42:11",
+        "idemp": 194393,
+        "gallery": "{\"lres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/7\\/grupot4douronobilis_20230927170500.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/90_20230929160647.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/92_20230929160649.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/94_20230929160651.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/95_20230929160652.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/96_20230929160654.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/97_20230929160656.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/98_20230929160658.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/99_20230929160659.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/100_20230929160701.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/101_20230929160704.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/102_20230929160706.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/103_20230929160707.jpg\"],\"mres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/7\\/grupot4douronobilis_20230927170500.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/90_20230929160647.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/92_20230929160649.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/94_20230929160651.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/95_20230929160652.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/96_20230929160654.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/97_20230929160656.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/98_20230929160658.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/99_20230929160659.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/100_20230929160701.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/101_20230929160704.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/102_20230929160706.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/103_20230929160707.jpg\"],\"hres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/7\\/grupot4douronobilis_20230927170500.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/90_20230929160647.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/92_20230929160649.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/94_20230929160651.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/95_20230929160652.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/96_20230929160654.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/97_20230929160656.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/98_20230929160658.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/99_20230929160659.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/100_20230929160701.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/101_20230929160704.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/102_20230929160706.jpg\",\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/3\\/0\\/9\\/2\\/9\\/103_20230929160707.jpg\"]}"
+      },
+      {
+        "id": 8303,
+        "createdat": "2024-02-16T11:45:16",
+        "idemp": 194494,
+        "gallery": "{\"lres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/lres\\/2\\/0\\/2\\/4\\/0\\/2\\/1\\/6\\/capturadeecra20221111as122826_20240216101355_20240216112910.jpg\"],\"mres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/mres\\/2\\/0\\/2\\/4\\/0\\/2\\/1\\/6\\/capturadeecra20221111as122826_20240216101355_20240216112910.jpg\"],\"hres\":[\"https:\\/\\/images.zome.pt\\/venture\\/groups\\/logos\\/hres\\/2\\/0\\/2\\/4\\/0\\/2\\/1\\/6\\/capturadeecra20221111as122826_20240216101355_20240216112910.jpg\"]}"
+      }
+    ]
+  }
+}

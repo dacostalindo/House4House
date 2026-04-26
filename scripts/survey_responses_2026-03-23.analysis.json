@@ -1,0 +1,235 @@
+{
+  "evaluator": "paula",
+  "agreement": {
+    "condition": {
+      "agree": 42,
+      "total": 50
+    },
+    "finish": {
+      "agree": 31,
+      "total": 46
+    },
+    "render": {
+      "agree": 40,
+      "total": 44
+    }
+  },
+  "disagreements": [
+    {
+      "pid": "34013055",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.880",
+      "notes": ""
+    },
+    {
+      "pid": "34246115",
+      "feature": "condition",
+      "claude": "renovated",
+      "evaluator": "habitable",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34246115",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.850",
+      "notes": ""
+    },
+    {
+      "pid": "34277121",
+      "feature": "condition",
+      "claude": "habitable",
+      "evaluator": "needs_renovation",
+      "confidence": "0.750",
+      "notes": ""
+    },
+    {
+      "pid": "34277121",
+      "feature": "finish",
+      "claude": "standard",
+      "evaluator": "basic",
+      "confidence": "0.800",
+      "notes": ""
+    },
+    {
+      "pid": "34368332",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34555718",
+      "feature": "finish",
+      "claude": "standard",
+      "evaluator": "premium",
+      "confidence": "0.800",
+      "notes": ""
+    },
+    {
+      "pid": "34602634",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34628524",
+      "feature": "condition",
+      "claude": "habitable",
+      "evaluator": "needs_renovation",
+      "confidence": "0.750",
+      "notes": ""
+    },
+    {
+      "pid": "34646356",
+      "feature": "finish",
+      "claude": "standard",
+      "evaluator": "basic",
+      "confidence": "0.800",
+      "notes": ""
+    },
+    {
+      "pid": "34646356",
+      "feature": "render",
+      "claude": "render",
+      "evaluator": "real",
+      "confidence": "0.950",
+      "notes": ""
+    },
+    {
+      "pid": "34692543",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.880",
+      "notes": ""
+    },
+    {
+      "pid": "34692543",
+      "feature": "render",
+      "claude": "render",
+      "evaluator": "real",
+      "confidence": "0.950",
+      "notes": ""
+    },
+    {
+      "pid": "34750750",
+      "feature": "finish",
+      "claude": "basic",
+      "evaluator": "standard",
+      "confidence": "0.850",
+      "notes": ""
+    },
+    {
+      "pid": "34757347",
+      "feature": "finish",
+      "claude": "basic",
+      "evaluator": "standard",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34782300",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.850",
+      "notes": ""
+    },
+    {
+      "pid": "34799166",
+      "feature": "condition",
+      "claude": "renovated",
+      "evaluator": "needs_renovation",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34801785",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.920",
+      "notes": ""
+    },
+    {
+      "pid": "34801785",
+      "feature": "render",
+      "claude": "render",
+      "evaluator": "mixed",
+      "confidence": "0.950",
+      "notes": ""
+    },
+    {
+      "pid": "34808071",
+      "feature": "condition",
+      "claude": "habitable",
+      "evaluator": "needs_renovation",
+      "confidence": "0.700",
+      "notes": ""
+    },
+    {
+      "pid": "34823707",
+      "feature": "render",
+      "claude": "render",
+      "evaluator": "mixed",
+      "confidence": "0.950",
+      "notes": ""
+    },
+    {
+      "pid": "34835873",
+      "feature": "condition",
+      "claude": "renovated",
+      "evaluator": "habitable",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34855040",
+      "feature": "condition",
+      "claude": "habitable",
+      "evaluator": "needs_renovation",
+      "confidence": "0.700",
+      "notes": ""
+    },
+    {
+      "pid": "34881640",
+      "feature": "condition",
+      "claude": "renovated",
+      "evaluator": "needs_renovation",
+      "confidence": "0.900",
+      "notes": ""
+    },
+    {
+      "pid": "34882595",
+      "feature": "finish",
+      "claude": "standard",
+      "evaluator": "basic",
+      "confidence": "0.800",
+      "notes": ""
+    },
+    {
+      "pid": "34884306",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.850",
+      "notes": ""
+    },
+    {
+      "pid": "34892704",
+      "feature": "finish",
+      "claude": "premium",
+      "evaluator": "standard",
+      "confidence": "0.900",
+      "notes": ""
+    }
+  ]
+}

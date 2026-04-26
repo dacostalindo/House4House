@@ -146,20 +146,32 @@ def _resolve_url(url_or_ref: str, context: dict) -> str:
 
 def _resolve_version(config: GISIngestionConfig, context: dict) -> str:
     """
-    Returns the version string from config or from dag_run.conf.
-    Raises if the version is required but was not supplied at trigger time.
+    Returns the version string from config, dag_run.conf, or Airflow Params.
+
+    Resolution order:
+      1. config.source_version  (static, e.g. "2021")
+      2. dag_run.conf[key]      (manual trigger with config)
+      3. context["params"][key]  (Param default — used by scheduled runs)
     """
     if config.source_version is not None:
         return config.source_version
 
+    # Manual trigger: version comes from dag_run.conf
     version = context["dag_run"].conf.get(config.version_param_key, "")
-    if not version:
-        raise ValueError(
-            f"DAG trigger param '{config.version_param_key}' is required but was not provided. "
-            f"Supply it via 'Trigger DAG w/ config' in the Airflow UI."
-        )
-    log.info(f"Resolved version from trigger param '{config.version_param_key}': {version}")
-    return version
+    if version:
+        log.info(f"Resolved version from dag_run.conf '{config.version_param_key}': {version}")
+        return version
+
+    # Scheduled run: Airflow Params provide the default
+    version = context.get("params", {}).get(config.version_param_key, "")
+    if version:
+        log.info(f"Resolved version from Param default '{config.version_param_key}': {version}")
+        return version
+
+    raise ValueError(
+        f"DAG trigger param '{config.version_param_key}' is required but was not provided. "
+        f"Supply it via 'Trigger DAG w/ config' in the Airflow UI."
+    )
 
 
 def _resolve_layers(config: GISIngestionConfig, version: str) -> list[str]:

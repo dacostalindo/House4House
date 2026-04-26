@@ -81,6 +81,7 @@ SCE_CONFIG = ScrapingIngestionConfig(
     headless=False,
     browser_executable_path="/usr/bin/chromium",
     turnstile_wait_seconds=15,
+    browser_restart_interval=500,
     request_delay=4.0,
     minio_prefix="sce_pce",
     trigger_dag_id="sce_bronze_load",
@@ -119,7 +120,7 @@ CREATE_TABLE_SQL = """
         _ingested_at       TIMESTAMPTZ DEFAULT NOW(),
         _source            VARCHAR(50) DEFAULT 'sce_portal',
         _minio_path        TEXT,
-        UNIQUE (doc_number, _scrape_date)
+        UNIQUE (doc_number, _batch_id)
     )
 """
 
@@ -204,9 +205,7 @@ SCE_BRONZE_CONFIG = BronzeTableConfig(
     minio_prefix="sce_pce",
     flatten_fn=_flatten_sce_records,
     file_format="jsonl",
-    delete_before_insert=True,
-    delete_sql="DELETE FROM bronze_regulatory.raw_sce_pce WHERE _scrape_date = %s",
-    delete_key_fn=_extract_scrape_date,
+    delete_before_insert=False,
     trigger_dag_id="dbt_sce_build",
     tags=["sce", "bronze", "energy-certificates"],
 )
