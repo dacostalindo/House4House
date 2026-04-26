@@ -237,12 +237,12 @@ with DAG(
                         f"_dlt_loads for load_id={load_id} not status=0 (success): {rows}"
                     )
                 cur.execute(
-                    f"SELECT count(*) FROM {DATASET_NAME}.listings "
+                    f"SELECT count(*) FROM {DATASET_NAME}.zome_listings "
                     f"WHERE _dlt_valid_to IS NULL"
                 )
                 listings_current = cur.fetchone()[0]
                 cur.execute(
-                    f"SELECT count(*) FROM {DATASET_NAME}.developments "
+                    f"SELECT count(*) FROM {DATASET_NAME}.zome_developments "
                     f"WHERE _dlt_valid_to IS NULL"
                 )
                 devs_current = cur.fetchone()[0]

@@ -102,13 +102,26 @@ DEVELOPMENTS_VERSION_COLUMNS: tuple[str, ...] = (
 # JSONB columns to keep as `json` data_type, NOT auto-flatten into child tables.
 # Addresses dlt issue #3811 (nested-table nondeterminism on schema evolution).
 # ---------------------------------------------------------------------------
-LISTINGS_JSON_COLUMNS = ("gallery", "raw_json")
+LISTINGS_JSON_COLUMNS = (
+    "gallery",
+    "raw_json",
+    # Caught after first cutover: Supabase returns these as nested objects/arrays
+    # too. Without an explicit data_type=json hint, dlt creates child tables
+    # (listings__geolocation__coordinates, listings__regiao,
+    # listings__gallerymainimages__mres) that we don't want.
+    "geolocation",
+    "regiao",
+    "gallerymainimages",
+)
 DEVELOPMENTS_JSON_COLUMNS = (
     "descricaocompleta",
     "gallery",
     "video",
     "virtualreality",
     "raw_json",
+    # Same caught-after-cutover additions:
+    "geolocation",
+    "regiao",
 )
 
 
@@ -223,7 +236,7 @@ def zome_facts_source() -> Iterable[Any]:
 
 
 @dlt.resource(
-    name="developments",
+    name="zome_developments",
     write_disposition={
         "disposition": "merge",
         "strategy": "scd2",
@@ -255,7 +268,7 @@ def developments_state() -> Iterable[dict]:
 
 
 @dlt.resource(
-    name="listings",
+    name="zome_listings",
     write_disposition={
         "disposition": "merge",
         "strategy": "scd2",

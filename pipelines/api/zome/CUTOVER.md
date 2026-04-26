@@ -57,6 +57,9 @@ Confirmed safe via `grep -r raw_zome dbt/` — no dbt sources or models referenc
 --   developments
 --   listings
 --   zome_developments_state
+--   zome_developments
+--   zome_listings
+--   zome_developments_state
 --   zome_listings_state
 --   ref_zome_condition          (if refs task succeeded)
 --   ref_zome_property_type      (")
@@ -74,11 +77,11 @@ does NOT block the migration — verify paths against
 ### 6. Verify counts
 ```sql
 SELECT
-  (SELECT count(*) FROM bronze_listings.developments WHERE _dlt_valid_to IS NULL) AS dev_current,
-  (SELECT count(*) FROM bronze_listings.listings     WHERE _dlt_valid_to IS NULL) AS list_current,
+  (SELECT count(*) FROM bronze_listings.zome_developments WHERE _dlt_valid_to IS NULL) AS dev_current,
+  (SELECT count(*) FROM bronze_listings.zome_listings     WHERE _dlt_valid_to IS NULL) AS list_current,
   (SELECT count(*) FROM bronze_listings.zome_developments_state) AS dev_state,
   (SELECT count(*) FROM bronze_listings.zome_listings_state)     AS list_state;
--- expect: dev_current ~302, list_current ~9000, dev_state == dev_current, list_state == list_current
+-- expect: dev_current ~297, list_current ~9000, dev_state == dev_current, list_state == list_current
 ```
 
 If counts are off, do NOT proceed to step 7 — investigate first. The validate_facts
@@ -94,7 +97,7 @@ The legacy code can be deleted only after:
 
 1. **≥1 SCD2 transition observed** in the new pipeline:
    ```sql
-   SELECT count(*) FROM bronze_listings.listings WHERE _dlt_valid_to IS NOT NULL;
+   SELECT count(*) FROM bronze_listings.zome_listings WHERE _dlt_valid_to IS NOT NULL;
    -- must be > 0
    ```
 2. **≥1 sidecar delisting observed**:
@@ -103,9 +106,9 @@ The legacy code can be deleted only after:
    WHERE last_seen_date < (SELECT max(last_seen_date) FROM bronze_listings.zome_listings_state);
    -- must be > 0
    ```
-3. **≥3 successful weekly runs** (status='loaded_data' for 3 distinct load_ids):
+3. **≥3 successful weekly runs** (status=0 means success in dlt's bigint encoding):
    ```sql
-   SELECT count(DISTINCT load_id) FROM bronze_listings._dlt_loads WHERE status='loaded_data';
+   SELECT count(DISTINCT load_id) FROM bronze_listings._dlt_loads WHERE status=0;
    -- must be >= 3
    ```
 

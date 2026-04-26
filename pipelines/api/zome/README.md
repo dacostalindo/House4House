@@ -119,12 +119,20 @@ s3://raw/zome/tab_listing_list/p{0..9}/{timestamp}.json
 ```
 
 **PostgreSQL** (`bronze_listings` schema):
-- `developments` — SCD2 (versioned by `row_hash` over curated columns)
-- `listings` — SCD2
-- `zome_developments_state` — UPSERT sidecar (`venture_id`, `last_seen_date`, `last_load_id`)
+- `zome_developments` — SCD2 (versioned by `row_hash` over curated columns)
+- `zome_listings` — SCD2
+- `zome_developments_state` — UPSERT sidecar (`venture_id`, `last_seen_date`)
 - `zome_listings_state` — UPSERT sidecar
 - `ref_zome_condition`, `ref_zome_property_type`, `ref_zome_business_type` — REPLACE on each load
 - dlt internals: `_dlt_loads`, `_dlt_pipeline_state`, `_dlt_version`
+
+**PostgreSQL** (`bronze_listings_staging` schema, dlt-managed):
+dlt creates a separate `<dataset>_staging` schema for the SCD2 merge dance.
+Staging tables receive each load's incoming rows; the merge step (close
+retired versions + insert new versions) reads from there into the target
+tables in `bronze_listings`. After a successful merge the staging tables
+contain the most recent load's payload only — they're transient by intent
+and should not be queried by silver. Treat as dlt internals.
 
 ---
 
@@ -163,8 +171,8 @@ first load and locked thereafter via `schema_contract={"data_type": "freeze"}`
 in [source.py](source.py). Inspect with:
 
 ```sql
-\d+ bronze_listings.developments
-\d+ bronze_listings.listings
+\d+ bronze_listings.zome_developments
+\d+ bronze_listings.zome_listings
 \d+ bronze_listings.zome_listings_state
 ```
 
@@ -190,7 +198,6 @@ for every listing, inflating `price_change_count` downstream. The curated
 |---|---|---|
 | `listing_id` / `venture_id` | int (PK) | Same as fact-table PK |
 | `last_seen_date` | DATE | Updated on every load via UPSERT |
-| `last_load_id` | TEXT | dlt load_id from the last write |
 | `_dlt_load_id`, `_dlt_id` | dlt internals | |
 
 ---
