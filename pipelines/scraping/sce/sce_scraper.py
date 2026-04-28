@@ -183,7 +183,7 @@ JS_EXTRACT_RESULTS = """
 # ---------------------------------------------------------------------------
 
 
-async def wait_for_results(page, timeout: int = 30) -> bool:
+async def wait_for_results(ctx, timeout: int = 30) -> bool:
     """Wait for the result div to be populated after form submit.
 
     Returns True if results are found, False if empty or timed out.
@@ -191,7 +191,7 @@ async def wait_for_results(page, timeout: int = 30) -> bool:
     """
     start = time.time()
     while time.time() - start < timeout:
-        status = await page.evaluate("""
+        status = await ctx.evaluate("""
             (function() {
                 var div = document.querySelector('#div_pesquisaCEResult');
                 if (!div) return 'waiting';
@@ -220,42 +220,61 @@ async def wait_for_results(page, timeout: int = 30) -> bool:
     return False
 
 
-async def submit_and_wait(page, max_retries: int = 3) -> dict:
-    """Submit the form, wait for AJAX response, return parsed results."""
+async def submit_and_wait(ctx, max_retries: int = 3) -> dict:
+    """Submit the form, wait for AJAX response, return parsed results.
+
+    Clears the result div before submitting so ``wait_for_results`` doesn't
+    return prematurely on stale content from a previous query (critical when
+    reusing the session across freguesias).
+    """
     for attempt in range(max_retries):
-        await page.evaluate("""
+        # Clear stale results so wait_for_results correctly detects new data
+        await ctx.evaluate("""
+            var div = document.querySelector('#div_pesquisaCEResult');
+            if (div) div.innerHTML = '';
+        """)
+
+        await ctx.evaluate("""
             jQuery('#frm_pesquisaCE').submit();
         """)
 
-        if await wait_for_results(page, timeout=30):
-            raw = await page.evaluate(JS_EXTRACT_RESULTS)
+        if await wait_for_results(ctx, timeout=30):
+            raw = await ctx.evaluate(JS_EXTRACT_RESULTS)
             return json.loads(raw)
 
         log.warning("Submit attempt %d/%d: no results, retrying...", attempt + 1, max_retries)
-        await page.reload()
+        await ctx.reload()
         await asyncio.sleep(random.uniform(5, 10))
 
     return {"count": 0, "rows": []}
 
 
-async def set_form_values(page, distrito: str, concelho: str, freguesia: str = "0",
-                          doc_type: str = DOC_TYPE_PCE):
+async def set_form_values(ctx, distrito: str, concelho: str, freguesia: str = "0",
+                          doc_type: str = DOC_TYPE_ALL,
+                          building_type: str = BUILDING_ALL):
     """Set form dropdown values via JS."""
-    await page.evaluate(f"""
+    await ctx.evaluate(f"""
         var sel = document.querySelector('select[name="tiposDocumentoSelect"]');
         sel.value = '{doc_type}';
         sel.dispatchEvent(new Event('change', {{bubbles: true}}));
     """)
     await asyncio.sleep(0.3)
 
-    await page.evaluate(f"""
+    await ctx.evaluate(f"""
+        var sel = document.querySelector('select[name="tiposEdificioSelect"]');
+        sel.value = '{building_type}';
+        sel.dispatchEvent(new Event('change', {{bubbles: true}}));
+    """)
+    await asyncio.sleep(0.3)
+
+    await ctx.evaluate(f"""
         var sel = document.querySelector('select[name="distritosCESelect"]');
         sel.value = '{distrito}';
         sel.dispatchEvent(new Event('change', {{bubbles: true}}));
     """)
     await asyncio.sleep(random.uniform(2, 4))
 
-    await page.evaluate(f"""
+    await ctx.evaluate(f"""
         var sel = document.querySelector('select[name="concelhosCESelect"]');
         sel.value = '{concelho}';
         sel.dispatchEvent(new Event('change', {{bubbles: true}}));
@@ -263,7 +282,7 @@ async def set_form_values(page, distrito: str, concelho: str, freguesia: str = "
     await asyncio.sleep(random.uniform(2, 4))
 
     if freguesia != "0":
-        await page.evaluate(f"""
+        await ctx.evaluate(f"""
             var sel = document.querySelector('select[name="freguesiasCESelect"]');
             sel.value = '{freguesia}';
             sel.dispatchEvent(new Event('change', {{bubbles: true}}));
@@ -271,9 +290,9 @@ async def set_form_values(page, distrito: str, concelho: str, freguesia: str = "
         await asyncio.sleep(0.5)
 
 
-async def fetch_dropdown_options(page, select_name: str) -> list[dict]:
+async def fetch_dropdown_options(ctx, select_name: str) -> list[dict]:
     """Get the current options from a dropdown."""
-    raw = await page.evaluate(f"""
+    raw = await ctx.evaluate(f"""
         (function() {{
             var sel = document.querySelector('select[name="{select_name}"]');
             if (!sel) return '[]';
@@ -289,37 +308,54 @@ async def fetch_dropdown_options(page, select_name: str) -> list[dict]:
 
 
 async def scrape_query(
-    page,
+    ctx,
     distrito: str,
     concelho: str,
     freguesia: str = "0",
-    doc_type: str = DOC_TYPE_PCE,
+    doc_type: str = DOC_TYPE_ALL,
+    building_type: str = BUILDING_ALL,
     max_results: Optional[int] = None,
+    skip_navigation: bool = False,
 ) -> list[dict]:
-    """Scrape all pages for a single query."""
+    """Scrape all pages for a single query.
+
+    When ``skip_navigation`` is True, the caller has already navigated to the
+    search page and set distrito/concelho/doc_type/building_type — we only need
+    to update the freguesia dropdown and submit. This is a major perf win when
+    iterating freguesias within a concelho.
+    """
     records = []
 
-    # Navigate to search page fresh
-    await page.get(SCE_SEARCH_URL)
-    await asyncio.sleep(random.uniform(3, 5))
+    if not skip_navigation:
+        # Navigate to search page fresh
+        await ctx.get(SCE_SEARCH_URL)
+        await asyncio.sleep(random.uniform(3, 5))
 
-    # Wait for jQuery
-    for _ in range(10):
-        has_jq = await page.evaluate("typeof jQuery !== 'undefined'")
-        if has_jq:
-            break
-        await asyncio.sleep(1)
+        # Wait for jQuery
+        for _ in range(10):
+            has_jq = await ctx.evaluate("typeof jQuery !== 'undefined'")
+            if has_jq:
+                break
+            await asyncio.sleep(1)
 
-    # Set form values
-    await set_form_values(page, distrito, concelho, freguesia, doc_type)
+        # Set form values
+        await set_form_values(ctx, distrito, concelho, freguesia, doc_type, building_type)
+    elif freguesia != "0":
+        # Session is already set up — just update the freguesia dropdown
+        await ctx.evaluate(f"""
+            var sel = document.querySelector('select[name="freguesiasCESelect"]');
+            sel.value = '{freguesia}';
+            sel.dispatchEvent(new Event('change', {{bubbles: true}}));
+        """)
+        await asyncio.sleep(0.3)
 
     # First page
-    await page.evaluate("""
+    await ctx.evaluate("""
         NOVA_PESQUISA = true;
         jQuery("#numeroPaginaCE").val(0);
     """)
 
-    result = await submit_and_wait(page)
+    result = await submit_and_wait(ctx)
     total = result.get("count", 0)
     page_rows = result.get("rows", [])
 
@@ -329,25 +365,27 @@ async def scrape_query(
     if total == 0 or not page_rows:
         return records
 
-    if total > 1000:
-        log.warning("  %d results exceeds 1000 cap — consider querying by freguesia", total)
+    if total > 1000 and building_type == BUILDING_ALL:
+        log.warning("  %d results exceeds 1000 cap — splitting by building type", total)
+        return {"_needs_split": True, "total": total}
 
     records.extend(page_rows)
 
     if max_results and len(records) >= max_results:
         return records[:max_results]
 
-    # Paginate through remaining pages
+    # Paginate through remaining pages — session is already authenticated,
+    # no need for human-jitter sleeps between pages of the same query.
     max_page = min(total // RESULTS_PER_PAGE, MAX_PAGES - 1)
     for page_num in range(1, max_page + 1):
-        await asyncio.sleep(random.uniform(3, 7))
+        await asyncio.sleep(random.uniform(0.3, 0.8))
 
-        await page.evaluate(f"""
+        await ctx.evaluate(f"""
             NOVA_PESQUISA = false;
             jQuery("#numeroPaginaCE").val({page_num});
         """)
 
-        result = await submit_and_wait(page)
+        result = await submit_and_wait(ctx)
         page_rows = result.get("rows", [])
 
         if not page_rows:
@@ -363,37 +401,140 @@ async def scrape_query(
 
 
 async def scrape_concelho_by_freguesia(
-    page,
+    ctx,
     distrito: str,
     concelho: str,
-    doc_type: str = DOC_TYPE_PCE,
+    doc_type: str = DOC_TYPE_ALL,
 ) -> list[dict]:
-    """Scrape a full concelho by querying each freguesia individually."""
-    await page.get(SCE_SEARCH_URL)
+    """Scrape a full concelho by querying each freguesia individually.
+
+    On timeout, restarts the browser and retries the current freguesia once.
+    On second timeout, skips that freguesia and continues.
+    """
+    await ctx.get(SCE_SEARCH_URL)
     await asyncio.sleep(random.uniform(3, 5))
 
     for _ in range(10):
-        has_jq = await page.evaluate("typeof jQuery !== 'undefined'")
+        has_jq = await ctx.evaluate("typeof jQuery !== 'undefined'")
         if has_jq:
             break
         await asyncio.sleep(1)
 
-    await set_form_values(page, distrito, concelho, "0", doc_type)
+    await set_form_values(ctx, distrito, concelho, "0", doc_type)
 
-    freguesias = await fetch_dropdown_options(page, "freguesiasCESelect")
+    freguesias = await fetch_dropdown_options(ctx, "freguesiasCESelect")
 
     if not freguesias:
         log.warning("  No freguesias found — falling back to concelho-level query")
-        return await scrape_query(page, distrito, concelho, "0", doc_type)
+        result = await scrape_query(ctx, distrito, concelho, "0", doc_type)
+        # If the concelho-level query exceeds the 1000 cap, split by building type
+        if isinstance(result, dict) and result.get("_needs_split"):
+            log.info("    Concelho-level query exceeds cap — splitting by building type")
+            split_records = []
+            for bt in ["1", "2", "3"]:
+                try:
+                    sub = await scrape_query(
+                        ctx, distrito, concelho, "0", doc_type, building_type=bt,
+                    )
+                    if isinstance(sub, dict) and sub.get("_needs_split"):
+                        log.info("    Building type %s still >1000 — splitting by doc type", bt)
+                        for dt in doc_type.split(";"):
+                            try:
+                                sub_sub = await scrape_query(
+                                    ctx, distrito, concelho, "0",
+                                    doc_type=dt, building_type=bt,
+                                )
+                                if isinstance(sub_sub, dict) and sub_sub.get("_needs_split"):
+                                    log.error("    Still >1000 after full split (bt=%s, dt=%s) — capped", bt, dt)
+                                    sub_sub = []
+                                split_records.extend(sub_sub)
+                            except asyncio.TimeoutError:
+                                log.error("    Timeout on sub-split bt=%s dt=%s — skipping", bt, dt)
+                    else:
+                        split_records.extend(sub)
+                except asyncio.TimeoutError:
+                    log.error("    Timeout on building type %s — skipping", bt)
+            for r in split_records:
+                r["query_distrito"] = distrito
+                r["query_concelho"] = concelho
+                r["query_freguesia"] = "0"
+            return split_records
+        # Annotate with query metadata to match the per-freguesia path
+        for r in result:
+            r["query_distrito"] = distrito
+            r["query_concelho"] = concelho
+            r["query_freguesia"] = "0"
+        return result
 
     log.info("  Found %d freguesias for distrito=%s, concelho=%s",
              len(freguesias), distrito, concelho)
 
     all_records = []
+    # Session is already on the search page with distrito+concelho selected.
+    # We reuse it across freguesias — only the freguesia dropdown changes.
+    session_alive = True
+
     for freg in freguesias:
         log.info("  Scraping freguesia: %s (code=%s)...", freg["text"], freg["value"])
 
-        records = await scrape_query(page, distrito, concelho, freg["value"], doc_type)
+        # Proactive restart if page count threshold reached
+        if ctx.needs_proactive_restart():
+            log.info("  Proactive browser restart after %d pages", ctx.page_count)
+            await ctx.restart()
+            session_alive = False  # Browser restarted — need to re-setup form
+
+        try:
+            records = await scrape_query(
+                ctx, distrito, concelho, freg["value"], doc_type,
+                skip_navigation=session_alive,
+            )
+            session_alive = True
+        except asyncio.TimeoutError:
+            log.warning("  Timeout on freguesia %s — restarting browser and retrying",
+                        freg["text"])
+            await ctx.restart()
+            session_alive = False
+            try:
+                records = await scrape_query(ctx, distrito, concelho, freg["value"], doc_type)
+                session_alive = True
+            except asyncio.TimeoutError:
+                log.error("  Second timeout on freguesia %s — skipping", freg["text"])
+                records = []
+
+        # Adaptive split: if query hit the 1,000 cap, retry with building type filter.
+        # Splitting changes the building_type form value, so we need full re-setup
+        # for each sub-query (skip_navigation=False, the default).
+        if isinstance(records, dict) and records.get("_needs_split"):
+            capped_total = records["total"]
+            log.info("    Splitting %d results by building type for freguesia %s",
+                     capped_total, freg["text"])
+            records = []
+            for bt in ["1", "2", "3"]:
+                try:
+                    sub = await scrape_query(
+                        ctx, distrito, concelho, freg["value"], doc_type, building_type=bt,
+                    )
+                    # If a sub-query also hits the cap, split further by doc type
+                    if isinstance(sub, dict) and sub.get("_needs_split"):
+                        log.info("    Building type %s still >1000 — splitting by doc type", bt)
+                        for dt in doc_type.split(";"):
+                            try:
+                                sub_sub = await scrape_query(
+                                    ctx, distrito, concelho, freg["value"],
+                                    doc_type=dt, building_type=bt,
+                                )
+                                if isinstance(sub_sub, dict) and sub_sub.get("_needs_split"):
+                                    log.error("    Still >1000 after full split (bt=%s, dt=%s) — capped", bt, dt)
+                                    sub_sub = []
+                                records.extend(sub_sub)
+                            except asyncio.TimeoutError:
+                                log.error("    Timeout on sub-split bt=%s dt=%s — skipping", bt, dt)
+                    else:
+                        records.extend(sub)
+                except asyncio.TimeoutError:
+                    log.error("    Timeout on building type %s — skipping", bt)
+            # Building-type split mutates form state — invalidate session for next freguesia
+            session_alive = False
 
         for r in records:
             r["query_distrito"] = distrito
@@ -401,9 +542,11 @@ async def scrape_concelho_by_freguesia(
             r["query_freguesia"] = freg["value"]
 
         all_records.extend(records)
+        ctx.increment_page_count()
         log.info("    -> %d records", len(records))
 
-        await asyncio.sleep(random.uniform(5, 15))
+        # Authenticated session, same form — minimal jitter is enough.
+        await asyncio.sleep(random.uniform(0.5, 1.5))
 
     # Deduplicate by doc_number
     seen = set()
@@ -424,9 +567,12 @@ async def scrape_concelho_by_freguesia(
 # ---------------------------------------------------------------------------
 
 
-async def sce_scrape_fn(page, region, config) -> list[dict]:
+async def sce_scrape_fn(ctx, region, config) -> list[dict]:
     """
     Scrape function conforming to ScrapingIngestionConfig.scrape_fn contract.
+
+    Receives a ``BrowserContext`` (ctx) with timeout-safe operations and
+    restart capability.
 
     Supports two param formats:
       - {"distrito": "11"}
@@ -438,27 +584,27 @@ async def sce_scrape_fn(page, region, config) -> list[dict]:
     concelho = region.params.get("concelho")
 
     if concelho:
-        return await scrape_concelho_by_freguesia(page, distrito, concelho)
+        return await scrape_concelho_by_freguesia(ctx, distrito, concelho)
 
     # Dynamic mode: fetch concelhos from the dropdown
-    await page.get(SCE_SEARCH_URL)
+    await ctx.get(SCE_SEARCH_URL)
     await asyncio.sleep(random.uniform(3, 5))
 
     for _ in range(10):
-        has_jq = await page.evaluate("typeof jQuery !== 'undefined'")
+        has_jq = await ctx.evaluate("typeof jQuery !== 'undefined'")
         if has_jq:
             break
         await asyncio.sleep(1)
 
     # Set distrito to populate the concelhos dropdown
-    await page.evaluate(f"""
+    await ctx.evaluate(f"""
         var sel = document.querySelector('select[name="distritosCESelect"]');
         sel.value = '{distrito}';
         sel.dispatchEvent(new Event('change', {{bubbles: true}}));
     """)
     await asyncio.sleep(random.uniform(2, 4))
 
-    concelhos = await fetch_dropdown_options(page, "concelhosCESelect")
+    concelhos = await fetch_dropdown_options(ctx, "concelhosCESelect")
     log.info("[sce] Distrito %s (%s): found %d concelhos",
              distrito, region.name, len(concelhos))
 
@@ -467,12 +613,33 @@ async def sce_scrape_fn(page, region, config) -> list[dict]:
     for c in concelhos:
         log.info("[sce] Scraping concelho %s (%s) in distrito %s...",
                  c["text"], c["value"], distrito)
-        records = await scrape_concelho_by_freguesia(page, distrito, c["value"])
+
+        try:
+            records = await scrape_concelho_by_freguesia(ctx, distrito, c["value"])
+        except asyncio.TimeoutError:
+            log.warning("[sce] Timeout on concelho %s — restarting browser and retrying",
+                        c["text"])
+            try:
+                await ctx.restart()
+                records = await scrape_concelho_by_freguesia(ctx, distrito, c["value"])
+            except asyncio.TimeoutError:
+                log.error("[sce] Second timeout on concelho %s — skipping", c["text"])
+                records = []
+            except RuntimeError as e:
+                log.error("[sce] %s — returning %d records collected so far", e, len(all_records))
+                return all_records
+        except RuntimeError as e:
+            # Circuit breaker from ctx.restart() inside scrape_concelho_by_freguesia
+            log.error("[sce] %s — returning %d records collected so far", e, len(all_records))
+            return all_records
+
         for r in records:
             doc = r.get("doc_number", "")
             if doc not in seen:
                 seen.add(doc)
                 all_records.append(r)
+
+        ctx.record_success()
         log.info("[sce] Concelho %s: %d records (total: %d)",
                  c["text"], len(records), len(all_records))
 
@@ -482,6 +649,33 @@ async def sce_scrape_fn(page, region, config) -> list[dict]:
 # ---------------------------------------------------------------------------
 # CLI (standalone usage)
 # ---------------------------------------------------------------------------
+
+
+class PageWrapper:
+    """Thin wrapper for CLI use — pass-through, no timeouts, no restart."""
+
+    def __init__(self, page):
+        self.page = page
+
+    async def evaluate(self, js, timeout=None):
+        return await self.page.evaluate(js)
+
+    async def get(self, url, timeout=None):
+        result = await self.page.get(url)
+        self.page = result if result is not None else self.page
+        return self.page
+
+    async def reload(self, timeout=None):
+        return await self.page.reload()
+
+    def increment_page_count(self):
+        pass
+
+    def needs_proactive_restart(self):
+        return False
+
+    def record_success(self):
+        pass
 
 
 def main():
@@ -498,7 +692,7 @@ def main():
     parser.add_argument("--distrito", type=str, required=True)
     parser.add_argument("--concelho", type=str, required=True)
     parser.add_argument("--freguesia", type=str, default="0")
-    parser.add_argument("--output", type=str, default="sce_pce_results.jsonl")
+    parser.add_argument("--output", type=str, default="sce_certificates_results.jsonl")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--browser-path", type=str, default=None)
     parser.add_argument("--max-results", type=int, default=None)
@@ -516,9 +710,11 @@ def main():
         page = await browser.get(SCE_SEARCH_URL)
         await asyncio.sleep(5)
 
+        ctx = PageWrapper(page)
+
         if args.freguesia != "0":
             records = await scrape_query(
-                page, args.distrito, args.concelho, args.freguesia,
+                ctx, args.distrito, args.concelho, args.freguesia,
                 max_results=args.max_results,
             )
             for r in records:
@@ -527,7 +723,7 @@ def main():
                 r["query_freguesia"] = args.freguesia
         else:
             records = await scrape_concelho_by_freguesia(
-                page, args.distrito, args.concelho,
+                ctx, args.distrito, args.concelho,
             )
 
         browser.stop()

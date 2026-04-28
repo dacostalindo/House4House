@@ -1,0 +1,2085 @@
+{
+  "33684745": {
+    "property_id": "33684745",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "one_abstained",
+        "source": "DCL"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": null,
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34013055": {
+    "property_id": "34013055",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.920",
+      "finish_conf": "0.880",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "render"
+      }
+    }
+  },
+  "34106121": {
+    "property_id": "34106121",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.700",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34123670": {
+    "property_id": "34123670",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.850",
+      "finish_conf": "0.800",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34246115": {
+    "property_id": "34246115",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "habitable",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "standard",
+          "DCL": "premium"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "habitable",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34277121": {
+    "property_id": "34277121",
+    "claude": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.750",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34279591": {
+    "property_id": "34279591",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "premium",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34326558": {
+    "property_id": "34326558",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "one_abstained",
+        "source": "DCL"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": null,
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34368332": {
+    "property_id": "34368332",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34421119": {
+    "property_id": "34421119",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34481192": {
+    "property_id": "34481192",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "premium",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34555718": {
+    "property_id": "34555718",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "renovated",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "premium",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34602634": {
+    "property_id": "34602634",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "standard",
+          "DCL": "premium"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34618254": {
+    "property_id": "34618254",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "renovated",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "one_abstained",
+        "source": "DCL"
+      },
+      "render": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "render",
+          "DCL": "real"
+        }
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": null,
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "real"
+      }
+    }
+  },
+  "34628524": {
+    "property_id": "34628524",
+    "claude": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.750",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34644257": {
+    "property_id": "34644257",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34646356": {
+    "property_id": "34646356",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "basic",
+          "DCL": "premium"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34676318": {
+    "property_id": "34676318",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.850",
+      "finish_conf": "0.800",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34683244": {
+    "property_id": "34683244",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "both_abstained"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": null,
+        "DCL": null
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34692543": {
+    "property_id": "34692543",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.920",
+      "finish_conf": "0.880",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "real",
+          "DCL": "render"
+        }
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "render"
+      }
+    }
+  },
+  "34715815": {
+    "property_id": "34715815",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34737474": {
+    "property_id": "34737474",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.850",
+      "finish_conf": "0.800",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34750750": {
+    "property_id": "34750750",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "renovated"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34757347": {
+    "property_id": "34757347",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "renovated"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34782300": {
+    "property_id": "34782300",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34799166": {
+    "property_id": "34799166",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "renovated"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34801785": {
+    "property_id": "34801785",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.980",
+      "finish_conf": "0.920",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34802089": {
+    "property_id": "34802089",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.920",
+      "finish_conf": "0.880",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34808071": {
+    "property_id": "34808071",
+    "claude": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.700",
+      "finish_conf": "0.800",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34810322": {
+    "property_id": "34810322",
+    "claude": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.750",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "habitable",
+          "DCL": "renovated"
+        }
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "standard",
+          "DCL": "basic"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "habitable",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34810710": {
+    "property_id": "34810710",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.900",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34811135": {
+    "property_id": "34811135",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.900",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34811136": {
+    "property_id": "34811136",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34821274": {
+    "property_id": "34821274",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34823707": {
+    "property_id": "34823707",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "render"
+      }
+    }
+  },
+  "34832276": {
+    "property_id": "34832276",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.950",
+      "finish_conf": "0.920",
+      "render_conf": "0.980"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34832288": {
+    "property_id": "34832288",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.920",
+      "finish_conf": "0.900",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34832372": {
+    "property_id": "34832372",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.920",
+      "finish_conf": "0.900",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34835873": {
+    "property_id": "34835873",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": "habitable",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "habitable",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34842621": {
+    "property_id": "34842621",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "premium",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34844086": {
+    "property_id": "34844086",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.850",
+      "finish_conf": "0.800",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": "needs_renovation",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "needs_renovation"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34855040": {
+    "property_id": "34855040",
+    "claude": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.700",
+      "finish_conf": "0.750",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "standard",
+          "DCL": "basic"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34870564": {
+    "property_id": "34870564",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "premium",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34881640": {
+    "property_id": "34881640",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34882595": {
+    "property_id": "34882595",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "renovated",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "basic",
+          "DCL": "standard"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34884306": {
+    "property_id": "34884306",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "renovated",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34887307": {
+    "property_id": "34887307",
+    "claude": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.900"
+    },
+    "consensus": {
+      "condition": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "needs_renovation",
+          "DCL": "habitable"
+        }
+      },
+      "finish_quality": {
+        "label": "basic",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "needs_renovation",
+        "DCL": "habitable"
+      },
+      "finish_quality": {
+        "paula": "basic",
+        "DCL": "basic"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  },
+  "34888194": {
+    "property_id": "34888194",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": true,
+      "condition_conf": "0.900",
+      "finish_conf": "0.850",
+      "render_conf": "0.950"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "premium",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "render",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "premium",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": "render",
+        "DCL": "render"
+      }
+    }
+  },
+  "34888281": {
+    "property_id": "34888281",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": false,
+      "condition_conf": "0.900",
+      "finish_conf": "0.800",
+      "render_conf": "0.800"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": null,
+        "status": "disputed",
+        "labels": {
+          "paula": "standard",
+          "DCL": "premium"
+        }
+      },
+      "render": {
+        "label": "real",
+        "status": "one_abstained",
+        "source": "DCL"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "premium"
+      },
+      "render": {
+        "paula": null,
+        "DCL": "real"
+      }
+    }
+  },
+  "34892704": {
+    "property_id": "34892704",
+    "claude": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": false,
+      "condition_conf": "0.950",
+      "finish_conf": "0.900",
+      "render_conf": "0.850"
+    },
+    "consensus": {
+      "condition": {
+        "label": "renovated",
+        "status": "agreed"
+      },
+      "finish_quality": {
+        "label": "standard",
+        "status": "agreed"
+      },
+      "render": {
+        "label": "real",
+        "status": "agreed"
+      }
+    },
+    "evaluator_labels": {
+      "condition": {
+        "paula": "renovated",
+        "DCL": "renovated"
+      },
+      "finish_quality": {
+        "paula": "standard",
+        "DCL": "standard"
+      },
+      "render": {
+        "paula": "real",
+        "DCL": "real"
+      }
+    }
+  }
+}

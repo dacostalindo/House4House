@@ -298,7 +298,7 @@ class IdealistaIngestionConfig:
     bronze_schema_table: str = BRONZE_SCHEMA_TABLE
 
     # --- Scheduling ---
-    schedule: str = "0 3 * * *"
+    schedule: str | None = None
     start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
     max_active_runs: int = 1
     max_active_tasks: int = 4

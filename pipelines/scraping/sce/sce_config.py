@@ -38,8 +38,8 @@ from pipelines.scraping.sce.sce_scraper import sce_scrape_fn
 
 SCE_REGIONS = [
     ScrapingRegion(code="01", name="AVEIRO", params={"distrito": "1"}),
-    ScrapingRegion(code="06", name="COIMBRA", params={"distrito": "6"}),
-    ScrapingRegion(code="10", name="LEIRIA", params={"distrito": "10"}),
+    # ScrapingRegion(code="06", name="COIMBRA", params={"distrito": "6"}),
+    # ScrapingRegion(code="10", name="LEIRIA", params={"distrito": "10"}),
     # --- Uncomment below for full country coverage (22 distritos) ---
     # ScrapingRegion(code="02", name="BEJA", params={"distrito": "2"}),
     # ScrapingRegion(code="03", name="BRAGA", params={"distrito": "3"}),
@@ -81,6 +81,7 @@ SCE_CONFIG = ScrapingIngestionConfig(
     headless=False,
     browser_executable_path="/usr/bin/chromium",
     turnstile_wait_seconds=15,
+    browser_restart_interval=500,
     request_delay=4.0,
     minio_prefix="sce_pce",
     trigger_dag_id="sce_bronze_load",
@@ -92,7 +93,7 @@ SCE_CONFIG = ScrapingIngestionConfig(
 # ---------------------------------------------------------------------------
 
 CREATE_TABLE_SQL = """
-    CREATE TABLE IF NOT EXISTS bronze_regulatory.raw_sce_pce (
+    CREATE TABLE IF NOT EXISTS bronze_regulatory.raw_sce_certificates (
         id                 BIGSERIAL PRIMARY KEY,
         doc_number         VARCHAR(50) NOT NULL,
         morada             TEXT,
@@ -119,18 +120,18 @@ CREATE_TABLE_SQL = """
         _ingested_at       TIMESTAMPTZ DEFAULT NOW(),
         _source            VARCHAR(50) DEFAULT 'sce_portal',
         _minio_path        TEXT,
-        UNIQUE (doc_number, _scrape_date)
+        UNIQUE (doc_number, _batch_id)
     )
 """
 
 CREATE_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_sce_pce_doc ON bronze_regulatory.raw_sce_pce(doc_number)",
-    "CREATE INDEX IF NOT EXISTS idx_sce_pce_concelho_classe ON bronze_regulatory.raw_sce_pce(concelho, classe_energetica)",
-    "CREATE INDEX IF NOT EXISTS idx_sce_pce_scrape_date ON bronze_regulatory.raw_sce_pce(_scrape_date)",
+    "CREATE INDEX IF NOT EXISTS idx_sce_cert_doc ON bronze_regulatory.raw_sce_certificates(doc_number)",
+    "CREATE INDEX IF NOT EXISTS idx_sce_cert_concelho_classe ON bronze_regulatory.raw_sce_certificates(concelho, classe_energetica)",
+    "CREATE INDEX IF NOT EXISTS idx_sce_cert_scrape_date ON bronze_regulatory.raw_sce_certificates(_scrape_date)",
 ]
 
 INSERT_SQL = """
-    INSERT INTO bronze_regulatory.raw_sce_pce (
+    INSERT INTO bronze_regulatory.raw_sce_certificates (
         doc_number, morada, fracao, localidade, concelho, estado,
         doc_substituto, tipo_documento, classe_energetica,
         data_emissao, data_validade, freguesia_detail, perito_num,
@@ -194,9 +195,9 @@ def _flatten_sce_records(raw_records: list[dict], batch_id: str, minio_path: str
 SCE_BRONZE_CONFIG = BronzeTableConfig(
     dag_id="sce_bronze_load",
     source_name="sce",
-    description="Load SCE PCE JSONL from MinIO into PostGIS bronze table",
+    description="Load SCE energy certificate JSONL (PCE/CE/DCR) from MinIO into PostGIS bronze table",
     schema_name="bronze_regulatory",
-    table_name="raw_sce_pce",
+    table_name="raw_sce_certificates",
     create_table_sql=CREATE_TABLE_SQL,
     create_indexes_sql=CREATE_INDEXES_SQL,
     insert_sql=INSERT_SQL,
@@ -204,9 +205,7 @@ SCE_BRONZE_CONFIG = BronzeTableConfig(
     minio_prefix="sce_pce",
     flatten_fn=_flatten_sce_records,
     file_format="jsonl",
-    delete_before_insert=True,
-    delete_sql="DELETE FROM bronze_regulatory.raw_sce_pce WHERE _scrape_date = %s",
-    delete_key_fn=_extract_scrape_date,
+    delete_before_insert=False,
     trigger_dag_id="dbt_sce_build",
     tags=["sce", "bronze", "energy-certificates"],
 )

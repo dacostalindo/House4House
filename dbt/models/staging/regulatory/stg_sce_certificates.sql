@@ -1,12 +1,14 @@
--- SCE Pre-Energy Certificates (PCE) — Proxy for New Construction
--- Source: bronze_regulatory.raw_sce_pce (JSONL from SCE portal scraper)
--- Each record is one pre-certificate per apartment/fraction.
--- Multiple PCEs at the same address = multi-unit building.
+-- SCE Energy Certificates — PCE / CE / DCR
+-- Source: bronze_regulatory.raw_sce_certificates (JSONL from SCE portal scraper)
+-- Each record is one document per apartment/fraction. PCEs are pre-construction
+-- certificates (a proxy for upcoming construction); CEs are issued on completion;
+-- DCRs accompany construction declarations. Multiple records at the same address
+-- = multi-unit building.
 
 WITH deduplicated AS (
     SELECT DISTINCT ON (doc_number)
         *
-    FROM {{ source('bronze_regulatory', 'raw_sce_pce') }}
+    FROM {{ source('bronze_regulatory', 'raw_sce_certificates') }}
     ORDER BY doc_number, _scrape_date DESC
 )
 

@@ -1,0 +1,306 @@
+{
+  "evaluator": "paula",
+  "timestamp": "2026-03-23T21:14:35.917Z",
+  "responses": {
+    "33684745": {
+      "condition": "needs_renovation",
+      "finish_quality": "uncertain",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34013055": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34106121": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34123670": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34246115": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34277121": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34279591": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34326558": {
+      "condition": "needs_renovation",
+      "finish_quality": "uncertain",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34368332": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34421119": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34481192": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34555718": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34602634": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34618254": {
+      "condition": "renovated",
+      "finish_quality": "uncertain",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34628524": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34644257": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34646356": {
+      "condition": "renovated",
+      "finish_quality": "basic",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34676318": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34683244": {
+      "condition": "needs_renovation",
+      "finish_quality": "uncertain",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34692543": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34715815": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34737474": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34750750": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34757347": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34782300": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34799166": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34801785": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34802089": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34808071": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34810322": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34810710": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34811135": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34811136": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34821274": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34823707": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34832276": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34832288": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34832372": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34835873": {
+      "condition": "habitable",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34842621": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34844086": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34855040": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34870564": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34881640": {
+      "condition": "needs_renovation",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34882595": {
+      "condition": "renovated",
+      "finish_quality": "basic",
+      "is_render": "uncertain",
+      "notes": ""
+    },
+    "34884306": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34887307": {
+      "condition": "needs_renovation",
+      "finish_quality": "basic",
+      "is_render": "real",
+      "notes": ""
+    },
+    "34888194": {
+      "condition": "renovated",
+      "finish_quality": "premium",
+      "is_render": "render",
+      "notes": ""
+    },
+    "34888281": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "mixed",
+      "notes": ""
+    },
+    "34892704": {
+      "condition": "renovated",
+      "finish_quality": "standard",
+      "is_render": "real",
+      "notes": ""
+    }
+  }
+}

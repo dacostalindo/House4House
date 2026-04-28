@@ -53,7 +53,7 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "tags": ["dbt", "cosmos", "osm"],
     },
     "idealista": {
-        "select": ["stg_idealista+"],
+        "select": ["stg_idealista+", "stg_image_classifications+", "stg_floor_plans+"],
         "tags": ["dbt", "cosmos", "idealista"],
     },
     "caop": {
@@ -101,8 +101,16 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
         "tags": ["dbt", "cosmos", "cos"],
     },
     "sce": {
-        "select": ["stg_sce_pce+"],
+        "select": ["stg_sce_certificates+"],
         "tags": ["dbt", "cosmos", "sce"],
+    },
+    "remax": {
+        "select": ["stg_remax_developments+", "stg_remax_units+"],
+        "tags": ["dbt", "cosmos", "remax", "developments"],
+    },
+    "zome": {
+        "select": ["stg_zome_developments+", "stg_zome_listings+"],
+        "tags": ["dbt", "cosmos", "zome", "developments"],
     },
 }
 

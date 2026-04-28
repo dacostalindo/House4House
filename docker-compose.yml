@@ -30,11 +30,14 @@ x-airflow-common: &airflow-common
     WAREHOUSE_DB: house4house
     WAREHOUSE_USER: warehouse
     WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
+    # Portal API keys
+    ZOME_SUPABASE_KEY: ${ZOME_SUPABASE_KEY}
   volumes:
     - ./pipelines:/opt/airflow/dags/pipelines
     - ./dbt:/opt/airflow/dbt
     - /var/run/docker.sock:/var/run/docker.sock
     - osrm_data:/osrm-data
+    - dlt_state:/opt/airflow/dlt_state
   depends_on:
     postgres:
       condition: service_healthy
@@ -121,6 +124,7 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    shm_size: '2gb'    # Chrome instances need more than Docker's 64MB default
     ports:
       - "8089:8089"   # dbt docs serve
 
@@ -229,3 +233,4 @@ volumes:
   osrm_data:
   nominatim_data:
   metabase_plugins:
+  dlt_state:

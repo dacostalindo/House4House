@@ -10,7 +10,7 @@
             'construction_year', 'condition', 'energy_class',
             'orientation', 'heating_type', 'typology',
             'has_elevator', 'has_parking', 'has_terrace', 'has_garden', 'has_pool',
-            'has_ac', 'has_storage', 'has_wardrobes', 'is_furnished', 'is_new_development',
+            'has_ac', 'has_storage', 'has_wardrobes', 'is_furnished', 'is_new_development_combined',
             'property_type_key',
             'geo_key', 'freguesia_code', 'concelho_code', 'distrito_code',
             'distrito_name', 'concelho_name', 'freguesia_name',
@@ -267,8 +267,7 @@ with_flags AS (
         _feat_text ~* 'ar condicionado'                                AS has_ac,
         _feat_text ~* 'arrecadação'                                    AS has_storage,
         _feat_text ~* 'roupeiros embutidos'                            AS has_wardrobes,
-        _feat_text ~* 'mobilado|cozinha equipada'                      AS is_furnished,
-        _feat_text ~* 'nova construção'                                AS is_new_development
+        _feat_text ~* 'mobilado|cozinha equipada'                      AS is_furnished
 
     FROM with_features
 ),
@@ -397,7 +396,7 @@ SELECT
     h.has_storage,
     h.has_wardrobes,
     h.is_furnished,
-    h.is_new_development,
+    COALESCE(cv.is_render, FALSE)                    AS is_new_development_combined,
 
     -- Geography
     h.geo_key,

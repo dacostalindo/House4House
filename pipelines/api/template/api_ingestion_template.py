@@ -45,6 +45,7 @@ class APIIndicator:
     description: str                    # Human-readable description
     category: str                       # Grouping tag (e.g. "housing")
     endpoint_params: dict[str, str] = field(default_factory=dict)
+    storage_key: Optional[str] = None   # Override code for MinIO path (for paginated indicators)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for Airflow XCom (JSON-safe)."""
@@ -54,6 +55,7 @@ class APIIndicator:
             "description": self.description,
             "category": self.category,
             "endpoint_params": self.endpoint_params,
+            "storage_key": self.storage_key,
         }
 
     @classmethod
@@ -94,6 +96,7 @@ class APIIngestionConfig:
     max_retries: int = 3
     retry_backoff_seconds: int = 5
     rate_limit_delay_seconds: float = 1.0
+    extra_headers: dict[str, str] = field(default_factory=dict)  # Custom HTTP headers (e.g. Supabase apikey)
 
     # --- Indicators (catalog) ---
     indicators: list[APIIndicator] = field(default_factory=list)
@@ -110,7 +113,7 @@ class APIIngestionConfig:
     dag_params: dict = field(default_factory=dict)
 
     # --- Orchestration ---
-    trigger_dag_id: Optional[str] = None  # Auto-trigger this DAG after ingestion
+    trigger_dag_id: Optional[str | list[str]] = None  # Auto-trigger DAG(s) after ingestion
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -209,6 +212,7 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             resp = requests.get(
                 url, params=test_params,
+                headers=config.extra_headers or None,
                 timeout=config.request_timeout_seconds,
             )
             resp.raise_for_status()
@@ -276,6 +280,7 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
             def _do_fetch():
                 resp = requests.get(
                     url, params=params,
+                    headers=config.extra_headers or None,
                     timeout=config.request_timeout_seconds,
                 )
                 resp.raise_for_status()
@@ -340,7 +345,8 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
             code = indicator.code
 
             # Bronze: raw JSON with timestamp
-            raw_object = f"{prefix}/{code}/{timestamp}.json"
+            path_key = indicator.storage_key or code
+            raw_object = f"{prefix}/{path_key}/{timestamp}.json"
             client.fput_object(
                 bucket_name=bucket,
                 object_name=raw_object,
@@ -426,12 +432,20 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
         if config.trigger_dag_id:
             from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
-            trigger_downstream = TriggerDagRunOperator(
-                task_id="trigger_downstream",
-                trigger_dag_id=config.trigger_dag_id,
-                wait_for_completion=True,
-                reset_dag_run=True,
+            dag_ids = (
+                config.trigger_dag_id
+                if isinstance(config.trigger_dag_id, list)
+                else [config.trigger_dag_id]
             )
-            metadata >> trigger_downstream
+            prev = metadata
+            for dag_id in dag_ids:
+                trigger = TriggerDagRunOperator(
+                    task_id=f"trigger_{dag_id}",
+                    trigger_dag_id=dag_id,
+                    wait_for_completion=True,
+                    reset_dag_run=True,
+                )
+                prev >> trigger
+                prev = trigger
 
     return api_ingestion_dag()

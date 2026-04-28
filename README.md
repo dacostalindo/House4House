@@ -19,7 +19,7 @@
 9. Spatial Data Strategy
 10. Dependency Graph & Critical Path
 11. Orchestration & Scheduling
-12. Sprint Plan (10 Sprints / 22 Weeks)
+12. Sprint Plan (10 Sprints / 20 Weeks)
 13. Data Quality Framework
 14. Risk Register & Mitigation
 15. Resource Requirements & Costs
@@ -180,9 +180,13 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 | S23 | SNS — Healthcare Facilities | ● | ● | | P2 |
 | S24 | GTFS — Transport Schedules | ● | ● | | P2 |
 | S29 | INE — Rental Price Index | ● | ○ | | P2 |
-| S34 | Competitive Developments (scraped) | ○ | ● | | P2 |
+| S34 | Competitive Developments (multi-portal) | ○ | ● | | P1 |
 | S43 | Sentinel-1 SAR Change Detection | | | ○ | P2 |
-| S45 | SCE — Energy Certificates (PCE) | ● | ● | | P1 |
+| S45 | SCE — Energy Certificates (PCE) | ● | ● | ○ | P1 |
+| S46 | RE/MAX PT — Developments API | ○ | ● | | P1 |
+| S47 | ERA PT — Developments API | ○ | ● | | P1 |
+| S48 | Century 21 PT — Developments | ○ | ● | | P2 |
+| S49 | KW PT — Developments API | ○ | ● | | P2 |
 
 **Legend:** ● = Critical | ○ = Enrichment
 
@@ -398,7 +402,7 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 - **Volume:** ~680K PCE records nationally; ~80K for current 3-distrito scope (Aveiro, Coimbra, Leiria)
 - **Refresh:** Weekly (new pre-certificates issued as construction starts)
 - **Coverage:** Aveiro, Coimbra, Leiria (3 distritos). Expandable to all 22 distritos
-- **Role:** UC-1 energy class enrichment for listings; UC-2 new construction supply signal; new build detection via PCE issuance
+- **Role:** **Ground-truth unit counts for new developments** — each PCE is one fraction/apartment, so grouping by address gives accurate unit count per development (critical for UC-2 `competitive_developments`). **Construction-to-market lifecycle** — PCE date (construction start) → CE date (construction complete) → listing `first_seen_date` (on market) gives real development cycle duration. UC-1 energy class enrichment for listings. UC-2 competitive supply analysis and absorption rate calibration. Neighbourhood-level PCE issuance rate as leading indicator of future housing supply (12-18 months ahead)
 
 #### P2 — Enhancement (11 sources)
 
@@ -474,14 +478,50 @@ This MVP retains **31 data sources** (P0 + P1 + P2) and defers 12 sources (P3 + 
 - **Refresh:** Quarterly
 - **Role:** Official rent benchmarks for yield validation
 
-**S34 — Competitive Developments (Scraped)**
-- **URL:** Idealista new-build filter, developer websites, SIR database
-- **Data:** New-build projects — developer, unit count, pricing, absorption rate
-- **Format:** Mixed (HTML scraping + manual data entry)
-- **Ingestion:** Idealista new-build filter → Scrapy + manual enrichment → Bronze
-- **Volume:** ~50-200 active projects (Lisbon + Porto metro areas)
-- **Refresh:** Monthly
-- **Role:** Competitive landscape for UC-2 pricing strategy
+**S34 — Competitive Developments (Multi-Portal)**
+- **URL:** RE/MAX, ERA, Century 21, KW Portugal APIs + Idealista clustering fallback
+- **Data:** New-build projects — developer, unit count, unit-level pricing, absorption rate, construction status, floor plans. Combined from 4 portal APIs (~1,100 unique developments, ~95% exclusive per portal) + Idealista `is_new_development_combined` clustering for uncovered small developments
+- **Format:** JSON (REST APIs, no auth except ERA CSRF)
+- **Ingestion:** Portal API scrapers → JSONL → MinIO → PostGIS bronze → dbt staging/silver. **Flow F — development portal ingestion**
+- **Volume:** ~1,100 unique developments nationally (RE/MAX 661, ERA 349, KW 104, C21 96). ~22 cross-portal overlaps by name match
+- **Refresh:** Weekly
+- **Role:** Critical for UC-2 pricing strategy — competitive supply, unit counts (cross-referenced with SCE ground truth), absorption tracking, construction timeline
+
+**S46 — RE/MAX PT Developments API**
+- **URL:** `POST https://remax.pt/api/Development/PaginatedSearch`
+- **Data:** 661 developments with unit-level detail. Per-unit: price, previous_price (price history), area, bedrooms, bathrooms, energy class, isSold flag, marketDays, fraction letter. Per-development: GPS (100%), images, description (6 languages)
+- **Format:** JSON (open API, no auth). Unit detail via `GET /_next/data/{buildId}/en/empreendimento/{slug}/{id}.json` (base64-decoded `developmentEncoded`)
+- **Ingestion:** Python `requests` → JSONL → MinIO → PostGIS
+- **Volume:** 661 developments, ~4,000+ units
+- **Refresh:** Weekly
+- **Role:** UC-2 price intelligence — price history per unit, days on market, fraction letter for SCE cross-reference. Largest portal dataset
+
+**S47 — ERA PT Developments API**
+- **URL:** `POST https://www.era.pt/API/ServicesModule/Property/Search` with `{"onlyDevelopments": true}`
+- **Data:** 349 developments with unit-level Available/Reserved/Sold status (BusinessStatus.Id: 1/2/3). Per-unit: price, floor, net area, gross area, rooms, WCs, parking. Per-development: GPS (100%), promoter name (100%), price (93%), typology breakdown
+- **Format:** JSON (requires CSRF token from page). Unit detail via `GET /API/ServicesModule/Development/DevelopmentProperties?id={id}&all=true`
+- **Ingestion:** Python `requests` with session cookies → JSONL → MinIO → PostGIS
+- **Volume:** 349 developments, real-time unit status tracking
+- **Refresh:** Weekly
+- **Role:** UC-2 absorption tracking — only portal with per-unit reservation status. Real-time sell-through % (e.g., PLENO: 36 available, 68 reserved = 65%)
+
+**S48 — Century 21 PT Developments**
+- **URL:** `GET https://www.century21.pt/api/developments` + detail pages on `c21.site`
+- **Data:** 96 PT developments. API gives name/city/image/URL. Detail pages (server-rendered Umbraco CMS) have floor plan images (94% coverage, 1,264 total) with structured `data-title` attributes (unit ID + floor + typology). Images on Azure blob storage (direct access)
+- **Format:** JSON (API, open) + HTML (detail pages, BeautifulSoup)
+- **Ingestion:** Python `requests` + BeautifulSoup → JSONL → MinIO → PostGIS
+- **Volume:** 96 developments, 1,264 floor plan images
+- **Refresh:** Weekly
+- **Role:** UC-2 floor plan intelligence — unit count from slide count, typology from titles, room areas via Claude Vision
+
+**S49 — KW PT Developments API**
+- **URL:** `POST https://www.kwportugal.pt/api/portal/listDevelopments`
+- **Data:** 104 developments with unique fields: construction status (100% — Em projecto/Em construção/Em comercialização), completion date (100%), fund date (100%), price/m² (72%), structured proximity data (minutes to metro, airport, schools, hospitals)
+- **Format:** JSON (open API, no auth)
+- **Ingestion:** Python `requests` → JSONL → MinIO → PostGIS
+- **Volume:** 104 developments
+- **Refresh:** Weekly
+- **Role:** UC-2 construction timeline — only portal with start date + completion date + status phases. Combined with SCE PCE dates for full development lifecycle
 
 **S21 — INE Building Permits**
 - **URL:** https://www.ine.pt (API)
@@ -679,6 +719,7 @@ CREATE SCHEMA bronze_tourism;
 CREATE SCHEMA bronze_macro;
 CREATE SCHEMA bronze_regulatory;
 CREATE SCHEMA bronze_location;
+-- Portal development tables (S46-S49) also stored in bronze_listings
 
 -- Silver: Cleaned, conformed, geocoded
 CREATE SCHEMA silver_properties;
@@ -706,15 +747,15 @@ CREATE SCHEMA metadata;
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DATA SOURCES (24 — MVP)                        │
+│                         DATA SOURCES (35 — MVP)                            │
 │                                                                             │
 │  ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────────┐ │
-│  │ REST APIs│ │ Web Scrape│ │ File     │ │ GIS     │ │ Commercial      │ │
-│  │          │ │           │ │ Downloads│ │ Services│ │ Feeds           │ │
-│  │ INE      │ │ Imovirtual│ │ CAOP SHP │ │ ArcGIS │ │ Conf.Imobiliário│ │
-│  │ BPStat   │ │ RNAL      │ │ OSM PBF  │ │ REST   │ │                 │ │
-│  │ Eurostat │ │ InfoEscola│ │ GTFS ZIP │ │        │ │                 │ │
-│  │ ECB      │ │ Comp.Devs │ │ Census   │ │        │ │                 │ │
+│  │ REST APIs│ │ Web Scrape│ │ File     │ │ GIS     │ │ Portal APIs     │ │
+│  │          │ │           │ │ Downloads│ │ Services│ │ (Developments)  │ │
+│  │ INE      │ │ Imovirtual│ │ CAOP SHP │ │ ArcGIS │ │ RE/MAX (661)    │ │
+│  │ BPStat   │ │ RNAL      │ │ OSM PBF  │ │ REST   │ │ ERA (349)       │ │
+│  │ Eurostat │ │ InfoEscola│ │ GTFS ZIP │ │        │ │ Century 21 (96) │ │
+│  │ ECB      │ │ SCE Certs │ │ Census   │ │        │ │ KW (104)        │ │
 │  │ Idealista│ │           │ │ InsideAir│ │        │ │                 │ │
 │  └─────┬────┘ └─────┬─────┘ └─────┬────┘ └────┬───┘ └────────┬───────┘ │
 │        │            │             │            │              │          │
@@ -744,21 +785,25 @@ CREATE SCHEMA metadata;
 │                    BRONZE LAYER (PostgreSQL + PostGIS)                       │
 │                    Raw, append-only, source-faithful                         │
 │                                                                             │
-│  ┌──────────────────────┐ ┌────────────────┐ ┌──────────────────────┐      │
-│  │ bronze_ine           │ │ bronze_listings│ │ bronze_geo           │      │
-│  │ .raw_indicators      │ │ .raw_idealista │ │ .raw_caop_freguesias │      │
-│  │ .raw_bgri            │ │ .raw_imovirt.  │ │ .raw_caop_municipios │      │
-│  │                      │ │ .raw_comp_devs │ │ .raw_caop_distritos  │      │
-│  └──────────────────────┘ └────────────────┘ │ .raw_aru_zones       │      │
-│  ┌────────────────┐ ┌────────────────┐       └──────────────────────┘      │
-│  │ bronze_macro   │ │ bronze_tourism │       ┌──────────────────────┐      │
-│  │ .raw_bpstat    │ │ .raw_rnal      │       │ bronze_location       │      │
-│  │ .raw_eurostat  │ │ .raw_insideab  │       │ .raw_osm_* (18 tbls) │      │
-│  │ .raw_ecb       │ └────────────────┘       │ .raw_schools          │      │
-│  └────────────────┘                          │ .raw_healthcare       │      │
-│  ┌──────────────────┐                        └──────────────────────┘      │
-│  │ .raw_pdm_zones   │                                                      │
-│  └──────────────────┘                                                      │
+│  ┌──────────────────────┐ ┌────────────────────┐ ┌──────────────────────┐│
+│  │ bronze_ine           │ │ bronze_listings    │ │ bronze_geo           ││
+│  │ .raw_indicators      │ │ .raw_idealista     │ │ .raw_caop_freguesias ││
+│  │ .raw_bgri            │ │ .raw_remax_devs    │ │ .raw_caop_municipios ││
+│  │                      │ │ .raw_era_devs      │ │ .raw_caop_distritos  ││
+│  └──────────────────────┘ │ .raw_c21_devs      │ │ .raw_aru_zones       ││
+│  ┌────────────────┐       │ .raw_kw_devs       │ └──────────────────────┘│
+│  │ bronze_macro   │       │ .image_classif.    │ ┌──────────────────────┐│
+│  │ .raw_bpstat    │       │ .floor_plan_extr.  │ │ bronze_location       ││
+│  │ .raw_eurostat  │       └────────────────────┘ │ .raw_osm_* (18 tbls) ││
+│  │ .raw_ecb       │ ┌────────────────┐           └──────────────────────┘│
+│  └────────────────┘ │ bronze_tourism │                                    │
+│  ┌──────────────────┐│ .raw_rnal      │                                   │
+│  │ bronze_regulatory ││ .raw_insideab  │                                   │
+│  │ .raw_pdm_zones   │└────────────────┘                                   │
+│  │ .raw_bupi         │                                                    │
+│  │ .raw_sce_certificates │                                                │
+│  │ .raw_srup_*       │                                                    │
+│  └──────────────────┘                                                     │
 └────────────────────────────────┬───────────────────────────────────────────┘
                                  │
                             dbt models
@@ -770,10 +815,12 @@ CREATE SCHEMA metadata;
 │                                                                             │
 │  ┌──────────────────────┐  ┌──────────────────────┐  ┌───────────────────┐ │
 │  │ silver_properties    │  │ silver_geo           │  │ silver_location   │ │
-│  │ .unified_listings    │  │ .census_demographics │  │ .transport_stops  │ │
-│  │ .listing_price_hist  │  │ .zoning              │  │ .schools          │ │
-│  │ .listing_matches     │  └──────────────────────┘  │ .healthcare_fac   │ │
-│  └──────────────────────┘                            │ .osm_pois         │ │
+│  │ .resale_listings     │  │ .census_demographics │  │ .transport_stops  │ │
+│  │ .competitive_devs    │  │ .zoning              │  │ .schools          │ │
+│  │ .development_units   │  │ .land_use            │  │ .healthcare_fac   │ │
+│  │ .dev_source_xref     │  └──────────────────────┘  │ .osm_pois         │ │
+│  │ .sce_certificates    │                            │                   │ │
+│  └──────────────────────┘                            │                   │ │
 │  ┌──────────────────────┐  ┌──────────────────────┐  └───────────────────┘ │
 │  │ silver_market        │  │ silver_ref           │                        │
 │  │ .macro_timeseries    │  │ .renovation_costs    │                        │
@@ -942,6 +989,43 @@ CRS alignment strategy:
   - BUPI, COS, CRUS, Cadastro: native EPSG:3763 (no transform needed)
   - SRUP IC/RAN/DPH, Building Footprints: EPSG:4326 → ST_Transform to 3763 at staging
   - All spatial joins performed in EPSG:3763 (projected, metres — accurate area/distance)
+```
+
+### Flow F: Development Portal Sources (UC-2 Competitive Intelligence)
+```
+Portal APIs (RE/MAX, ERA, C21, KW) → Python requests/sessions
+  → Raw JSON responses
+    → Store JSONL in MinIO (s3://raw/{portal}_developments/{YYYYMMDD}/)
+      → Insert into bronze_listings.raw_{portal}_developments
+        → dbt staging views (stg_{portal}_developments, stg_{portal}_units)
+
+Idealista render routing:
+  stg_idealista WHERE cv_is_render = TRUE
+    → Excluded from resale_listings (is_new_development_combined = FALSE only)
+    → Routed to development_units (matched to development by GPS proximity)
+    → Brings Idealista unit-level pricing into competitive_developments
+
+Combined silver:
+  Portal staging + Idealista renders + SCE cross-reference
+    → silver_properties.competitive_developments (unified, deduped, one row per dev)
+    → silver_properties.development_units (unit-level detail from all sources)
+    → silver_properties.development_source_xref (portal cross-reference)
+      → gold_analytics.development_lifecycle (timeline)
+      → gold_analytics.absorption_rate_model (sell-through)
+      → gold_analytics.fact_all_listings (UNION: resale_listings + development_units)
+
+Dedup strategy:
+  - Primary: development_key = MD5(name_normalized + ROUND(lat,3) + ROUND(lng,3))
+  - Secondary: ST_DWithin(geom_pt, 200m) + pg_trgm similarity(name, >0.4)
+  - SCE cross-reference: LEFT JOIN on freguesia_code + GPS proximity + address similarity
+  - Idealista fallback: ST_ClusterDBSCAN on is_new_development_combined listings not matched to any portal
+
+Attribute priority (when portals disagree):
+  - GPS: ERA > RE/MAX > KW > C21 (by coverage %)
+  - Price: ERA (93%) > KW (72%) > RE/MAX (62%) > C21 (1%)
+  - Unit count: SCE ground truth > ERA (100%) > RE/MAX (96%) > C21 (94% via floor plans)
+  - Status: ERA (Available/Reserved/Sold) > RE/MAX (isSold) > KW (construction phase)
+  - Timeline: KW (fund_date + completion_date) > SCE (PCE dates)
 ```
 
 ---
@@ -2001,9 +2085,104 @@ CREATE INDEX idx_raw_sar_processoid ON bronze_geo.raw_sar_change(processoid);
 CREATE INDEX idx_raw_sar_dicofre ON bronze_geo.raw_sar_change(dicofre);
 ```
 
+#### Development Portal Sources (S46-S49)
+
+```sql
+-- S46 — RE/MAX PT Developments (~661 developments, open API)
+CREATE TABLE bronze_listings.raw_remax_developments (
+    id                   BIGSERIAL PRIMARY KEY,
+    development_id       INTEGER NOT NULL,
+    name                 TEXT,
+    slug                 TEXT,
+    latitude             NUMERIC(10,7),
+    longitude            NUMERIC(10,7),
+    minimum_price        NUMERIC(12,2),
+    region_name1         TEXT,                          -- distrito
+    region_name2         TEXT,                          -- concelho
+    region_name3         TEXT,                          -- freguesia
+    listings_count       INTEGER,
+    description          TEXT,
+    building_pictures    JSONB,                         -- image URL array
+    listings             JSONB,                         -- unit-level array (price, area, rooms, isSold, marketDays)
+    _scrape_date         DATE NOT NULL,
+    _batch_id            VARCHAR(50),
+    _ingested_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- S47 — ERA PT Developments (~349 developments, CSRF auth)
+CREATE TABLE bronze_listings.raw_era_developments (
+    id                   BIGSERIAL PRIMARY KEY,
+    development_id       INTEGER,
+    title                TEXT,
+    localization         TEXT,
+    latitude             NUMERIC(10,7),
+    longitude            NUMERIC(10,7),
+    sell_price           JSONB,                         -- {Name, Value, PreviousValue}
+    promoter_name        TEXT,
+    promoter_logo        TEXT,
+    fractions_qty        INTEGER,
+    fractions            JSONB,                         -- typology breakdown [{Name, FractionsQty, AvailableFractions}]
+    units                JSONB,                         -- unit-level [{Id, Title, BusinessStatus, SellPrice, Floor, NetArea, ...}]
+    gallery              JSONB,
+    _scrape_date         DATE NOT NULL,
+    _batch_id            VARCHAR(50),
+    _ingested_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- S48 — Century 21 PT Developments (~96 PT developments)
+CREATE TABLE bronze_listings.raw_c21_developments (
+    id                   BIGSERIAL PRIMARY KEY,
+    title                TEXT,
+    location             TEXT,                          -- city name
+    detail_url           TEXT,                          -- c21.site/{slug}/
+    image_url            TEXT,
+    logo_url             TEXT,
+    floor_plans          JSONB,                         -- [{title, image_url}] from swiper slides
+    unit_count           INTEGER,                       -- counted from floor plan slides
+    typology_mix         JSONB,                         -- parsed from slide data-title
+    _scrape_date         DATE NOT NULL,
+    _batch_id            VARCHAR(50),
+    _ingested_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- S49 — KW PT Developments (~104 developments, open API)
+CREATE TABLE bronze_listings.raw_kw_developments (
+    id                   BIGSERIAL PRIMARY KEY,
+    development_id       INTEGER NOT NULL,
+    name                 TEXT,
+    latitude             NUMERIC(10,7),
+    longitude            NUMERIC(10,7),
+    address              TEXT,
+    postal_code          VARCHAR(20),
+    region1              TEXT,                          -- distrito
+    region2              TEXT,                          -- concelho
+    region3              TEXT,                          -- freguesia
+    construction_status  TEXT,                          -- Em projecto / Em construção / Em comercialização
+    fund_date            DATE,
+    completion_date      DATE,
+    min_price            NUMERIC(12,2),
+    max_price            NUMERIC(12,2),
+    price_per_m2         NUMERIC(10,2),
+    min_area             NUMERIC(10,2),
+    max_area             NUMERIC(10,2),
+    typologies           JSONB,                         -- {2: "T1", 3: "T2", ...}
+    energy_classes       JSONB,
+    divisions            JSONB,                         -- structured amenities + proximity data
+    features             JSONB,                         -- feature tags
+    images               JSONB,
+    agent_name           TEXT,
+    agency_name          TEXT,
+    _scrape_date         DATE NOT NULL,
+    _batch_id            VARCHAR(50),
+    _ingested_at         TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
 ### 8.3 Silver Layer — Cleaned, Conformed, Geocoded
 
-#### Unified Listings (anchor table for all property analysis)
+#### 8.3.1 silver_properties — Listings & Developments
+
+##### Resale Listings (anchor table for resale market analysis)
 
 ```sql
 -- dbt transforms: parse TEXT bronze columns to typed silver columns, geocode addresses.
@@ -2023,7 +2202,9 @@ CREATE INDEX idx_raw_sar_dicofre ON bronze_geo.raw_sar_change(dicofre);
 --
 -- All type casting and business logic belongs in dbt (silver), NOT in bronze.
 
-CREATE TABLE silver_properties.unified_listings (
+-- Note: renamed to resale_listings in Sprint 4.5. Contains only is_new_development_combined = FALSE.
+-- Render listings (is_render = TRUE) route to competitive_developments / development_units instead.
+CREATE TABLE silver_properties.resale_listings (  -- was: unified_listings
     listing_key          BIGSERIAL PRIMARY KEY,
     property_hash        VARCHAR(64) NOT NULL,         -- Dedup key: hash(address + area + typology)
 
@@ -2116,7 +2297,126 @@ CREATE TABLE silver_properties.listing_matches (
 );
 ```
 
-#### Census Demographics
+##### Competitive Developments & Development Units (UC-2 foundation)
+
+```sql
+-- silver_properties.competitive_developments — Unified from 4 portal APIs + Idealista render routing + SCE
+-- One row per unique development. Merged from RE/MAX (661), ERA (349), KW (104), C21 (96).
+-- Idealista is_render=TRUE listings routed here (excluded from resale_listings).
+-- Dedup: GPS proximity (ST_DWithin 200m) + trigram name similarity (>0.4).
+-- SCE cross-reference: LEFT JOIN on freguesia + GPS + address similarity → ground-truth unit count.
+-- Materialisation: incremental merge on development_key.
+CREATE TABLE silver_properties.competitive_developments (
+    development_key      VARCHAR(64) PRIMARY KEY,       -- MD5(name_normalized + ROUND(lat,3) + ROUND(lng,3))
+    development_name     TEXT NOT NULL,
+    development_name_normalized TEXT NOT NULL,
+
+    -- Geography
+    geo_key              INTEGER REFERENCES gold_analytics.dim_geography(geo_key),
+    freguesia_code       CHAR(6),
+    concelho_code        CHAR(4),
+    distrito_code        CHAR(2),
+    latitude             NUMERIC(10,7),
+    longitude            NUMERIC(10,7),
+    geom                 GEOMETRY(POINT, 4326),
+    geom_pt              GEOMETRY(POINT, 3763),
+
+    -- Pricing
+    min_price_eur        NUMERIC(12,2),
+    max_price_eur        NUMERIC(12,2),
+    avg_price_per_m2     NUMERIC(10,2),
+
+    -- Units
+    total_units          INTEGER,
+    units_available      INTEGER,
+    units_sold           INTEGER,
+    units_reserved       INTEGER,
+    sell_through_pct     NUMERIC(5,2),
+
+    -- Development attributes
+    promoter_name        TEXT,
+    construction_status  VARCHAR(30),                   -- planned / under_construction / completed
+    completion_date      DATE,
+    fund_date            DATE,
+    dominant_typology    VARCHAR(10),
+    typology_mix         JSONB,                         -- {"T1": 10, "T2": 30, "T3": 20}
+    dominant_energy_class VARCHAR(5),
+
+    -- SCE ground truth
+    sce_unit_count       INTEGER,                       -- from artigo_matricial grouping
+    sce_artigo_matricial TEXT,
+
+    -- Source tracking
+    source_portal_count  SMALLINT,
+    source_portals       JSONB,                         -- ["remax", "era", "kw", "idealista"]
+
+    -- Lifecycle
+    first_seen_date      DATE,
+    last_seen_date       DATE,
+    is_active            BOOLEAN DEFAULT TRUE,
+
+    _created_at          TIMESTAMPTZ DEFAULT NOW(),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_cd_geom ON silver_properties.competitive_developments USING GIST(geom);
+CREATE INDEX idx_cd_geom_pt ON silver_properties.competitive_developments USING GIST(geom_pt);
+CREATE INDEX idx_cd_geo_key ON silver_properties.competitive_developments(geo_key);
+CREATE INDEX idx_cd_active ON silver_properties.competitive_developments(is_active) WHERE is_active;
+
+-- silver_properties.development_units — Unit-level detail (star schema, like floor_plan_rooms)
+-- Sources: RE/MAX units + ERA units + Idealista render listings (is_render=TRUE)
+CREATE TABLE silver_properties.development_units (
+    unit_key             VARCHAR(64) PRIMARY KEY,       -- MD5(development_key + source_portal + source_unit_ref)
+    development_key      VARCHAR(64) NOT NULL,          -- FK to competitive_developments
+    source_portal        VARCHAR(20) NOT NULL,          -- 'remax', 'era', 'idealista'
+    source_unit_ref      TEXT,                          -- portal unit ID or Idealista source_listing_id
+
+    -- Unit attributes
+    typology             VARCHAR(10),                   -- T0, T1, T2, T3, T4
+    floor_number         SMALLINT,
+    price_eur            NUMERIC(12,2),
+    previous_price_eur   NUMERIC(12,2),                 -- RE/MAX only
+    net_area_m2          NUMERIC(10,2),
+    gross_area_m2        NUMERIC(10,2),
+    num_rooms            SMALLINT,
+    num_bathrooms        SMALLINT,
+    energy_class         VARCHAR(5),
+    has_parking          BOOLEAN,
+    garage_spots         SMALLINT,
+
+    -- Status
+    business_status      VARCHAR(20),                   -- available / reserved / sold (ERA)
+    is_sold              BOOLEAN,                       -- RE/MAX isSold flag
+    market_days          INTEGER,                       -- RE/MAX only
+
+    -- SCE matching
+    fraction_letter      VARCHAR(10),                   -- for SCE artigo_matricial cross-reference
+
+    -- Lifecycle
+    first_seen_date      DATE,
+    last_seen_date       DATE,
+    _scrape_date         DATE,
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_du_dev_key ON silver_properties.development_units(development_key);
+CREATE INDEX idx_du_status ON silver_properties.development_units(business_status);
+
+-- silver_properties.development_source_xref — Which portals report each development
+CREATE TABLE silver_properties.development_source_xref (
+    development_key      VARCHAR(64) NOT NULL,
+    source_portal        VARCHAR(20) NOT NULL,          -- remax / era / c21 / kw / idealista
+    source_development_id TEXT,
+    source_url           TEXT,
+    match_method         VARCHAR(30),                   -- exact_name / gps_proximity / render_cluster
+    match_confidence     NUMERIC(3,2),                  -- 0.00 - 1.00
+    _matched_at          TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (development_key, source_portal)
+);
+```
+
+#### 8.3.2 silver_geo — Geography, Land Use & Regulatory
+
+##### Census Demographics
 
 ```sql
 -- Bronze → Silver mapping:
@@ -2163,7 +2463,7 @@ CREATE TABLE silver_geo.census_demographics (
 );
 ```
 
-#### Zoning & ARU
+##### Zoning & ARU
 
 ```sql
 CREATE TABLE silver_geo.zoning (
@@ -2185,7 +2485,86 @@ CREATE TABLE silver_geo.zoning (
 CREATE INDEX idx_zoning_geom ON silver_geo.zoning USING GIST(geom);
 ```
 
-#### Location Features
+##### Land Use, Parcel Buildability & Regulatory (UC-3 foundation)
+
+```sql
+-- silver_geo.land_use — COS 2023 enriched with hierarchy and boolean flags (~784K rows)
+-- Source: stg_cos2023 + COS nomenclature hierarchy lookup
+-- Materialization: dbt table
+CREATE TABLE silver_geo.land_use (
+    land_use_key         BIGSERIAL PRIMARY KEY,
+    id                   INTEGER NOT NULL,
+    land_use_code        TEXT NOT NULL,           -- COS 4-level code (e.g. "1.1.1.01")
+    land_use_label       TEXT,
+    area_ha              DOUBLE PRECISION,
+    land_use_level1      TEXT,
+    land_use_level2      TEXT,
+    land_use_level3      TEXT,
+    land_use_category    TEXT,
+    is_urban             BOOLEAN,
+    is_residential       BOOLEAN,
+    is_agricultural      BOOLEAN,
+    is_forest            BOOLEAN,
+    freguesia_code       TEXT,
+    concelho_code        TEXT,
+    distrito_code        TEXT,
+    geom                 GEOMETRY(MULTIPOLYGON, 3763),
+    geom_wgs84           GEOMETRY(MULTIPOLYGON, 4326),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_land_use_geom ON silver_geo.land_use USING GIST(geom);
+CREATE INDEX idx_land_use_code ON silver_geo.land_use(land_use_code);
+
+-- silver_geo.building_footprints — MS Building Footprints cleaned (P1 — not yet ingested)
+CREATE TABLE silver_geo.building_footprints (
+    bf_id                INTEGER PRIMARY KEY,
+    area_m2              DOUBLE PRECISION,
+    height               DOUBLE PRECISION,
+    confidence           DOUBLE PRECISION,
+    geom_pt              GEOMETRY(POLYGON, 3763),
+    geom_4326            GEOMETRY(POLYGON, 4326),
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_bf_geom_pt ON silver_geo.building_footprints USING GIST(geom_pt);
+
+-- silver_geo.parcel_buildability — UC-3 core model
+-- Each BUPI parcel enriched with zoning, land use, constraints, and building coverage.
+-- Pre-filtered to CRUS municipality extents (~500K of 3.25M parcels).
+CREATE TABLE silver_geo.parcel_buildability (
+    process_id           INTEGER NOT NULL,
+    dicofre              VARCHAR(6) NOT NULL,
+    matrix_number        TEXT,
+    parish               TEXT,
+    municipality         TEXT,
+    parcel_area_m2       DOUBLE PRECISION,
+    geom_pt              GEOMETRY(MULTIPOLYGON, 3763),
+    geom_4326            GEOMETRY(MULTIPOLYGON, 4326),
+    zone_category        TEXT,
+    zone_subcategory     TEXT,
+    is_urban             BOOLEAN,
+    is_urban_expansion   BOOLEAN,
+    is_rural             BOOLEAN,
+    cos_level_1          TEXT,
+    cos_level_2          TEXT,
+    is_vacant            BOOLEAN,
+    is_agricultural      BOOLEAN,
+    is_built             BOOLEAN,
+    srup_ran_flag        BOOLEAN DEFAULT FALSE,
+    srup_dph_flag        BOOLEAN DEFAULT FALSE,
+    srup_ic_flag         BOOLEAN DEFAULT FALSE,
+    srup_ren_flag        BOOLEAN DEFAULT FALSE,
+    has_building         BOOLEAN,
+    building_count       INTEGER DEFAULT 0,
+    building_coverage_pct NUMERIC(5,4),
+    is_aru               BOOLEAN DEFAULT FALSE,
+    _updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_pb_geom ON silver_geo.parcel_buildability USING GIST(geom_pt);
+CREATE INDEX idx_pb_dicofre ON silver_geo.parcel_buildability(dicofre);
+CREATE INDEX idx_pb_municipality ON silver_geo.parcel_buildability(municipality);
+```
+
+#### 8.3.3 silver_location — Transport, POIs & Amenities
 
 ```sql
 -- Bronze → Silver mapping:
@@ -2273,7 +2652,7 @@ CREATE INDEX idx_pois_silver_geom_pt ON silver_location.osm_pois USING GIST(geom
 CREATE INDEX idx_pois_silver_fclass ON silver_location.osm_pois(fclass);
 ```
 
-#### Market Context
+#### 8.3.4 silver_market — Macro Indicators & STR
 
 ```sql
 -- Unified time-series from all bronze macro sources.
@@ -2327,127 +2706,7 @@ CREATE TABLE silver_market.str_registry (
 CREATE INDEX idx_str_geom ON silver_market.str_registry USING GIST(geom);
 ```
 
-#### Geo & Regulatory (UC-3 foundation)
-
-```sql
--- silver_geo.land_use — COS 2023 enriched with hierarchy and boolean flags (~784K rows)
--- Source: stg_cos2023 + COS nomenclature hierarchy lookup
--- Materialization: dbt table
-CREATE TABLE silver_geo.land_use (
-    land_use_key         BIGSERIAL PRIMARY KEY,
-    id                   INTEGER NOT NULL,
-    land_use_code        TEXT NOT NULL,           -- COS 4-level code (e.g. "1.1.1.01")
-    land_use_label       TEXT,
-    area_ha              DOUBLE PRECISION,
-    land_use_level1      TEXT,                    -- Level 1 (e.g. "Territórios artificializados")
-    land_use_level2      TEXT,                    -- Level 2
-    land_use_level3      TEXT,                    -- Level 3
-    land_use_category    TEXT,                    -- Grouped category
-    is_urban             BOOLEAN,
-    is_residential       BOOLEAN,
-    is_agricultural      BOOLEAN,
-    is_forest            BOOLEAN,
-    freguesia_code       TEXT,
-    concelho_code        TEXT,
-    distrito_code        TEXT,
-    geom                 GEOMETRY(MULTIPOLYGON, 3763),
-    geom_wgs84           GEOMETRY(MULTIPOLYGON, 4326),
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX idx_land_use_geom ON silver_geo.land_use USING GIST(geom);
-CREATE INDEX idx_land_use_code ON silver_geo.land_use(land_use_code);
-
--- silver_geo.zoning — CRUS PDM zoning enriched (~5K rows, 5 municipalities)
--- Source: stg_crus_ordenamento
--- Materialization: dbt table
-CREATE TABLE silver_geo.zoning (
-    zone_key             BIGSERIAL PRIMARY KEY,
-    municipality_code    TEXT,
-    municipality_name    TEXT NOT NULL,
-    land_classification  TEXT,                    -- Solo Urbano / Solo Rústico
-    land_category        TEXT,                    -- Subcategory
-    land_designation     TEXT,                    -- Detailed designation
-    zone_category        TEXT,                    -- Grouped zone type
-    area_ha              DOUBLE PRECISION,
-    pdm_publication_date DATE,
-    geom                 GEOMETRY(MULTIPOLYGON, 3763),
-    geom_wgs84           GEOMETRY(MULTIPOLYGON, 4326),
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX idx_zoning_geom ON silver_geo.zoning USING GIST(geom);
-CREATE INDEX idx_zoning_municipality ON silver_geo.zoning(municipality_name);
-
--- silver_geo.building_footprints — MS Building Footprints cleaned (P1 — not yet ingested)
--- Source: stg_building_footprints (ST_Transform from 4326 to 3763)
-CREATE TABLE silver_geo.building_footprints (
-    bf_id                INTEGER PRIMARY KEY,
-    area_m2              DOUBLE PRECISION,
-    height               DOUBLE PRECISION,        -- nullable
-    confidence           DOUBLE PRECISION,
-    geom_pt              GEOMETRY(POLYGON, 3763),
-    geom_4326            GEOMETRY(POLYGON, 4326),
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX idx_bf_geom_pt ON silver_geo.building_footprints USING GIST(geom_pt);
-
--- silver_geo.parcel_buildability — UC-3 core model
--- Each BUPI parcel enriched with zoning, land use, constraints, and building coverage.
--- Pre-filtered to CRUS municipality extents (~500K of 3.25M parcels).
--- Materialization: dbt TABLE (not view) — estimated refresh ~15-20 min.
--- Spatial join strategy: filter BUPI to ST_Within(crus_extent), then LEFT JOIN against
---   zoning (centroid), land_use (largest overlap), SRUP (ST_Intersects), footprints (area ratio)
-CREATE TABLE silver_geo.parcel_buildability (
-    process_id           INTEGER NOT NULL,
-    dicofre              VARCHAR(6) NOT NULL,
-    matrix_number        TEXT,
-    parish               TEXT,
-    municipality         TEXT,
-    parcel_area_m2       DOUBLE PRECISION,
-    geom_pt              GEOMETRY(MULTIPOLYGON, 3763),
-    geom_4326            GEOMETRY(MULTIPOLYGON, 4326),
-    -- Zoning (from CRUS spatial join)
-    zone_category        TEXT,                    -- Solo Urbano / Solo Rústico
-    zone_subcategory     TEXT,
-    is_urban             BOOLEAN,
-    is_urban_expansion   BOOLEAN,
-    is_rural             BOOLEAN,
-    -- Land use (from COS spatial join)
-    cos_level_1          TEXT,
-    cos_level_2          TEXT,
-    is_vacant            BOOLEAN,
-    is_agricultural      BOOLEAN,
-    is_built             BOOLEAN,
-    -- Constraints (from SRUP spatial joins)
-    srup_ran_flag        BOOLEAN DEFAULT FALSE,
-    srup_dph_flag        BOOLEAN DEFAULT FALSE,
-    srup_ic_flag         BOOLEAN DEFAULT FALSE,
-    srup_ren_flag        BOOLEAN DEFAULT FALSE,   -- P2 (REN not yet ingested)
-    -- Building coverage (from footprints spatial join)
-    has_building         BOOLEAN,
-    building_count       INTEGER DEFAULT 0,
-    building_coverage_pct NUMERIC(5,4),           -- 0.0000 to 1.0000
-    -- ARU (P2)
-    is_aru               BOOLEAN DEFAULT FALSE,
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX idx_pb_geom ON silver_geo.parcel_buildability USING GIST(geom_pt);
-CREATE INDEX idx_pb_dicofre ON silver_geo.parcel_buildability(dicofre);
-CREATE INDEX idx_pb_municipality ON silver_geo.parcel_buildability(municipality);
-
--- silver_geo.parcel_construction_activity — construction signals per parcel (P2)
--- Source: stg_bupi JOIN stg_sar_change + stg_building_permits
-CREATE TABLE silver_geo.parcel_construction_activity (
-    process_id           INTEGER NOT NULL,
-    dicofre              VARCHAR(6),
-    sar_delta_db         DOUBLE PRECISION,        -- backscatter change
-    sar_coherence        DOUBLE PRECISION,        -- InSAR coherence (0-1)
-    sar_is_active        BOOLEAN,                 -- delta_db > 3.0 AND pixel_count >= 5
-    permit_count_nearby  INTEGER DEFAULT 0,       -- INE building permits within municipality
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### Reference Tables
+#### 8.3.5 silver_ref — Reference Tables
 
 ```sql
 -- Renovation costs (manually seeded — replaces IMPIC S25 in MVP)
@@ -2929,50 +3188,47 @@ CREATE TABLE gold_analytics.development_units (
 );
 ```
 
-#### Competitive Developments
+#### Competitive Developments (moved to Silver — see Section 8.3)
+
+> **Note:** `competitive_developments` is now a **silver_properties** model (not gold) because it unifies
+> multi-source raw data — the same role as `unified_listings`. See Section 8.3 for the updated schema.
+
+#### Development Lifecycle & Absorption Rate
 
 ```sql
-CREATE TABLE gold_analytics.competitive_developments (
-    id                   SERIAL PRIMARY KEY,
-    project_name         VARCHAR(200),
-    developer_name       VARCHAR(200),
-    geo_key              INTEGER,
-    latitude             NUMERIC(10,7),
-    longitude            NUMERIC(10,7),
-    geom                 GEOMETRY(POINT, 4326),
-    distance_to_project_m INTEGER,
-    total_units          INTEGER,
-    units_sold           INTEGER,
-    units_available      INTEGER,
-    avg_price_sqm        NUMERIC(10,2),
-    min_price_sqm        NUMERIC(10,2),
-    max_price_sqm        NUMERIC(10,2),
-    absorption_rate_monthly NUMERIC(5,2),
-    launch_date          DATE,
-    expected_completion  DATE,
-    quality_tier         VARCHAR(20),
-    _scrape_date         DATE,
-    _updated_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### Absorption Rate Model & Location Premiums
-
-```sql
-CREATE TABLE gold_analytics.absorption_rate_model (
-    id                   SERIAL PRIMARY KEY,
-    geo_key              INTEGER,
-    typology             VARCHAR(10),
-    price_segment        VARCHAR(20),
-    observation_period   VARCHAR(10),
-    avg_days_on_market   NUMERIC(6,1),
-    median_days_on_market NUMERIC(6,1),
-    pct_sold_30d         NUMERIC(5,2),
-    pct_sold_60d         NUMERIC(5,2),
-    pct_sold_90d         NUMERIC(5,2),
-    sample_size          INTEGER,
+-- gold_analytics.development_lifecycle — Construction-to-market timeline per development
+-- Joins KW dates + SCE PCE dates + listing appearance dates
+CREATE TABLE gold_analytics.development_lifecycle (
+    development_key      VARCHAR(64) PRIMARY KEY,
+    phase_planned_date   DATE,                          -- KW fund_date
+    phase_pce_issued     DATE,                          -- earliest SCE PCE for matched artigo_matricial
+    phase_completion     DATE,                          -- KW completion_date
+    phase_market_launch  DATE,                          -- first_seen_date from competitive_developments
+    construction_duration_months NUMERIC(5,1),          -- PCE → completion
+    time_to_market_months NUMERIC(5,1),                 -- completion → market launch
+    full_cycle_months    NUMERIC(5,1),                  -- planned → market launch
     _computed_at         TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- gold_analytics.absorption_rate_model — Sell-through tracking from portal unit statuses
+-- Queries historical bronze data (all _scrape_date versions) for time-series snapshots
+CREATE TABLE gold_analytics.absorption_rate_model (
+    id                   SERIAL PRIMARY KEY,
+    development_key      VARCHAR(64),                   -- FK to competitive_developments
+    snapshot_date        DATE NOT NULL,
+    units_available      INTEGER,
+    units_sold           INTEGER,
+    units_reserved       INTEGER,
+    sell_through_pct     NUMERIC(5,2),
+    monthly_absorption_rate NUMERIC(5,2),               -- units sold per month since launch
+    months_to_sellout    NUMERIC(5,1),                  -- projected at current rate
+    avg_price_eur        NUMERIC(12,2),                 -- at snapshot
+    _computed_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+#### Location Premiums
+
+```sql
 
 CREATE TABLE gold_analytics.location_price_premiums (
     id                   SERIAL PRIMARY KEY,
@@ -3337,16 +3593,24 @@ LAYER 4 — Analytical Models (Sprint 5-6)
   neighbourhood_trajectory
   ──► investment_opportunities (UC-1 MVP)
 
-LAYER 5 — Enhancements (Sprint 7)
+LAYER 5 — Enhancements (Sprint 9)
   S06 Imovirtual Rentals, S14 RNAL, S22 Schools, S23 Healthcare, S24 GTFS
   ──► hedonic model v2 (recalibrated)
 
-LAYER 6 — UC-2 Pricing (Sprint 8)
-  S34 Competitive Developments
-  absorption_rate_model + location_price_premiums
+LAYER 5.5 — Development Intelligence (Sprint 4.5)
+  S46 RE/MAX + S47 ERA + S48 C21 + S49 KW → bronze_listings
+  ──► stg_{portal}_developments + stg_{portal}_units
+  ──► competitive_developments + development_units + development_source_xref
+  ──► development_lifecycle + absorption_rate_model (initial)
+  + S45 SCE cross-reference (ground-truth unit counts)
+  + Idealista ST_ClusterDBSCAN (fallback for uncovered developments)
+
+LAYER 6 — UC-2 Pricing (Sprint 7)
+  competitive_developments (from Sprint 4.5)
+  + hedonic model → location_price_premiums + absorption calibration
   ──► unit_pricing_recommendation (UC-2 MVP)
 
-LAYER 7 — UC-3 Land Opportunities (Sprint 9-11, post-MVP)
+LAYER 7 — UC-3 Land Opportunities (Sprint 8, post-MVP)
 
   Bronze (existing):
     raw_bupi + raw_cos2023 + raw_crus_ordenamento + raw_srup_ic/ran/dph + raw_cadastro
@@ -3384,16 +3648,16 @@ LAYER 7 — UC-3 Land Opportunities (Sprint 9-11, post-MVP)
 S08 + S12 ──► dim_geography ──► S03 geocoding ──► unified_listings
   ──► neighbourhood_market_stats ──► hedonic_features
     ──► hedonic model ──► property_valuation
-      ──► investment_opportunities (UC-1 MVP at Week 12)
-        ──► UC-2 additions (Week 16)
+      ──► investment_opportunities (UC-1 MVP at Week 13)
+        ──► UC-2 additions (Week 15)
 
-UC-3 critical path (post-MVP, Weeks 17-22):
+UC-3 critical path (post-MVP, Weeks 16-20):
   S42 Building Footprints + existing bronze (BUPI/COS/CRUS/SRUP)
-    ──► parcel_buildability ──► development_sites (UC-3 MVP at Week 19)
-      ──► SAR + ARU + REN enrichment (Week 22)
+    ──► parcel_buildability ──► development_sites (UC-3 MVP at Week 18)
+      ──► SAR + ARU + REN enrichment (Week 20)
 
-Critical path to UC-1: 6 sprints (12 weeks)
-Critical path to UC-2: 8 sprints (16 weeks)
+Critical path to UC-1: 6 sprints (13 weeks)
+Critical path to UC-2: 7.5 sprints (15 weeks) — competitive_developments pulled forward to Sprint 4.5
 Critical path to UC-3: 11 sprints (22 weeks) — requires UC-1 hedonic model
 ```
 
@@ -3481,12 +3745,15 @@ dags/
 
 ---
 
-## 12. Sprint Plan (9 Sprints / 18 Weeks)
+## 12. Sprint Plan (10 Sprints / 20 Weeks)
 
-> **Last updated:** 2026-03-22. Revised to reflect actual implementation state and incorporate UC-3 GIS
-> data already ingested (BUPI, COS, CRUS, SRUP, Cadastro). UC-1 remains first — the hedonic model is
-> foundational for both UC-2 pricing and UC-3 development economics. OSRM drive-time routing deferred
-> from Sprint 4 to Sprint 8 (crow-flies proxy sufficient for MVP hedonic model).
+> **Last updated:** 2026-04-18. Added Sprint 4.5 (Development Intelligence) to integrate 4 new
+> development portal APIs (RE/MAX, ERA, C21, KW — ~1,100 unique developments) with Option B
+> architecture (per-portal bronze/staging + unified silver). SCE cross-reference validated
+> (NEXT2U BLUE + Novus Plaza). S34 Competitive Developments now backed by portal APIs + Idealista
+> clustering fallback (replaces Idealista-only scraping). Sprint 7 simplified — competitive_developments
+> pulled forward to Sprint 4.5. UC-1 remains first — the hedonic model is foundational for both
+> UC-2 pricing and UC-3 development economics.
 
 ### Sprint 1 — Infrastructure & Geography (Weeks 1-2) ✅ COMPLETE
 
@@ -3557,39 +3824,91 @@ dags/
 
 ### Sprint 4 — Image Classification + Location Scores (Weeks 7-8) 🔄 IN PROGRESS
 
-**Goal:** Run image classification pilot + production, complete location scoring. OSRM drive-time deferred — crow-flies KNN is sufficient for MVP hedonic model.
+**Goal:** Run image classification pilot + production, complete location scoring, build SCE energy certificate pipeline and silver models. OSRM drive-time deferred — crow-flies KNN is sufficient for MVP hedonic model.
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
 | Transport stops model | S10 | 1 | Map OSM fclass → stop_type (50K rows from point + polygon layers), spatial join → geo_key, source/source_id columns, reproject to 3763 | `silver_location.transport_stops` | ✅ Done |
 | OSM POIs model | S09 | 1 | Group fclass → category (food, health, education, …), spatial join → geo_key (304K rows from point + polygon layers) | `silver_location.pois` | ✅ Done |
-| Model comparison: Haiku vs Sonnet | S03/S04 | 0.5 | Test both models on 30 images (same sample). Compare accuracy on render/condition/finish. Decide model per feature | — | 🔄 In Progress |
-| Image classification: pilot run (200 listings) | S03/S04 | 1 | Run `image_classification_dag` with LIMIT 200. Validate JSON parse rate, measure cost (~$3.80), check `stg_image_classifications` passthrough | `bronze_listings.image_classifications` | 🔄 In Progress |
-| Image classification: full production run (~16K) | S03/S04 | 2 | Airflow DAG with tag-based image selection + heuristic shortcuts → Claude Vision API labels ~16K listings (3 features × confidence scores, ~$304 at Sonnet) → `bronze_listings.image_classifications`. Each property_id classified once only | `bronze_listings.image_classifications` | Pending |
-| Image classification: human validation | S03/S04 | 0.5 | Sample 500 listings, verify Claude labels, measure agreement (target >90% per feature) | — | Pending |
-| Image classification: dbt integration | S03/S04 | 0.5 | dbt staging model (per-listing aggregation) + LEFT JOIN to unified_listings → 6 new cv_* columns | `silver_properties.unified_listings` (cv_is_render, cv_condition, cv_finish_quality + confidences) | Pending |
-| Floor plan extraction | S03/S04 | 1 | Claude Vision extracts room-level areas from all listings with floor plans (~5,405 listings across all conditions, ~$162). Structured JSON: room name → area m². Benchmarks room sizes by location/typology/condition | `bronze_listings.floor_plan_extractions` | Pending |
+| Model comparison: Haiku vs Sonnet | S03/S04 | 0.5 | Tested both models on 6 sample images. Sonnet selected for all features — better at nuance in condition/finish. Haiku adequate only for render detection | — | ✅ Done |
+| Image classification: Aveiro municipality (1,330 listings) | S03/S04 | 1 | Ran `image_classification_dag` with `TARGET_CONCELHOS = ["aveiro"]`. Sonnet classified 1,330 listings (3 images each, tag-based selection: kitchen/bathroom → facade → livingRoom). Distribution: renovated 75%, habitable 9%, needs_renovation 16%. Confidence floor: 0.70 | `bronze_listings.image_classifications` | ✅ Done |
+| Floor plan extraction: Aveiro municipality (1,056 plans) | S03/S04 | 1 | Extracted room-level areas from 1,056 plan images across 625 properties. Room names standardized in Portuguese (sala, quarto_1, cozinha, wc_1, etc.) | `bronze_listings.floor_plan_extractions` | ✅ Done |
+| Human validation survey | S03/S04 | 0.5 | Generated Portuguese HTML survey for 50 random classified listings. Created `analyze_survey.py` for comparing evaluator responses to ground truth. Created `prompt_engineer.py` agent that analyzes edge cases with actual images to propose prompt improvements | `scripts/validation_survey.html`, `scripts/analyze_survey.py`, `scripts/prompt_engineer.py` | ✅ Done (awaiting survey results) |
+| Prompt engineering: initial analysis | S03/S04 | 0.5 | Ran prompt engineer on 15 edge cases. Identified habitable/renovated boundary confusion and standard/premium ambiguity. Revised prompt saved to `scripts/revised_prompt.txt` — pending survey feedback before applying | `scripts/prompt_engineer_analysis.md`, `scripts/revised_prompt.txt` | ✅ Done (awaiting survey results) |
+| dbt integration: CV classifications | S03/S04 | 0.5 | `stg_image_classifications` view + LEFT JOIN in `unified_listings` → 7 cv_* columns. Added `stg_image_classifications+` and `stg_floor_plans+` to Cosmos selector. Replaced regex `is_new_development` with `is_new_development_combined` (= `cv_is_render`, source of truth for new dev detection — reclassified 413 listings). All dbt tests passing | `silver_properties.unified_listings` (cv_is_render, cv_condition, cv_condition_confidence, cv_finish_quality, cv_finish_quality_confidence, cv_model_version, cv_classified_at, is_new_development_combined) | ✅ Done |
+| dbt integration: floor plan rooms | S03/S04 | 0.5 | `stg_floor_plans` view + `floor_plan_rooms` table (star schema). One row per room per plan image. Added `room_category` mapping (bedroom, bathroom, living_room, kitchen, hallway, balcony, storage, garage, office). Dropped NULL area rows. Removed denormalized columns — join via `property_id = source_listing_id`. 2,454 room rows materialized | `silver_properties.floor_plan_rooms` | ✅ Done |
+| SCE scraping framework | S45 | 2 | Reusable scraping ingestion template (nodriver backend, BrowserContext with timeout-safe ops, adaptive circuit breaker). `sce_scraper.py` with in-browser JS extraction, parish-level query partitioning, Cloudflare Turnstile bypass | `pipelines/scraping/template/`, `pipelines/scraping/sce/` | ✅ Done |
+| SCE pipeline + config | S45 | 1 | `sce_config.py` with 3 regions (Aveiro, Coimbra, Leiria), bronze table schema, JSONL → PostgreSQL dedup logic, MinIO integration, downstream DAG triggering | `pipelines/scraping/sce/sce_config.py` | ✅ Done |
+| SCE dbt staging model | S45 | 0.5 | `stg_sce_pce` view: deduplicated by doc_number, parse dates, normalize municipality/parish, `is_pce` flag for pre-certificates vs final certificates | `staging_dbt.stg_sce_pce` | ✅ Done |
+| SCE ingestion: run scraper (3 districts) | S45 | 1 | Executed `sce_ingestion_dag` for Aveiro, Coimbra, Leiria. 135,785 PCE records → `raw/sce_pce/{region}/` in MinIO → `bronze_regulatory.raw_sce_pce` | `bronze_regulatory.raw_sce_pce` | ✅ Done |
+| SCE: extend scraper to ingest Certificados (CE) | S45 | 0.5 | Change `DOC_TYPE_PCE` default to `DOC_TYPE_ALL` in `sce_scraper.py` (3 function signatures: `set_form_values`, `scrape_query`, `scrape_concelho_by_freguesia`). Re-run `sce_ingestion_dag` for 3 districts. Captures CEs (construction complete) + DCRs alongside PCEs (construction start). CE `issued_date` → enables `construction_duration_months` in `development_lifecycle`. Expected +30-50K records | `bronze_regulatory.raw_sce_pce` (adds CE + DCR records) | Pending |
+| Prompt iteration (v2) | S03/S04 | 1 | Apply revised prompt after survey feedback, bump `CURRENT_PROMPT_VERSION` to 2, re-trigger DAG, run `dbt build --full-refresh` | `bronze_listings.image_classifications`, `silver_properties.unified_listings` | Pending (blocked on survey results) |
+| Scale classification to all municipalities | S03/S04 | 2 | Set `TARGET_CONCELHOS = None`, classify remaining ~14K listings across Aveiro/Coimbra/Leiria districts. Estimated cost ~$350 (Sonnet) + ~$162 (floor plans). Run time ~8-10h | `bronze_listings.image_classifications`, `bronze_listings.floor_plan_extractions` | Pending |
 | Transport proximity scores (crow-flies) | S10 | 1 | Run existing `property_location_scores` model: 5× LATERAL KNN joins on `transport_stops`, exponential decay scoring with variable decay per mode | `gold_analytics.property_location_scores` (transport_score, nearest_metro_m, nearest_rail_m, nearest_bus_m) | Pending |
 | POI amenity proximity scores | S09 | 2 | Add LATERAL joins to `property_location_scores` against `pois` model: nearest school, hospital, supermarket, park within 500m/1km. POI density as walkability proxy | `gold_analytics.property_location_scores` (amenity_score, restaurants_500m, supermarkets_1km) | Pending |
 | Composite location score | — | 0.5 | Weighted combination of transport + amenity scores | `gold_analytics.property_location_scores` (overall_location_score) | Pending |
 | ~~Drive-time via OSRM~~ | ~~S11~~ | ~~3~~ | ~~Batch routing: listing → city center, airport, nearest hospital~~ | — | Deferred to Sprint 8 |
+| Kepler.gl data explorer (prototype) | — | 1.5 | Wire `1_investment_map.py` to load real warehouse data into Kepler.gl. 4 layers: sale listings (points, colored by €/m²), PDM zoning (Solo Urbano/Rústico), BUPI parcels (outlines), COS land use (level-1 color). Municipality dropdown filter, ~3K features/layer, `ST_SimplifyPreserveTopology` for performance. Shared `apps/db.py` warehouse connector | `apps/pages/1_investment_map.py`, `apps/db.py` | Pending |
 
-**Exit criteria:** Image classification pipeline operational with Claude Vision; cv_* columns populated in `unified_listings`. Transport + amenity proximity scores computed for all listings. Floor plan room dimensions extracted.
+**Key decisions made:**
+- **Render = source of truth for new development.** CV `is_render` replaced Idealista's regex-based `is_new_development` flag. 413 listings reclassified as new developments (31% of classified sample). Combined as `is_new_development_combined` in `unified_listings`
+- **Floor plans as star schema detail table.** `floor_plan_rooms` is a standalone table (not embedded in `unified_listings`) because floor plans are 1:N per property. Idealista fields are source of truth for property-level attributes (typology, num_rooms, area)
+- **No confidence threshold needed.** Model confidence floor is 0.70, median 0.90/0.85. No filtering required
+- **Incremental strategy unchanged.** Use `dbt build --full-refresh` after prompt version bumps (not worth adding incremental filter complexity for a manual workflow)
+- **Aveiro municipality first.** Scoped initial run to `TARGET_CONCELHOS = ["aveiro"]` (1,330 listings) to validate pipeline before scaling to all 3 districts (~15K)
+- **SCE as ground-truth unit count source.** Each PCE = one fraction/apartment. Grouping by normalized address gives accurate unit count per development — replaces listing-cluster estimation in `competitive_developments` (Sprint 7). SCE also provides construction-to-market lifecycle: PCE date (start) → CE date (complete) → listing appearance (on market)
+- **SCE geographic join via text matching.** SCE portal dropdown codes are not DTMNFR codes. Geographic assignment uses `UPPER(TRIM(municipality))` text match to `dim_geography.concelho_name`. Geocoding via Nominatim deferred to Sprint 9 for spatial join upgrade
 
-### Sprint 5 — Hedonic Model & Valuation (Weeks 9-10)
+**Exit criteria:** Image classification pipeline operational with Claude Vision; cv_* columns populated in `unified_listings`. Transport + amenity proximity scores computed for all listings. Floor plan room dimensions extracted. SCE pipeline built and silver models (`sce_certificates`, `new_developments`) operational with ground-truth unit counts per development.
+
+### Sprint 4.5 — Development Intelligence (Week 9)
+
+**Goal:** Ingest 4 development portal APIs (RE/MAX, ERA, C21, KW), build unified `competitive_developments` model with SCE cross-reference and Idealista render-based routing. Rename `unified_listings` → `resale_listings` to reflect the clean market split: resale vs new development. ~1,100 unique developments across Portugal.
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
+| Rename `unified_listings` → `resale_listings` | — | 1 | Rename dbt model, update all 8+ downstream references (`property_location_scores`, `hedonic_features`, `neighbourhood_market_stats`, `floor_plan_rooms` join, etc.), update YAML schema definitions, update Airflow Cosmos selectors. Route `is_render = TRUE` listings out to `competitive_developments` instead. `resale_listings` contains only `is_new_development_combined = FALSE` listings (resale/existing market) | `silver_properties.resale_listings` (was `unified_listings`) | Pending |
+| Portal bronze tables under `bronze_listings` | — | 0.25 | Add portal development tables to existing `bronze_listings` schema (not a separate `bronze_listings` schema). Development units are listings. Add to dbt sources YAML | `bronze_listings.raw_remax_developments`, `raw_era_developments`, `raw_c21_developments`, `raw_kw_developments` | Pending |
+| RE/MAX scraper + bronze + staging | S46 | 0.5 | `POST /api/Development/PaginatedSearch` (open, no auth). 661 devs with unit-level data (price, area, isSold, marketDays, fraction letter). `stg_remax_developments` + `stg_remax_units` (LATERAL unnest) | `bronze_listings.raw_remax_developments`, `staging_dbt.stg_remax_*` | Pending |
+| KW scraper + bronze + staging | S49 | 0.25 | `POST /api/portal/listDevelopments` (open). 104 devs with construction status (100%), completion date (100%), price/m² (72%). `stg_kw_developments` | `bronze_listings.raw_kw_developments`, `staging_dbt.stg_kw_developments` | Pending |
+| ERA scraper + bronze + staging | S47 | 1.5 | `POST /API/.../Property/Search` (CSRF token). 349 devs. Unit-level Available/Reserved/Sold via `DevelopmentProperties` API. `stg_era_developments` + `stg_era_units` | `bronze_listings.raw_era_developments`, `staging_dbt.stg_era_*` | Pending |
+| C21 scraper + bronze + staging | S48 | 1 | `GET /api/developments` + `c21.site` detail pages (server-rendered). 96 PT devs with 1,264 floor plan images. `stg_c21_developments` | `bronze_listings.raw_c21_developments`, `staging_dbt.stg_c21_developments` | Pending |
+| Source + model YAML definitions | — | 0.25 | `_staging_developments__sources.yml` + `_staging_developments__models.yml` | — | Pending |
+| Silver: `competitive_developments` | S34/S45-S49 | 1.5 | Unified model, one row per development. **Three input streams**: (1) portal APIs as primary, (2) Idealista `is_render = TRUE` listings clustered by GPS (ST_ClusterDBSCAN), (3) SCE artigo_matricial grouping. Dedup: GPS proximity (ST_DWithin 200m) + trigram name similarity (>0.4). Attribute priority: ERA > RE/MAX > KW > C21. SCE cross-ref → `sce_unit_count`, `sce_artigo_matricial`. Spatial join to `dim_geography` | `silver_properties.competitive_developments` | Pending |
+| Silver: `development_units` | S46/S47 | 0.5 | Star schema detail. One row per unit from RE/MAX (price, previous_price, area, isSold, marketDays, fraction_letter) + ERA (BusinessStatus Available/Reserved/Sold, floor, area, rooms) + Idealista render listings (price, area, typology — routed from `stg_idealista` where `is_render = TRUE`). Join via `development_key` FK | `silver_properties.development_units` | Pending |
+| Silver: `development_source_xref` | S46-S49 | 0.5 | Which portals report each development + match method + confidence. Source fidelity preservation | `silver_properties.development_source_xref` | Pending |
+| Gold: `development_lifecycle` | S45/S49 | 1 | Construction timeline: KW `fund_date` → SCE PCE `issued_date` → KW `completion_date` → listing `first_seen_date`. Compute `construction_duration_months`, `time_to_market_months`. Aggregate benchmarks by municipality/typology | `gold_analytics.development_lifecycle` | Pending |
+| Gold: initial `absorption_rate_model` | S46/S47 | 1 | Per-development sell-through from ERA unit statuses (Available/Reserved/Sold) + RE/MAX `isSold` flags. `sell_through_pct`, `monthly_absorption_rate`. Historical snapshots from bronze `_scrape_date` versions | `gold_analytics.absorption_rate_model` | Pending |
+| Gold: `fact_all_listings` | — | 0.5 | UNION view combining `resale_listings` + `development_units` for cross-market analysis. Shared columns: price, area, typology, geo_key, energy_class. Used by hedonic model training (needs both resale and new-build prices) | `gold_analytics.fact_all_listings` (view) | Pending |
+
+**Key decisions:**
+- **`unified_listings` renamed to `resale_listings`**: clean market split — resale (is_render=FALSE) vs new development (is_render=TRUE → competitive_developments). `gold_analytics.fact_all_listings` provides the UNION view when cross-market analysis is needed (hedonic model training)
+- **Portal bronze tables under `bronze_listings`**: development units are listings. No separate `bronze_listings` schema
+- **Idealista render listings route to competitive_developments**: `is_render = TRUE` listings are new development units — they flow into `development_units` (with their Idealista pricing) and are matched to portal developments by GPS proximity. This brings Idealista's 100% pricing coverage into the development model
+- **Option B architecture**: per-portal staging for source isolation, unified silver for single source of truth
+- **~95% of each portal's listings are exclusive** — very low overlap (~22 cross-portal name matches), so all 4 portals are complementary
+- **SCE cross-reference validated**: NEXT2U BLUE (fração V+AC → artigo 4972, 33 units) and Novus Plaza (fração U → artigo 6275, 116 units). Join key: freguesia + GPS proximity + address similarity + fração letter
+- **Shared CV service**: floor plan extraction runs on images from any source (Idealista, C21, future portals). `floor_plan_rooms` gets a `source_type` column
+
+| Silver: `sce_certificates` | S45 | 1 | One row per valid certificate with geo assignment (text match on UPPER(concelho)+UPPER(freguesia) → `dim_geography`). Normalized address for development grouping. `is_pce` flag distinguishes PCE (construction start) from CE (construction complete). Key columns: `matrix_article` (primary grouping for unit count), `registry_number` + `land_registry` (secondary grouping for multi-parcel developments), `autonomous_fraction` (matches portal fraction letters). Drop `new_developments` as separate model — artigo grouping becomes CTE inside `competitive_developments`. Indexes on matrix_article, geo_key, issued_date, normalized_address | `silver_properties.sce_certificates` | Pending |
+
+**Exit criteria:** `resale_listings` contains only resale/existing market listings. ~1,100 developments in `competitive_developments` with GPS, pricing, unit counts, construction status. SCE `sce_certificates` operational with PCE + CE records, enabling ground-truth unit counts (via `matrix_article` or `registry_number` grouping) and construction duration measurement (PCE→CE). Idealista render listings routed to `development_units` with pricing. `fact_all_listings` UNION view operational for hedonic model.
+
+### Sprint 5 — Hedonic Model & Valuation (Weeks 10-11)
+
+| Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|
+| Enrich `unified_listings` with SCE energy class | S45 | 1.5 | LEFT JOIN `sce_certificates` on `freguesia_code` + `pg_trgm SIMILARITY(address_clean, normalized_address) > 0.6`. New columns: `sce_energy_class`, `sce_doc_number`, `energy_class_final = COALESCE(sce_energy_class, energy_class)`. Requires `pg_trgm` extension | `silver_properties.unified_listings` (sce_energy_class, sce_doc_number, energy_class_final) | Pending |
 | Neighbourhood market stats | S01/S03 | 3 | Per-freguesia: median €/m², listing count, inventory months, QoQ price trend, dominant property type, CV condition distribution | `gold_analytics.neighbourhood_market_stats` | Pending |
-| Hedonic feature assembly | — | 3 | Join `unified_listings` + `property_location_scores` + `census_demographics` + `neighbourhood_market_stats` + `zoning` into feature vector. Filters: `operation_type = 'sale'`, `is_active = TRUE`, `price_eur BETWEEN 20000 AND 5000000` | `gold_analytics.hedonic_features` | Pending |
-| Hedonic model training | — | 5 | OLS/Ridge regression on log(price_sqm) ~ property + location + neighbourhood + cv_condition + cv_finish_quality features. Image classification features expected to improve R² | Model artifact (pickle/joblib) | Pending |
+| Hedonic feature assembly | — | 3 | Join `unified_listings` + `property_location_scores` + `census_demographics` + `neighbourhood_market_stats` + `zoning` into feature vector. Uses `energy_class_final` (SCE-enriched). Adds `is_sce_certified` flag and `development_unit_count` from `new_developments` join. Filters: `operation_type = 'sale'`, `is_active = TRUE`, `price_eur BETWEEN 20000 AND 5000000` | `gold_analytics.hedonic_features` | Pending |
+| Hedonic model training | — | 5 | OLS/Ridge regression on log(price_sqm) ~ property + location + neighbourhood + cv_condition + cv_finish_quality + energy_class_final features. Image classification and SCE features expected to improve R² | Model artifact (pickle/joblib) | Pending |
 | Model validation | — | 2 | Cross-validation: R² ≥ 0.73, MAPE < 18%; residual analysis by geography | Validation report | Pending |
 | Property comparables | — | 3 | KNN on feature space: top-10 similar listings within 2km, same typology band | `gold_analytics.property_comparables` | Pending |
 | Property valuation | — | 2 | Predicted €/m² + comp-weighted €/m² → blended fair value, gap %, signal (undervalued/fair/overpriced) | `gold_analytics.property_valuation` | Pending |
 
-**Exit criteria:** Every sale listing has predicted fair value and `valuation_signal` (undervalued / fair / overpriced). Hedonic model serves as foundation for UC-1 investment scoring, UC-2 pricing, and UC-3 development economics.
+**Exit criteria:** Every sale listing has predicted fair value and `valuation_signal` (undervalued / fair / overpriced). SCE energy class enrichment live (`energy_class_final`). Hedonic model serves as foundation for UC-1 investment scoring, UC-2 pricing, and UC-3 development economics.
 
-### Sprint 6 — UC-1 MVP: Investment Opportunities (Weeks 11-12)
+### Sprint 6 — UC-1 MVP: Investment Opportunities (Weeks 12-13)
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
@@ -3598,22 +3917,23 @@ dags/
 | Inside Airbnb ingestion | S15 | 1 | STR listings for Lisbon + Porto → `bronze_listings.raw_airbnb` | — | Pending |
 | Investment yield analysis | S04/S15/S31 | 3 | LTR yield (€/m² rent ÷ price), STR yield (Airbnb RevPAR × occupancy), net of IMI/IMT/condominium | `gold_analytics.investment_yield_analysis` | Pending |
 | Renovation opportunity | (ref table) | 2 | Match undervalued listings to reno cost estimates → post-reno value, ROI % | `gold_analytics.renovation_opportunity` | Pending |
-| Neighbourhood trajectory | — | 2 | YoY price trend + population growth + vacancy change + catalyst proximity → trajectory score | `gold_analytics.neighbourhood_trajectory` | Pending |
+| Neighbourhood trajectory | S45 | 2.5 | YoY price trend + population growth + vacancy change + catalyst proximity + **SCE supply signal** (monthly PCE issuance rate per municipality as 12-18 month leading indicator of future supply; `active_developments_count` and `total_pipeline_units` from `new_developments`) → trajectory score | `gold_analytics.neighbourhood_trajectory` | Pending |
 | Investment opportunities view | — | 2 | Composite ranking: valuation gap × yield × trajectory × location → **UC-1 LIVE** | `gold_analytics.investment_opportunities` (materialized view) | Pending |
 | Serving: Investment Dashboard (Metabase) | — | 2 | KPIs, ranked table, yield vs. price scatter, filters (budget, location, typology, min yield) | — | Pending |
 | Serving: Investment Map (Kepler.gl) | — | 2 | Listing points colored by valuation gap, neighbourhood trajectory polygons, infrastructure catalysts | — | Pending |
 | Serving: Property Valuator (Streamlit) | — | 2 | Enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | — | Pending |
 
-**🏁 MILESTONE 1 (Week 12): UC-1 MVP LIVE.** Investors can query ranked opportunities. Hedonic model unlocks UC-2 and UC-3.
+**🏁 MILESTONE 1 (Week 13): UC-1 MVP LIVE.** Investors can query ranked opportunities. Hedonic model unlocks UC-2 and UC-3.
 
-### Sprint 7 — UC-2 MVP: Pricing Strategy (Weeks 13-14)
+### Sprint 7 — UC-2 MVP: Pricing Strategy (Weeks 14-15)
 
-**Note:** Hedonic model from Sprint 5 provides the foundation for pricing decomposition and unit premiums.
+**Note:** Hedonic model from Sprint 5 provides the foundation for pricing decomposition and unit premiums. `competitive_developments`, `development_units`, `development_lifecycle`, and initial `absorption_rate_model` were built in Sprint 4.5. This sprint extends them with hedonic-derived pricing models.
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
-| Competitive developments | S34 | 3 | Cluster `is_new_development = TRUE` listings by location (ST_ClusterDBSCAN, eps=200m), extract project-level aggregates: unit count, price range, typology mix, avg €/m² | `silver_properties.competitive_developments` | Pending |
-| Absorption rate model | — | 3 | Per-development: monthly absorption using `first_seen_date`, `last_seen_date`, `is_active`. Per-market: absorption by typology and price band | `gold_analytics.absorption_rate_model` | Pending |
+| Extend `competitive_developments` with hedonic pricing | S34/S46-S49 | 1.5 | Add hedonic-derived `base_price_sqm` and `predicted_avg_price_sqm` columns to `competitive_developments` via JOIN to `property_valuation`. Position each development vs hedonic fair value | `silver_properties.competitive_developments` (base_price_sqm, predicted_avg_price_sqm) | Pending |
+| Extend `development_lifecycle` with hedonic calibration | S45/S49 | 0.5 | Add price trajectory columns: predicted GDV at completion, hedonic-based margin estimate. Cross-reference with `ref_construction_costs` | `gold_analytics.development_lifecycle` (est_gdv, est_margin) | Pending |
+| Extend `absorption_rate_model` with pricing calibration | S46/S47 | 1 | Add price elasticity: absorption rate vs price point, price-adjusted sell-through forecast. Historical trend from bronze snapshots + hedonic residuals | `gold_analytics.absorption_rate_model` (price_elasticity, price_adjusted_forecast) | Pending |
 | Location price premiums | — | 2 | Extract hedonic coefficients as lookup: metro proximity → €/m² premium | `gold_analytics.location_price_premiums` | Pending |
 | Unit premiums calibration | — | 2 | Floor/view/orientation → premium/discount lookup from hedonic residuals. Uses `floor_plan_rooms` for area-by-room optimization | `gold_analytics.ref_unit_premiums` | Pending |
 | Unit pricing recommendation | — | 2 | Per-unit: base €/m² × premiums × market position → recommended price, **UC-2 LIVE** | `gold_analytics.unit_pricing_recommendation` | Pending |
@@ -3621,9 +3941,9 @@ dags/
 | Serving: Pricing Dashboard (Metabase) | — | 2 | Unit pricing matrix, competition map (2km radius), absorption timeline, floor/view premium chart | — | Pending |
 | Serving: Pricing Simulator (Streamlit) | — | 2 | Select development project → adjust unit attributes → see recommended price, margin, absorption forecast | — | Pending |
 
-**🏁 MILESTONE 2 (Week 14): UC-2 MVP LIVE.** Developers can price new units with market-calibrated premiums.
+**🏁 MILESTONE 2 (Week 15): UC-2 MVP LIVE.** Developers can price new units with market-calibrated premiums.
 
-### Sprint 8 — UC-3 MVP: Land Development Opportunities (Weeks 15-17)
+### Sprint 8 — UC-3 MVP: Land Development Opportunities (Weeks 16-18)
 
 **Prerequisite:** UC-1 hedonic model complete (Sprint 5) — enables real development economics (GDV = GBA × predicted €/m²).
 
@@ -3645,9 +3965,9 @@ dags/
 | Serving: Parcel Explorer (Kepler.gl) | — | 4 | BUPI parcels colored by buildability, SRUP constraint layers (toggle), COS land use (toggle), building footprints (toggle), CRUS boundaries. `ST_SimplifyPreserveTopology` for zoom-level performance | — | Pending |
 | Serving: Site Analyzer (Streamlit) | — | 3 | Click on map → assemblable parcels, zoning params, constraint summary, estimated GBA, projected GDV, residual land value, ROI | — | Pending |
 
-**🏁 MILESTONE 3 (Week 17): UC-3 MVP LIVE.** Land developers can screen development opportunities with real economics.
+**🏁 MILESTONE 3 (Week 18): UC-3 MVP LIVE.** Land developers can screen development opportunities with real economics.
 
-### Sprint 9 — Enhancements + Production Hardening (Weeks 18-20)
+### Sprint 9 — Enhancements + Production Hardening (Weeks 19-20)
 
 | Task | Source | Days | Deliverable | Affected tables | Status |
 |---|---|---|---|---|---|
@@ -3660,10 +3980,12 @@ dags/
 | Recalibrate hedonic model v2 | — | 2 | Add OSRM travel times + ARU flag to feature vector, retrain | `gold_analytics.hedonic_features`, `gold_analytics.property_valuation` (refreshed) | Pending |
 | UC-3 model recalibration | — | 1 | Incorporate ARU + REN + permits into opportunity_score | `gold_analytics.development_sites` (recalibrated) | Pending |
 | CI data integration (if license) | S02 | 3 | Transaction prices → validate hedonic predictions, calibrate gap % | `silver_properties.unified_listings` (transaction_price) | Pending |
+| SCE geocoding via Nominatim | S45 | 2 | Geocode distinct SCE addresses through Nominatim → add coordinates to `sce_certificates`. Enables direct spatial joins (eliminates fuzzy text matching). New Airflow DAG `sce_geocode_dag`. Dramatically improves SCE-to-listing match rate | `silver_properties.sce_certificates` (latitude, longitude, geom, geom_pt) | Pending |
+| SCE-to-listing match quality audit | S45 | 1 | Sample-based validation of fuzzy address matching: match rate by municipality, false positive analysis, similarity score distribution. Informs threshold tuning for `unified_listings` enrichment | Monitoring query / report | Pending |
 | Data quality monitoring | — | 2 | dbt tests + source freshness alerts + row count anomaly detection | All models | Pending |
 | Documentation | — | 2 | Data dictionary + user guide + lineage diagrams | — | Pending |
 
-**Exit criteria:** Second listing portal live; hedonic model v2 deployed; UC-3 enriched with ARU + REN + permits; production monitoring in place.
+**Exit criteria:** Second listing portal live; hedonic model v2 deployed; UC-3 enriched with ARU + REN + permits; SCE geocoded with spatial joins replacing text matching; production monitoring in place.
 
 ---
 

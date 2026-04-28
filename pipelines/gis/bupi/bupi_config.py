@@ -23,13 +23,14 @@ Refresh: Monthly
 GPKG layer name varies by download date (e.g. rgg_20260316_opendata).
 Auto-detect is used since the layer name is not stable.
 
---- HOW TO TRIGGER ---
+--- SCHEDULE ---
 
-Trigger this DAG manually from the Airflow UI with:
-    {"version": "2026-03"}
-
-The download URL points to the continental Portugal GPKG on dados.gov.pt.
+Runs on the 5th of every month at 06:00 UTC (dados.gov.pt publishes on the 1st).
+Can also be triggered manually with: {"version": "2026-04"}
+Version defaults to the current month (YYYY-MM) if not provided.
 """
+
+from datetime import datetime
 
 from pipelines.gis.template.gis_ingestion_template import GISIngestionConfig
 
@@ -45,10 +46,9 @@ BUPI_CONFIG = GISIngestionConfig(
     ),
 
     # --- Source ---
-    download_url=(
-        "https://dados.gov.pt/s/resources/representacao-grafica-georreferenciada/"
-        "20260316-082606/2026-03-16-opendata-rggs-continente.gpkg.zip"
-    ),
+    # Stable redirect URL — always resolves to the latest monthly GPKG.
+    # dados.gov.pt maintains this permalink; no hardcoded dates to update.
+    download_url="https://dados.gov.pt/pt/datasets/r/8dedcd3e-ba46-4f0f-a75f-36e0b327fc56",
     expected_format="gpkg",
 
     # --- Validation ---
@@ -68,8 +68,9 @@ BUPI_CONFIG = GISIngestionConfig(
     minio_prefix="bupi",
 
     # --- Schedule ---
-    schedule=None,
-    start_date=None,
+    # 5th of every month at 06:00 UTC (dados.gov.pt publishes on the 1st)
+    schedule="0 6 5 * *",
+    start_date=datetime(2026, 4, 1),
 
     # --- Version ---
     source_version=None,
@@ -77,9 +78,10 @@ BUPI_CONFIG = GISIngestionConfig(
 
     dag_params={
         "version": {
-            "default": "2026-03",
+            "default": datetime.now().strftime("%Y-%m"),
             "description": (
-                "BUPI release month, e.g. '2026-03'. "
+                "BUPI release month, e.g. '2026-04'. "
+                "Defaults to current month. "
                 "Determines the MinIO storage path: raw/bupi/{version}/"
             ),
         },
