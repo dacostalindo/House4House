@@ -127,14 +127,14 @@ find_new_files -> create_table -> process_files -> log_load_summary -> trigger_d
 | Setting | Value |
 |---------|-------|
 | Schedule | None (triggered by `sce_bronze_load`) |
-| Selector | `stg_sce_pce+` (staging + all downstream models) |
+| Selector | `stg_sce_certificates+` (staging + all downstream models) |
 | Tags | `dbt`, `cosmos`, `sce` |
 
 ---
 
 ## Bronze schema
 
-### `bronze_regulatory.raw_sce_pce`
+### `bronze_regulatory.raw_sce_certificates`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -177,7 +177,7 @@ find_new_files -> create_table -> process_files -> log_load_summary -> trigger_d
 
 ---
 
-## Staging model (`stg_sce_pce.sql`)
+## Staging model (`stg_sce_certificates.sql`)
 
 The dbt staging model applies:
 - Deduplication on `doc_number` (latest scrape wins)

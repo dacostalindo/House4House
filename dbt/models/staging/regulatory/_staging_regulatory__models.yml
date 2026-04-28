@@ -223,13 +223,14 @@ models:
       - name: _load_timestamp
         description: "Timestamp when the row was loaded into the bronze table"
 
-  - name: stg_sce_pce
+  - name: stg_sce_certificates
     description: >
-      Staging view over SCE Pre-Energy Certificates from bronze_regulatory.raw_sce_pce.
+      Staging view over SCE energy certificates from bronze_regulatory.raw_sce_certificates.
       Deduplicates by doc_number (latest scrape wins), casts date strings to DATE,
       normalizes energy class and municipality names, and flags PCE vs CE documents.
-      PCE certificates are issued per apartment/fraction before construction — a proxy
-      for upcoming new development activity.
+      PCE certificates are issued per apartment/fraction before construction (proxy
+      for upcoming new development); CE certificates mark construction completion;
+      DCR documents accompany construction declarations.
       Source: sce.pt portal (scraped via nodriver).
     columns:
       - name: doc_number

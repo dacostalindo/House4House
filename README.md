@@ -801,7 +801,7 @@ CREATE SCHEMA metadata;
 │  │ bronze_regulatory ││ .raw_insideab  │                                   │
 │  │ .raw_pdm_zones   │└────────────────┘                                   │
 │  │ .raw_bupi         │                                                    │
-│  │ .raw_sce_pce      │                                                    │
+│  │ .raw_sce_certificates │                                                │
 │  │ .raw_srup_*       │                                                    │
 │  └──────────────────┘                                                     │
 └────────────────────────────────┬───────────────────────────────────────────┘

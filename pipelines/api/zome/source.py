@@ -80,6 +80,30 @@ LISTINGS_VERSION_COLUMNS: tuple[str, ...] = (
     "showluxury",
 )
 
+# ---------------------------------------------------------------------------
+# Plots (terrenos) — idtipoimovel=3 in tab_listing_list. ~1,780 rows.
+# Plots share most of the listings shape but lack `areautilhab` (livable area),
+# `areabrutaconst` (gross built area), `idcondicaoimovel`, `tipologiagrupos`.
+# Plot-specific scalars: `areaterreno` (the m² of the terrain) and a different
+# `tipologiaimovel.PT` value set ("Urbanizável", "Rústico", "Urbano", ...).
+#
+# Verified against ZMPT572024 (id=128984): idtipoimovel=3, areaterreno=2000,
+# precoimovel=278.000 €, location Aveiro/Aveiro/Glória e Vera Cruz.
+# ---------------------------------------------------------------------------
+ZOME_TERRENO_TYPE_ID = 3
+
+PLOTS_VERSION_COLUMNS: tuple[str, ...] = (
+    "idestadoimovel",
+    "precosemformatacao",
+    "precoimovel",
+    "valorantigo",
+    "areaterreno",
+    "geocoordinateslat",
+    "geocoordinateslong",
+    "showwebsite",
+)
+
+
 DEVELOPMENTS_VERSION_COLUMNS: tuple[str, ...] = (
     "preco",
     "precosemformatacao",
@@ -109,6 +133,13 @@ LISTINGS_JSON_COLUMNS = (
     # too. Without an explicit data_type=json hint, dlt creates child tables
     # (listings__geolocation__coordinates, listings__regiao,
     # listings__gallerymainimages__mres) that we don't want.
+    "geolocation",
+    "regiao",
+    "gallerymainimages",
+)
+PLOTS_JSON_COLUMNS = (
+    "gallery",
+    "raw_json",
     "geolocation",
     "regiao",
     "gallerymainimages",
@@ -149,6 +180,11 @@ def _supabase_headers() -> dict[str, str]:
 # Hashing — canonicalize numerics so int↔float drift from PostgREST does not
 # create spurious SCD2 versions. Whitelist scalar types so a non-scalar
 # slipping into version_cols fails loudly instead of being str()-stringified.
+#
+# Kept in sync with remax/idealista intentionally — see
+# pipelines/common/SCD2_RULES.md for the conventions; the helpers below are
+# duplicated across pipelines by design (small surface, zero shared deps
+# preferred over an abstraction with one consumer migrated and others lagging).
 # ---------------------------------------------------------------------------
 _HASH_SCALAR_TYPES = (int, float, str, bool, type(None))
 
@@ -178,9 +214,13 @@ def _stable_hash(row: dict, version_cols: Iterable[str]) -> str:
 # ---------------------------------------------------------------------------
 # HTTP
 # ---------------------------------------------------------------------------
-def _fetch_page(path: str, offset: int, limit: int = PAGE_SIZE) -> list[dict]:
+def _fetch_page(
+    path: str, offset: int, limit: int = PAGE_SIZE, extra_params: dict | None = None
+) -> list[dict]:
     url = f"{SUPABASE_URL}{path}"
     params = {"select": "*", "limit": str(limit), "offset": str(offset)}
+    if extra_params:
+        params.update(extra_params)
     resp = requests.get(
         url, params=params, headers=_supabase_headers(), timeout=REQUEST_TIMEOUT_S
     )
@@ -188,9 +228,9 @@ def _fetch_page(path: str, offset: int, limit: int = PAGE_SIZE) -> list[dict]:
     return resp.json()
 
 
-def _iter_paginated(path: str) -> Iterable[dict]:
+def _iter_paginated(path: str, extra_params: dict | None = None) -> Iterable[dict]:
     for offset in range(0, LISTINGS_MAX_OFFSET, PAGE_SIZE):
-        rows = _fetch_page(path, offset)
+        rows = _fetch_page(path, offset, extra_params=extra_params)
         if not rows:
             return
         yield from rows
@@ -233,6 +273,8 @@ def zome_facts_source() -> Iterable[Any]:
     yield developments_state
     yield listings
     yield listings_state
+    yield plots
+    yield plots_state
 
 
 @dlt.resource(
@@ -293,6 +335,45 @@ def listings() -> Iterable[dict]:
 def listings_state() -> Iterable[dict]:
     today = date.today()
     for raw in _iter_paginated("/rest/v1/tab_listing_list"):
+        yield {
+            "listing_id": raw.get("id"),
+            "last_seen_date": today,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Plots — same Supabase table, filtered by idtipoimovel=3 (Terreno).
+# Reuses _normalize_listing (renames + raw_json), and the same pagination loop.
+# ---------------------------------------------------------------------------
+_PLOTS_FILTER = {"idtipoimovel": f"eq.{ZOME_TERRENO_TYPE_ID}"}
+
+
+@dlt.resource(
+    name="zome_plots",
+    write_disposition={
+        "disposition": "merge",
+        "strategy": "scd2",
+        "row_version_column_name": "row_hash",
+    },
+    primary_key="listing_id",
+    columns={col: {"data_type": "json"} for col in PLOTS_JSON_COLUMNS},
+    schema_contract=SCHEMA_CONTRACT,
+)
+def plots() -> Iterable[dict]:
+    for raw in _iter_paginated("/rest/v1/tab_listing_list", extra_params=_PLOTS_FILTER):
+        rec = _normalize_listing(raw)
+        rec["row_hash"] = _stable_hash(rec, PLOTS_VERSION_COLUMNS)
+        yield rec
+
+
+@dlt.resource(
+    name="zome_plots_state",
+    write_disposition="merge",
+    primary_key="listing_id",
+)
+def plots_state() -> Iterable[dict]:
+    today = date.today()
+    for raw in _iter_paginated("/rest/v1/tab_listing_list", extra_params=_PLOTS_FILTER):
         yield {
             "listing_id": raw.get("id"),
             "last_seen_date": today,

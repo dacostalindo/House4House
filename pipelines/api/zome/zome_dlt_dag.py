@@ -246,6 +246,11 @@ with DAG(
                     f"WHERE _dlt_valid_to IS NULL"
                 )
                 devs_current = cur.fetchone()[0]
+                cur.execute(
+                    f"SELECT count(*) FROM {DATASET_NAME}.zome_plots "
+                    f"WHERE _dlt_valid_to IS NULL"
+                )
+                plots_current = cur.fetchone()[0]
                 if listings_current < 1000 or listings_current > 50_000:
                     raise RuntimeError(
                         f"listings current-state row count {listings_current} "
@@ -256,14 +261,21 @@ with DAG(
                         f"developments current-state row count {devs_current} "
                         f"outside expected band [50, 1000]"
                     )
+                # Plots band: ~1,780 confirmed; allow generous bounds.
+                if plots_current < 500 or plots_current > 5_000:
+                    raise RuntimeError(
+                        f"plots current-state row count {plots_current} "
+                        f"outside expected band [500, 5000]"
+                    )
                 log.info(
-                    "[zome_dlt] validation OK: listings=%d, developments=%d, load_id=%s",
-                    listings_current, devs_current, load_id,
+                    "[zome_dlt] validation OK: listings=%d, developments=%d, plots=%d, load_id=%s",
+                    listings_current, devs_current, plots_current, load_id,
                 )
                 return {
                     "load_id": load_id,
                     "listings_current": listings_current,
                     "developments_current": devs_current,
+                    "plots_current": plots_current,
                 }
         finally:
             conn.close()

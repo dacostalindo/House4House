@@ -1,5 +1,21 @@
 # Zome bronze cutover — legacy → dlt SCD2
 
+> **Status: COMPLETE (2026-04-28)**
+>
+> Day-0 of new bronze was 2026-04-26. Decommission gates passed on 2026-04-28:
+> - ✅ 3 successful weekly loads in `_dlt_loads`
+> - ✅ 13 SCD2 transitions observed in `zome_listings`
+> - ✅ 13 sidecar delistings observed in `zome_listings_state`
+>
+> Legacy DAG files (`zome_ingestion_dag.py`, `zome_bronze_developments_dag.py`,
+> `zome_bronze_listings_dag.py`) and `zome_config.py` were deleted on 2026-04-28.
+> The single `zome_dlt` DAG is now the sole ingestion path.
+>
+> This document is kept for historical reference and as a template for the
+> RE/MAX cutover.
+
+---
+
 Day-0 of new bronze: **today** (no historical scrapes preserved).
 
 ## Pre-flight (before touching anything)

@@ -169,12 +169,14 @@ sources:
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
 
-      - name: raw_sce_pce
+      - name: raw_sce_certificates
         description: >
-          SCE Pre-Energy Certificates (PCE) scraped from the sce.pt portal.
-          Each row is one pre-certificate per apartment/fraction — a proxy for
-          upcoming new construction. Includes table data and detail popup fields.
-          Coverage: Aveiro, Coimbra, Leiria (3 distritos).
+          SCE energy certificates scraped from the sce.pt portal — includes
+          Pre-Energy Certificates (PCE), final Energy Certificates (CE), and
+          DCR documents. Each row is one document per apartment/fraction.
+          PCEs are a proxy for upcoming new construction; CEs mark
+          construction completion. The `tipo_documento` column distinguishes
+          document type. Coverage: Aveiro, Coimbra, Leiria (3 distritos).
           Source: pipelines/scraping/sce/sce_bronze_dag.py
         columns:
           - name: doc_number

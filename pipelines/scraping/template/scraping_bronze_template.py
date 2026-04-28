@@ -48,7 +48,7 @@ class BronzeTableConfig:
 
     # --- Database ---
     schema_name: str            # e.g. "bronze_regulatory"
-    table_name: str             # e.g. "raw_sce_pce"
+    table_name: str             # e.g. "raw_sce_certificates"
     create_table_sql: str       # Full CREATE TABLE IF NOT EXISTS DDL
     create_indexes_sql: list[str] = field(default_factory=list)
     insert_sql: str = ""        # INSERT statement with %s placeholders

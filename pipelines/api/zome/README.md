@@ -2,11 +2,10 @@
 
 **Zome Portugal** — 302 developments and 8,975 listings fetched from a Supabase PostgreSQL REST API with a public anon key. Provides ERA-style absorption tracking (available/reserved/sold counts per development) and per-unit status flags. Second-largest development dataset after RE/MAX.
 
-> **Pipeline note (2026-04):** ingestion was rewritten on top of `dlt` with SCD2
-> bronze tables. The DAG `zome_dlt` replaces the legacy three-DAG chain. Legacy
-> DAGs (`zome_api_ingestion`, `zome_bronze_load_developments`,
-> `zome_bronze_load_listings`) are paused pending decommission — see
-> [CUTOVER.md](CUTOVER.md) for the gating criteria.
+> **Pipeline status (2026-04-28):** decommission complete. Legacy DAGs and
+> `raw_zome_*` tables are gone. The single `zome_dlt` DAG runs on a weekly cron
+> and writes SCD2 bronze tables (`zome_developments`, `zome_listings`) plus
+> heartbeat sidecars. See [CUTOVER.md](CUTOVER.md) for the migration history.
 
 ---
 
@@ -269,15 +268,11 @@ The Supabase instance also exposes lookup tables used for decoding IDs:
 ```
 pipelines/api/zome/
 ├── __init__.py                       # Package marker
-├── source.py                         # dlt source: 7 resources across 2 sources
+├── source.py                         # dlt source: 7 resources across 2 sources (also defines SUPABASE_URL + _supabase_headers)
 ├── zome_dlt_dag.py                   # DAG: audit -> facts (SCD2) -> refs / validate
 ├── tests/
 │   └── test_source.py                # Unit tests for _stable_hash + normalization
-├── CUTOVER.md                        # Migration runbook + decommission gate
-├── rollback_zome.sql                 # Legacy DDL for emergency rollback
-├── zome_config.py                    # (deprecated) URL + headers; rest pending decommission
-├── zome_ingestion_dag.py             # (deprecated, paused) legacy DAG stub
-├── zome_bronze_developments_dag.py   # (deprecated, paused) legacy DAG stub
-├── zome_bronze_listings_dag.py      # (deprecated, paused) legacy DAG stub
+├── CUTOVER.md                        # Migration runbook + decommission gate (historical)
+├── rollback_zome.sql                 # Legacy DDL for emergency rollback (historical)
 └── README.md                         # This file
 ```
