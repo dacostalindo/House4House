@@ -166,7 +166,7 @@ def _create_dag():
     from airflow.decorators import dag, task
     from airflow.models.param import Param
 
-    from pipelines.api.idealista.idealista_config import IDEALISTA_CONFIG as config
+    from pipelines.portals.idealista.idealista_config import IDEALISTA_CONFIG as config
 
     default_args = {
         "owner": "data-engineering",
@@ -262,7 +262,7 @@ def _create_dag():
         @task()
         def build_segments(_api_check: dict, **context) -> list[dict]:
             """Build segment dicts — one per concelho × operation."""
-            from pipelines.api.idealista.idealista_config import (
+            from pipelines.portals.idealista.idealista_config import (
                 build_idealista_url,
                 fetch_concelho_mapping,
                 to_idealista_slug,
@@ -488,7 +488,7 @@ def _create_dag():
             all_items = unique_items
 
             # Auto-split by price range if we hit the ~1,000 unique cap
-            from pipelines.api.idealista.idealista_config import (
+            from pipelines.portals.idealista.idealista_config import (
                 PRICE_RANGE_BOUNDARIES,
                 UNIQUE_CAP_THRESHOLD,
                 build_price_filtered_url,

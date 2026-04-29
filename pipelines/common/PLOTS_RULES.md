@@ -27,7 +27,7 @@ Forcing them into one table:
 
 ## Pipeline implementations
 
-### zome (`pipelines/api/zome/source.py`)
+### zome (`pipelines/portals/zome/source.py`)
 
 - **Source**: same Supabase REST endpoint `tab_listing_list`, filtered by
   `idtipoimovel = 3` (Terreno).
@@ -39,7 +39,7 @@ Forcing them into one table:
 - **Resources**: yielded from `zome_facts_source` alongside dev/listing resources.
 - **Cost**: $0 (Supabase REST is free at our usage).
 
-### remax (`pipelines/api/remax/source.py`)
+### remax (`pipelines/portals/remax/source.py`)
 
 - **Source**: NOT `/api/Development/PaginatedSearch` (HOUSING-only — its
   `listingTypeIDs` filter is silently ignored). Uses **sitemap → Next.js**:
@@ -58,7 +58,7 @@ Forcing them into one table:
 - **Throughput**: with `PASS2_MAX_WORKERS=4` and `1s` per-worker delay,
   ~1 hour for full ~12.4k plot fetches.
 
-### idealista (`pipelines/api/idealista/source.py`)
+### idealista (`pipelines/portals/idealista/source.py`)
 
 - **Source**: ZenRows **Real Estate API** (NOT Universal Scraper):
   - **Pass 1** (`_fetch_plot_discovery`): RE API discovery against

@@ -58,7 +58,7 @@ from airflow.decorators import task
 from airflow.models import Variable
 from airflow.models.param import Param
 
-from pipelines.api.idealista.source import (
+from pipelines.portals.idealista.source import (
     TARGET_AREAS,
     _build_discovery_url,
     _zenrows_get,

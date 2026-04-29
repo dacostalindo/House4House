@@ -45,7 +45,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Variable
 
-from pipelines.api.zome.source import (
+from pipelines.portals.zome.source import (
     SUPABASE_URL,
     PAGE_SIZE,
     LISTINGS_MAX_OFFSET,
