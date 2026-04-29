@@ -45,3 +45,143 @@ sources:
             description: "FK to raw_idealista.property_id — multiple rows per property (multi-floor)"
           - name: rooms
             description: "JSONB mapping canonical room names to area in m²"
+
+      # ────────────────────────────────────────────────────────────────────
+      # RE/MAX portal — loaded by remax_dlt DAG (Tuesdays 06:00 UTC)
+      # See pipelines/portals/remax/README.md for ingestion details.
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: remax_developments
+        description: >
+          RE/MAX SCD2 development facts (~615 rows). One row per (development_id,
+          version) — version boundaries detected via row_hash diff over curated
+          columns (see DEVELOPMENTS_VERSION_COLUMNS in
+          pipelines/portals/remax/source.py). PK: development_id.
+          Active version identified by _dlt_valid_to IS NULL.
+          Column dictionary populated in Sprint 4.4 Workstream D.
+
+      - name: remax_developments_state
+        description: >
+          UPSERT heartbeat sidecar for remax_developments. One row per
+          development_id with last_seen_date. Drives active-development
+          detection in silver (last_seen_date >= current_date - 21).
+
+      - name: remax_listings
+        description: >
+          RE/MAX SCD2 listing facts (~8,645 rows). PK: listing_id. Pass 1
+          (PaginatedSearch) + Pass 2 (Next.js detail) for online listings.
+          Excluded from row_hash: gallery, listing_rooms, listing_pictures,
+          raw_json, market_days, previous_price, immutable physical attrs.
+          Column dictionary populated in Sprint 4.4 Workstream D.
+
+      - name: remax_listings_state
+        description: >
+          UPSERT heartbeat sidecar for remax_listings. last_seen_date drives
+          active-listing detection in silver.
+
+      - name: remax_plots
+        description: >
+          RE/MAX SCD2 plot/terreno facts (~12,499 rows). PK: listing_id.
+          Sitemap + Next.js ingestion path (the wider RE/MAX schema, ~60 cols).
+          Column dictionary populated in Sprint 4.4 Workstream D.
+
+      - name: remax_plots_state
+        description: >
+          UPSERT heartbeat sidecar for remax_plots.
+
+      # ────────────────────────────────────────────────────────────────────
+      # Idealista portal — loaded by idealista_developments_dlt DAG
+      # (Wednesdays 06:00 UTC). Universal Scraper + RE API (3-pass).
+      # See pipelines/portals/idealista/README.md.
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: idealista_developments
+        description: >
+          Idealista SCD2 development facts (~1,994 rows). PK: development_id.
+          3-pass strategy: Universal Scraper discovery → dev detail →
+          RE API unit detail. Stub responses (≤6 fields) flagged via
+          _re_api_stub and excluded from SCD2 versioning but included in
+          heartbeat. Column dictionary in Sprint 4.4 Workstream D.
+
+      - name: idealista_developments_state
+        description: >
+          UPSERT heartbeat sidecar for idealista_developments.
+
+      - name: idealista_development_units
+        description: >
+          Idealista SCD2 unit facts within developments (~12,542 rows).
+          PK: unit_id. Each unit belongs to a parent development_id. Pass 3
+          (RE API with tld=.pt) populates property_price, status, operation,
+          areas. Column dictionary in Sprint 4.4 Workstream D.
+
+      - name: idealista_development_units_state
+        description: >
+          UPSERT heartbeat sidecar for idealista_development_units.
+
+      - name: idealista_plots
+        description: >
+          Idealista SCD2 plot/terreno facts (~6,975 rows). PK:
+          external_listing_id. 2-pass strategy (discovery + detail).
+          Column dictionary in Sprint 4.4 Workstream D.
+
+      - name: idealista_plots_state
+        description: >
+          UPSERT heartbeat sidecar for idealista_plots.
+
+      # ────────────────────────────────────────────────────────────────────
+      # Zome portal — loaded by zome_dlt DAG (Mondays 06:00 UTC).
+      # Direct paginated REST against Supabase backend (no multi-pass).
+      # See pipelines/portals/zome/README.md.
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: zome_developments
+        description: >
+          Zome SCD2 development facts (~305 rows, called "ventures" upstream).
+          PK: venture_id. Source columns renamed from Supabase to bronze
+          canonical (e.g., localizacaolevel1imovel → localizacaolevel1).
+          Column dictionary in Sprint 4.4 Workstream D.
+
+      - name: zome_developments_state
+        description: >
+          UPSERT heartbeat sidecar for zome_developments.
+
+      - name: zome_listings
+        description: >
+          Zome SCD2 listing facts (~9,263 rows). PK: listing_id. Includes
+          encoded category IDs (idcondicaoimovel, idtipoimovel, idtiponegocio)
+          decoded via the ref_zome_* lookup tables. Column dictionary in
+          Sprint 4.4 Workstream D.
+
+      - name: zome_listings_state
+        description: >
+          UPSERT heartbeat sidecar for zome_listings.
+
+      - name: zome_plots
+        description: >
+          Zome SCD2 plot/terreno facts (~1,780 rows). Filtered from
+          zome_listings by idtipoimovel=3. PK: listing_id.
+          Column dictionary in Sprint 4.4 Workstream D.
+
+      - name: zome_plots_state
+        description: >
+          UPSERT heartbeat sidecar for zome_plots.
+
+      # ────────────────────────────────────────────────────────────────────
+      # Zome reference tables — REPLACE-mode lookup tables.
+      # Decoded into silver staging via JOINs.
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: ref_zome_condition
+        description: >
+          Zome property condition lookup (REPLACE-mode load each run).
+          Decodes idcondicaoimovel column on zome_listings / zome_plots.
+
+      - name: ref_zome_property_type
+        description: >
+          Zome property type lookup (REPLACE). Decodes idtipoimovel.
+          idtipoimovel=3 isolates plots/terrenos.
+
+      - name: ref_zome_business_type
+        description: >
+          Zome business type lookup (REPLACE). Decodes idtiponegocio
+          (Sale / Rent / Other categories).
