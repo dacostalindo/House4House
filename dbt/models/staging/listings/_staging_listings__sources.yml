@@ -58,7 +58,86 @@ sources:
           columns (see DEVELOPMENTS_VERSION_COLUMNS in
           pipelines/portals/remax/source.py). PK: development_id.
           Active version identified by _dlt_valid_to IS NULL.
-          Column dictionary populated in Sprint 4.4 Workstream D.
+          Source: POST /api/Development/PaginatedSearch (Pass 1).
+        columns:
+          - name: development_id
+            description: "RE/MAX development primary key. Stable across runs."
+            # Source: dev.id | type=bigint, not_null, distinct=606
+          - name: name
+            description: "Display name of the development."
+            # Source: dev.name | type=varchar
+          - name: slug
+            description: "URL-friendly slug used in RE/MAX listing URLs."
+            # Source: dev.nameToSort | type=varchar
+          - name: latitude
+            description: "Latitude in WGS84. Excluded from row_hash — treated as immutable physical attribute (changes here are data corrections, not real events)."
+            # Source: dev.latitude | type=double, ~1% null
+          - name: longitude
+            description: "Longitude in WGS84. Same row_hash exclusion as latitude."
+            # Source: dev.longitude | type=double, ~1% null
+          - name: minimum_price
+            description: "Cheapest active unit price in the development, in EUR. IN row_hash — price changes trigger a new SCD2 version."
+            # Source: dev.minimumPrice | type=double
+          - name: region_name1
+            description: "Top-level region (country / macro region). Hierarchy: 1 (broadest) → 3 (narrowest). Excluded from row_hash."
+            # Source: dev.regionName1 | type=varchar, distinct=17
+          - name: region_name2
+            description: "Concelho-level region name. Excluded from row_hash."
+            # Source: dev.regionName2 | type=varchar, distinct=109
+          - name: region_name3
+            description: "Freguesia-level region name. Excluded from row_hash."
+            # Source: dev.regionName3 | type=varchar, distinct=271
+          - name: zip_code
+            description: "Portuguese postal code (NNNN-NNN format)."
+            # Source: dev.zipCode | type=varchar, ~1% null
+          - name: listings_count
+            description: "Number of listings (units) advertised within this development. IN row_hash — count changes trigger new version (units sold/added)."
+            # Source: dev.listingsCount (defaulted to 0) | type=bigint
+          - name: office_name
+            description: "Selling RE/MAX office display name."
+            # Source: dev.officeName | type=varchar, distinct=164
+          - name: office_id
+            description: "RE/MAX office identifier."
+            # Source: dev.officeID | type=bigint
+          - name: agent_name
+            description: "Listing agent display name. ~3% null when not set on portal."
+            # Source: dev.userName | type=varchar
+          - name: agent_phone
+            description: "Listing agent contact phone (Portuguese format). ~3% null."
+            # Source: dev.userCellPhone | type=varchar
+          - name: description
+            description: "Free-text marketing description. Extracted from descBodies[0].description in the raw payload."
+            # Source: dev.descBodies[0].description (parsed) | type=varchar
+          - name: publish_date
+            description: "Original publish timestamp on RE/MAX (when the development was first listed)."
+            # Source: dev.publishDate | type=timestamptz
+          - name: is_special
+            description: "RE/MAX 'special' / featured flag. IN row_hash — toggle triggers new version."
+            # Source: dev.isSpecial (cast to bool) | type=boolean
+          - name: is_special_exclusive
+            description: "RE/MAX 'exclusive special' flag. IN row_hash."
+            # Source: dev.isSpecialExclusive (cast to bool) | type=boolean
+          - name: building_pictures
+            description: "Array of image URLs for the development. JSON-typed (kept as JSONB rather than flattened to a child table per dlt issue #3811). Excluded from row_hash — Next.js may reorder between calls."
+            # Source: dev.buildingPictures | type=jsonb
+          - name: raw_json
+            description: "Full upstream record from /api/Development/PaginatedSearch. Excluded from row_hash. Use as fallback for fields not yet promoted to typed columns."
+            # Source: full dev payload | type=jsonb
+          - name: row_hash
+            description: "SHA256 hash over DEVELOPMENTS_VERSION_COLUMNS values (minimum_price, listings_count, is_special, is_special_exclusive). Drives SCD2 diff detection. dlt-managed."
+            # Internal | type=varchar, not_null
+          - name: _dlt_valid_from
+            description: "SCD2 active-from timestamp (when this version became current). dlt-managed."
+            # Internal | type=timestamptz
+          - name: _dlt_valid_to
+            description: "SCD2 active-to timestamp. NULL = currently-active version; non-NULL = retired version. dlt-managed."
+            # Internal | type=timestamptz
+          - name: _dlt_load_id
+            description: "dlt load batch identifier — which run produced this version."
+            # Internal | type=varchar, not_null
+          - name: _dlt_id
+            description: "dlt internal row identifier."
+            # Internal | type=varchar, not_null
 
       - name: remax_developments_state
         description: >
@@ -72,7 +151,140 @@ sources:
           (PaginatedSearch) + Pass 2 (Next.js detail) for online listings.
           Excluded from row_hash: gallery, listing_rooms, listing_pictures,
           raw_json, market_days, previous_price, immutable physical attrs.
-          Column dictionary populated in Sprint 4.4 Workstream D.
+          Source: POST /api/Development/PaginatedSearch (Pass 1) +
+          GET /_next/data/{buildId}/.../{slug}.json (Pass 2 detail).
+        columns:
+          - name: listing_id
+            description: "RE/MAX listing primary key. Stable across runs."
+            # Source: unit.id | type=bigint, not_null
+          - name: development_id
+            description: "FK to remax_developments. Each listing belongs to a development."
+            # Source: parent dev_id | type=bigint
+          - name: listing_price
+            description: "Asking price in EUR. IN row_hash. Falls back to NULL when 0."
+            # Source: unit.listingPrice | type=double
+          - name: total_area
+            description: "Total area (m²) including non-livable spaces. IN row_hash."
+            # Source: unit.totalArea | type=double
+          - name: living_area
+            description: "Livable area (m²). IN row_hash."
+            # Source: unit.livingArea | type=double
+          - name: num_bedrooms
+            description: "Bedroom count. IN row_hash."
+            # Source: unit.numberOfBedrooms | type=bigint
+          - name: num_bathrooms
+            description: "Bathroom count. IN row_hash."
+            # Source: unit.numberOfBathrooms | type=bigint
+          - name: floor_id
+            description: "RE/MAX-encoded floor identifier. IN row_hash. Pair with floor_number for the actual integer floor."
+            # Source: unit.floorID | type=bigint
+          - name: floor_number
+            description: "Floor as integer (0=ground, -1=basement, etc.). IN row_hash."
+            # Source: unit.floorAsNumber | type=bigint
+          - name: listing_status_id
+            description: "RE/MAX-encoded status (active/sold/reserved/etc.). IN row_hash. TODO: ID→label mapping."
+            # Source: unit.listingStatusID | type=bigint
+          - name: is_sold
+            description: "Boolean flag — listing has been sold. IN row_hash."
+            # Source: unit.isSold (cast to bool) | type=boolean
+          - name: sold_date
+            description: "Date the listing was marked sold. IN row_hash."
+            # Source: unit.soldDate | type=varchar
+          - name: is_online
+            description: "Boolean — whether the listing is currently published. IN row_hash. Drives Pass 2 enrichment (only online listings get Next.js detail fetched)."
+            # Source: unit.isOnline (cast to bool) | type=boolean
+          - name: is_active
+            description: "Boolean — listing is in active sales pipeline. IN row_hash."
+            # Source: unit.isActive (cast to bool) | type=boolean
+          - name: energy_efficiency_level
+            description: "RE/MAX-encoded energy class (A+ to G). IN row_hash. TODO: ID→letter mapping."
+            # Source: unit.energyEfficiencyLevelID | type=bigint
+          - name: typology_id
+            description: "RE/MAX-encoded typology (T0/T1/T2 etc.). IN row_hash. TODO: ID→label mapping."
+            # Source: unit.typologyID | type=bigint
+          - name: listing_type
+            description: "Listing type label (e.g., 'Apartamento', 'Moradia')."
+            # Source: unit.listingType | type=varchar
+          - name: publish_date
+            description: "Original publish timestamp on RE/MAX."
+            # Source: unit.publishDate | type=timestamptz
+          - name: modified
+            description: "Last modification timestamp on RE/MAX side. NOT in row_hash (changes every load even when content stable)."
+            # Source: unit.modified | type=timestamptz
+          - name: region_name2
+            description: "Concelho-level region name. Excluded from row_hash."
+            # Source: unit.regionName2 | type=varchar
+          - name: region_name3
+            description: "Freguesia-level region name. Excluded from row_hash."
+            # Source: unit.regionName3 | type=varchar
+          - name: garage_spots
+            description: "Number of garage spaces. IN row_hash."
+            # Source: unit.garageSpots | type=bigint
+          - name: parking
+            description: "Boolean — listing has parking. IN row_hash."
+            # Source: unit.parking (cast to bool) | type=boolean
+          - name: is_exclusive
+            description: "Boolean — RE/MAX exclusive mandate. IN row_hash."
+            # Source: unit.isExclusive (cast to bool) | type=boolean
+          - name: is_remax_collection
+            description: "Boolean — premium 'RE/MAX Collection' branding. IN row_hash."
+            # Source: unit.isRemaxCollection (cast to bool) | type=boolean
+          - name: price_reduction_pct
+            description: "Recent price-cut percentage (negative number = price drop). IN row_hash."
+            # Source: unit.priceReductionPercentageValue | type=numeric
+          - name: address
+            description: "Street address from Pass 2 (Next.js detail). NULL when no Pass 2 fetched (offline listings) or fetch failed. Excluded from row_hash (immutable)."
+            # Source: detail.address (Pass 2) | type=varchar
+          - name: apartment_number
+            description: "Unit number / fraction letter from Pass 2. Excluded from row_hash."
+            # Source: detail.apartment_number (Pass 2) | type=varchar
+          - name: market_days
+            description: "Days on market — Pass 2 snapshot. Changes every run, EXCLUDED from row_hash."
+            # Source: detail.market_days (Pass 2) | type=bigint
+          - name: previous_price
+            description: "Previous price before current — Pass 2 snapshot. EXCLUDED from row_hash."
+            # Source: detail.previous_price (Pass 2) | type=numeric
+          - name: construction_year
+            description: "Year built — Pass 2 only. Excluded from row_hash (immutable)."
+            # Source: detail.construction_year (Pass 2) | type=bigint
+          - name: contract_date
+            description: "Contract / development registration date — Pass 2."
+            # Source: detail.contract_date (Pass 2) | type=varchar
+          - name: floor_description
+            description: "Free-text floor description (e.g., 'Andar 3 / 5'). Pass 2 only."
+            # Source: detail.floor_description (Pass 2) | type=varchar
+          - name: listing_rooms
+            description: "Per-room area breakdown (Pass 2). JSONB, excluded from row_hash — Next.js may reorder."
+            # Source: detail.listing_rooms (Pass 2) | type=jsonb
+          - name: listing_pictures
+            description: "Pass 2 detail picture URL list. JSONB. Excluded from row_hash. Distinct from `gallery` (which is Pass 1)."
+            # Source: detail.listing_pictures (Pass 2) | type=jsonb
+          - name: unit_latitude
+            description: "Pass 2 unit-level latitude (often more precise than the development's lat). Excluded from row_hash."
+            # Source: detail.unit_latitude (Pass 2) | type=numeric
+          - name: unit_longitude
+            description: "Pass 2 unit-level longitude."
+            # Source: detail.unit_longitude (Pass 2) | type=numeric
+          - name: _has_detail
+            description: "Boolean — TRUE when Pass 2 enrichment succeeded for this listing. Use to filter out unenriched rows when reasoning about Pass 2 fields."
+            # Internal | type=boolean
+          - name: gallery
+            description: "Pass 1 picture URL array. JSONB. Excluded from row_hash (Next.js reordering)."
+            # Source: unit.listingPictures (Pass 1) | type=jsonb
+          - name: raw_json
+            description: "Full upstream Pass 1 record. JSONB, excluded from row_hash. Fallback for fields not promoted to typed columns."
+            # Source: unit (Pass 1) | type=jsonb
+          - name: row_hash
+            description: "SHA256 over LISTINGS_VERSION_COLUMNS (price, status, areas, bedrooms, etc.). Drives SCD2 diff. dlt-managed."
+            # Internal | type=varchar, not_null
+          - name: _dlt_valid_from
+            description: "SCD2 active-from. dlt-managed."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current version."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: remax_listings_state
         description: >
@@ -83,7 +295,130 @@ sources:
         description: >
           RE/MAX SCD2 plot/terreno facts (~12,499 rows). PK: listing_id.
           Sitemap + Next.js ingestion path (the wider RE/MAX schema, ~60 cols).
-          Column dictionary populated in Sprint 4.4 Workstream D.
+          Source: sitemap.xml walk (Pass 1) + Next.js detail JSON (Pass 2).
+        columns:
+          - name: listing_id
+            description: "RE/MAX listing primary key for the plot."
+          - name: agent_id
+            description: "Selling agent identifier."
+          - name: office_id
+            description: "Selling office identifier."
+          - name: team_id
+            description: "Sales team identifier (optional)."
+          - name: user_id
+            description: "User account identifier (often == agent_id)."
+          - name: owner_page_id
+            description: "RE/MAX agent landing-page identifier."
+          - name: listing_class_id
+            description: "RE/MAX-encoded listing class."
+          - name: listing_type
+            description: "Listing type label (typically 'Terreno' for plots)."
+          - name: listing_type_id
+            description: "RE/MAX-encoded listing type."
+          - name: business_type
+            description: "Business type label (e.g., 'Venda', 'Aluguer')."
+          - name: business_type_id
+            description: "RE/MAX-encoded business type."
+          - name: listing_status_id
+            description: "Status code (active/sold/reserved). IN row_hash."
+          - name: market_status_id
+            description: "Market status code. IN row_hash."
+          - name: is_sold
+            description: "Boolean — sold flag. IN row_hash."
+          - name: sold_date
+            description: "Date of sale. IN row_hash."
+          - name: is_online
+            description: "Boolean — currently published. IN row_hash."
+          - name: is_active
+            description: "Boolean — in active sales pipeline. IN row_hash."
+          - name: is_special
+            description: "Boolean — RE/MAX special tag. IN row_hash."
+          - name: is_special_exclusive
+            description: "Boolean — exclusive special tag. IN row_hash."
+          - name: listing_price
+            description: "Asking price in EUR. IN row_hash."
+          - name: previous_price
+            description: "Previous price (snapshot from detail). NOT in row_hash (changes every load)."
+          - name: price_reduction_pct
+            description: "Recent price-cut percentage. IN row_hash."
+          - name: last_price_reduction_date
+            description: "Date of most recent price cut."
+          - name: lot_size
+            description: "Plot area in m² — the primary plot-specific metric. IN row_hash."
+          - name: lot_size_display
+            description: "Display-formatted lot size (e.g., '1.500 m²')."
+          - name: total_area
+            description: "Total area (m²). IN row_hash."
+          - name: built_area
+            description: "Already-built area on the plot, if any."
+          - name: living_area
+            description: "Livable area, if construction exists on the plot."
+          - name: address
+            description: "Street address from Next.js detail. Excluded from row_hash (immutable)."
+          - name: local_zone
+            description: "Local zone label (e.g., neighbourhood / district name)."
+          - name: zip_code
+            description: "Portuguese postal code (NNNN-NNN)."
+          - name: is_exact_address
+            description: "Boolean — TRUE if RE/MAX exposes the exact address; FALSE if approximate."
+          - name: has_private_address
+            description: "Boolean — address withheld at owner's request."
+          - name: public_address
+            description: "Boolean — address published publicly on the listing page."
+          - name: country_id
+            description: "Country code (always Portugal in scope)."
+          - name: region1_id
+            description: "Region hierarchy level 1 (broadest)."
+          - name: region2_id
+            description: "Region hierarchy level 2 (typically concelho)."
+          - name: region3_id
+            description: "Region hierarchy level 3 (typically freguesia)."
+          - name: region_name1
+            description: "Region level 1 display name."
+          - name: region_name2
+            description: "Concelho name."
+          - name: region_name3
+            description: "Freguesia name."
+          - name: region_name4
+            description: "Sub-freguesia / locality name (sparse)."
+          - name: region_search2
+            description: "URL-friendly slug for region 2 (e.g., 'lisboa')."
+          - name: region_search3
+            description: "URL-friendly slug for region 3."
+          - name: energy_efficiency_level
+            description: "Energy class code. IN row_hash."
+          - name: emission_efficiency_level
+            description: "Emission class code."
+          - name: construction_year
+            description: "Year built (if any structure exists). Excluded from row_hash (immutable)."
+          - name: market_days
+            description: "Days on market — snapshot. NOT in row_hash."
+          - name: language_id
+            description: "Listing language code."
+          - name: master_id
+            description: "Master listing reference (RE/MAX internal)."
+          - name: description_tags
+            description: "URL-style tag string used in RE/MAX detail page slug (e.g., 'venda-terreno-lisboa-...')."
+          - name: descriptions
+            description: "Marketing descriptions array (multi-language). JSONB."
+          - name: listing_pictures
+            description: "Picture URL array. JSONB. Excluded from row_hash."
+          - name: listing_attributes_ids
+            description: "Array of feature/attribute IDs (amenities, etc.). JSONB."
+          - name: near_regions
+            description: "Nearby regions array. JSONB."
+          - name: raw_json
+            description: "Full upstream record from Next.js detail. JSONB, excluded from row_hash."
+          - name: row_hash
+            description: "SHA256 over PLOTS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: remax_plots_state
         description: >
@@ -98,10 +433,108 @@ sources:
       - name: idealista_developments
         description: >
           Idealista SCD2 development facts (~1,994 rows). PK: development_id.
-          3-pass strategy: Universal Scraper discovery → dev detail →
-          RE API unit detail. Stub responses (≤6 fields) flagged via
-          _re_api_stub and excluded from SCD2 versioning but included in
-          heartbeat. Column dictionary in Sprint 4.4 Workstream D.
+          3-pass strategy: Universal Scraper discovery (card list per area) →
+          Universal Scraper development detail → RE API unit detail.
+          development_id is a varchar (not bigint) — Idealista's IDs include
+          alphanumeric prefixes.
+        columns:
+          - name: development_id
+            description: "Idealista development primary key (alphanumeric varchar)."
+            # Source: card.development_id | type=varchar
+          - name: development_url
+            description: "Full Idealista URL for the development page."
+            # Source: card.development_url | type=varchar
+          - name: name
+            description: "Development name as displayed."
+            # Source: card.name | type=varchar
+          - name: area_key
+            description: "Idealista internal area code used in URLs."
+            # Source: card.area_key | type=varchar
+          - name: area_slug
+            description: "URL-friendly area slug (e.g., 'lisboa', 'aveiro'). Used to derive concelho/freguesia downstream."
+            # Source: card.area_slug | type=varchar
+          - name: min_price
+            description: "Cheapest unit price in EUR (numeric). Parsed from min_price_text. NOT in row_hash — min_price_text is the canonical price field for SCD2."
+            # Source: card.min_price | type=numeric
+          - name: min_price_text
+            description: "Raw price string as Idealista displays it (e.g., '350.000 €'). IN row_hash — text representation triggers version detection."
+            # Source: card.min_price_text | type=varchar
+          - name: min_price_label
+            description: "Marketing label for price (e.g., 'desde', 'a partir de')."
+            # Source: card.min_price_label | type=varchar
+          - name: typology_summary
+            description: "Comma-separated typology list (e.g., 'T1, T2, T3'). IN row_hash."
+            # Source: card.typology_summary | type=varchar
+          - name: description_summary
+            description: "Short marketing teaser (Pass 1)."
+            # Source: card.description_summary | type=varchar
+          - name: cover_image
+            description: "Hero image URL."
+            # Source: card.cover_image | type=varchar
+          - name: is_featured
+            description: "Boolean — featured/promoted flag."
+            # Source: card.is_featured (cast to bool) | type=boolean
+          - name: is_branded
+            description: "Boolean — branded developer presentation."
+            # Source: card.is_branded (cast to bool) | type=boolean
+          - name: online_booking
+            description: "Boolean — online booking enabled. IN row_hash."
+            # Source: card.online_booking (cast to bool) | type=boolean
+          - name: title
+            description: "Pass 2 page title."
+            # Source: detail.title (Pass 2)
+          - name: h1
+            description: "Pass 2 H1 heading from the page."
+            # Source: detail.h1 (Pass 2)
+          - name: is_completed
+            description: "Boolean — construction-complete flag (Pass 2). IN row_hash — flips when project finishes."
+            # Source: detail.is_completed (cast to bool, Pass 2) | type=boolean
+          - name: og_title
+            description: "Pass 2 OpenGraph title (SEO)."
+            # Source: detail.og_title (Pass 2)
+          - name: og_description
+            description: "Pass 2 OpenGraph description."
+            # Source: detail.og_description (Pass 2)
+          - name: og_image
+            description: "Pass 2 OpenGraph image URL."
+            # Source: detail.og_image (Pass 2)
+          - name: promoter_name
+            description: "Developer / promoter name (Pass 2)."
+            # Source: detail.promoter_name (Pass 2)
+          - name: description_full
+            description: "Full marketing description (Pass 2)."
+            # Source: detail.description_full (Pass 2)
+          - name: address_text
+            description: "Free-text address (Pass 2)."
+            # Source: detail.address_text (Pass 2)
+          - name: gallery
+            description: "Picture URL array (Pass 2). JSONB. Excluded from row_hash."
+            # Source: detail.gallery (Pass 2) | type=jsonb
+          - name: unit_links
+            description: "Array of {unit_id, unit_url, summary} entries — drives Pass 3 fan-out to RE API. JSONB."
+            # Source: detail.unit_links (Pass 2) | type=jsonb
+          - name: units_count
+            description: "Number of units in the development. IN row_hash — count change triggers version (units sold/added)."
+            # Source: detail.units_count (Pass 2) | type=bigint
+          - name: attachments
+            description: "PDF brochures / attachments array. JSONB."
+            # Source: detail.attachments (Pass 2) | type=jsonb
+          - name: _has_detail
+            description: "Boolean — TRUE when Pass 2 detail fetched successfully."
+            # Internal | type=boolean
+          - name: raw_meta
+            description: "Diagnostic JSONB with the original card payload + sorted detail keys. Excluded from row_hash."
+            # Internal | type=jsonb
+          - name: row_hash
+            description: "SHA256 over DEVELOPMENTS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: idealista_developments_state
         description: >
@@ -112,7 +545,106 @@ sources:
           Idealista SCD2 unit facts within developments (~12,542 rows).
           PK: unit_id. Each unit belongs to a parent development_id. Pass 3
           (RE API with tld=.pt) populates property_price, status, operation,
-          areas. Column dictionary in Sprint 4.4 Workstream D.
+          areas. Column shape mirrors raw_idealista (resale listings) by
+          design — same RE API response schema. Stub responses (≤6 fields)
+          flagged via _re_api_stub upstream and skipped from SCD2.
+        columns:
+          - name: unit_id
+            description: "Unit primary key (varchar)."
+            # Source: unit_link.unit_id | type=varchar
+          - name: development_id
+            description: "FK to idealista_developments. Each unit belongs to a development."
+            # Source: unit_link.development_id | type=varchar
+          - name: unit_url
+            description: "Full Idealista URL for this specific unit."
+            # Source: unit_link.unit_url | type=varchar
+          - name: summary_from_dev_page
+            description: "Pass 2 short summary (e.g., 'T2, 75 m²'). Captured from dev page before Pass 3 fetch."
+            # Source: unit_link.summary | type=varchar
+          - name: property_id
+            description: "Idealista RE API internal property ID (numeric). Distinct from unit_id (which is our identity column)."
+            # Source: detail.property_id (Pass 3 RE API)
+          - name: property_url
+            description: "RE API canonical URL (may differ slightly from unit_url)."
+            # Source: detail.property_url
+          - name: property_type
+            description: "Coarse type — typically 'home' for units, 'land' for plots."
+          - name: property_subtype
+            description: "Subtype (e.g., 'flat', 'duplex', 'studio'). IN row_hash."
+          - name: property_price
+            description: "Asking price in EUR. IN row_hash."
+            # Source: detail.property_price | type=numeric
+          - name: price_currency_symbol
+            description: "Currency symbol (always €)."
+          - name: lot_size
+            description: "Built area (m²) for units, land area for plots. IN row_hash."
+          - name: lot_size_usable
+            description: "Useful/usable area (m²). IN row_hash."
+          - name: bedroom_count
+            description: "Bedroom count. IN row_hash."
+            # Note: bedrooms_count (RE API redundant duplicate) intentionally dropped upstream.
+          - name: bathroom_count
+            description: "Bathroom count. IN row_hash."
+          - name: floor
+            description: "Floor as string (RE API gives raw string e.g., 'planta_baja', 'sotano', '3'). IN row_hash."
+          - name: floor_description
+            description: "Free-text floor description."
+          - name: property_features
+            description: "Array of feature flags (amenities, finishes). JSONB. Excluded from row_hash — order/contents may vary."
+          - name: property_equipment
+            description: "Array of equipment flags. JSONB."
+          - name: property_images
+            description: "Image URL array. JSONB."
+          - name: property_image_tags
+            description: "Per-image label tags (room type, view, etc.). JSONB."
+          - name: property_condition
+            description: "Condition label (e.g., 'good', 'reform_required')."
+          - name: property_description
+            description: "Full marketing description."
+          - name: property_title
+            description: "Listing title."
+          - name: energy_certificate
+            description: "Energy class string. IN row_hash. Format may vary (e.g., 'A', 'B-', 'pending')."
+          - name: address
+            description: "Street address."
+          - name: location_name
+            description: "Neighborhood / locality name."
+          - name: location_hierarchy
+            description: "Region hierarchy as JSONB (parent/child chain). Useful for normalizing to dim_geography."
+          - name: latitude
+            description: "Latitude in WGS84."
+          - name: longitude
+            description: "Longitude."
+          - name: country
+            description: "Country code (always Portugal in scope)."
+          - name: agency_name
+            description: "Selling agency name. IN row_hash — agency change is a real lifecycle event."
+          - name: agency_phone
+            description: "Agency contact phone."
+          - name: agency_logo
+            description: "Agency logo URL."
+          - name: modified_at
+            description: "Idealista last-modified epoch (bigint, milliseconds). NOT in row_hash (changes every load)."
+          - name: status
+            description: "Lifecycle status (active, inactive, etc.). IN row_hash."
+          - name: last_deactivated_at
+            description: "Epoch when listing was last deactivated. IN row_hash — distinguishes stub responses from real deactivations."
+          - name: operation
+            description: "Operation type (sale/rent). IN row_hash."
+          - name: _has_detail
+            description: "Boolean — TRUE when Pass 3 RE API detail fetched (non-stub)."
+          - name: raw_meta
+            description: "Diagnostic JSONB with original unit_link + sorted RE API keys. Excluded from row_hash."
+          - name: row_hash
+            description: "SHA256 over UNITS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: idealista_development_units_state
         description: >
@@ -121,8 +653,87 @@ sources:
       - name: idealista_plots
         description: >
           Idealista SCD2 plot/terreno facts (~6,975 rows). PK:
-          external_listing_id. 2-pass strategy (discovery + detail).
-          Column dictionary in Sprint 4.4 Workstream D.
+          external_listing_id. 2-pass RE API strategy (no Universal Scraper):
+          discovery against /comprar-terrenos/{distrito}/ → detail per
+          property_id with tld=.pt. Single grain (no parent dev relationship).
+          Cost: ~$5/run.
+        columns:
+          - name: external_listing_id
+            description: "Plot primary key (varchar — derived from RE API property_id, kept as string for consistency with raw_idealista)."
+          - name: area_key
+            description: "Idealista internal area code from discovery."
+          - name: area_slug
+            description: "URL-friendly area slug from discovery."
+          - name: discovery_url
+            description: "Idealista listing page URL captured during Pass 1 discovery."
+          - name: property_id
+            description: "RE API internal numeric property ID."
+          - name: property_url
+            description: "RE API canonical listing URL."
+          - name: property_type
+            description: "Always 'land' for plots (filter contract)."
+          - name: property_subtype
+            description: "Plot subtype (e.g., 'rural', 'urban'). IN row_hash."
+          - name: property_price
+            description: "Asking price in EUR. IN row_hash."
+          - name: price_currency_symbol
+            description: "Currency symbol (always €)."
+          - name: lot_size
+            description: "Plot area (m²) — primary plot metric. IN row_hash."
+          - name: lot_size_usable
+            description: "Usable/buildable area (m²). IN row_hash."
+          - name: property_description
+            description: "Marketing description."
+          - name: property_title
+            description: "Listing title."
+          - name: address
+            description: "Street/locality address."
+          - name: location_name
+            description: "Neighborhood / locality."
+          - name: country
+            description: "Country code."
+          - name: agency_name
+            description: "Selling agency. IN row_hash."
+          - name: agency_phone
+            description: "Agency phone."
+          - name: agency_logo
+            description: "Agency logo URL."
+          - name: modified_at
+            description: "Idealista last-modified epoch. NOT in row_hash."
+          - name: status
+            description: "Lifecycle status. IN row_hash."
+          - name: last_deactivated_at
+            description: "Epoch of last deactivation. IN row_hash."
+          - name: operation
+            description: "Operation type (sale/rent). IN row_hash."
+          - name: latitude
+            description: "Latitude WGS84."
+          - name: longitude
+            description: "Longitude."
+          - name: property_features
+            description: "Plot features array. JSONB."
+          - name: property_equipment
+            description: "Equipment array. JSONB."
+          - name: property_images
+            description: "Image URL array. JSONB."
+          - name: property_image_tags
+            description: "Per-image label tags. JSONB."
+          - name: location_hierarchy
+            description: "Region hierarchy JSONB (parent/child chain)."
+          - name: raw_meta
+            description: "Diagnostic JSONB: discovery_stub + RE API keys. Excluded from row_hash."
+          - name: _has_detail
+            description: "Boolean — TRUE when RE API detail fetched."
+          - name: row_hash
+            description: "SHA256 over PLOTS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: idealista_plots_state
         description: >
@@ -137,9 +748,132 @@ sources:
       - name: zome_developments
         description: >
           Zome SCD2 development facts (~305 rows, called "ventures" upstream).
-          PK: venture_id. Source columns renamed from Supabase to bronze
-          canonical (e.g., localizacaolevel1imovel → localizacaolevel1).
-          Column dictionary in Sprint 4.4 Workstream D.
+          PK: venture_id. Source columns retain Portuguese names from
+          Supabase API (e.g., `nome`, `precosemformatacao`). Column renames
+          standardize the suffix (`localizacaolevel1imovel` →
+          `localizacaolevel1`) for consistency with zome_listings/zome_plots.
+          Source: Supabase tab_ventures table (paginated REST).
+        columns:
+          - name: venture_id
+            description: "Zome venture (development) primary key. Note: PK is `venture_id`, NOT `idventure` — renamed for clarity."
+          - name: emid
+            description: "Zome external public-facing ID (used in URLs, e.g., 'ZMPT123456')."
+          - name: nome
+            description: "Development name (Portuguese). IN row_hash via NO — actually `precosemformatacao` and counts are. Display-only."
+          - name: idhub
+            description: "Zome hub (office) ID."
+          - name: deschub
+            description: "Hub display name. IN row_hash — re-allocation between hubs is a real event."
+          - name: idconsultor
+            description: "Selling consultant (agent) ID."
+          - name: nomeconsultor
+            description: "Consultant display name. IN row_hash — agent change is a real event."
+          - name: idlocalizacaolevel1
+            description: "Region level 1 ID (broadest)."
+          - name: idlocalizacaolevel2
+            description: "Region level 2 ID (typically concelho)."
+          - name: idlocalizacaolevel3
+            description: "Region level 3 ID (typically freguesia)."
+          - name: localizacaolevel1
+            description: "Region level 1 display name. RENAMED from upstream `localizacaolevel1imovel`."
+          - name: localizacaolevel2
+            description: "Region level 2 display name (concelho)."
+          - name: localizacaolevel3
+            description: "Region level 3 display name (freguesia)."
+          - name: imoveisdisponiveis
+            description: "Available unit count. IN row_hash — primary signal for sales velocity."
+          - name: imoveisreservados
+            description: "Reserved unit count. IN row_hash."
+          - name: imoveisvendidos
+            description: "Sold unit count. IN row_hash."
+          - name: idestado
+            description: "Development state code (active/sold/coming-soon). IN row_hash. TODO: ID→label decoding."
+          - name: tipologiagrupos
+            description: "Comma-separated typology groups (e.g., 'T1,T2,T3'). IN row_hash."
+          - name: geocoordinateslat
+            description: "Latitude as STRING (varchar) — needs casting to numeric in silver. IN row_hash."
+          - name: geocoordinateslong
+            description: "Longitude as STRING (varchar). IN row_hash."
+          - name: acabamento
+            description: "Finish quality label (e.g., 'standard', 'premium')."
+          - name: gruposweb
+            description: "Web-display category groups."
+          - name: grupos
+            description: "Internal category groups."
+          - name: emailconsultor
+            description: "Consultant email. IN row_hash."
+          - name: moradahubconsultor
+            description: "Hub office street address (for the consultant)."
+          - name: imagemconsultor
+            description: "Consultant profile image URL."
+          - name: contactoconsultor
+            description: "Consultant phone (raw). IN row_hash."
+          - name: contactoconsultor351
+            description: "Consultant phone with +351 country code prefix."
+          - name: contactoconsultorcodedial
+            description: "Consultant phone with country dial code variant."
+          - name: contactohub
+            description: "Hub office phone (raw)."
+          - name: contactohub351
+            description: "Hub phone with +351 prefix."
+          - name: contactohubcodedial
+            description: "Hub phone with dial-code variant."
+          - name: imagemhub
+            description: "Hub office image URL."
+          - name: dataentradarede
+            description: "Date the consultant joined the Zome network."
+          - name: idang
+            description: "Consultant license number (Angariador ID)."
+          - name: moedaimovel_descl
+            description: "Currency long description (e.g., 'EUR')."
+          - name: moedaimovel_descr
+            description: "Currency symbol (€)."
+          - name: whatsappconsultor
+            description: "Boolean — consultant accepts WhatsApp."
+          - name: exclusividade
+            description: "Boolean — exclusive Zome mandate. IN row_hash."
+          - name: url_user_link
+            description: "Consultant profile URL on zome.pt."
+          - name: nameunaccent
+            description: "Unaccented version of `nome` for search/normalization."
+          - name: descricaocompleta
+            description: "Full marketing description as JSONB (multi-language object)."
+          - name: gallery
+            description: "Picture URL array. JSONB."
+          - name: video
+            description: "Video URL array. JSONB."
+          - name: virtualreality
+            description: "VR tour URL array. JSONB."
+          - name: regiao
+            description: "Region hierarchy as JSONB (parent/child chain). Useful for normalizing to dim_geography."
+          - name: geolocation
+            description: "Geo metadata as JSONB (typed coordinates, distance markers, etc.)."
+          - name: raw_json
+            description: "Full upstream record. JSONB. Excluded from row_hash."
+          - name: createdat
+            description: "Upstream creation timestamp. NOT in row_hash."
+          - name: precosemformatacao
+            description: "Price as bigint (no formatting). IN row_hash. Authoritative numeric price."
+          - name: mostrarprecowebsite
+            description: "Boolean — show price on website. IN row_hash — toggle is a real event."
+          - name: preco
+            description: "Price as formatted string (e.g., '€350.000'). IN row_hash."
+          - name: showmoradaemp
+            description: "Boolean (stored as bigint) — show development address publicly."
+          - name: hiddenuserwebsite
+            description: "Boolean (stored as bigint) — consultant hidden from website."
+          - name: singlephone_hub
+            description: "Single canonical hub phone."
+          - name: row_hash
+            description: "SHA256 over DEVELOPMENTS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: zome_developments_state
         description: >
@@ -149,8 +883,155 @@ sources:
         description: >
           Zome SCD2 listing facts (~9,263 rows). PK: listing_id. Includes
           encoded category IDs (idcondicaoimovel, idtipoimovel, idtiponegocio)
-          decoded via the ref_zome_* lookup tables. Column dictionary in
-          Sprint 4.4 Workstream D.
+          decoded via the ref_zome_* lookup tables. Source: Supabase
+          tab_listing_list table. Column names retain Portuguese.
+        columns:
+          - name: listing_id
+            description: "Zome listing primary key."
+          - name: idencode
+            description: "External public-facing listing reference (e.g., 'ZMPT123456')."
+          - name: pid
+            description: "Property identifier (varchar). Distinct from listing_id."
+          - name: pid_number
+            description: "Numeric portion of pid extracted as varchar."
+          - name: idtiponegocio
+            description: "Business type ID (sale/rent/etc.). FK to ref_zome_business_type. IN row_hash via NO — but listing-status changes are tracked via idestadoimovel."
+          - name: tipoimovel
+            description: "Property type label (e.g., 'Apartamento')."
+          - name: idtipoimovel
+            description: "Property type ID. FK to ref_zome_property_type. idtipoimovel=3 isolates plots."
+          - name: tipologiaimovel
+            description: "Typology label (e.g., 'T2', 'T3')."
+          - name: txttipologiaimovel
+            description: "Display text for typology."
+          - name: idtipologia
+            description: "Typology ID."
+          - name: localizacaolevel4imovel
+            description: "Region level 4 display name (sub-freguesia, sparse)."
+          - name: localizacaolevel5imovel
+            description: "Region level 5 display name (locality, sparse)."
+          - name: idlocalizacaolevel1imovel
+            description: "Region level 1 ID (broadest)."
+          - name: idlocalizacaolevel2imovel
+            description: "Region level 2 ID (typically concelho)."
+          - name: idlocalizacaolevel3imovel
+            description: "Region level 3 ID (typically freguesia)."
+          - name: localizacaolevel1
+            description: "Region level 1 display name. RENAMED upstream from localizacaolevel1imovel."
+          - name: localizacaolevel2
+            description: "Concelho name."
+          - name: localizacaolevel3
+            description: "Freguesia name."
+          - name: localizacaoiso
+            description: "ISO country/region code."
+          - name: geocoordinateslat
+            description: "Latitude as STRING (varchar). IN row_hash. Cast to numeric in silver."
+          - name: geocoordinateslong
+            description: "Longitude as STRING. IN row_hash."
+          - name: totalquartossuite
+            description: "Total bedrooms (rooms + suites). IN row_hash."
+          - name: attr_wcs
+            description: "Bathroom count. IN row_hash."
+          - name: attr_piscina
+            description: "Pool count (0 or 1)."
+          - name: attr_garagem
+            description: "Has-garage flag (0/1). IN row_hash."
+          - name: attr_garagem_num
+            description: "Garage spot count. IN row_hash."
+          - name: attr_elevador
+            description: "Has-elevator flag (0/1). IN row_hash."
+          - name: attr_parqueamento
+            description: "Parking flag (0/1)."
+          - name: attr_mobilidadereduzida
+            description: "Reduced-mobility / accessibility flag (0/1)."
+          - name: precoimovel
+            description: "Price as formatted string. IN row_hash."
+          - name: precosemformatacao
+            description: "Price as bigint (authoritative numeric). IN row_hash."
+          - name: valorantigo
+            description: "Previous price (string format). IN row_hash — distinguishes price drops."
+          - name: dataultimabaixa
+            description: "Date of most recent price drop."
+          - name: moedaimovel_descl
+            description: "Currency long description (e.g., 'EUR')."
+          - name: moedaimovel_descr
+            description: "Currency symbol (€)."
+          - name: idestadoimovel
+            description: "Listing state code (active/sold/reserved/off-market). IN row_hash. Decode via ref_zome_condition / domain mapping."
+          - name: idcondicaoimovel
+            description: "Property condition code (new/used/reform). IN row_hash. FK to ref_zome_condition."
+          - name: txtcondicaoimovel
+            description: "Condition display text."
+          - name: areautilhab
+            description: "Useful livable area (m²). IN row_hash."
+          - name: areabrutaconst
+            description: "Gross constructed area (m²). IN row_hash."
+          - name: areaterreno
+            description: "Plot/terrain area (m²). Sparse for non-plot listings."
+          - name: areaimplement
+            description: "Building footprint area (m²). Sparse."
+          - name: url_detail_view_link
+            description: "Full Zome URL for the listing detail page."
+          - name: abbrsigned
+            description: "Abbreviated signed listing reference."
+          - name: dataentradarede
+            description: "Date listing was added to the Zome network."
+          - name: showwebsite
+            description: "Boolean — published on website. IN row_hash."
+          - name: mostrarprecoangwebsite
+            description: "Boolean — show price on agent website."
+          - name: showluxury
+            description: "Boolean — featured in luxury section. IN row_hash."
+          - name: mostrarprecoangluxury
+            description: "Boolean — show price in luxury section."
+          - name: showcrypto
+            description: "Boolean — accepting crypto payments."
+          - name: mostrarprecoangcrypto
+            description: "Boolean — show crypto pricing."
+          - name: idconsultor
+            description: "Selling consultant (agent) ID."
+          - name: moradahubconsultorid
+            description: "Consultant's hub office ID."
+          - name: rating
+            description: "Listing rating score (Zome internal)."
+          - name: lastdateupdate
+            description: "Last update timestamp on Zome side."
+          - name: idemp
+            description: "FK to zome_developments.venture_id when listing belongs to a development."
+          - name: idgroup
+            description: "Listing group ID (used to bundle related listings)."
+          - name: emid
+            description: "External listing reference (display ID)."
+          - name: nome_emp
+            description: "Development name (when idemp links to a development)."
+          - name: grupo_emp
+            description: "Boolean — is this listing part of a development group."
+          - name: destaque
+            description: "Boolean — featured/highlighted listing."
+          - name: reservadozomenow
+            description: "Boolean — reserved via Zome's online booking. IN row_hash — flips on reservation."
+          - name: createdat
+            description: "Upstream creation timestamp."
+          - name: gallery
+            description: "Picture URL array. JSONB."
+          - name: gallerymainimages
+            description: "Hero/main images array. JSONB."
+          - name: regiao
+            description: "Region hierarchy as JSONB."
+          - name: geolocation
+            description: "Geo metadata JSONB."
+          - name: raw_json
+            description: "Full upstream record. JSONB."
+          - name: row_hash
+            description: "SHA256 over LISTINGS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: zome_listings_state
         description: >
@@ -159,8 +1040,127 @@ sources:
       - name: zome_plots
         description: >
           Zome SCD2 plot/terreno facts (~1,780 rows). Filtered from
-          zome_listings by idtipoimovel=3. PK: listing_id.
-          Column dictionary in Sprint 4.4 Workstream D.
+          zome_listings by idtipoimovel=3. PK: listing_id. Plots share most
+          of the listings shape but lack `areautilhab` (livable area),
+          `areabrutaconst` (gross built area), `idcondicaoimovel`,
+          `tipologiagrupos`. Plot-specific scalar: `areaterreno` (m² of
+          terrain). Different `tipologiaimovel.PT` value set
+          ('Urbanizável', 'Rústico', 'Urbano', etc.).
+        columns:
+          - name: listing_id
+            description: "Plot primary key (same listing_id space as zome_listings)."
+          - name: idencode
+            description: "External public ID (e.g., 'ZMPT572024')."
+          - name: pid
+            description: "Property identifier varchar."
+          - name: tipoimovel
+            description: "Property type label (always plot-typed, e.g., 'Terreno')."
+          - name: idtipoimovel
+            description: "Property type ID — always 3 (filter contract)."
+          - name: tipologiaimovel
+            description: "Plot typology label ('Urbanizável', 'Rústico', 'Urbano', etc.)."
+          - name: txttipologiaimovel
+            description: "Display text for typology."
+          - name: idtipologia
+            description: "Typology ID."
+          - name: localizacaolevel4imovel
+            description: "Region level 4 (sparse)."
+          - name: localizacaolevel5imovel
+            description: "Region level 5 (sparse)."
+          - name: idlocalizacaolevel1imovel
+            description: "Region level 1 ID."
+          - name: idlocalizacaolevel2imovel
+            description: "Region level 2 ID (concelho)."
+          - name: idlocalizacaolevel3imovel
+            description: "Region level 3 ID (freguesia)."
+          - name: localizacaolevel1
+            description: "Region level 1 display name."
+          - name: localizacaolevel2
+            description: "Concelho name."
+          - name: localizacaolevel3
+            description: "Freguesia name."
+          - name: localizacaoiso
+            description: "ISO region code."
+          - name: geocoordinateslat
+            description: "Latitude as STRING. IN row_hash. Cast to numeric in silver."
+          - name: geocoordinateslong
+            description: "Longitude as STRING. IN row_hash."
+          - name: precoimovel
+            description: "Price as formatted string. IN row_hash."
+          - name: precosemformatacao
+            description: "Price as bigint. IN row_hash. Authoritative numeric price."
+          - name: valorantigo
+            description: "Previous price (string). IN row_hash."
+          - name: dataultimabaixa
+            description: "Date of most recent price drop."
+          - name: moedaimovel_descl
+            description: "Currency long description."
+          - name: moedaimovel_descr
+            description: "Currency symbol."
+          - name: idestadoimovel
+            description: "Plot state code (active/sold/reserved). IN row_hash."
+          - name: areaterreno
+            description: "Plot/terrain area in m² — primary plot metric. IN row_hash."
+          - name: areaimplement
+            description: "Building footprint area (m²) for plots with existing structures."
+          - name: url_detail_view_link
+            description: "Full Zome URL for the plot detail page."
+          - name: abbrsigned
+            description: "Abbreviated signed reference."
+          - name: dataentradarede
+            description: "Date listing entered the Zome network."
+          - name: showwebsite
+            description: "Boolean — published on website. IN row_hash."
+          - name: mostrarprecoangwebsite
+            description: "Boolean — show price on agent website."
+          - name: showcrypto
+            description: "Boolean — accepting crypto."
+          - name: mostrarprecoangcrypto
+            description: "Boolean — show crypto pricing."
+          - name: idconsultor
+            description: "Selling consultant ID."
+          - name: moradahubconsultorid
+            description: "Hub office ID."
+          - name: rating
+            description: "Listing rating score."
+          - name: lastdateupdate
+            description: "Last update timestamp."
+          - name: idemp
+            description: "FK to zome_developments when plot belongs to a development."
+          - name: idgroup
+            description: "Listing group ID."
+          - name: emid
+            description: "External listing reference."
+          - name: nome_emp
+            description: "Development name (if linked)."
+          - name: grupo_emp
+            description: "Boolean — part of a development group."
+          - name: destaque
+            description: "Boolean — featured/highlighted."
+          - name: reservadozomenow
+            description: "Boolean — reserved via online booking. IN row_hash."
+          - name: createdat
+            description: "Upstream creation timestamp."
+          - name: gallery
+            description: "Picture URL array. JSONB."
+          - name: gallerymainimages
+            description: "Hero images array. JSONB."
+          - name: regiao
+            description: "Region hierarchy. JSONB."
+          - name: geolocation
+            description: "Geo metadata. JSONB."
+          - name: raw_json
+            description: "Full upstream record. JSONB."
+          - name: row_hash
+            description: "SHA256 over PLOTS_VERSION_COLUMNS. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to. NULL = current."
+          - name: _dlt_load_id
+            description: "dlt batch identifier."
+          - name: _dlt_id
+            description: "dlt internal row identifier."
 
       - name: zome_plots_state
         description: >
