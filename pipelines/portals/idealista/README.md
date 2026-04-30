@@ -78,11 +78,35 @@ Manual triggers can override per-run with `{"distrito": "porto", "operation": "s
 `modified_at`, `last_deactivated_at`, `operation`. Source-oriented: stores
 RE API fields verbatim.
 
-**Decommission plan**: when the new `idealista_developments_dlt` pipeline
-covers the same surface area at the same quality, this legacy pipeline will
-be retired. Field names in the new tables intentionally match verbatim, so
-dbt staging models can swap source tables with zero rename churn. Tracked in
-[../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md) under "Decommission paths".
+**Decommission plan (timeline confirmed Sprint 4.4):**
+
+`raw_idealista` is supported until Sprint 4.5's silver `unified_listings`
+canonical model is operational. After that:
+
+- `idealista_ingestion_dag.py` — deprecated. DAG marked paused; no scheduled runs.
+- `idealista_bronze_dag.py` — deprecated. DAG marked paused.
+- `dbt/models/staging/listings/stg_idealista.sql` — retired. Removed once
+  `unified_listings` covers resale flows via `raw_idealista`'s replacement
+  source (TBD in Sprint 4.5: probably extending `idealista_development_units`
+  with non-development listings, or a new `idealista_resale` resource on the
+  dlt pipeline).
+
+**Field-name compatibility:** the new tables (`idealista_development_units`,
+`idealista_plots`) use verbatim RE API field names — same shape as
+`raw_idealista`. Silver staging models can swap the source declaration with
+minimal rename churn.
+
+**Timing gate:** decommission only when the silver `unified_listings`
+canonical model is shipped, validated against a hand-labeled sample
+(precision ≥ 0.9), and at least one downstream model (e.g., hedonic
+features) has cut over.
+
+**Cross-references:**
+- Sprint 4.5 plan in repo-root [README.md](../../../README.md) — silver
+  models that consume the replacement.
+- ADR 003 — dlt for portals (architectural rationale).
+- [`../../common/PLOTS_RULES.md`](../../common/PLOTS_RULES.md) —
+  "Decommission paths" section.
 
 See [idealista_config.py](idealista_config.py) for the full distrito/operation
 matrix and [idealista_ingestion_dag.py](idealista_ingestion_dag.py) /
