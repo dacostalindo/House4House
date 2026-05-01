@@ -1,13 +1,22 @@
-# RE/MAX Portugal — New Developments
+# RE/MAX Portugal — New Developments + Listings + Plots
 
-**RE/MAX Portugal** — ~609 developments / ~8,630 unit listings fetched from the open REST API + the Next.js detail endpoint for enrichment. Bronze is dlt-managed (SCD2) with parallel Pass 2.
+**RE/MAX Portugal** — 607 developments, 8,583 unit listings, and 12,499 plots (terrenos) fetched from a mix of the open REST API + Next.js detail endpoint + public sitemap. Bronze is dlt-managed (SCD2) with parallel Pass 2.
 
-> **Pipeline status (2026-04-28):** dlt cutover complete. Legacy DAGs and
-> `raw_remax_*` tables are gone. The single `remax_dlt` DAG runs weekly
-> (Tuesdays 06:00 UTC) and writes SCD2 bronze tables (`remax_developments`,
-> `remax_listings`) plus heartbeat sidecars. Pass 2 enrichment is parallelized
-> via `ThreadPoolExecutor` — runtime dropped from ~5h sequential to ~37 min.
-> See [CUTOVER.md](CUTOVER.md) for the migration runbook.
+> **Pipeline status (2026-04-29):** dlt cutover complete + plots extension shipped.
+> Legacy DAGs and `raw_remax_*` tables are gone. The single `remax_dlt` DAG runs
+> weekly (Tuesdays 06:00 UTC) and writes SCD2 bronze tables (`remax_developments`,
+> `remax_listings`, `remax_plots`) plus heartbeat sidecars. Pass 2 enrichment is
+> parallelized via `ThreadPoolExecutor`. See [CUTOVER.md](CUTOVER.md) for the
+> dlt migration runbook; see [../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md)
+> for the cross-pipeline plot conventions; see
+> [SITEMAP_REFACTOR_PROPOSAL.md](SITEMAP_REFACTOR_PROPOSAL.md) for an investigation
+> into using the same sitemap pathway to reach the full ~47k housing inventory
+> (12× coverage gain) — proposal pending.
+
+**⚠️ macOS host sleep**: when triggering manually from a laptop, run
+`caffeinate -i -d -s -u -t 14400 &` first. The full DAG (housing + plots) takes
+~2 hours; macOS Idle Sleep pauses Docker → Airflow heartbeat times out → task
+restarts from scratch (no resumability — `_payload_cache` is process-local).
 
 RE/MAX Collection (remaxcollection.pt) is the same API with 100% ID overlap —
 no separate scrape needed. The `is_special` flag identifies Collection properties.
@@ -45,6 +54,39 @@ no separate scrape needed. The `is_special` flag identifies Collection propertie
 | Energy class | Unit | 100% | `energyEfficiencyLevelID` |
 | Status (`listing_status_id`) | Unit | 100% | See status encoding below |
 | `is_sold`, `is_online`, `is_active` | Unit | 100% | Booleans (also encoded in `listing_status_id`) |
+
+### Plots — sitemap.xml + Next.js detail (12,499 terrenos)
+
+Plots are sourced from a **completely different entry point** than housing —
+`/api/Development/PaginatedSearch` is housing-only and its `listingTypeIDs`
+filter is silently ignored. Plot ingestion uses:
+
+- **Plots Pass 1** (`_fetch_all_plots`): walk `https://remax.pt/sitemap.xml`
+  → 4 PT detail sitemaps (`listings_details_pt_{1,2,3,4}.xml.gz`) →
+  filter URLs matching `terreno` substring → ~12,500 plot URLs.
+- **Plots Pass 2** (`_prefetch_plots`): per URL, GET the same Next.js detail
+  endpoint as housing (`_next/data/{buildId}/en/imoveis/{slug}/{title}.json`),
+  decode `pageProps.listingEncoded` (base64), keep only rows where
+  `listingTypeID == 21` (the actual plot code at unit level — NOT 39 from
+  the search-page filter, which doesn't push down to listings).
+
+| Plot field | Coverage | Notes |
+|---|---|---|
+| `listing_id` (`id` from Next.js) | 100% | PK |
+| `listing_price` | **99.9%** | Most plots have a published price |
+| `lot_size` (terrain m²) | **100%** | Plot-relevant area field |
+| `total_area` / `built_area` / `living_area` | sparse | Mostly NULL (no building) |
+| `address` (street-level) | **100%** | |
+| `region_name1/2/3` (distrito/concelho/freguesia) | 100% | |
+| `region_search2/3` (slug components) | 100% | |
+| `local_zone` | high | Free-form locality string |
+| `zip_code` | high | |
+| `listing_status_id` | 100% | Same encoding as housing |
+| `is_sold`, `is_active`, `is_online`, `is_special` | 100% | Lifecycle booleans |
+| `previous_price`, `last_price_reduction_date`, `market_days` | snapshot-derived | Excluded from `row_hash` |
+| `listing_attributes_ids`, `descriptions`, `near_regions`, `listing_pictures` | JSONB | Kept as `json` data_type |
+
+Distrito spread (top 5): Porto 1,552 · Lisboa 1,539 · Santarém 1,078 · Braga 1,001 · Viseu 969.
 
 ### Pass 2 — Unit Detail (online units only, ~45%)
 
@@ -127,7 +169,7 @@ dropdown but typed a different number). Silver should:
 
 ---
 
-## How it works (post-cutover)
+## Pipeline architecture
 
 ```
 audit_to_minio        # Pass 1 raw JSON → s3://raw/remax/PaginatedSearch/p{0..N}/
@@ -172,8 +214,10 @@ concatenated JSONL.
 **PostgreSQL** (`bronze_listings` schema, dlt-managed):
 - `remax_developments` — SCD2 (versioned by `row_hash` over curated columns)
 - `remax_listings` — SCD2
+- `remax_plots` — SCD2 (sitemap-discovered, filtered to `listingTypeID==21`)
 - `remax_developments_state` — UPSERT sidecar (`development_id`, `last_seen_date`)
 - `remax_listings_state` — UPSERT sidecar
+- `remax_plots_state` — UPSERT sidecar
 - dlt internals: `_dlt_loads`, `_dlt_pipeline_state`, `_dlt_version` (shared with `zome_dlt`)
 
 **PostgreSQL** (`bronze_listings_staging` schema, dlt-managed):
@@ -182,34 +226,24 @@ Treat as dlt internals — never query from silver.
 
 ---
 
-## DAG
+## DAG settings
 
-### `remax_dlt` — RE/MAX API → MinIO (audit) + Postgres (SCD2 bronze)
+`remax_dlt` — RE/MAX API + sitemap → MinIO (audit) + Postgres (SCD2 bronze):
 
 | Setting | Value |
 |---------|-------|
 | Schedule | `0 6 * * 2` (Tuesdays 06:00 UTC) |
-| Pass 2 parallelism | 4 workers × 1s per-worker delay (≈ 4 req/s effective) |
-| Pass 2 runtime | ~37 min for ~3,800 online units (vs ~5h sequential — 8× speedup) |
-| Total runtime | ~38 min end-to-end |
+| Pass 2 parallelism (housing) | 4 workers × 1s per-worker delay (≈ 4 req/s effective) |
+| Pass 2 parallelism (plots) | 4 workers × 1s per-worker delay (≈ 4 req/s) |
+| Housing Pass 2 runtime | ~30 min for ~3,800 online units |
+| Plots Pass 2 runtime | ~80 min for ~12,500 plot URLs |
+| Total runtime | **~2 hours end-to-end** (housing + plots) |
 | Pass 1 timeout | 30s per request |
 | Pass 2 timeout | 15s per request |
-| Failure isolation | Pass 2 fetch failures yield NULL enrichment, never block the load |
+| Failure isolation | Pass 2 fetch failures (housing or plots) yield NULL enrichment, never block the load |
 | State directory | `/opt/airflow/dlt_state/remax` (persistent named volume `dlt_state`) |
 | Schema contract | `data_type=freeze` (type drift fails loud), `columns=evolve` (new fields land NULL) |
 | Tags | `remax`, `bronze`, `dlt`, `scd2` |
-
-**Lifecycle semantics for downstream silver:**
-
-A listing is considered active when:
-```sql
-remax_listings_state.last_seen_date >= current_date - 21
-```
-
-The 21-day floor: weekly cadence (7) + one missed run (7) + slack (7).
-Do not lower below 14 days. SCD2 history of price / status / area changes is
-queryable via `_dlt_valid_from` / `_dlt_valid_to` on the `remax_listings` and
-`remax_developments` tables.
 
 ---
 
@@ -251,6 +285,20 @@ Columns added by dlt on the SCD2 fact tables:
 | `listing_id` / `development_id` | int (PK) | Same as fact-table PK |
 | `last_seen_date` | DATE | Updated on every load via UPSERT |
 | `_dlt_load_id`, `_dlt_id` | dlt internals | |
+
+---
+
+## Lifecycle semantics for downstream silver
+
+A listing/development/plot is **currently active** when:
+
+```sql
+remax_listings_state.last_seen_date >= current_date - 21
+```
+
+The 21-day floor: weekly cadence (7) + one missed run (7) + slack (7). Do not
+lower below 14 days. SCD2 history of price / status / area changes is queryable
+via `_dlt_valid_from` / `_dlt_valid_to` on the fact tables.
 
 ---
 
@@ -316,14 +364,28 @@ No separate scrape needed.
 | `REQUEST_TIMEOUT_S` | 30 | Pass 1 request timeout |
 | `DETAIL_TIMEOUT_S` | 15 | Pass 2 request timeout (per detail fetch) |
 
-### Directory structure
+### Files
 
 ```
-pipelines/api/remax/
-├── __init__.py                       # Package marker
-├── source.py                         # dlt source: 4 resources + Pass 2 helpers
-├── remax_dlt_dag.py                  # DAG: audit → load_facts → validate_facts
-├── CUTOVER.md                        # Migration runbook + decommission gate (historical)
-├── rollback_remax.sql                # Legacy DDL for emergency rollback (historical)
-└── README.md                         # This file
+pipelines/portals/remax/
+├── __init__.py                          # Package marker
+├── source.py                            # dlt source: 6 resources (housing + plots) + Pass 2 helpers
+├── remax_dlt_dag.py                     # DAG: audit → load_facts → validate_facts
+├── CUTOVER.md                           # Migration runbook + decommission gate (historical)
+├── rollback_remax.sql                   # Legacy DDL for emergency rollback (historical)
+├── SITEMAP_REFACTOR_PROPOSAL.md         # Backlog: extend sitemap path to housing (12× coverage)
+└── README.md                            # This file
 ```
+
+---
+
+## Backlog / known follow-ups
+
+- **Sitemap-replaces-PaginatedSearch refactor** — see [SITEMAP_REFACTOR_PROPOSAL.md](SITEMAP_REFACTOR_PROPOSAL.md).
+  Sitemap exposes ~47k listings vs current ~3.9k (12× coverage gain). Foundation
+  already shipped via `remax_plots`. Proposal recommends 4-week shadow run before
+  cutover.
+- **Persist `_payload_cache` to disk** so a host-sleep restart doesn't redo
+  Pass 2 from scratch. Currently process-local — a 2h+ DAG that loses heartbeat
+  retries the full Pass 2.
+- See [Obsidian Backlog](../../../../Personal-Wiki/Backlog.md) for sprint-tracked items.

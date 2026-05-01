@@ -37,7 +37,7 @@ columns that are noisy proxies of those events.**
 
 ## Worked examples
 
-### zome (`pipelines/api/zome/source.py`)
+### zome (`pipelines/portals/zome/source.py`)
 
 `LISTINGS_VERSION_COLUMNS` — 17 cols, including `idestadoimovel`,
 `idcondicaoimovel`, `precosemformatacao`, `precoimovel`, `valorantigo`,
@@ -52,7 +52,7 @@ Excluded: JSONB arrays (`gallery`, `raw_json`, `geolocation`, `regiao`,
 inventory counts (available/reserved/sold), exclusivity flag, status,
 consultant assignment, geo coords, web visibility flag.
 
-### remax (`pipelines/api/remax/source.py`)
+### remax (`pipelines/portals/remax/source.py`)
 
 `LISTINGS_VERSION_COLUMNS` — 19 cols, including `listing_price`,
 `listing_status_id`, `is_sold`, `sold_date`, `is_online`, `is_active`,
@@ -65,7 +65,7 @@ flip every run regardless of any real change), JSONB arrays, immutable
 physical attrs (`address`, `apartment_number`, `construction_year`,
 `latitude`, `longitude`), display-only (`slug`, `name`).
 
-### idealista (`pipelines/api/idealista/source.py`)
+### idealista (`pipelines/portals/idealista/source.py`)
 
 `UNITS_VERSION_COLUMNS` — 12 cols (RE API verbatim names): `property_price`,
 `property_subtype`, `bedroom_count`, `bathroom_count`, `lot_size`,

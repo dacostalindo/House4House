@@ -132,7 +132,7 @@ def _create_dag():
             from airflow.models import Variable
             from minio import Minio
 
-            from pipelines.api.idealista.idealista_config import (
+            from pipelines.portals.idealista.idealista_config import (
                 MINIO_BUCKET,
                 MINIO_PREFIX,
             )
@@ -331,7 +331,7 @@ def _create_dag():
             from airflow.models import Variable
             from minio import Minio
 
-            from pipelines.api.idealista.idealista_config import MINIO_BUCKET
+            from pipelines.portals.idealista.idealista_config import MINIO_BUCKET
 
             minio_client = Minio(
                 Variable.get("MINIO_ENDPOINT"),

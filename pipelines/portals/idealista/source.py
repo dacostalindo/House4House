@@ -81,7 +81,7 @@ import dlt
 import requests as _requests
 from bs4 import BeautifulSoup
 
-from pipelines.api.idealista.idealista_config import (
+from pipelines.portals.idealista.idealista_config import (
     ZENROWS_DETAIL_URL,
     ZENROWS_DISCOVERY_URL,
 )
@@ -228,7 +228,7 @@ UNITS_VERSION_COLUMNS: tuple[str, ...] = (
 # JSON columns to keep as `json` data_type, NOT auto-flatten into child tables.
 # Addresses dlt issue #3811 (nested-table nondeterminism on schema evolution).
 # ---------------------------------------------------------------------------
-DEVELOPMENTS_JSON_COLUMNS = ("gallery", "unit_links", "raw_meta")
+DEVELOPMENTS_JSON_COLUMNS = ("gallery", "unit_links", "attachments", "raw_meta")
 UNITS_JSON_COLUMNS = (
     "property_features",
     "property_equipment",
@@ -563,6 +563,19 @@ def _parse_development_detail(html: str) -> dict:
         })
     out["unit_links"] = unit_links
     out["units_count"] = len(unit_links)
+
+    attachments: list[dict] = []
+    seen_attachments: set[str] = set()
+    for a in soup.select("a.icon-pdf.attached-doc"):
+        href = a.get("href")
+        if not href or href in seen_attachments:
+            continue
+        seen_attachments.add(href)
+        attachments.append({
+            "url": SITE_BASE + href if href.startswith("/") else href,
+            "label": a.get_text(" ", strip=True) or None,
+        })
+    out["attachments"] = attachments
     return out
 
 
@@ -788,6 +801,7 @@ def _normalize_development(card: dict, detail: dict) -> dict:
         "gallery": detail.get("gallery") or [],
         "unit_links": detail.get("unit_links") or [],
         "units_count": detail.get("units_count") or 0,
+        "attachments": detail.get("attachments") or [],
         "_has_detail": bool(detail),
         "raw_meta": {"card": card, "detail_keys": sorted(detail.keys()) if detail else []},
     }

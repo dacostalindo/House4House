@@ -3861,38 +3861,105 @@ dags/
 
 **Exit criteria:** Image classification pipeline operational with Claude Vision; cv_* columns populated in `unified_listings`. Transport + amenity proximity scores computed for all listings. Floor plan room dimensions extracted. SCE pipeline built and silver models (`sce_certificates`, `new_developments`) operational with ground-truth unit counts per development.
 
-### Sprint 4.5 — Development Intelligence (Week 9)
+### Sprint 4.4 — Pre-Sprint 4.5 Preparation (Week 8.5)
 
-**Goal:** Ingest 4 development portal APIs (RE/MAX, ERA, C21, KW), build unified `competitive_developments` model with SCE cross-reference and Idealista render-based routing. Rename `unified_listings` → `resale_listings` to reflect the clean market split: resale vs new development. ~1,100 unique developments across Portugal.
+**Goal:** Close four foundational gaps so Sprint 4.5 starts clean. (1) Misnamed folder — portal pipelines mixed with macroeconomic APIs under `pipelines/api/`. (2) No dbt sources declared for 9 of 10 portal bronze tables — Sprint 4.5 staging models would crash on first compile. (3) No column-level documentation — anyone writing silver models has to reverse-engineer from `source.py`. (4) No observed field map across portals — matching framework needs the canonical-concept→portal-column matrix as input.
 
-| Task | Source | Days | Deliverable | Affected tables | Status |
+**Outcome:** Sprint 4.5 starts with a clean import path, single source of truth for column meanings (dbt sources YAML, READMEs derived from it), realistic test inputs (45 fixture rows), and a written field map. Folder rename also enables future portal additions (ERA, C21, KW in Sprint 4.6) to land in the correct domain location from day one.
+
+| # | Task | Days | Deliverable | Affected paths | Status |
 |---|---|---|---|---|---|
-| Rename `unified_listings` → `resale_listings` | — | 1 | Rename dbt model, update all 8+ downstream references (`property_location_scores`, `hedonic_features`, `neighbourhood_market_stats`, `floor_plan_rooms` join, etc.), update YAML schema definitions, update Airflow Cosmos selectors. Route `is_render = TRUE` listings out to `competitive_developments` instead. `resale_listings` contains only `is_new_development_combined = FALSE` listings (resale/existing market) | `silver_properties.resale_listings` (was `unified_listings`) | Pending |
-| Portal bronze tables under `bronze_listings` | — | 0.25 | Add portal development tables to existing `bronze_listings` schema (not a separate `bronze_listings` schema). Development units are listings. Add to dbt sources YAML | `bronze_listings.raw_remax_developments`, `raw_era_developments`, `raw_c21_developments`, `raw_kw_developments` | Pending |
-| RE/MAX scraper + bronze + staging | S46 | 0.5 | `POST /api/Development/PaginatedSearch` (open, no auth). 661 devs with unit-level data (price, area, isSold, marketDays, fraction letter). `stg_remax_developments` + `stg_remax_units` (LATERAL unnest) | `bronze_listings.raw_remax_developments`, `staging_dbt.stg_remax_*` | Pending |
-| KW scraper + bronze + staging | S49 | 0.25 | `POST /api/portal/listDevelopments` (open). 104 devs with construction status (100%), completion date (100%), price/m² (72%). `stg_kw_developments` | `bronze_listings.raw_kw_developments`, `staging_dbt.stg_kw_developments` | Pending |
-| ERA scraper + bronze + staging | S47 | 1.5 | `POST /API/.../Property/Search` (CSRF token). 349 devs. Unit-level Available/Reserved/Sold via `DevelopmentProperties` API. `stg_era_developments` + `stg_era_units` | `bronze_listings.raw_era_developments`, `staging_dbt.stg_era_*` | Pending |
-| C21 scraper + bronze + staging | S48 | 1 | `GET /api/developments` + `c21.site` detail pages (server-rendered). 96 PT devs with 1,264 floor plan images. `stg_c21_developments` | `bronze_listings.raw_c21_developments`, `staging_dbt.stg_c21_developments` | Pending |
-| Source + model YAML definitions | — | 0.25 | `_staging_developments__sources.yml` + `_staging_developments__models.yml` | — | Pending |
-| Silver: `competitive_developments` | S34/S45-S49 | 1.5 | Unified model, one row per development. **Three input streams**: (1) portal APIs as primary, (2) Idealista `is_render = TRUE` listings clustered by GPS (ST_ClusterDBSCAN), (3) SCE artigo_matricial grouping. Dedup: GPS proximity (ST_DWithin 200m) + trigram name similarity (>0.4). Attribute priority: ERA > RE/MAX > KW > C21. SCE cross-ref → `sce_unit_count`, `sce_artigo_matricial`. Spatial join to `dim_geography` | `silver_properties.competitive_developments` | Pending |
-| Silver: `development_units` | S46/S47 | 0.5 | Star schema detail. One row per unit from RE/MAX (price, previous_price, area, isSold, marketDays, fraction_letter) + ERA (BusinessStatus Available/Reserved/Sold, floor, area, rooms) + Idealista render listings (price, area, typology — routed from `stg_idealista` where `is_render = TRUE`). Join via `development_key` FK | `silver_properties.development_units` | Pending |
-| Silver: `development_source_xref` | S46-S49 | 0.5 | Which portals report each development + match method + confidence. Source fidelity preservation | `silver_properties.development_source_xref` | Pending |
-| Gold: `development_lifecycle` | S45/S49 | 1 | Construction timeline: KW `fund_date` → SCE PCE `issued_date` → KW `completion_date` → listing `first_seen_date`. Compute `construction_duration_months`, `time_to_market_months`. Aggregate benchmarks by municipality/typology | `gold_analytics.development_lifecycle` | Pending |
-| Gold: initial `absorption_rate_model` | S46/S47 | 1 | Per-development sell-through from ERA unit statuses (Available/Reserved/Sold) + RE/MAX `isSold` flags. `sell_through_pct`, `monthly_absorption_rate`. Historical snapshots from bronze `_scrape_date` versions | `gold_analytics.absorption_rate_model` | Pending |
-| Gold: `fact_all_listings` | — | 0.5 | UNION view combining `resale_listings` + `development_units` for cross-market analysis. Shared columns: price, area, typology, geo_key, energy_class. Used by hedonic model training (needs both resale and new-build prices) | `gold_analytics.fact_all_listings` (view) | Pending |
+| **A** | **Rename `pipelines/api/{remax,idealista,zome}/` → `pipelines/portals/`** | 0.5 | Domain-named layout. Pre-step: audit + abandon stale worktrees. `git mv` each portal; update ~6-7 Python imports (DAG files + idealista config + zome tests). Move historical migration docs (`CUTOVER.md`, `rollback_*.sql`) to `archive/portal_dlt_cutover_2026/`. Establishes `archive/` at repo root as the convention for retired-but-kept-for-history files | `pipelines/portals/{remax,idealista,zome}/` (renamed), `archive/portal_dlt_cutover_2026/` (new) | Pending |
+| **B** | **Declare 9 dbt sources** for portal bronze tables | 0.5 | Table-level entries (name, description, PK, lifecycle note) for `remax_developments`, `remax_listings`, `remax_plots`, `idealista_developments`, `idealista_development_units`, `idealista_plots`, `zome_developments`, `zome_listings`, `zome_plots`. State sidecars (`*_state`) with single-paragraph descriptions. Column-level docs land in Workstream D | `dbt/models/staging/listings/_staging_listings__sources.yml` | Pending |
+| **C** | **Build cross-pipeline column-dictionary generator** | 0.5 | `pipelines/common/tools/generate_column_dictionary.py` introspects any Postgres bronze table, outputs YAML/markdown/JSON-Lines fixtures. Establishes `pipelines/common/tools/` as new convention for cross-pipeline shared Python utilities. Reusable for Sprint 4.6 (ERA/C21/KW) and Sprint 9 (SCE/BPStat/INE/GIS backfill) | `pipelines/common/tools/{__init__.py, generate_column_dictionary.py}` | Pending |
+| **D** | **Generate + human-curate column dictionaries** for 9 bronze tables | 1.5 | Generator produces ~80% mechanically. Human pass adds: business meaning (description), source path (mapping to upstream API field), gotchas (encoded IDs like Zome's `idcondicaoimovel`, RE/MAX's `listing_status_id`, sentinels, cross-portal naming differences). YAML canonical store; markdown rendering appended to each portal README as `## Column Dictionary` section | `dbt/models/staging/listings/_staging_listings__sources.yml` (column blocks), `pipelines/portals/{remax,idealista,zome}/README.md` (Column Dictionary section) | Pending |
+| **E.1** | **Cross-portal observed field map** | 0.25 | `pipelines/common/PORTAL_FIELD_MAP.md` — descriptive matrix (canonical concept → portal column name). ≥10 concepts × 3 portals. Input contract for Sprint 4.5 normalization library and matching framework. *Descriptive (as-is); Sprint 4.5 produces the prescriptive (to-be) version* | `pipelines/common/PORTAL_FIELD_MAP.md` | Pending |
+| **E.2** | **ADR 001 + ADR backfill scoping** | 0.25 | `docs/adr/001-pipelines-portals-namespace.md` documents: portals namespace, dbt-sources-YAML primary, `pipelines/common/tools/` convention, `archive/` convention, fixtures-without-anonymization decision. Plus 6 stub ADRs (002-007) with TODO bodies for Sprint 9 backfill: MinIO/PostGIS split, dlt-for-portals, medallion architecture, JSONB sidecar policy, SCD2 row_hash exclusion, BronzeTableConfig vs custom | `docs/adr/{_backlog.md, 001-...md, 002-007 stubs}` | Pending |
+| **E.3** | **Sample fixtures** (45 rows) | 0.25 | 5 rows × 9 bronze tables in JSON Lines. Generated by Workstream C with `--format fixtures`. Used by Sprint 4.5 matching framework tests. **PII committed as-is per user decision; repo must remain private indefinitely** | `tests/fixtures/portals/{portal}/{table}.jsonl` | Pending |
+| **E.4** | **`raw_idealista` decommission timeline** | 0.1 | Append to Idealista README: legacy resale ingestion supported until Sprint 4.5 silver `unified_listings` operational. After that, `idealista_ingestion_dag.py`, `idealista_bronze_dag.py`, and `stg_idealista.sql` deprecated. New silver work references `idealista_developments` / `idealista_development_units` / `idealista_plots` | `pipelines/portals/idealista/README.md` | Pending |
+| **E.5** | **Plan distribution** | 0.15 | Sprint 4.4 section to House4House `README.md` (this entry). Sprint 4.4 block to Personal Wiki `Backlog.md`. Plan file `~/.claude/plans/whimsical-mixing-sun.md` deletable after ship | `README.md`, `~/Personal-Wiki/Backlog.md` | In progress (this commit) |
+
+**Dependency graph:**
+```
+A (rename)        ─┐
+B (dbt sources)   ─┼──→ D (column dictionaries) ──→ E (field map, ADR, fixtures, decommission, distribution)
+C (generator)     ─┘
+```
+Schedule: Day 1 = A + B + C in parallel. Days 2–3 = D. Day 4 = E.
 
 **Key decisions:**
-- **`unified_listings` renamed to `resale_listings`**: clean market split — resale (is_render=FALSE) vs new development (is_render=TRUE → competitive_developments). `gold_analytics.fact_all_listings` provides the UNION view when cross-market analysis is needed (hedonic model training)
-- **Portal bronze tables under `bronze_listings`**: development units are listings. No separate `bronze_listings` schema
-- **Idealista render listings route to competitive_developments**: `is_render = TRUE` listings are new development units — they flow into `development_units` (with their Idealista pricing) and are matched to portal developments by GPS proximity. This brings Idealista's 100% pricing coverage into the development model
-- **Option B architecture**: per-portal staging for source isolation, unified silver for single source of truth
-- **~95% of each portal's listings are exclusive** — very low overlap (~22 cross-portal name matches), so all 4 portals are complementary
-- **SCE cross-reference validated**: NEXT2U BLUE (fração V+AC → artigo 4972, 33 units) and Novus Plaza (fração U → artigo 6275, 116 units). Join key: freguesia + GPS proximity + address similarity + fração letter
-- **Shared CV service**: floor plan extraction runs on images from any source (Idealista, C21, future portals). `floor_plan_rooms` gets a `source_type` column
+- **`pipelines/portals/`** chosen over `pipelines/listings/` (collides with `bronze_listings` schema, misleading) and `pipelines/scrapers/` (`pipelines/scraping/` already exists for SCE)
+- **dbt sources YAML primary** (markdown derived) — single source of truth, dbt-docs renders it, dbt tests can attach
+- **`pipelines/common/tools/` new convention** — extends doc-only `pipelines/common/` to host reusable Python utilities. Repo-root `scripts/` reserved for one-off operational tooling
+- **`archive/` at repo root** — new convention for retired-but-kept-for-history files (CUTOVER.md, rollback_*.sql from past migrations)
+- **Fixtures committed without anonymization** — user decision contingent on private-repo-indefinitely status. PII (agent names, phones, emails) lives in git history; `git filter-repo` is the only escape hatch and rewrites all SHAs
+- **ADR backfill scoping (not writing)** — 6 stub files identify consequential past decisions; Sprint 9 fills bodies
 
-| Silver: `sce_certificates` | S45 | 1 | One row per valid certificate with geo assignment (text match on UPPER(concelho)+UPPER(freguesia) → `dim_geography`). Normalized address for development grouping. `is_pce` flag distinguishes PCE (construction start) from CE (construction complete). Key columns: `matrix_article` (primary grouping for unit count), `registry_number` + `land_registry` (secondary grouping for multi-parcel developments), `autonomous_fraction` (matches portal fraction letters). Drop `new_developments` as separate model — artigo grouping becomes CTE inside `competitive_developments`. Indexes on matrix_article, geo_key, issued_date, normalized_address | `silver_properties.sce_certificates` | Pending |
+**Out of scope (deferred to Sprint 4.5):**
+- Matching framework code (`pipelines/matching/`)
+- Per-source staging review passes
+- Portuguese normalization library (dbt macros + Python)
+- Silver canonical models (`developments_canonical`, `unified_listings`)
+- Gold models (`development_lifecycle`, `absorption_rate_model`)
 
-**Exit criteria:** `resale_listings` contains only resale/existing market listings. ~1,100 developments in `competitive_developments` with GPS, pricing, unit counts, construction status. SCE `sce_certificates` operational with PCE + CE records, enabling ground-truth unit counts (via `matrix_article` or `registry_number` grouping) and construction duration measurement (PCE→CE). Idealista render listings routed to `development_units` with pricing. `fact_all_listings` UNION view operational for hedonic model.
+**Exit criteria:** All 9 portal bronze tables declared as dbt sources. ≥80% of columns have `description`; ≥50% have `notes`. Generator runs end-to-end (yaml + markdown + fixtures). `PORTAL_FIELD_MAP.md` ≥10 concepts × 3 portals. ADR 001 written; 6 stub ADRs created. 45 fixture records committed. `raw_idealista` decommission timeline in Idealista README. `archive/portal_dlt_cutover_2026/` populated. All Airflow DAGs parse without import errors. `dbt parse` + `dbt docs generate` succeed.
+
+### Sprint 4.5 — Listings + Developments: Bronze→Silver→Gold + Cross-Portal Dedup (Week 9)
+
+**Scope: only RE/MAX, Idealista, Zome.** ERA / C21 / KW deferred to Sprint 4.6+. Goal: end-to-end clean, deduplicated cross-portal view of listings AND developments — every record gets normalized in silver, deduped across portals, and rolled up into gold models ready for UC-1 (investment), UC-2 (pricing), and UC-3 (development).
+
+**Volumes in scope:**
+- Developments: ~2,914 (RE/MAX 615 + Idealista 1,994 + Zome 305)
+- Development units: ~30,450 (RE/MAX 8,645 + Idealista 12,542 + Zome 9,263)
+- General listings: 526,810 (Idealista) — for resale dedup
+
+| # | Task | Source | Days | Deliverable | Affected tables | Status |
+|---|---|---|---|---|---|---|
+| **1. Bronze cleanup & consistency** ||||||
+| 1.1 | Bronze README per source | — | 1 | Column-by-column legends for `remax_*`, `idealista_*`, `zome_*` (developments / listings / plots): meaning, source path, expected null rate, sample values | `pipelines/api/{source}/README.md` | Pending |
+| 1.2 | DAG structure parity | — | 0.5 | Idealista loads `plots` but RE/MAX/Zome handle them differently. Standardize plot ingestion, naming, and DAG topology across all 3 portals | `pipelines/api/{source}/*_dag.py` | Pending |
+| 1.3 | CI/CD baseline + dbt source freshness | — | 1 | Source freshness checks + basic schema tests on every bronze table for the 3 portals before silver work begins | `dbt/models/staging/listings/_*__sources.yml`, GitHub Actions | Pending |
+| 1.4 | RE/MAX sitemap+Next.js cutover (12× coverage) | — | 1.5 | Replace `/api/Development/PaginatedSearch` (~3,900) with sitemap+Next.js (~47,205). Same per-listing field shape (162 fields). See [SITEMAP_REFACTOR_PROPOSAL.md](pipelines/portals/remax/SITEMAP_REFACTOR_PROPOSAL.md). Foundation already shipped via `remax_plots` | `bronze_listings.remax_listings` (cutover from PaginatedSearch path) | Pending |
+| 1.5 | RE/MAX nationwide expansion | — | 0.5 | Currently regional — extend scraper to full country | `bronze_listings.remax_developments`, `remax_listings` | Pending |
+| 1.6 | Zome nationwide + state coverage | — | 0.5 | Capture all 3 states: Sale / Reserved / Sold (currently partial). Expand from current regional scope to full country | `bronze_listings.zome_developments`, `zome_listings` (state coverage) | Pending |
+| **2. Silver — staging & cleanup (one model per source × entity)** ||||||
+| 2.1 | Portuguese normalization library | — | 1 | Shared functions used by every staging model: `normalize_address_pt`, `normalize_name`, `normalize_concelho_freguesia`, `extract_postal_code`, `parse_typology_pt`. Implemented as dbt macros + Python utilities | `dbt/macros/normalize_pt.sql`, `pipelines/matching/normalize.py` | Pending |
+| 2.2 | `stg_remax_*` review pass | — | 1 | `stg_remax_developments`, `stg_remax_listings`, `stg_remax_plots`. Apply normalization, validate GPS, cast prices, canonicalize typology, expose canonical column set | `staging_dbt.stg_remax_*` | Pending |
+| 2.3 | `stg_idealista_*` review pass | — | 1 | `stg_idealista_developments`, `stg_idealista_listings`, `stg_idealista_plots`, `stg_idealista_development_units`. Same normalization pass | `staging_dbt.stg_idealista_*` | Pending |
+| 2.4 | `stg_zome_*` review pass | — | 1 | `stg_zome_developments`, `stg_zome_listings`, `stg_zome_plots`. Same normalization pass | `staging_dbt.stg_zome_*` | Pending |
+| 2.5 | Schema parity contract | — | 0.5 | Every staging model exposes same canonical columns: `source`, `external_id`, `name`, `address_clean`, `postal_code`, `gps_lat`, `gps_lon`, `concelho`, `freguesia`, `min_price`, `unit_count`, `typologies`, `agent_or_promoter`, `_scrape_date`. Source-specific fields kept in `raw_extras` JSONB | All `stg_{source}_*` models | Pending |
+| **3. Silver — cross-portal dedup framework** ||||||
+| 3.1 | Matching framework scaffolding | — | 1 | `pipelines/matching/` package: `core/normalize.py`, `core/blockers.py`, `core/scorers.py`, `core/combine.py`, `core/pipeline.py`. Strategy = config (no new code per match problem) | `pipelines/matching/` | Pending |
+| 3.2 | **Phase 1 — Development dedup** (small N, ~3k) | — | 2 | Hand-tunable matcher: blocking by GPS cell + concelho; scorers = GPS distance (PostGIS ST_DWithin), name trigram similarity (pg_trgm), unit count tolerance, typology overlap, promoter/office name match. Hand-curate 50 known matches → calibrate thresholds. Output: pairwise links | `silver_matching.development_links` | Pending |
+| 3.3 | `developments_canonical` master record | — | 1 | One row per real-world development with `remax_id`, `idealista_id`, `zome_id` (nullable). Attribute priority: RE/MAX > Idealista > Zome (revisit per-field). Sourced from `development_links` clusters | `silver_properties.developments_canonical` | Pending |
+| 3.4 | **Phase 2 — Listings within matched developments** | — | 1.5 | For listings inside matched dev clusters: link by floor + typology + area + price within development. Spike: try Splink on Idealista internal dedup (526k rows) as the high-volume validation | `silver_matching.listing_links` (constrained) | Pending |
+| 3.5 | **Phase 3 — Orphan listing dedup** (no parent dev match) | — | 1.5 | GPS proximity (≤30m) + typology + area tolerance (±5%) + price tolerance (±10%) → candidate matches | `silver_matching.listing_links` (orphans) | Pending |
+| 3.6 | Match quality validation | — | 1 | 200-pair hand-labeled sample (developments) + 200-pair sample (listings). Compute precision/recall, tune thresholds, document in `silver_matching/README.md` | Validation report, README | Pending |
+| **4. Silver — unified models** ||||||
+| 4.1 | `silver_properties.developments` | — | 1 | Canonical development view (one row per real-world dev) with portal IDs, canonical attributes, GPS, region hierarchy, price band, unit count, status | `silver_properties.developments` | Pending |
+| 4.2 | `silver_properties.development_units` | — | 1 | Star schema; one row per unit per portal with FK to canonical development. Source-specific fields (RE/MAX `isSold`/`marketDays`/`fraction`, Zome state, Idealista `is_render`) preserved | `silver_properties.development_units` | Pending |
+| 4.3 | `silver_properties.unified_listings` | — | 1 | One row per real-world listing across all 3 portals (resale + new construction). Replaces previous resale-only `unified_listings`. Includes `is_new_development` flag | `silver_properties.unified_listings` | Pending |
+| 4.4 | `silver_properties.development_source_xref` | — | 0.5 | Explicit cross-reference: which portals report each development, match method, confidence. Source-fidelity preservation | `silver_properties.development_source_xref` | Pending |
+| 4.5 | `silver_properties.sce_certificates` | S45 | 1 | One row per valid SCE certificate with geo assignment (`UPPER(concelho)+UPPER(freguesia)` → `dim_geography`). `tipo_documento` distinguishes PCE/CE/DCR. Key columns: `matrix_article` (unit-count grouping), `registry_number` + `land_registry`, `autonomous_fraction`. Indexes on matrix_article, geo_key, issued_date, normalized_address | `silver_properties.sce_certificates` | Pending |
+| **5. Gold — analytics-ready** ||||||
+| 5.1 | `gold_analytics.development_lifecycle` | S45 | 1 | Construction timeline: SCE PCE `issued_date` → SCE CE `issued_date` → portal `first_seen_date` → sold-out date. Compute `construction_duration_months`, `time_to_market_months`. Aggregate benchmarks by municipality/typology | `gold_analytics.development_lifecycle` | Pending |
+| 5.2 | `gold_analytics.absorption_rate_model` | — | 1 | Per-development sell-through from RE/MAX `isSold` flags + Zome state changes + Idealista listing disappearance. `sell_through_pct`, `monthly_absorption_rate`. Historical snapshots from bronze `_scrape_date` versions | `gold_analytics.absorption_rate_model` | Pending |
+| 5.3 | `gold_analytics.competitive_developments` | — | 1.5 | For each new development, list nearby competing devs (≤2km) with price/typology/status comparison. Materialized view powered by `developments_canonical` + `development_units` | `gold_analytics.competitive_developments` | Pending |
+| 5.4 | `gold_analytics.fact_all_listings` | — | 0.5 | UNION view: resale + new-development listings for cross-market analysis (hedonic training input) | `gold_analytics.fact_all_listings` (view) | Pending |
+| **6. Documentation** ||||||
+| 6.1 | `silver_matching/README.md` | — | 0.5 | Document matching framework: blocking rules, scorers, threshold rationale, how to add a new portal | `silver_matching/README.md` | Pending |
+| 6.2 | dbt exposures | — | 0.25 | Declare which downstream UC-1/UC-2 models depend on `developments_canonical` and `unified_listings` | `dbt/models/exposures.yml` | Pending |
+
+**Key decisions:**
+- **Three portals only this sprint:** RE/MAX, Idealista, Zome. ERA/C21/KW deferred to Sprint 4.6 — adding them is mechanical once the matching framework + canonical models are in place
+- **Two-phase dedup:** developments first (small N, hand-tunable), then listings constrained by matched developments (precision boost). Orphan listings as a third pass
+- **Splink as a tool, not a framework:** evaluated only for high-volume Idealista intra-source dedup. Hand-rolled scorers cover the other cases
+- **Schema parity in staging:** every `stg_{source}_*` model exposes the same canonical column set so silver models don't have N×M source-specific JOIN logic
+- **Attribute priority RE/MAX > Idealista > Zome:** revisit per-field once data is profiled (e.g., Idealista may have better address quality, RE/MAX better unit-level data)
+- **SCE cross-reference preserved:** `sce_certificates` joins to `developments_canonical` via concelho + freguesia + matrix_article + GPS proximity for ground-truth unit counts and lifecycle dates
+- **Shared CV service preserved:** floor plan extraction stays portal-agnostic via `source_type` column on `floor_plan_rooms`
+
+**Exit criteria:** `developments_canonical` lists ~2k unique real-world developments with portal cross-references. `unified_listings` provides one row per real-world listing across all 3 portals. `development_units` star schema operational. `development_lifecycle` and `absorption_rate_model` populated. Match quality validated at >0.9 precision on hand-labeled sample. SCE certificates operational. Foundation in place for hedonic model (Sprint 5) and UC-1/UC-2/UC-3.
 
 ### Sprint 5 — Hedonic Model & Valuation (Weeks 10-11)
 

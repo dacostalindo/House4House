@@ -38,7 +38,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Variable
 
-from pipelines.api.remax.source import (
+from pipelines.portals.remax.source import (
     SEARCH_URL,
     PAGE_SIZE,
     PASS1_DELAY_S,

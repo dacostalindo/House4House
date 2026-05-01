@@ -1,11 +1,13 @@
-# Zome Portugal — Developments + Listings
+# Zome Portugal — Developments + Listings + Plots
 
-**Zome Portugal** — 302 developments and 8,975 listings fetched from a Supabase PostgreSQL REST API with a public anon key. Provides ERA-style absorption tracking (available/reserved/sold counts per development) and per-unit status flags. Second-largest development dataset after RE/MAX.
+**Zome Portugal** — 302 developments, 8,975 listings, and 1,780 plots (terrenos) fetched from a Supabase PostgreSQL REST API with a public anon key. Provides ERA-style absorption tracking (available/reserved/sold counts per development) and per-unit status flags. Second-largest development dataset after RE/MAX.
 
-> **Pipeline status (2026-04-28):** decommission complete. Legacy DAGs and
-> `raw_zome_*` tables are gone. The single `zome_dlt` DAG runs on a weekly cron
-> and writes SCD2 bronze tables (`zome_developments`, `zome_listings`) plus
-> heartbeat sidecars. See [CUTOVER.md](CUTOVER.md) for the migration history.
+> **Pipeline status (2026-04-29):** decommission complete + plots extension shipped.
+> Legacy DAGs and `raw_zome_*` tables are gone. The single `zome_dlt` DAG runs on
+> a weekly cron and writes SCD2 bronze tables (`zome_developments`, `zome_listings`,
+> `zome_plots`) plus heartbeat sidecars. See [CUTOVER.md](CUTOVER.md) for the
+> dlt migration history; see [../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md)
+> for the cross-pipeline plot conventions.
 
 ---
 
@@ -67,6 +69,26 @@ Two Supabase tables, fetched via paginated REST requests:
 | Development link | 14% | FK to `tab_ventures` via `idemp` |
 | Date entered network | Yes | `dataentradarede` |
 
+### `tab_listing_list` filtered to `idtipoimovel=3` — 1,780 plots (terrenos)
+
+Plots are sourced from the **same Supabase table** as listings, filtered to
+`idtipoimovel=eq.3` (Terreno). Schema is largely overlapping with housing
+listings; plot-specific differences:
+
+| Field | Coverage on plots | Notes |
+|-------|-------------------|-------|
+| `precoimovel` | 87% | Some plots are "price on request" (NULL) |
+| `areaterreno` (terrain m²) | **100%** | Plot-specific field; lot size |
+| `tipologiaimovel.PT` | 100% | `Urbano` (40%), `Rústico` (28%), `Urbanizável` (21%), `Misto`, `Agrícola`, `Industrial`, `Não Urbanizável` |
+| `geocoordinateslat`/`long` | 100% | |
+| `idestadoimovel` | 100% | Same lifecycle states as listings (1=Active, 2=Sold/Reserved, 3=Off-market) |
+| `localizacaolevel{1,2,3}` | 100% | Distrito / concelho / freguesia |
+| `pid_number` | 100% | Numeric ID; full slug at `url_detail_view_link.PT` (e.g. `terreno-urbanizavel-aveiro-aveiro-gloria_e_vera_cruz-ZMPT572024`) |
+
+**Excluded from plots** (always NULL): `areautilhab` (livable area),
+`areabrutaconst` (gross built area), `idcondicaoimovel`, `tipologiagrupos`
+— these are housing-specific concepts.
+
 ### How it complements other sources
 
 | Gap | Zome fills with | Join path |
@@ -78,7 +100,7 @@ Two Supabase tables, fetched via paginated REST requests:
 
 ---
 
-## How it works (post-cutover)
+## Pipeline architecture
 
 ```
 audit_to_minio        # raw JSON → s3://raw/zome/... (audit copy, best-effort)
@@ -120,8 +142,10 @@ s3://raw/zome/tab_listing_list/p{0..9}/{timestamp}.json
 **PostgreSQL** (`bronze_listings` schema):
 - `zome_developments` — SCD2 (versioned by `row_hash` over curated columns)
 - `zome_listings` — SCD2
+- `zome_plots` — SCD2 (`idtipoimovel=3` subset)
 - `zome_developments_state` — UPSERT sidecar (`venture_id`, `last_seen_date`)
 - `zome_listings_state` — UPSERT sidecar
+- `zome_plots_state` — UPSERT sidecar
 - `ref_zome_condition`, `ref_zome_property_type`, `ref_zome_business_type` — REPLACE on each load
 - dlt internals: `_dlt_loads`, `_dlt_pipeline_state`, `_dlt_version`
 
@@ -135,9 +159,9 @@ and should not be queried by silver. Treat as dlt internals.
 
 ---
 
-## DAG
+## DAG settings
 
-### `zome_dlt` — Supabase API -> MinIO (audit) + Postgres (SCD2 bronze)
+`zome_dlt` — Supabase API → MinIO (audit) + Postgres (SCD2 bronze):
 
 | Setting | Value |
 |---------|-------|
@@ -149,17 +173,6 @@ and should not be queried by silver. Treat as dlt internals.
 | State directory | `/opt/airflow/dlt_state/zome` (persistent named volume `dlt_state`) |
 | Schema contract | `data_type=freeze` (type drift fails loud), `columns=evolve` (new fields land NULL) |
 | Tags | `zome`, `bronze`, `dlt`, `scd2` |
-
-**Lifecycle semantics for downstream silver:**
-
-A listing is considered active when:
-```sql
-zome_listings_state.last_seen_date >= current_date - 21
-```
-
-The 21-day floor is: weekly cadence (7) + one missed run (7) + slack (7). Do not
-lower below 14 days. SCD2 history of price / status / area changes is queryable
-via `_dlt_valid_from` / `_dlt_valid_to` on the `listings` and `developments` tables.
 
 ---
 
@@ -191,6 +204,12 @@ between calls. With auto-hashing, every weekly run creates a spurious version
 for every listing, inflating `price_change_count` downstream. The curated
 `row_hash` excludes these and only diffs business-meaningful columns.
 
+**Plot-specific version columns** — `PLOTS_VERSION_COLUMNS` in [source.py](source.py)
+swaps housing fields for plot-relevant ones: `idestadoimovel`, `precosemformatacao`,
+`precoimovel`, `valorantigo`, `areaterreno`, `geocoordinateslat`, `geocoordinateslong`,
+`showwebsite`. Excluded by design: `areautilhab` and `areabrutaconst` (always NULL
+for plots), `attr_*` (housing-specific).
+
 **Sidecar columns** (`zome_*_state`):
 
 | Column | Type | Notes |
@@ -198,6 +217,20 @@ for every listing, inflating `price_change_count` downstream. The curated
 | `listing_id` / `venture_id` | int (PK) | Same as fact-table PK |
 | `last_seen_date` | DATE | Updated on every load via UPSERT |
 | `_dlt_load_id`, `_dlt_id` | dlt internals | |
+
+---
+
+## Lifecycle semantics for downstream silver
+
+A listing/development/plot is **currently active** when:
+
+```sql
+zome_listings_state.last_seen_date >= current_date - 21
+```
+
+The 21-day floor: weekly cadence (7) + one missed run (7) + slack (7). Do not
+lower below 14 days. SCD2 history of price / status / area changes is queryable
+via `_dlt_valid_from` / `_dlt_valid_to` on the fact tables.
 
 ---
 
@@ -263,12 +296,12 @@ The Supabase instance also exposes lookup tables used for decoding IDs:
 | `MINIO_SECRET_KEY` | Airflow Variable | Set via `airflow-init` |
 | `WAREHOUSE_HOST` | Airflow Variable | `warehouse` |
 
-### Directory structure
+### Files
 
 ```
-pipelines/api/zome/
+pipelines/portals/zome/
 ├── __init__.py                       # Package marker
-├── source.py                         # dlt source: 7 resources across 2 sources (also defines SUPABASE_URL + _supabase_headers)
+├── source.py                         # dlt source: 7 resources across 2 sources (developments, listings, plots, refs)
 ├── zome_dlt_dag.py                   # DAG: audit -> facts (SCD2) -> refs / validate
 ├── tests/
 │   └── test_source.py                # Unit tests for _stable_hash + normalization
@@ -276,3 +309,11 @@ pipelines/api/zome/
 ├── rollback_zome.sql                 # Legacy DDL for emergency rollback (historical)
 └── README.md                         # This file
 ```
+
+---
+
+## Backlog / known follow-ups
+
+- See [Obsidian Backlog](../../../../Personal-Wiki/Backlog.md) for sprint-tracked items.
+- **Validate `idestadoimovel` mapping with Zome support** — current interpretation
+  (1=Active, 2=Sold/Reserved, 3=Off-market) is evidence-based; no public lookup table.

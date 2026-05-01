@@ -3,18 +3,18 @@ the highest-risk pure function in the pipeline. False versions on day N would
 inflate price_change_count downstream.
 
 Run inside the Airflow container (dlt available):
-    docker compose exec airflow-scheduler pytest /opt/airflow/dags/pipelines/api/zome/tests/
+    docker compose exec airflow-scheduler pytest /opt/airflow/dags/pipelines/portals/zome/tests/
 
 Or in a local venv with dlt installed:
     pip install "dlt[postgres]~=1.25.0" pytest
-    PYTHONPATH=. pytest pipelines/api/zome/tests/
+    PYTHONPATH=. pytest pipelines/portals/zome/tests/
 """
 
 from __future__ import annotations
 
 import pytest
 
-from pipelines.api.zome.source import (
+from pipelines.portals.zome.source import (
     DEVELOPMENTS_VERSION_COLUMNS,
     LISTINGS_VERSION_COLUMNS,
     _canonicalize,
