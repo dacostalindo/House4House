@@ -161,22 +161,16 @@ with DAG(
 
     @task(trigger_rule="all_done")
     def load_plots() -> dict:
-        """Land listings. Soft-fail (currently 0 plots expected)."""
-        try:
-            pipeline = dlt.pipeline(
-                pipeline_name="jll_plots",
-                destination=dlt.destinations.postgres(credentials=_postgres_credentials()),
-                dataset_name=DATASET_NAME,
-                pipelines_dir=PIPELINES_DIR_PLOTS,
-            )
-            info = pipeline.run(jll_plots_source())
-            log.info("[jll_dlt] plots load: %s", info)
-            return {"status": "ok"}
-        except Exception as exc:
-            log.warning(
-                "[jll_dlt] plots load failed (non-blocking): %s", exc,
-            )
-            return {"status": "failed", "error": str(exc)}
+        """Land plots. Independent of facts — failure here does not block validate_facts."""
+        pipeline = dlt.pipeline(
+            pipeline_name="jll_plots",
+            destination=dlt.destinations.postgres(credentials=_postgres_credentials()),
+            dataset_name=DATASET_NAME,
+            pipelines_dir=PIPELINES_DIR_PLOTS,
+        )
+        info = pipeline.run(jll_plots_source())
+        log.info("[jll_dlt] plots load: %s", info)
+        return {"status": "ok"}
 
     @task()
     def validate_facts(facts_result: dict) -> dict:
@@ -249,4 +243,4 @@ with DAG(
     validation = validate_facts(facts)
 
     audit >> [facts, plots]
-    [facts, plots] >> validation
+    facts >> validation

@@ -131,6 +131,22 @@ PLOTS_VERSION_COLUMNS: tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Numeric columns explicitly typed as `double` — eGO returns these as int
+# OR float across rows (e.g. net_area=75 vs net_area=74.5). With
+# data_type=freeze, dlt would otherwise infer the type from the first row
+# and reject a variant column for the other shape. Pre-declaring locks
+# them to float-compatible storage from row #1.
+# ---------------------------------------------------------------------------
+DEVELOPMENTS_FLOAT_COLUMNS = ("gps_lat", "gps_lon")
+LISTINGS_FLOAT_COLUMNS = (
+    "price_value", "gross_area", "net_area", "gps_lat", "gps_lon",
+)
+PLOTS_FLOAT_COLUMNS = (
+    "price_value", "gross_area", "land_area", "gps_lat", "gps_lon",
+)
+
+
+# ---------------------------------------------------------------------------
 # JSON columns — keep as `json` data_type, NOT auto-flatten into child tables.
 # ---------------------------------------------------------------------------
 DEVELOPMENTS_JSON_COLUMNS = (
@@ -402,7 +418,10 @@ def jll_facts_source() -> Iterable[Any]:
         "row_version_column_name": "row_hash",
     },
     primary_key="development_id",
-    columns={col: {"data_type": "json"} for col in DEVELOPMENTS_JSON_COLUMNS},
+    columns={
+        **{col: {"data_type": "json"} for col in DEVELOPMENTS_JSON_COLUMNS},
+        **{col: {"data_type": "double"} for col in DEVELOPMENTS_FLOAT_COLUMNS},
+    },
     schema_contract=SCHEMA_CONTRACT,
 )
 def jll_developments() -> Iterable[dict]:
@@ -433,7 +452,10 @@ def jll_developments_state() -> Iterable[dict]:
         "row_version_column_name": "row_hash",
     },
     primary_key="listing_id",
-    columns={col: {"data_type": "json"} for col in LISTINGS_JSON_COLUMNS},
+    columns={
+        **{col: {"data_type": "json"} for col in LISTINGS_JSON_COLUMNS},
+        **{col: {"data_type": "double"} for col in LISTINGS_FLOAT_COLUMNS},
+    },
     schema_contract=SCHEMA_CONTRACT,
 )
 def jll_listings() -> Iterable[dict]:
@@ -473,7 +495,10 @@ def jll_plots_source() -> Iterable[Any]:
         "row_version_column_name": "row_hash",
     },
     primary_key="listing_id",
-    columns={col: {"data_type": "json"} for col in PLOTS_JSON_COLUMNS},
+    columns={
+        **{col: {"data_type": "json"} for col in PLOTS_JSON_COLUMNS},
+        **{col: {"data_type": "double"} for col in PLOTS_FLOAT_COLUMNS},
+    },
     schema_contract=SCHEMA_CONTRACT,
 )
 def jll_plots() -> Iterable[dict]:
