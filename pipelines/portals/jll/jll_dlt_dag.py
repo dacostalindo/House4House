@@ -34,7 +34,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Variable
 
-from pipelines.api.jll.source import (
+from pipelines.portals.jll.source import (
     API_BASE,
     DEV_PAGE_SIZE,
     FRACTIONS_PAGE_SIZE,

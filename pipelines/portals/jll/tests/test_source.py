@@ -2,18 +2,18 @@
 and version column validation.
 
 Run inside the Airflow container (dlt available):
-    docker compose exec airflow-scheduler pytest /opt/airflow/dags/pipelines/api/jll/tests/
+    docker compose exec airflow-scheduler pytest /opt/airflow/dags/pipelines/portals/jll/tests/
 
 Or in a local venv with dlt installed:
     pip install "dlt[postgres]~=1.25.0" pytest
-    PYTHONPATH=. pytest pipelines/api/jll/tests/
+    PYTHONPATH=. pytest pipelines/portals/jll/tests/
 """
 
 from __future__ import annotations
 
 import pytest
 
-from pipelines.api.jll.source import (
+from pipelines.portals.jll.source import (
     DEVELOPMENTS_JSON_COLUMNS,
     DEVELOPMENTS_VERSION_COLUMNS,
     LISTINGS_JSON_COLUMNS,
