@@ -135,6 +135,12 @@ DEVELOPMENTS_JSON_COLUMNS = (
     "available_rooms_list",
     "available_rooms_range",
     "area_util_range",
+    # Nested objects/arrays kept as JSONB to avoid auto-flattening into 8+
+    # child tables. Agency contact + agent rosters are rarely queried as
+    # separate rows; JSONB on the parent row is enough.
+    "agency",
+    "development_agents",
+    "available_rooms_fomated_range",
     "raw_json",
 )
 
@@ -146,6 +152,10 @@ LISTINGS_JSON_COLUMNS = (
     "property_business",
     "blue_prints",
     "videos",
+    # See note on DEVELOPMENTS_JSON_COLUMNS — same reasoning for the
+    # listings agency/agents nested structures.
+    "property_agency",
+    "property_agents",
     "raw_json",
 )
 
