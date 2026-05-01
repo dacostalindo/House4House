@@ -6,8 +6,6 @@ Tables produced in `bronze_listings`:
   jll_developments_state        UPSERT, primary_key=development_id   (heartbeat sidecar)
   jll_listings                  SCD2,   primary_key=listing_id
   jll_listings_state            UPSERT, primary_key=listing_id       (heartbeat sidecar)
-  jll_plots                     SCD2,   primary_key=listing_id
-  jll_plots_state               UPSERT, primary_key=listing_id       (heartbeat sidecar)
 
 Data source: eGO Real Estate API (https://websiteapi.egorealestate.com/v1)
 used by residential.jll.pt. Public token embedded in page JS; no credentials needed.
@@ -22,14 +20,14 @@ Two-pass fetch strategy:
     For each development discovered in Pass 1, fetch all child units (fractions).
     Yields unit-level data including price, area, rooms, floor, energy cert, etc.
 
-Plots: GET /v1/Properties?lng=en-GB&type=236,34,37&nre=50&pag={n}
-  Standalone land listings filtered by TypeID: 236=Developable Land, 34=Land,
-  37=Urban Land. Currently 0 active listings (JLL is premium residential);
-  infrastructure is in place for when land listings appear.
-
 Pass 2 is pre-fetched sequentially with rate-limit delays before entering the
 dlt resource generators, then yielded as enriched rows. Module-level cache so
 the four resources (devs, devs_state, listings, listings_state) share one fetch.
+
+Plots: not ingested. The /v1/Properties endpoint requires a per-visitor session
+identifier (`vui`) sourced from a separate vcs.imoguia.com bootstrap that is
+infeasible to reproduce server-side without a real browser. Plot inventory in
+PT is already captured by the idealista/remax/zome pipelines.
 
 SCD2 row versioning is driven by an explicit `row_hash` over a curated column
 subset. See pipelines/common/SCD2_RULES.md for the cross-pipeline policy.
@@ -70,14 +68,10 @@ API_TOKEN = "dtGETeo4+XhLexRIjmy3gYZ04bqZq7Xl1et++oPh3HY="
 
 DEV_PAGE_SIZE = 50
 FRACTIONS_PAGE_SIZE = 200
-PLOTS_PAGE_SIZE = 50
 RATE_LIMIT_S = 1.0
 REQUEST_TIMEOUT_S = 30
 MAX_RETRIES = 3
 RETRY_BACKOFF_S = 30
-
-# Plot type IDs: Developable Land=236, Land=34, Urban Land=37
-PLOT_TYPE_IDS = "236,34,37"
 
 
 # ---------------------------------------------------------------------------
@@ -117,19 +111,6 @@ LISTINGS_VERSION_COLUMNS: tuple[str, ...] = (
     "gps_lon",
 )
 
-PLOTS_VERSION_COLUMNS: tuple[str, ...] = (
-    "price_value",
-    "formatted_price",
-    "availability_id",
-    "condition_id",
-    "status_id",
-    "land_area",
-    "gross_area",
-    "gps_lat",
-    "gps_lon",
-)
-
-
 # ---------------------------------------------------------------------------
 # Numeric columns explicitly typed as `double` — eGO returns these as int
 # OR float across rows (e.g. net_area=75 vs net_area=74.5). With
@@ -140,9 +121,6 @@ PLOTS_VERSION_COLUMNS: tuple[str, ...] = (
 DEVELOPMENTS_FLOAT_COLUMNS = ("gps_lat", "gps_lon")
 LISTINGS_FLOAT_COLUMNS = (
     "price_value", "gross_area", "net_area", "gps_lat", "gps_lon",
-)
-PLOTS_FLOAT_COLUMNS = (
-    "price_value", "gross_area", "land_area", "gps_lat", "gps_lon",
 )
 
 
@@ -171,14 +149,6 @@ LISTINGS_JSON_COLUMNS = (
     "raw_json",
 )
 
-PLOTS_JSON_COLUMNS = (
-    "images",
-    "features",
-    "feature_tags",
-    "tags",
-    "property_business",
-    "raw_json",
-)
 
 
 # ---------------------------------------------------------------------------
@@ -362,38 +332,6 @@ def _ensure_payload() -> tuple[list[dict], list[dict]]:
     return all_devs, all_listings
 
 
-def _fetch_plots() -> list[dict]:
-    """Fetch standalone land listings from /v1/Properties."""
-    if "plots" in _payload_cache:
-        return _payload_cache["plots"]
-
-    all_plots: list[dict] = []
-    page = 1
-    while True:
-        data = _fetch_json(
-            "/Properties",
-            params={
-                "lng": "en-GB",
-                "nre": str(PLOTS_PAGE_SIZE),
-                "pag": str(page),
-                "type": PLOT_TYPE_IDS,
-            },
-        )
-        plots = data.get("Properties", [])
-        if not plots:
-            break
-        all_plots.extend(plots)
-        log.info("[jll] Plots: page %d → %d plots (total %d)", page, len(plots), len(all_plots))
-        if len(plots) < PLOTS_PAGE_SIZE:
-            break
-        page += 1
-        time.sleep(RATE_LIMIT_S)
-
-    _payload_cache["plots"] = all_plots
-    log.info("[jll] plots ready: %d plots", len(all_plots))
-    return all_plots
-
-
 def clear_cache() -> None:
     """Clear module-level cache. Call between pipeline.run() calls in tests."""
     _payload_cache.clear()
@@ -478,42 +416,3 @@ def jll_listings_state() -> Iterable[dict]:
         yield {"listing_id": raw.get("ID"), "last_seen_date": today}
 
 
-# ===========================================================================
-# Source 2: Plots (SCD2 + sidecar) — standalone land listings
-# ===========================================================================
-@dlt.source(name="jll_plots")
-def jll_plots_source() -> Iterable[Any]:
-    yield jll_plots
-    yield jll_plots_state
-
-
-@dlt.resource(
-    name="jll_plots",
-    write_disposition={
-        "disposition": "merge",
-        "strategy": "scd2",
-        "row_version_column_name": "row_hash",
-    },
-    primary_key="listing_id",
-    columns={
-        **{col: {"data_type": "json"} for col in PLOTS_JSON_COLUMNS},
-        **{col: {"data_type": "double"} for col in PLOTS_FLOAT_COLUMNS},
-    },
-    schema_contract=SCHEMA_CONTRACT,
-)
-def jll_plots() -> Iterable[dict]:
-    for raw in _fetch_plots():
-        rec = _normalize_listing(raw)
-        rec["row_hash"] = _stable_hash(rec, PLOTS_VERSION_COLUMNS)
-        yield rec
-
-
-@dlt.resource(
-    name="jll_plots_state",
-    write_disposition="merge",
-    primary_key="listing_id",
-)
-def jll_plots_state() -> Iterable[dict]:
-    today = date.today()
-    for raw in _fetch_plots():
-        yield {"listing_id": raw.get("ID"), "last_seen_date": today}

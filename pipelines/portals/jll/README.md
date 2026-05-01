@@ -12,10 +12,13 @@ Auth: public token embedded in page JS (`AuthorizationToken` header).
 |----------|--------|-------------|
 | `/v1/Developments?lng=en-GB&nre=50&pag={n}` | GET | Paginated development list |
 | `/v1/Developments/{id}/Fractions?lng=en-GB&nre=200` | GET | Units per development |
-| `/v1/Properties?lng=en-GB&type=236,34,37&nre=50&pag={n}` | GET | Land/plot listings |
 | `/v1/SearchOptions?lng=en-GB` | GET | Filter options (types, districts, etc.) |
 
 Required headers: `AuthorizationToken`, `UserInfoToken: 0`, `x-async: true`, `X-Served-By: JanelaDigital`.
+
+`/v1/Properties` is **not** ingested — it requires a per-visitor `vui` parameter
+sourced from a separate `vcs.imoguia.com` bootstrap that needs a real browser.
+PT plot inventory is already covered by the idealista/remax/zome pipelines.
 
 ## Tables
 
@@ -25,8 +28,6 @@ Required headers: `AuthorizationToken`, `UserInfoToken: 0`, `x-async: true`, `X-
 | `jll_developments_state` | UPSERT | `development_id` | 171 |
 | `jll_listings` | SCD2 | `listing_id` | 7,584 |
 | `jll_listings_state` | UPSERT | `listing_id` | 7,584 |
-| `jll_plots` | SCD2 | `listing_id` | 0 (currently) |
-| `jll_plots_state` | UPSERT | `listing_id` | 0 (currently) |
 
 ## Schedule
 
