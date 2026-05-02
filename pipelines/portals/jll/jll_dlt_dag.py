@@ -9,12 +9,13 @@ Tasks (in order):
                      SCD2 tables + per-entity heartbeat sidecars.
                      Hard-fails the DAG on error.
 
-  load_plots       — runs jll_plots_source via dlt: land listings (separate).
-                     Runs in parallel with load_facts.
-                     Soft-fails (0 plots is expected currently).
-
   validate_facts   — asserts the facts load actually landed: _dlt_loads row
                      for the run has status=0 and reasonable row counts.
+
+Plots are intentionally not ingested. The /v1/Properties endpoint requires a
+per-visitor `vui` parameter generated via the vcs.imoguia.com bootstrap
+that needs a real browser. PT plot inventory is already covered by the
+idealista/remax/zome pipelines.
 
 Schedule: 0 6 * * 4 (Thursdays 06:00 UTC).
 """
@@ -38,20 +39,16 @@ from pipelines.portals.jll.source import (
     API_BASE,
     DEV_PAGE_SIZE,
     FRACTIONS_PAGE_SIZE,
-    PLOTS_PAGE_SIZE,
-    PLOT_TYPE_IDS,
     RATE_LIMIT_S,
     _api_headers,
     _fetch_json,
     jll_facts_source,
-    jll_plots_source,
 )
 
 
 log = logging.getLogger(__name__)
 
 PIPELINES_DIR = "/opt/airflow/dlt_state/jll"
-PIPELINES_DIR_PLOTS = "/opt/airflow/dlt_state/jll_plots"
 DATASET_NAME = "bronze_listings"
 MINIO_BUCKET = "raw"
 MINIO_PREFIX = "jll"
@@ -91,7 +88,7 @@ with DAG(
     dag_id="jll_dlt",
     description=(
         "JLL Residential PT bronze ingestion via dlt. SCD2 for developments/listings, "
-        "UPSERT sidecar heartbeats for last_seen_date, separate task for plots."
+        "UPSERT sidecar heartbeats for last_seen_date."
     ),
     schedule="0 6 * * 4",
     start_date=datetime(2026, 1, 1),
@@ -159,25 +156,6 @@ with DAG(
         log.info("[jll_dlt] facts load: %s", info)
         return {"load_id": pipeline.last_trace.last_load_info.loads_ids[-1]}
 
-    @task(trigger_rule="all_done")
-    def load_plots() -> dict:
-        """Land listings. Soft-fail (currently 0 plots expected)."""
-        try:
-            pipeline = dlt.pipeline(
-                pipeline_name="jll_plots",
-                destination=dlt.destinations.postgres(credentials=_postgres_credentials()),
-                dataset_name=DATASET_NAME,
-                pipelines_dir=PIPELINES_DIR_PLOTS,
-            )
-            info = pipeline.run(jll_plots_source())
-            log.info("[jll_dlt] plots load: %s", info)
-            return {"status": "ok"}
-        except Exception as exc:
-            log.warning(
-                "[jll_dlt] plots load failed (non-blocking): %s", exc,
-            )
-            return {"status": "failed", "error": str(exc)}
-
     @task()
     def validate_facts(facts_result: dict) -> dict:
         """Assert SCD2 facts landed: _dlt_loads row OK + reasonable row counts."""
@@ -220,33 +198,20 @@ with DAG(
                         f"developments current-state row count {devs_current} "
                         f"outside expected band [50, 500]"
                     )
-                # Plots: soft check — currently 0 expected
-                plots_current = 0
-                try:
-                    cur.execute(
-                        f"SELECT count(*) FROM {DATASET_NAME}.jll_plots "
-                        f"WHERE _dlt_valid_to IS NULL"
-                    )
-                    plots_current = cur.fetchone()[0]
-                except Exception:
-                    pass  # table may not exist yet if 0 plots
                 log.info(
-                    "[jll_dlt] validation OK: listings=%d, developments=%d, plots=%d, load_id=%s",
-                    listings_current, devs_current, plots_current, load_id,
+                    "[jll_dlt] validation OK: listings=%d, developments=%d, load_id=%s",
+                    listings_current, devs_current, load_id,
                 )
                 return {
                     "load_id": load_id,
                     "listings_current": listings_current,
                     "developments_current": devs_current,
-                    "plots_current": plots_current,
                 }
         finally:
             conn.close()
 
     audit = audit_to_minio()
     facts = load_facts()
-    plots = load_plots()
     validation = validate_facts(facts)
 
-    audit >> [facts, plots]
-    [facts, plots] >> validation
+    audit >> facts >> validation

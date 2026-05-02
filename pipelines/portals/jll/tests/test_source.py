@@ -18,7 +18,6 @@ from pipelines.portals.jll.source import (
     DEVELOPMENTS_VERSION_COLUMNS,
     LISTINGS_JSON_COLUMNS,
     LISTINGS_VERSION_COLUMNS,
-    PLOTS_VERSION_COLUMNS,
     _canonicalize,
     _normalize_development,
     _normalize_listing,
@@ -216,11 +215,9 @@ class TestVersionColumnLists:
         for forbidden_id in ("id", "listing_id", "development_id", "_dlt_load_id", "_dlt_id"):
             assert forbidden_id not in LISTINGS_VERSION_COLUMNS
             assert forbidden_id not in DEVELOPMENTS_VERSION_COLUMNS
-            assert forbidden_id not in PLOTS_VERSION_COLUMNS
 
-    def test_price_in_listings_and_plots(self):
+    def test_price_in_listings(self):
         assert "price_value" in LISTINGS_VERSION_COLUMNS
-        assert "price_value" in PLOTS_VERSION_COLUMNS
 
     def test_price_range_in_developments(self):
         assert "min_property_formatted_price" in DEVELOPMENTS_VERSION_COLUMNS
