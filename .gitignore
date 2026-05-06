@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Local Airflow config isolation (prevents bleed from ~/airflow/airflow.cfg)
+.airflow-home/
+
 # C extensions
 *.so
 
