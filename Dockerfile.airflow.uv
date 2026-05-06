@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1.7
+# Phase 1: uv-based build for the Airflow + dlt + dbt + scrapers container.
+# Build from repo root: docker build -f Dockerfile.airflow.uv -t h4h-airflow-uv .
+
+FROM apache/airflow:2.10.4-python3.12
+
+# Pull the uv binary from the official image (version pinned).
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /usr/local/bin/
+
+# System deps: chromium + xvfb (nodriver scraping for SCE portal),
+# gdal-bin (gdaldem / gdal_translate / gdalbuildvrt for WS3b LiDAR pipeline).
+USER root
+# libgdal-dev added vs legacy Dockerfile.airflow: rasterio 1.4.3 source-builds
+# on linux/arm64 in this image (no matching manylinux wheel selected by uv);
+# gdal-config from libgdal-dev lets the source build succeed. gcc/g++ for the
+# C extension build itself.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        chromium \
+        xvfb \
+        xauth \
+        gdal-bin \
+        libgdal-dev \
+        gcc \
+        g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+# Install pipelines deps into the Airflow user's site-packages (matches
+# how the legacy `pip install` path worked).
+ENV UV_PROJECT_ENVIRONMENT=/home/airflow/.local
+
+# Workspace metadata. Layer cache: invalidates only when pyproject or
+# lockfile changes, not when source code changes.
+COPY --chown=airflow:root pyproject.toml uv.lock /opt/airflow/h4h/
+COPY --chown=airflow:root apps/pyproject.toml /opt/airflow/h4h/apps/
+COPY --chown=airflow:root pipelines/pyproject.toml /opt/airflow/h4h/pipelines/
+
+WORKDIR /opt/airflow/h4h
+
+# Install ONLY the pipelines member's deps. --no-dev skips ruff/pytest.
+# --no-editable avoids needing pipelines/ to be installable.
+RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000,gid=0 \
+    uv sync --frozen --package house4house-pipelines --no-dev --no-editable
+
+# WORKDIR back to the airflow default. The Airflow image's entrypoint and
+# config expect AIRFLOW_HOME=/opt/airflow.
+WORKDIR /opt/airflow
