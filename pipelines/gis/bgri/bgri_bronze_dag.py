@@ -112,8 +112,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Download the BGRI GPKG from MinIO to a temp directory."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -126,7 +126,9 @@ def _create_dag():
                 raise RuntimeError("No BGRI GPKG found in MinIO at raw/bgri/")
 
             latest = sorted(gpkg_objects, key=lambda o: o.object_name)[-1]
-            log.info("[bgri] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6)
+            log.info(
+                "[bgri] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6
+            )
 
             tmp_dir = tempfile.mkdtemp(prefix="bgri_bronze_")
             local_path = os.path.join(tmp_dir, "bgri.gpkg")
@@ -155,9 +157,9 @@ def _create_dag():
 
             cols = ", ".join(f"{name} {dtype}" for name, dtype in LAYER["fields"])
             ddl = f"""
-                CREATE TABLE IF NOT EXISTS {LAYER['table']} (
+                CREATE TABLE IF NOT EXISTS {LAYER["table"]} (
                     {cols},
-                    geom GEOMETRY({LAYER['geom_type']}, 3763),
+                    geom GEOMETRY({LAYER["geom_type"]}, 3763),
                     _load_timestamp TIMESTAMPTZ DEFAULT NOW()
                 )
             """
@@ -173,8 +175,8 @@ def _create_dag():
             """Load BGRI GPKG layer into bronze table."""
             import psycopg2
             import psycopg2.extras
-            from pyogrio.raw import read as raw_read
             from airflow.models import Variable
+            from pyogrio.raw import read as raw_read
 
             gpkg_path = fetch_result["gpkg_path"]
             gpkg_layer = LAYER["gpkg_layer"]
@@ -256,9 +258,7 @@ def _create_dag():
             count = cur.fetchone()[0]
             expected_min = LAYER["expected_min"]
             if count < expected_min:
-                raise ValueError(
-                    f"{LAYER['table']}: got {count} rows, expected >= {expected_min}"
-                )
+                raise ValueError(f"{LAYER['table']}: got {count} rows, expected >= {expected_min}")
             log.info("[bgri] %s: %d rows (>= %d OK)", LAYER["table"], count, expected_min)
 
             cur.close()

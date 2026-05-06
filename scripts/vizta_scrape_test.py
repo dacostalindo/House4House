@@ -3,11 +3,12 @@ VIZTA.pt — Scrape feasibility test
 Extracts all available apartment and project data.
 """
 
-import requests
-from bs4 import BeautifulSoup
 import json
 import re
 from urllib.parse import urljoin
+
+import requests
+from bs4 import BeautifulSoup
 
 BASE_URL = "https://www.vizta.pt"
 HEADERS = {
@@ -21,20 +22,20 @@ session.headers.update(HEADERS)
 
 def extract_js_array(text, varname):
     """Extract a JS array variable from page source by matching brackets."""
-    pattern = rf'(?:const|let|var)\s+{varname}\s*=\s*\['
+    pattern = rf"(?:const|let|var)\s+{varname}\s*=\s*\["
     m = re.search(pattern, text)
     if not m:
         return None
     start = m.end() - 1  # position of '['
     depth = 0
     for j in range(start, min(start + 2_000_000, len(text))):
-        if text[j] == '[':
+        if text[j] == "[":
             depth += 1
-        elif text[j] == ']':
+        elif text[j] == "]":
             depth -= 1
         if depth == 0:
             try:
-                return json.loads(text[start:j + 1])
+                return json.loads(text[start : j + 1])
             except json.JSONDecodeError:
                 return None
     return None
@@ -100,10 +101,12 @@ def fetch_project_list():
         if "/apartamentos/" in href:
             continue
         name = link.get_text(strip=True) or href.split("/")[-3]
-        projects.append({
-            "name": name,
-            "url": urljoin(BASE_URL, href),
-        })
+        projects.append(
+            {
+                "name": name,
+                "url": urljoin(BASE_URL, href),
+            }
+        )
 
     # Deduplicate
     seen = set()
@@ -158,7 +161,8 @@ def fetch_apartment_detail(apartment_url):
     gps_match = re.search(
         r"(?:lat|latitude)['\"]?\s*[:=]\s*([0-9.-]+).*?"
         r"(?:lng|longitude|lon)['\"]?\s*[:=]\s*([0-9.-]+)",
-        resp.text, re.I | re.DOTALL
+        resp.text,
+        re.I | re.DOTALL,
     )
     if gps_match:
         lat, lon = float(gps_match.group(1)), float(gps_match.group(2))
@@ -215,7 +219,8 @@ def fetch_project_detail(project_url):
     gps_match = re.search(
         r"(?:lat|latitude)['\"]?\s*[:=]\s*([0-9.-]+).*?"
         r"(?:lng|longitude|lon)['\"]?\s*[:=]\s*([0-9.-]+)",
-        text, re.I | re.DOTALL
+        text,
+        re.I | re.DOTALL,
     )
     if gps_match:
         lat, lon = float(gps_match.group(1)), float(gps_match.group(2))
@@ -226,7 +231,9 @@ def fetch_project_detail(project_url):
     # Gallery / slideshow images
     for script in soup.find_all("script"):
         st = script.string or ""
-        for m in re.finditer(r'(?:src|url)[\'"]?\s*[:=]\s*[\'"]([^"\']+\.(?:jpg|jpeg|png|webp))[\'"]', st, re.I):
+        for m in re.finditer(
+            r'(?:src|url)[\'"]?\s*[:=]\s*[\'"]([^"\']+\.(?:jpg|jpeg|png|webp))[\'"]', st, re.I
+        ):
             img_url = urljoin(BASE_URL, m.group(1))
             if "vizta.pt" in img_url:
                 images.add(img_url)
@@ -247,7 +254,7 @@ def main():
     projects = fetch_project_list()
 
     # 3. Sample apartment detail pages
-    print(f"\n[3/4] Sampling apartment detail pages (3 samples)...")
+    print("\n[3/4] Sampling apartment detail pages (3 samples)...")
     sample_details = []
     available_apts = [a for a in apartments if a.get("disponivel", True) and a.get("url")]
     for apt in available_apts[:3]:
@@ -260,7 +267,7 @@ def main():
             print(f"       ERROR: {e}")
 
     # 4. Sample project detail pages
-    print(f"\n[4/4] Sampling project detail pages (3 samples)...")
+    print("\n[4/4] Sampling project detail pages (3 samples)...")
     project_details = []
     for proj in (projects if isinstance(projects[0], dict) and "url" in projects[0] else [])[:3]:
         proj_url = proj.get("url", "")
@@ -269,7 +276,9 @@ def main():
         print(f"       Fetching: {proj_url}")
         try:
             detail = fetch_project_detail(proj_url)
-            project_details.append({"name": proj.get("name", proj.get("title", "")), "url": proj_url, **detail})
+            project_details.append(
+                {"name": proj.get("name", proj.get("title", "")), "url": proj_url, **detail}
+            )
         except Exception as e:
             print(f"       ERROR: {e}")
 
@@ -287,10 +296,13 @@ def main():
         estados = sorted(set(a.get("estado_label", a.get("estado", "")) for a in apartments))
         prices = [a.get("preco", 0) for a in apartments if a.get("preco")]
         areas = [a.get("area_bruta", 0) for a in apartments if a.get("area_bruta")]
-        project_names = sorted(set(
-            a.get("projeto", {}).get("title", "") for a in apartments
-            if isinstance(a.get("projeto"), dict) and a["projeto"].get("title")
-        ))
+        project_names = sorted(
+            set(
+                a.get("projeto", {}).get("title", "")
+                for a in apartments
+                if isinstance(a.get("projeto"), dict) and a["projeto"].get("title")
+            )
+        )
         available = sum(1 for a in apartments if a.get("disponivel"))
         with_plans = sum(1 for a in apartments if a.get("planta"))
         with_discount = sum(1 for a in apartments if a.get("preco_desconto", 0) > 0)
@@ -302,19 +314,29 @@ def main():
         print(f"\n   Fields ({len(fields)}): {sorted(fields)}")
         print(f"\n   Typologies: {typologies}")
         print(f"   Status values: {estados}")
-        print(f"   Price range: {min(prices):,.0f} - {max(prices):,.0f} EUR" if prices else "   No prices")
+        print(
+            f"   Price range: {min(prices):,.0f} - {max(prices):,.0f} EUR"
+            if prices
+            else "   No prices"
+        )
         print(f"   Area range: {min(areas)}-{max(areas)} m2" if areas else "   No areas")
         print(f"   Projects: {project_names}")
 
         # Per-project breakdown
-        print(f"\n   Per-project breakdown:")
+        print("\n   Per-project breakdown:")
         from collections import Counter
+
         proj_counts = Counter(
             a.get("projeto", {}).get("title", "Unknown")
-            for a in apartments if isinstance(a.get("projeto"), dict)
+            for a in apartments
+            if isinstance(a.get("projeto"), dict)
         )
         for name, count in proj_counts.most_common():
-            proj_apts = [a for a in apartments if isinstance(a.get("projeto"), dict) and a["projeto"].get("title") == name]
+            proj_apts = [
+                a
+                for a in apartments
+                if isinstance(a.get("projeto"), dict) and a["projeto"].get("title") == name
+            ]
             avail = sum(1 for a in proj_apts if a.get("disponivel"))
             typs = sorted(set(a.get("tipologia", "") for a in proj_apts))
             p_range = [a.get("preco", 0) for a in proj_apts if a.get("preco")]
@@ -331,11 +353,11 @@ def main():
     for d in sample_details:
         print(f"   #{d.get('id')} (ref: {d.get('ref')}):")
         print(f"     Images found: {len(d.get('images', []))}")
-        if d.get('images'):
+        if d.get("images"):
             print(f"     Sample image: {d['images'][0][:100]}")
         print(f"     Floor plans: {len(d.get('floor_plans', []))}")
-        if d.get('floor_plans'):
-            for fp in d['floor_plans']:
+        if d.get("floor_plans"):
+            for fp in d["floor_plans"]:
                 print(f"       {fp[:120]}")
         if d.get("latitude"):
             print(f"     GPS: {d['latitude']}, {d['longitude']}")

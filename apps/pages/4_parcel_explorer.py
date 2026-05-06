@@ -16,5 +16,5 @@ st.info(
 map_config = KeplerGl(height=600)
 map_config.save_to_html(file_name="/tmp/kepler_parcels.html")
 
-with open("/tmp/kepler_parcels.html", "r") as f:
+with open("/tmp/kepler_parcels.html") as f:
     st.components.v1.html(f.read(), height=620, scrolling=False)

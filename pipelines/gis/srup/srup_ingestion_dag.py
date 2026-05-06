@@ -61,9 +61,7 @@ def _fetch_all_features(
     features = data.get("features", [])
 
     for feature in features:
-        feature["properties"] = _normalize_properties(
-            feature.get("properties", {})
-        )
+        feature["properties"] = _normalize_properties(feature.get("properties", {}))
 
     log.info(
         "[srup] Got %d features for %s (%.1f MB)",
@@ -114,8 +112,7 @@ def _create_dag():
                 valid = [c for c in requested if c in ALL_CATEGORIES]
                 if not valid:
                     raise ValueError(
-                        f"No valid categories in {requested}. "
-                        f"Available: {ALL_CATEGORIES}"
+                        f"No valid categories in {requested}. Available: {ALL_CATEGORIES}"
                     )
                 categories = valid
             else:
@@ -139,9 +136,7 @@ def _create_dag():
                 resp.raise_for_status()
 
                 if "WFS_Capabilities" not in resp.text[:2000]:
-                    raise RuntimeError(
-                        f"WFS for {endpoint.label} returned unexpected content"
-                    )
+                    raise RuntimeError(f"WFS for {endpoint.label} returned unexpected content")
                 log.info("[srup] WFS available for %s", endpoint.label)
 
                 time.sleep(cfg.request_delay_seconds)
@@ -168,9 +163,7 @@ def _create_dag():
                     time.sleep(cfg.request_delay_seconds)
 
             if not all_features:
-                raise RuntimeError(
-                    f"No features returned for category {category}"
-                )
+                raise RuntimeError(f"No features returned for category {category}")
 
             # Write combined GeoJSON to temp file
             tmp_dir = tempfile.mkdtemp(prefix=f"srup_{category}_")
@@ -207,8 +200,8 @@ def _create_dag():
         @task()
         def save_to_minio(fetch_result: dict) -> dict:
             """Upload GeoJSON to MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -227,9 +220,7 @@ def _create_dag():
 
             date_str = datetime.utcnow().strftime("%Y%m%d")
             category = fetch_result["category"]
-            object_name = (
-                f"{cfg.minio_prefix}/{category}/{date_str}/{category}.geojson"
-            )
+            object_name = f"{cfg.minio_prefix}/{category}/{date_str}/{category}.geojson"
 
             client.fput_object(
                 bucket_name=cfg.minio_bucket,

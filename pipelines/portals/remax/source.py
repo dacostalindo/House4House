@@ -47,14 +47,14 @@ import json
 import logging
 import re
 import time
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 import dlt
 import requests as _requests
 from dlt.sources.helpers import requests
-
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +244,10 @@ def _fetch_all_developments() -> list[dict]:
                 all_devs.append(dev)
         log.info(
             "[remax] Pass 1: page %d → %d results (cumulative %d / %d)",
-            page, len(results), len(all_devs), total,
+            page,
+            len(results),
+            len(all_devs),
+            total,
         )
         if not data.get("hasNextPage") or len(all_devs) >= total:
             break
@@ -336,15 +339,14 @@ def _prefetch_pass2(devs: list[dict]) -> dict[int, dict]:
     log.info(
         "[remax] Pass 2: prefetching %d online units in parallel "
         "(max_workers=%d, per-worker delay=%.1fs)",
-        len(online_units), PASS2_MAX_WORKERS, PASS2_PER_WORKER_DELAY_S,
+        len(online_units),
+        PASS2_MAX_WORKERS,
+        PASS2_PER_WORKER_DELAY_S,
     )
 
     results: dict[int, dict] = {}
     with ThreadPoolExecutor(max_workers=PASS2_MAX_WORKERS) as ex:
-        futures = {
-            ex.submit(_fetch_one_detail, build_id, u): u["id"]
-            for u in online_units
-        }
+        futures = {ex.submit(_fetch_one_detail, build_id, u): u["id"] for u in online_units}
         completed = 0
         for fut in as_completed(futures):
             listing_id = futures[fut]
@@ -361,7 +363,9 @@ def _prefetch_pass2(devs: list[dict]) -> dict[int, dict]:
     log.info(
         "[remax] Pass 2 complete: %d/%d enriched (%d returned empty due to "
         "fetch failure or missing slug/title).",
-        enriched_count, len(online_units), len(online_units) - enriched_count,
+        enriched_count,
+        len(online_units),
+        len(online_units) - enriched_count,
     )
     return results
 
@@ -405,8 +409,12 @@ def _fetch_all_plots() -> list[dict]:
             slug = u.rstrip("/").rsplit("/", 2)[-2]
             plots.append({"slug": slug, "title": title, "plot_url": u})
             added += 1
-        log.info("[remax] Plots Pass 1: %s → %d plot URLs (cumulative %d)",
-                 sm_url.rsplit("/", 1)[-1], added, len(plots))
+        log.info(
+            "[remax] Plots Pass 1: %s → %d plot URLs (cumulative %d)",
+            sm_url.rsplit("/", 1)[-1],
+            added,
+            len(plots),
+        )
         time.sleep(PASS1_DELAY_S)
     return plots
 
@@ -456,7 +464,9 @@ def _prefetch_plots(plot_refs: list[dict]) -> dict[int, dict]:
     log.info(
         "[remax] Plots Pass 2: prefetching %d plot URLs in parallel "
         "(max_workers=%d, per-worker delay=%.1fs)",
-        len(plot_refs), PASS2_MAX_WORKERS, PASS2_PER_WORKER_DELAY_S,
+        len(plot_refs),
+        PASS2_MAX_WORKERS,
+        PASS2_PER_WORKER_DELAY_S,
     )
 
     results: dict[int, dict] = {}
@@ -469,8 +479,12 @@ def _prefetch_plots(plot_refs: list[dict]) -> dict[int, dict]:
                 detail = fut.result() or {}
             except Exception as exc:
                 ref = futures[fut]
-                log.warning("[remax] Plot Pass 2 future failed for %s/%s: %s",
-                            ref["slug"], ref["title"], exc)
+                log.warning(
+                    "[remax] Plot Pass 2 future failed for %s/%s: %s",
+                    ref["slug"],
+                    ref["title"],
+                    exc,
+                )
                 detail = {}
             if detail and detail.get("id") is not None:
                 results[detail["id"]] = detail
@@ -484,7 +498,8 @@ def _prefetch_plots(plot_refs: list[dict]) -> dict[int, dict]:
 
     log.info(
         "[remax] Plots Pass 2 complete: %d enriched, %d skipped (fetch failed or non-plot)",
-        len(results), skipped_non_plot,
+        len(results),
+        skipped_non_plot,
     )
     return results
 
@@ -641,7 +656,8 @@ def _normalize_listing(unit: dict, dev_id: int, detail: dict) -> dict:
         "unit_latitude": detail.get("unit_latitude"),
         "unit_longitude": detail.get("unit_longitude"),
         "_has_detail": bool(detail),
-        "gallery": unit.get("listingPictures") or [],  # Pass 1 picture URLs (separate from Pass 2 listing_pictures detail)
+        "gallery": unit.get("listingPictures")
+        or [],  # Pass 1 picture URLs (separate from Pass 2 listing_pictures detail)
         "raw_json": unit,
     }
 
@@ -694,7 +710,8 @@ def _ensure_plots_payload() -> dict[int, dict]:
         _payload_cache["plot_details"] = _prefetch_plots(plot_refs)
         log.info(
             "[remax] Plots payload ready: %d sitemap URLs, %d Pass 2 details",
-            len(plot_refs), len(_payload_cache["plot_details"]),
+            len(plot_refs),
+            len(_payload_cache["plot_details"]),
         )
     return _payload_cache["plot_details"]
 

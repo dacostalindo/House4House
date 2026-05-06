@@ -107,9 +107,7 @@ def _get_warehouse_conn():
     )
 
 
-def _select_images_by_tag(
-    property_images: list[str], property_image_tags: list[str]
-) -> list[dict]:
+def _select_images_by_tag(property_images: list[str], property_image_tags: list[str]) -> list[dict]:
     """Pick the 3 most informative images using tag-based selection.
 
     Priority:
@@ -134,11 +132,13 @@ def _select_images_by_tag(
             if tag in tagged:
                 for pos in tagged[tag]:
                     if pos not in used_positions and pos < len(property_images):
-                        selected.append({
-                            "url": property_images[pos],
-                            "position": pos,
-                            "tag": tag,
-                        })
+                        selected.append(
+                            {
+                                "url": property_images[pos],
+                                "position": pos,
+                                "tag": tag,
+                            }
+                        )
                         used_positions.add(pos)
                         return True
         return False
@@ -164,9 +164,7 @@ def _select_images_by_tag(
     return selected[:3]
 
 
-def _select_plan_images(
-    property_images: list[str], property_image_tags: list[str]
-) -> list[dict]:
+def _select_plan_images(property_images: list[str], property_image_tags: list[str]) -> list[dict]:
     """Select all images tagged 'plan' for floor plan extraction."""
     if not property_images or not property_image_tags:
         return []
@@ -174,11 +172,13 @@ def _select_plan_images(
     plans = []
     for i, tag in enumerate(property_image_tags):
         if tag == "plan" and i < len(property_images):
-            plans.append({
-                "url": property_images[i],
-                "position": i,
-                "tag": "plan",
-            })
+            plans.append(
+                {
+                    "url": property_images[i],
+                    "position": i,
+                    "tag": "plan",
+                }
+            )
     return plans
 
 
@@ -187,6 +187,7 @@ def _call_claude_vision(client, model: str, prompt: str, image_urls: list[str]):
 
     Uses tenacity for retries on rate limits and server errors.
     """
+    import anthropic
     from tenacity import (
         retry,
         retry_if_exception_type,
@@ -194,22 +195,20 @@ def _call_claude_vision(client, model: str, prompt: str, image_urls: list[str]):
         wait_exponential,
     )
 
-    import anthropic
-
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=4, max=60),
-        retry=retry_if_exception_type(
-            (anthropic.RateLimitError, anthropic.APIStatusError)
-        ),
+        retry=retry_if_exception_type((anthropic.RateLimitError, anthropic.APIStatusError)),
     )
     def _api_call():
         content = []
         for url in image_urls:
-            content.append({
-                "type": "image",
-                "source": {"type": "url", "url": url},
-            })
+            content.append(
+                {
+                    "type": "image",
+                    "source": {"type": "url", "url": url},
+                }
+            )
         content.append({"type": "text", "text": prompt})
 
         return client.messages.create(
@@ -245,7 +244,9 @@ def _call_claude_vision(client, model: str, prompt: str, image_urls: list[str]):
 def _on_failure(context):
     """DAG-level failure callback for alerting."""
     dag_id = context.get("dag", {}).dag_id if context.get("dag") else "unknown"
-    task_id = context.get("task_instance", {}).task_id if context.get("task_instance") else "unknown"
+    task_id = (
+        context.get("task_instance", {}).task_id if context.get("task_instance") else "unknown"
+    )
     log.error("[cv] FAILURE in %s.%s: %s", dag_id, task_id, context.get("exception"))
 
 
@@ -340,7 +341,9 @@ def _create_dag():
                 ]:
                     cur.execute(idx_sql)
 
-                log.info("[cv] Ensured image_classifications and floor_plan_extractions tables exist")
+                log.info(
+                    "[cv] Ensured image_classifications and floor_plan_extractions tables exist"
+                )
                 cur.close()
             finally:
                 conn.close()
@@ -395,16 +398,34 @@ def _create_dag():
 
             listings = []
             for property_id, images_json, tags_json in rows:
-                images = images_json if isinstance(images_json, list) else json.loads(images_json) if images_json else []
-                tags = tags_json if isinstance(tags_json, list) else json.loads(tags_json) if tags_json else []
+                images = (
+                    images_json
+                    if isinstance(images_json, list)
+                    else json.loads(images_json)
+                    if images_json
+                    else []
+                )
+                tags = (
+                    tags_json
+                    if isinstance(tags_json, list)
+                    else json.loads(tags_json)
+                    if tags_json
+                    else []
+                )
                 if images:
-                    listings.append({
-                        "property_id": property_id,
-                        "images": images,
-                        "tags": tags,
-                    })
+                    listings.append(
+                        {
+                            "property_id": property_id,
+                            "images": images,
+                            "tags": tags,
+                        }
+                    )
 
-            log.info("[cv] Found %d unclassified listings (prompt_version < %d)", len(listings), CURRENT_PROMPT_VERSION)
+            log.info(
+                "[cv] Found %d unclassified listings (prompt_version < %d)",
+                len(listings),
+                CURRENT_PROMPT_VERSION,
+            )
             return listings
 
         @task()
@@ -471,9 +492,7 @@ def _create_dag():
                     image_urls = [img["url"] for img in selected]
                     image_tags = [img["tag"] for img in selected]
 
-                    result = _call_claude_vision(
-                        client, model, CLASSIFICATION_PROMPT, image_urls
-                    )
+                    result = _call_claude_vision(client, model, CLASSIFICATION_PROMPT, image_urls)
 
                     if result is None:
                         errors += 1
@@ -490,21 +509,23 @@ def _create_dag():
                         )
                         continue
 
-                    batch_rows.append((
-                        property_id,
-                        image_urls,
-                        image_tags,
-                        result.get("is_render"),
-                        result.get("render_confidence"),
-                        result.get("condition_label"),
-                        result.get("condition_confidence"),
-                        result.get("finish_quality"),
-                        result.get("finish_quality_confidence"),
-                        json.dumps(result, ensure_ascii=False),
-                        model,
-                        CURRENT_PROMPT_VERSION,
-                        batch_id,
-                    ))
+                    batch_rows.append(
+                        (
+                            property_id,
+                            image_urls,
+                            image_tags,
+                            result.get("is_render"),
+                            result.get("render_confidence"),
+                            result.get("condition_label"),
+                            result.get("condition_confidence"),
+                            result.get("finish_quality"),
+                            result.get("finish_quality_confidence"),
+                            json.dumps(result, ensure_ascii=False),
+                            model,
+                            CURRENT_PROMPT_VERSION,
+                            batch_id,
+                        )
+                    )
 
                     classified += 1
 
@@ -519,7 +540,10 @@ def _create_dag():
                         est_cost = classified * 0.019
                         log.info(
                             "[cv] Progress: %d/%d classified, %d errors, ~$%.2f estimated",
-                            classified, len(listings), errors, est_cost,
+                            classified,
+                            len(listings),
+                            errors,
+                            est_cost,
                         )
 
                     # Rate limiting — 1.5s avoids excessive 429 retries on free/low tier
@@ -540,9 +564,15 @@ def _create_dag():
             est_cost = classified * 0.019
             log.info(
                 "[cv] Classification done: %d classified, %d errors, ~$%.2f estimated cost",
-                classified, errors, est_cost,
+                classified,
+                errors,
+                est_cost,
             )
-            return {"classified": classified, "errors": errors, "estimated_cost_usd": round(est_cost, 2)}
+            return {
+                "classified": classified,
+                "errors": errors,
+                "estimated_cost_usd": round(est_cost, 2),
+            }
 
         # ── Task Group B: Floor Plan Extraction ──────────────────────────
 
@@ -597,14 +627,28 @@ def _create_dag():
 
             listings = []
             for property_id, images_json, tags_json in rows:
-                images = images_json if isinstance(images_json, list) else json.loads(images_json) if images_json else []
-                tags = tags_json if isinstance(tags_json, list) else json.loads(tags_json) if tags_json else []
+                images = (
+                    images_json
+                    if isinstance(images_json, list)
+                    else json.loads(images_json)
+                    if images_json
+                    else []
+                )
+                tags = (
+                    tags_json
+                    if isinstance(tags_json, list)
+                    else json.loads(tags_json)
+                    if tags_json
+                    else []
+                )
                 plans = _select_plan_images(images, tags)
                 if plans:
-                    listings.append({
-                        "property_id": property_id,
-                        "plans": plans,
-                    })
+                    listings.append(
+                        {
+                            "property_id": property_id,
+                            "plans": plans,
+                        }
+                    )
 
             log.info("[cv] Found %d listings with unextracted floor plans", len(listings))
             return listings
@@ -670,36 +714,42 @@ def _create_dag():
                             null_plans += 1
                             continue
 
-                        batch_rows.append((
-                            property_id,
-                            plan_img["url"],
-                            plan_img["position"],
-                            result.get("typology"),
-                            result.get("floor_label"),
-                            result.get("total_area_m2"),
-                            json.dumps(result.get("rooms", {}), ensure_ascii=False),
-                            result.get("num_bedrooms"),
-                            result.get("num_bathrooms"),
-                            result.get("has_terrace"),
-                            result.get("terrace_area_m2"),
-                            result.get("extraction_confidence"),
-                            json.dumps(result, ensure_ascii=False),
-                            model,
-                            CURRENT_PROMPT_VERSION,
-                            batch_id,
-                        ))
+                        batch_rows.append(
+                            (
+                                property_id,
+                                plan_img["url"],
+                                plan_img["position"],
+                                result.get("typology"),
+                                result.get("floor_label"),
+                                result.get("total_area_m2"),
+                                json.dumps(result.get("rooms", {}), ensure_ascii=False),
+                                result.get("num_bedrooms"),
+                                result.get("num_bathrooms"),
+                                result.get("has_terrace"),
+                                result.get("terrace_area_m2"),
+                                result.get("extraction_confidence"),
+                                json.dumps(result, ensure_ascii=False),
+                                model,
+                                CURRENT_PROMPT_VERSION,
+                                batch_id,
+                            )
+                        )
                         extracted += 1
 
                         # Batch write every 100 rows
                         if len(batch_rows) >= 100:
-                            psycopg2.extras.execute_batch(cur, insert_sql, batch_rows, page_size=100)
+                            psycopg2.extras.execute_batch(
+                                cur, insert_sql, batch_rows, page_size=100
+                            )
                             conn.commit()
                             batch_rows = []
 
                         if extracted % 50 == 0:
                             log.info(
                                 "[cv] Floor plan progress: %d extracted, %d null, %d errors",
-                                extracted, null_plans, errors,
+                                extracted,
+                                null_plans,
+                                errors,
                             )
 
                         time.sleep(0.1)
@@ -718,7 +768,9 @@ def _create_dag():
 
             log.info(
                 "[cv] Floor plan extraction done: %d extracted, %d null, %d errors",
-                extracted, null_plans, errors,
+                extracted,
+                null_plans,
+                errors,
             )
             return {"extracted": extracted, "errors": errors, "null_plans": null_plans}
 

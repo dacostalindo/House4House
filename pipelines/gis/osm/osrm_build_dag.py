@@ -49,16 +49,15 @@ DATA_DIR = "/data"
 def _docker_run(cmd: str, timeout: int = 3600) -> subprocess.CompletedProcess:
     """Run an OSRM command in a one-off container with the shared data volume."""
     # No --name to avoid conflicts on retries
-    full_cmd = (
-        f"docker run --rm "
-        f"-v {OSRM_VOLUME}:{DATA_DIR} "
-        f"{OSRM_IMAGE} "
-        f"{cmd}"
-    )
+    full_cmd = f"docker run --rm -v {OSRM_VOLUME}:{DATA_DIR} {OSRM_IMAGE} {cmd}"
     log.info("[osrm] Running: %s", full_cmd)
     result = subprocess.run(
-        full_cmd, shell=True, check=True,
-        capture_output=True, text=True, timeout=timeout,
+        full_cmd,
+        shell=True,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
     if result.stdout:
         log.info("[osrm] stdout (last 500): %s", result.stdout[-500:])
@@ -90,8 +89,8 @@ def _create_dag():
         @task()
         def fetch_pbf_to_volume() -> str:
             """Find the latest PBF in MinIO and place it on the OSRM data volume."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
@@ -101,14 +100,18 @@ def _create_dag():
             )
 
             # Find the latest PBF version
-            objects = list(client.list_objects(MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True))
+            objects = list(
+                client.list_objects(MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True)
+            )
             pbf_objects = [o for o in objects if o.object_name.endswith(".osm.pbf")]
             if not pbf_objects:
                 raise FileNotFoundError(
                     f"No PBF files found in s3://{MINIO_BUCKET}/{MINIO_PREFIX}/"
                 )
             latest = sorted(pbf_objects, key=lambda o: o.object_name)[-1]
-            log.info("[osrm] Latest PBF: %s (%.1f MB)", latest.object_name, latest.size / (1024 * 1024))
+            log.info(
+                "[osrm] Latest PBF: %s (%.1f MB)", latest.object_name, latest.size / (1024 * 1024)
+            )
 
             # Download to temp dir
             tmp_dir = tempfile.mkdtemp(prefix="osrm_pbf_")
@@ -143,7 +146,9 @@ def _create_dag():
                     log.info("[osrm] Copying PBF to %s", dest)
                     subprocess.run(
                         f"docker cp {tmp_pbf} {dest}",
-                        shell=True, check=True, timeout=300,
+                        shell=True,
+                        check=True,
+                        timeout=300,
                     )
             finally:
                 subprocess.run("docker rm osrm-copy-helper", shell=True, timeout=30)

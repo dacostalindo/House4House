@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -110,16 +110,18 @@ def _flatten_sdmx(raw_json: dict, series_key: str, batch_id: str) -> list[tuple]
             elif attr_id == "OBS_CONF":
                 obs_conf = vals[attr_val_idx].get("id")
 
-        rows.append((
-            batch_id,
-            series_key,
-            series_name,
-            time_period,
-            value,
-            unit,
-            obs_status,
-            obs_conf,
-        ))
+        rows.append(
+            (
+                batch_id,
+                series_key,
+                series_name,
+                time_period,
+                value,
+                unit,
+                obs_status,
+                obs_conf,
+            )
+        )
 
     return rows
 
@@ -164,23 +166,24 @@ def _create_dag():
 
             latest_files = {}
             for key in SERIES_KEYS:
-                objects = list(
-                    client.list_objects("raw", prefix=f"ecb/{key}/", recursive=True)
-                )
+                objects = list(client.list_objects("raw", prefix=f"ecb/{key}/", recursive=True))
                 json_objects = [o for o in objects if o.object_name.endswith(".json")]
                 if json_objects:
                     latest = sorted(json_objects, key=lambda o: o.object_name)[-1]
                     latest_files[key] = latest.object_name
                     log.info(
                         "[ecb] %s → %s (%.1f KB)",
-                        key, latest.object_name, latest.size / 1024,
+                        key,
+                        latest.object_name,
+                        latest.size / 1024,
                     )
                 else:
                     log.warning("[ecb] No JSON found for series %s", key)
 
             log.info(
                 "[ecb] Found %d / %d series files",
-                len(latest_files), len(SERIES_KEYS),
+                len(latest_files),
+                len(SERIES_KEYS),
             )
             return latest_files
 
@@ -259,7 +262,7 @@ def _create_dag():
             )
             cur = conn.cursor()
 
-            batch_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            batch_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
             insert_sql = """
                 INSERT INTO bronze_macro.raw_ecb (
                     _batch_id, series_key, series_name,
@@ -290,9 +293,7 @@ def _create_dag():
                     results[series_key] = 0
                     continue
 
-                psycopg2.extras.execute_batch(
-                    cur, insert_sql, rows, page_size=1000
-                )
+                psycopg2.extras.execute_batch(cur, insert_sql, rows, page_size=1000)
                 conn.commit()
                 total_rows += len(rows)
                 results[series_key] = len(rows)
@@ -339,14 +340,15 @@ def _create_dag():
                 loaded_keys.add(key)
                 log.info(
                     "[ecb] %s: %d rows (%s → %s)",
-                    key, count, min_period, max_period,
+                    key,
+                    count,
+                    min_period,
+                    max_period,
                 )
 
             missing = [k for k in SERIES_KEYS if k not in loaded_keys]
             if missing:
-                log.warning(
-                    "[ecb] %d series missing: %s", len(missing), missing
-                )
+                log.warning("[ecb] %d series missing: %s", len(missing), missing)
 
             log.info("[ecb] Total rows in bronze_macro.raw_ecb: %d", total)
             return {

@@ -60,12 +60,16 @@ def analyze(response_file: str):
             if cv == ev:
                 condition_agree += 1
             else:
-                disagreements.append({
-                    "pid": pid, "feature": "condition",
-                    "claude": cv, "evaluator": ev,
-                    "confidence": gt["cv_condition_conf"],
-                    "notes": resp.get("notes", ""),
-                })
+                disagreements.append(
+                    {
+                        "pid": pid,
+                        "feature": "condition",
+                        "claude": cv,
+                        "evaluator": ev,
+                        "confidence": gt["cv_condition_conf"],
+                        "notes": resp.get("notes", ""),
+                    }
+                )
 
         # Finish quality
         if resp.get("finish_quality") and resp["finish_quality"] != "uncertain":
@@ -76,12 +80,16 @@ def analyze(response_file: str):
             if cv == ev:
                 finish_agree += 1
             else:
-                disagreements.append({
-                    "pid": pid, "feature": "finish",
-                    "claude": cv, "evaluator": ev,
-                    "confidence": gt["cv_finish_conf"],
-                    "notes": resp.get("notes", ""),
-                })
+                disagreements.append(
+                    {
+                        "pid": pid,
+                        "feature": "finish",
+                        "claude": cv,
+                        "evaluator": ev,
+                        "confidence": gt["cv_finish_conf"],
+                        "notes": resp.get("notes", ""),
+                    }
+                )
 
         # Render
         if resp.get("is_render") and resp["is_render"] != "uncertain":
@@ -92,13 +100,16 @@ def analyze(response_file: str):
             if cv_render == ev_render:
                 render_agree += 1
             else:
-                disagreements.append({
-                    "pid": pid, "feature": "render",
-                    "claude": "render" if cv_render else "real",
-                    "evaluator": resp["is_render"],
-                    "confidence": gt["cv_render_conf"],
-                    "notes": resp.get("notes", ""),
-                })
+                disagreements.append(
+                    {
+                        "pid": pid,
+                        "feature": "render",
+                        "claude": "render" if cv_render else "real",
+                        "evaluator": resp["is_render"],
+                        "confidence": gt["cv_render_conf"],
+                        "notes": resp.get("notes", ""),
+                    }
+                )
 
     # ── Results ───────────────────────────────────────────────────────────
     print("=" * 60)
@@ -106,7 +117,7 @@ def analyze(response_file: str):
     print("=" * 60)
 
     def pct(n, d):
-        return f"{n}/{d} ({100*n/d:.0f}%)" if d > 0 else "N/A"
+        return f"{n}/{d} ({100 * n / d:.0f}%)" if d > 0 else "N/A"
 
     print(f"  Condition:     {pct(condition_agree, condition_total)}")
     print(f"  Finish:        {pct(finish_agree, finish_total)}")
@@ -134,7 +145,9 @@ def analyze(response_file: str):
         print("=" * 60)
         for d in sorted(disagreements, key=lambda x: x["feature"]):
             notes = f" — {d['notes']}" if d["notes"] else ""
-            print(f"  [{d['feature']}] {d['pid']}: Claude={d['claude']} vs Evaluator={d['evaluator']} (conf={d['confidence']}){notes}")
+            print(
+                f"  [{d['feature']}] {d['pid']}: Claude={d['claude']} vs Evaluator={d['evaluator']} (conf={d['confidence']}){notes}"
+            )
 
     # ── Save analysis ─────────────────────────────────────────────────────
     analysis = {

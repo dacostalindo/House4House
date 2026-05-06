@@ -94,8 +94,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest SRUP GeoJSON files in MinIO for each category."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -112,12 +112,8 @@ def _create_dag():
 
             for category in ALL_CATEGORIES:
                 prefix = f"{MINIO_PREFIX}/{category}/"
-                objects = list(
-                    client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True)
-                )
-                geojson_objects = [
-                    o for o in objects if o.object_name.endswith(".geojson")
-                ]
+                objects = list(client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True))
+                geojson_objects = [o for o in objects if o.object_name.endswith(".geojson")]
 
                 if not geojson_objects:
                     log.warning(
@@ -149,9 +145,7 @@ def _create_dag():
                 )
 
             if not files:
-                raise RuntimeError(
-                    "No SRUP GeoJSON files found in MinIO for any category"
-                )
+                raise RuntimeError("No SRUP GeoJSON files found in MinIO for any category")
 
             return {"tmp_dir": tmp_dir, "files": files}
 
@@ -214,7 +208,7 @@ def _create_dag():
 
                     log.info("[srup] Loading %s from %s", category, local_path)
 
-                    with open(local_path, "r", encoding="utf-8") as f:
+                    with open(local_path, encoding="utf-8") as f:
                         fc = json.load(f)
 
                     features = fc.get("features", [])
@@ -256,18 +250,14 @@ def _create_dag():
 
                     # Flush remaining
                     if batch:
-                        psycopg2.extras.execute_batch(
-                            cur, insert_sql, batch, page_size=BATCH_SIZE
-                        )
+                        psycopg2.extras.execute_batch(cur, insert_sql, batch, page_size=BATCH_SIZE)
                         conn.commit()
                         total_rows += len(batch)
 
                     # Free memory before next category
                     del features, fc
 
-                    log.info(
-                        "[srup] Loaded %d rows into %s", total_rows, table
-                    )
+                    log.info("[srup] Loaded %d rows into %s", total_rows, table)
                     results.append(
                         {"category": category, "table": table, "rows_loaded": total_rows}
                     )

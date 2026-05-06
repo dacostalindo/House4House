@@ -17,15 +17,14 @@ import asyncio
 import json
 import logging
 import os
-import random
-import signal
 import shutil
+import signal
 import tempfile
-import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -44,8 +43,8 @@ class ScrapingRegion:
     is passed to the scrape_fn for constructing queries.
     """
 
-    code: str           # Unique ID for MinIO paths (e.g. "11_06")
-    name: str           # Human label (e.g. "Lisboa")
+    code: str  # Unique ID for MinIO paths (e.g. "11_06")
+    name: str  # Human label (e.g. "Lisboa")
     params: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -81,15 +80,15 @@ class ScrapingIngestionConfig:
     description: str
 
     # --- Target site ---
-    target_url: str         # POST/scrape endpoint
-    landing_url: str        # GET first (cookies / Turnstile)
+    target_url: str  # POST/scrape endpoint
+    landing_url: str  # GET first (cookies / Turnstile)
 
     # --- Scraping ---
     regions: list[ScrapingRegion] = field(default_factory=list)
-    scrape_fn: Optional[Callable] = None
-    backend: str = "requests"       # "requests" or "nodriver"
-    headless: bool = True           # nodriver: headless mode
-    browser_executable_path: Optional[str] = None  # nodriver: Chrome path
+    scrape_fn: Callable | None = None
+    backend: str = "requests"  # "requests" or "nodriver"
+    headless: bool = True  # nodriver: headless mode
+    browser_executable_path: str | None = None  # nodriver: Chrome path
     turnstile_wait_seconds: int = 15
 
     # --- Rate limiting ---
@@ -112,11 +111,11 @@ class ScrapingIngestionConfig:
     minio_prefix: str = ""  # e.g. "sce_pce" → raw/sce_pce/{region}/...
 
     # --- Scheduling ---
-    schedule: Optional[str] = None
-    start_date: Optional[datetime] = None
+    schedule: str | None = None
+    start_date: datetime | None = None
 
     # --- Orchestration ---
-    trigger_dag_id: Optional[str | list[str]] = None
+    trigger_dag_id: str | list[str] | None = None
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -147,10 +146,10 @@ class BrowserContext:
         self.browser = browser
         self.page = page
         self.config = config
-        self.page_count = 0          # pages scraped since last restart
-        self.restart_count = 0       # resets after sustained success
-        self.total_restarts = 0      # never resets — circuit breaker
-        self.success_streak = 0      # consecutive successful concelhos
+        self.page_count = 0  # pages scraped since last restart
+        self.restart_count = 0  # resets after sustained success
+        self.total_restarts = 0  # never resets — circuit breaker
+        self.success_streak = 0  # consecutive successful concelhos
 
     # -- timeout-safe wrappers -----------------------------------------------
 
@@ -196,8 +195,10 @@ class BrowserContext:
 
         log.warning(
             "[%s] Restarting browser (window #%d, total #%d, after %d pages)...",
-            self.config.source_name, self.restart_count + 1,
-            self.total_restarts + 1, self.page_count,
+            self.config.source_name,
+            self.restart_count + 1,
+            self.total_restarts + 1,
+            self.page_count,
         )
 
         # Kill old browser — with force-kill fallback
@@ -222,8 +223,11 @@ class BrowserContext:
             except Exception:
                 if attempt == 2:
                     raise
-                log.warning("[%s] Browser relaunch attempt %d failed, retrying...",
-                            self.config.source_name, attempt + 1)
+                log.warning(
+                    "[%s] Browser relaunch attempt %d failed, retrying...",
+                    self.config.source_name,
+                    attempt + 1,
+                )
                 await asyncio.sleep(3 * (attempt + 1))
 
         self.page = await self.browser.get(self.config.landing_url)
@@ -236,26 +240,31 @@ class BrowserContext:
             try:
                 has_form = await asyncio.wait_for(
                     self.page.evaluate(
-                        "typeof jQuery !== 'undefined' "
-                        "&& jQuery('#frm_pesquisaCE').length > 0"
+                        "typeof jQuery !== 'undefined' && jQuery('#frm_pesquisaCE').length > 0"
                     ),
                     timeout=10,
                 )
                 if has_form:
                     break
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
             extra_wait = 15 * (validation_attempt + 2)  # 30s, 45s, 60s
-            log.warning("[%s] Turnstile not solved, waiting %ds more...",
-                        self.config.source_name, extra_wait)
+            log.warning(
+                "[%s] Turnstile not solved, waiting %ds more...",
+                self.config.source_name,
+                extra_wait,
+            )
             await asyncio.sleep(extra_wait)
 
         self.restart_count += 1
         self.total_restarts += 1
         self.success_streak = 0
         self.page_count = 0
-        log.info("[%s] Browser restarted successfully (total: %d)",
-                 self.config.source_name, self.total_restarts)
+        log.info(
+            "[%s] Browser restarted successfully (total: %d)",
+            self.config.source_name,
+            self.total_restarts,
+        )
 
     def _kill_browser(self):
         """Stop browser gracefully, force-kill if it hangs."""
@@ -264,7 +273,7 @@ class BrowserContext:
         except Exception:
             pass
         # Force-kill by PID if the process is still around
-        pid = getattr(getattr(self.browser, '_process', None), 'pid', None)
+        pid = getattr(getattr(self.browser, "_process", None), "pid", None)
         if pid:
             try:
                 os.kill(pid, signal.SIGKILL)
@@ -392,8 +401,8 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
         @task()
         def upload_to_minio(scrape_result: dict) -> dict:
             """Upload JSONL to MinIO as bronze layer."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             region = ScrapingRegion.from_dict(scrape_result["region"])
             ingest_ts = datetime.utcnow()
@@ -464,9 +473,13 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
             log.info("  Total records : %d", total_records)
             log.info("  Regions       : %d", len(upload_results))
             for r in upload_results:
-                log.info("  [%s] %s: %d records → %s",
-                         r["region_code"], r["region_name"],
-                         r["record_count"], r["minio_uri"])
+                log.info(
+                    "  [%s] %s: %d records → %s",
+                    r["region_code"],
+                    r["region_name"],
+                    r["record_count"],
+                    r["minio_uri"],
+                )
             log.info("=" * 60)
 
         # ------------------------------------------------------------------
@@ -516,13 +529,15 @@ def _scrape_with_requests(region: ScrapingRegion, config: ScrapingIngestionConfi
     import requests as req
 
     session = req.Session()
-    session.headers.update({
-        "User-Agent": config.user_agent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": config.accept_language,
-        "Referer": config.landing_url,
-        "Origin": config.landing_url.rsplit("/", 1)[0],
-    })
+    session.headers.update(
+        {
+            "User-Agent": config.user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": config.accept_language,
+            "Referer": config.landing_url,
+            "Origin": config.landing_url.rsplit("/", 1)[0],
+        }
+    )
     session.headers.update(config.extra_headers)
 
     # Hit landing page for cookies
@@ -587,8 +602,11 @@ def _scrape_with_nodriver(region: ScrapingRegion, config: ScrapingIngestionConfi
             except Exception:
                 if attempt == 2:
                     raise
-                log.warning("[%s] Browser launch attempt %d failed, retrying...",
-                            config.source_name, attempt + 1)
+                log.warning(
+                    "[%s] Browser launch attempt %d failed, retrying...",
+                    config.source_name,
+                    attempt + 1,
+                )
                 await asyncio.sleep(3 * (attempt + 1))
 
         ctx = None
@@ -616,6 +634,7 @@ def _scrape_with_nodriver(region: ScrapingRegion, config: ScrapingIngestionConfi
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 return pool.submit(lambda: asyncio.run(_run())).result()
         else:

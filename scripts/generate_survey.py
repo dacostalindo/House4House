@@ -8,12 +8,13 @@ Reads the sample CSV and produces a self-contained HTML file with:
 - Export button to download evaluator responses as JSON
 """
 
-import json
 import html as html_lib
+import json
 from pathlib import Path
 
 SAMPLE_FILE = Path("/tmp/survey_sample.csv")
 OUTPUT_FILE = Path(__file__).parent / "validation_survey.html"
+
 
 def parse_sample():
     listings = []
@@ -21,24 +22,27 @@ def parse_sample():
         parts = line.split("|||")
         if len(parts) < 15:
             continue
-        listings.append({
-            "property_id": parts[0],
-            "cv_condition": parts[1],
-            "cv_condition_conf": parts[2],
-            "cv_finish": parts[3],
-            "cv_finish_conf": parts[4],
-            "cv_is_render": parts[5] == "t",
-            "cv_render_conf": parts[6],
-            "img1": parts[7],
-            "img2": parts[8],
-            "img3": parts[9],
-            "tag1": parts[10],
-            "tag2": parts[11],
-            "tag3": parts[12],
-            "listing_url": parts[13],
-            "idealista_condition": parts[14],
-        })
+        listings.append(
+            {
+                "property_id": parts[0],
+                "cv_condition": parts[1],
+                "cv_condition_conf": parts[2],
+                "cv_finish": parts[3],
+                "cv_finish_conf": parts[4],
+                "cv_is_render": parts[5] == "t",
+                "cv_render_conf": parts[6],
+                "img1": parts[7],
+                "img2": parts[8],
+                "img3": parts[9],
+                "tag1": parts[10],
+                "tag2": parts[11],
+                "tag3": parts[12],
+                "listing_url": parts[13],
+                "idealista_condition": parts[14],
+            }
+        )
     return listings
+
 
 def generate_html(listings):
     cards_html = ""
@@ -59,15 +63,17 @@ def generate_html(listings):
         imgs = []
         for url, tag in [(L["img1"], L["tag1"]), (L["img2"], L["tag2"]), (L["img3"], L["tag3"])]:
             if url:
-                imgs.append(f'<div class="img-col"><a href="{html_lib.escape(url)}" target="_blank"><img src="{html_lib.escape(url)}" loading="lazy"></a><span class="tag">{html_lib.escape(tag)}</span></div>')
+                imgs.append(
+                    f'<div class="img-col"><a href="{html_lib.escape(url)}" target="_blank"><img src="{html_lib.escape(url)}" loading="lazy"></a><span class="tag">{html_lib.escape(tag)}</span></div>'
+                )
 
         cards_html += f"""
     <div class="card" id="card-{pid}" data-pid="{pid}">
       <div class="card-header">
-        <span class="num">#{i+1}</span>
-        <a href="{html_lib.escape(L['listing_url'])}" target="_blank" class="listing-link">Ver anuncio completo &rarr;</a>
+        <span class="num">#{i + 1}</span>
+        <a href="{html_lib.escape(L["listing_url"])}" target="_blank" class="listing-link">Ver anuncio completo &rarr;</a>
       </div>
-      <div class="images">{''.join(imgs)}</div>
+      <div class="images">{"".join(imgs)}</div>
       <div class="questions">
         <div class="q-group">
           <label class="q-label">1. Estado de conservacao do imovel</label>
@@ -253,7 +259,7 @@ def main():
     html = generate_html(listings)
     OUTPUT_FILE.write_text(html)
     print(f"Survey written to {OUTPUT_FILE}")
-    print(f"Ground truth embedded in hidden <script> tag (50 listings)")
+    print("Ground truth embedded in hidden <script> tag (50 listings)")
 
 
 if __name__ == "__main__":

@@ -25,10 +25,10 @@ from pipelines.portals.jll.source import (
     _to_snake,
 )
 
-
 # ---------------------------------------------------------------------------
 # _stable_hash — determinism + canonicalization
 # ---------------------------------------------------------------------------
+
 
 class TestStableHash:
     def test_same_input_same_hash(self):
@@ -107,6 +107,7 @@ class TestCanonicalize:
 # CamelCase → snake_case
 # ---------------------------------------------------------------------------
 
+
 class TestToSnake:
     def test_simple(self):
         assert _to_snake("GPSLat") == "gps_lat"
@@ -131,6 +132,7 @@ class TestToSnake:
 # Normalization
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeDevelopment:
     def test_id_renamed_to_development_id(self):
         out = _normalize_development({"ID": 23379273, "Name": "AURYA VISTA"})
@@ -138,10 +140,15 @@ class TestNormalizeDevelopment:
         assert "i_d" not in out
 
     def test_camel_to_snake(self):
-        out = _normalize_development({
-            "ID": 1, "GPSLat": 38.8, "GPSLon": -9.1,
-            "TotalFractions": 30, "AvailabilityID": 2,
-        })
+        out = _normalize_development(
+            {
+                "ID": 1,
+                "GPSLat": 38.8,
+                "GPSLon": -9.1,
+                "TotalFractions": 30,
+                "AvailabilityID": 2,
+            }
+        )
         assert out["gps_lat"] == 38.8
         assert out["gps_lon"] == -9.1
         assert out["total_fractions"] == 30
@@ -155,25 +162,35 @@ class TestNormalizeDevelopment:
 
 class TestNormalizeListing:
     def test_id_renamed_to_listing_id(self):
-        out = _normalize_listing({
-            "ID": 23379286, "Rooms": 2, "PropertyBusiness": [],
-        })
+        out = _normalize_listing(
+            {
+                "ID": 23379286,
+                "Rooms": 2,
+                "PropertyBusiness": [],
+            }
+        )
         assert out["listing_id"] == 23379286
         assert "i_d" not in out
 
     def test_price_flattened(self):
-        out = _normalize_listing({
-            "ID": 1,
-            "PropertyBusiness": [{
-                "BusinessName": "Sale",
-                "Prices": [{
-                    "PriceValue": 463000,
-                    "FormattedPrice": "463\u00a0000 €",
-                    "CurrencyISO": "EUR",
-                    "MarketValue": 0,
-                }],
-            }],
-        })
+        out = _normalize_listing(
+            {
+                "ID": 1,
+                "PropertyBusiness": [
+                    {
+                        "BusinessName": "Sale",
+                        "Prices": [
+                            {
+                                "PriceValue": 463000,
+                                "FormattedPrice": "463\u00a0000 €",
+                                "CurrencyISO": "EUR",
+                                "MarketValue": 0,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
         assert out["price_value"] == 463000
         assert out["formatted_price"] == "463\u00a0000 €"
         assert out["currency_iso"] == "EUR"
@@ -199,6 +216,7 @@ class TestNormalizeListing:
 # ---------------------------------------------------------------------------
 # Version column sanity checks
 # ---------------------------------------------------------------------------
+
 
 class TestVersionColumnLists:
     def test_no_json_columns_in_listings_version(self):

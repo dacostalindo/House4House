@@ -101,8 +101,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest Cadastro GeoJSON in MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -112,9 +112,7 @@ def _create_dag():
             objects = list(
                 client.list_objects(MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True)
             )
-            geojson_objects = [
-                o for o in objects if o.object_name.endswith(".geojson")
-            ]
+            geojson_objects = [o for o in objects if o.object_name.endswith(".geojson")]
 
             if not geojson_objects:
                 raise RuntimeError(
@@ -192,7 +190,7 @@ def _create_dag():
             batch = []
             total = 0
 
-            with open(local_path, "r", encoding="utf-8") as f:
+            with open(local_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip().rstrip(",")
                     if not line or line == "]}":
@@ -212,18 +210,20 @@ def _create_dag():
                     if geom is None:
                         continue
 
-                    batch.append((
-                        props.get("inspireid"),
-                        props.get("nationalcadastralreference"),
-                        props.get("areavalue"),
-                        props.get("administrativeunit"),
-                        props.get("label"),
-                        props.get("validfrom"),
-                        props.get("validto"),
-                        props.get("beginlifespanversion"),
-                        json.dumps(geom),
-                        source_url,
-                    ))
+                    batch.append(
+                        (
+                            props.get("inspireid"),
+                            props.get("nationalcadastralreference"),
+                            props.get("areavalue"),
+                            props.get("administrativeunit"),
+                            props.get("label"),
+                            props.get("validfrom"),
+                            props.get("validto"),
+                            props.get("beginlifespanversion"),
+                            json.dumps(geom),
+                            source_url,
+                        )
+                    )
 
                     if len(batch) >= batch_size:
                         psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=500)

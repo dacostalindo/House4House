@@ -17,10 +17,10 @@ import hashlib
 import logging
 import shutil
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable, Optional
 
 log = logging.getLogger(__name__)
 
@@ -57,37 +57,37 @@ class GISIngestionConfig:
 
     # --- DAG identity ---
     dag_id: str
-    source_name: str        # Short identifier used in paths/logs — e.g. "caop", "pdm_lisbon"
+    source_name: str  # Short identifier used in paths/logs — e.g. "caop", "pdm_lisbon"
     description: str
 
     # --- Source ---
-    download_url: str       # URL, "var:<KEY>", or "param:<KEY>"
-    expected_format: str    # File extension: "gpkg", "zip", "shp", "geojson", "pbf"
+    download_url: str  # URL, "var:<KEY>", or "param:<KEY>"
+    expected_format: str  # File extension: "gpkg", "zip", "shp", "geojson", "pbf"
 
     # --- GIS validation expectations ---
-    expected_layers: list[str]          # Static layer names; [] if using layer_name_fn
-    expected_crs_epsg: Optional[int]    # Assert CRS; None = log warning only
-    min_feature_count: int              # Minimum features per layer (sanity floor)
-    max_feature_count: int              # Maximum features per layer (sanity ceiling)
-    min_file_size_bytes: int            # Raise if download is smaller than this
+    expected_layers: list[str]  # Static layer names; [] if using layer_name_fn
+    expected_crs_epsg: int | None  # Assert CRS; None = log warning only
+    min_feature_count: int  # Minimum features per layer (sanity floor)
+    max_feature_count: int  # Maximum features per layer (sanity ceiling)
+    min_file_size_bytes: int  # Raise if download is smaller than this
 
     # --- MinIO storage ---
-    minio_bucket: str       # e.g. "raw"
-    minio_prefix: str       # e.g. "caop" → stored at raw/caop/{version}/{filename}
+    minio_bucket: str  # e.g. "raw"
+    minio_prefix: str  # e.g. "caop" → stored at raw/caop/{version}/{filename}
 
     # --- Scheduling ---
-    schedule: Optional[str]     # Cron, "@yearly", "@monthly", or None (manual trigger)
+    schedule: str | None  # Cron, "@yearly", "@monthly", or None (manual trigger)
     # start_date is optional. When None:
     #   - For manual-trigger DAGs (schedule=None): defaults to yesterday UTC — the DAG is
     #     immediately triggerable without implying anything about historical runs.
     #   - For scheduled DAGs: you MUST set this explicitly to control backfill behaviour.
-    start_date: Optional[datetime] = None
+    start_date: datetime | None = None
 
     # --- Version (static or dynamic) ---
     # Set to a string for sources with fixed versions (e.g. Census 2021 → "2021").
     # Set to None for annually-released datasets: version is then required as a
     # trigger param, read from dag_run.conf[version_param_key] at runtime.
-    source_version: Optional[str] = None
+    source_version: str | None = None
     version_param_key: str = "version"  # dag_run.conf key when source_version is None
 
     # --- Dynamic layer names ---
@@ -95,7 +95,7 @@ class GISIngestionConfig:
     # callable instead of expected_layers. It receives the resolved version string
     # and returns the list of expected layer names.
     # Set expected_layers=[] when using layer_name_fn.
-    layer_name_fn: Optional[Callable[[str], list[str]]] = None
+    layer_name_fn: Callable[[str], list[str]] | None = None
 
     # --- DAG-level Airflow Params ---
     # Shown in the "Trigger DAG" dialog. Define params that operators must supply
@@ -311,6 +311,7 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
             file size, and hash of the original download.
             """
             import zipfile
+
             import requests
 
             url = source_info["url"]
@@ -350,8 +351,7 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
                     log.info(f"[{config.source_name}] ZIP contents: {inner_names}")
 
                     matches = [
-                        n for n in inner_names
-                        if n.lower().endswith(f".{config.expected_format}")
+                        n for n in inner_names if n.lower().endswith(f".{config.expected_format}")
                     ]
                     if not matches:
                         raise ValueError(
@@ -484,15 +484,13 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
                     "feature_count": feature_count,
                     "crs_epsg": crs_epsg,
                     "geometry_type": geometry_type,
-                    "field_types": field_types,      # column name → numpy dtype string
+                    "field_types": field_types,  # column name → numpy dtype string
                 }
                 log.info(
                     f"[{config.source_name}] Layer '{layer_name}': "
                     f"{feature_count} features | EPSG:{crs_epsg} | {geometry_type}"
                 )
-                log.info(
-                    f"[{config.source_name}]   Fields: {field_names}"
-                )
+                log.info(f"[{config.source_name}]   Fields: {field_names}")
 
             log.info(f"[{config.source_name}] Validation passed.")
             return {
@@ -519,8 +517,8 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
             The SHA-256 hash is stored as object metadata so files can be
             verified later without re-downloading.
             """
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             local_path = Path(download_info["local_path"])
             version = download_info["version"]
@@ -616,7 +614,9 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
         download_info = download_file(source_info)
         validation_report = validate_gis_file(download_info)
         upload_info = upload_to_minio(download_info, validation_report)
-        cleanup_temp(download_info, upload_info)   # upload_info dep ensures cleanup runs after upload
+        cleanup_temp(
+            download_info, upload_info
+        )  # upload_info dep ensures cleanup runs after upload
         log_run_metadata(upload_info, validation_report)
 
     return gis_ingestion_dag()

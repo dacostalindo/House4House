@@ -23,10 +23,10 @@ from pipelines.portals.zome.source import (
     _stable_hash,
 )
 
-
 # ---------------------------------------------------------------------------
 # _stable_hash — determinism + canonicalization
 # ---------------------------------------------------------------------------
+
 
 class TestStableHash:
     def test_same_input_same_hash(self):
@@ -60,8 +60,8 @@ class TestStableHash:
         assert len(h) == 64  # sha256 hex
 
     def test_missing_key_treated_as_none(self):
-        row1 = {"a": 1}                       # b missing
-        row2 = {"a": 1, "b": None}            # b explicitly None
+        row1 = {"a": 1}  # b missing
+        row2 = {"a": 1, "b": None}  # b explicitly None
         cols = ("a", "b")
         assert _stable_hash(row1, cols) == _stable_hash(row2, cols)
 
@@ -113,6 +113,7 @@ class TestCanonicalize:
 # Normalization — id rename + listings-specific rename map + raw_json capture
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeListing:
     def test_id_renamed_to_listing_id(self):
         out = _normalize_listing({"id": 12345, "precoimovel": "100.000"})
@@ -120,12 +121,14 @@ class TestNormalizeListing:
         assert "id" not in out
 
     def test_localizacao_renamed(self):
-        out = _normalize_listing({
-            "id": 1,
-            "localizacaolevel1imovel": "Lisboa",
-            "localizacaolevel2imovel": "Cascais",
-            "localizacaolevel3imovel": "Estoril",
-        })
+        out = _normalize_listing(
+            {
+                "id": 1,
+                "localizacaolevel1imovel": "Lisboa",
+                "localizacaolevel2imovel": "Cascais",
+                "localizacaolevel3imovel": "Estoril",
+            }
+        )
         assert out["localizacaolevel1"] == "Lisboa"
         assert out["localizacaolevel2"] == "Cascais"
         assert out["localizacaolevel3"] == "Estoril"
@@ -164,6 +167,7 @@ class TestNormalizeDevelopment:
 # ---------------------------------------------------------------------------
 # Sanity check on the version-column lists themselves
 # ---------------------------------------------------------------------------
+
 
 class TestVersionColumnLists:
     def test_no_jsonb_columns_in_listings_version(self):

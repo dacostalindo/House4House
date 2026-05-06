@@ -10,10 +10,10 @@ import json
 import os
 import time
 
-import anthropic
-
 # Load API key from .env
 from pathlib import Path
+
+import anthropic
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 for line in env_path.read_text().splitlines():
@@ -136,10 +136,18 @@ def main():
 
             if result["success"]:
                 r = result["result"]
-                print(f"  ✓ Response in {elapsed:.1f}s  (in: {result['input_tokens']}, out: {result['output_tokens']})")
-                print(f"    is_render:     {r.get('is_render')}  (conf: {r.get('render_confidence')})")
-                print(f"    condition:     {r.get('condition_label')}  (conf: {r.get('condition_confidence')})")
-                print(f"    finish:        {r.get('finish_quality')}  (conf: {r.get('finish_quality_confidence')})")
+                print(
+                    f"  ✓ Response in {elapsed:.1f}s  (in: {result['input_tokens']}, out: {result['output_tokens']})"
+                )
+                print(
+                    f"    is_render:     {r.get('is_render')}  (conf: {r.get('render_confidence')})"
+                )
+                print(
+                    f"    condition:     {r.get('condition_label')}  (conf: {r.get('condition_confidence')})"
+                )
+                print(
+                    f"    finish:        {r.get('finish_quality')}  (conf: {r.get('finish_quality_confidence')})"
+                )
             else:
                 print(f"  ✗ FAILED in {elapsed:.1f}s: {result['error']}")
 

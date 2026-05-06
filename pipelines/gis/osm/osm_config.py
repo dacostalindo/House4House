@@ -57,7 +57,6 @@ always points to the most recent extract).
 
 from pipelines.gis.template.gis_ingestion_template import GISIngestionConfig
 
-
 # All 18 layers in the Geofabrik Portugal GPKG.
 # Grouped by source for clarity, but validated as a single file.
 _OSM_EXPECTED_LAYERS = [
@@ -96,44 +95,35 @@ OSM_CONFIG = GISIngestionConfig(
         "and road network. Stores the raw file in MinIO for exploration. "
         "18 layers, ~4.5M features, ~1.5 GB extracted."
     ),
-
     # --- Source ---
     # Geofabrik's "latest" URL always points to the most recent daily extract.
     # The ZIP wraps a portugal.gpkg; download_file handles extraction.
     download_url="https://download.geofabrik.de/europe/portugal-latest-free.gpkg.zip",
     expected_format="gpkg",
-
     # --- Validation ---
     expected_layers=_OSM_EXPECTED_LAYERS,
-
     # WGS 84 — geographic coordinates (not projected like CAOP/BGRI).
     expected_crs_epsg=4326,
-
     # Loose bounds: smallest layer is ~700 features (places_a),
     # largest is ~2.1M (buildings_a). Allow the full range.
     min_feature_count=1,
     max_feature_count=3_000_000,
-
     # Extracted GPKG is ~1.5 GB. Reject anything under 500 MB.
-    min_file_size_bytes=500 * 1024 * 1024,   # 500 MB
-
+    min_file_size_bytes=500 * 1024 * 1024,  # 500 MB
     # --- MinIO storage ---
     # Lands at: s3://raw/osm/{version}/portugal.gpkg
     minio_bucket="raw",
     minio_prefix="osm",
-
     # --- Schedule ---
     # Manual trigger only (matching BGRI/CAOP pattern).
     # Trigger with: {"version": "2026-03"}
     schedule=None,
     start_date=None,
-
     # --- Version ---
     # Use date-based versioning. The "latest" URL doesn't embed a version,
     # so we use a trigger param to tag each download.
     source_version=None,
     version_param_key="version",
-
     dag_params={
         "version": {
             "default": "",
@@ -143,7 +133,6 @@ OSM_CONFIG = GISIngestionConfig(
             ),
         },
     },
-
     # --- Tags ---
     tags=["osm", "pois", "transport", "roads", "geography", "geofabrik", "p0", "monthly"],
 )

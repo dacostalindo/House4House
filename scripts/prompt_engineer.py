@@ -13,7 +13,6 @@ Usage:
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 import anthropic
@@ -68,20 +67,22 @@ def load_edge_cases() -> list[dict]:
         tags_raw = parts[9].strip("{}")
         urls = [u for u in urls_raw.split(",") if u]
         tags = [t for t in tags_raw.split(",") if t]
-        cases.append({
-            "property_id": parts[0],
-            "case_type": parts[1],
-            "condition_label": parts[2],
-            "condition_confidence": float(parts[3]),
-            "finish_quality": parts[4],
-            "finish_quality_confidence": float(parts[5]),
-            "is_render": parts[6] == "t",
-            "render_confidence": float(parts[7]),
-            "image_urls": urls,
-            "image_tags": tags,
-            "idealista_condition": parts[10],
-            "listing_url": parts[11],
-        })
+        cases.append(
+            {
+                "property_id": parts[0],
+                "case_type": parts[1],
+                "condition_label": parts[2],
+                "condition_confidence": float(parts[3]),
+                "finish_quality": parts[4],
+                "finish_quality_confidence": float(parts[5]),
+                "is_render": parts[6] == "t",
+                "render_confidence": float(parts[7]),
+                "image_urls": urls,
+                "image_tags": tags,
+                "idealista_condition": parts[10],
+                "listing_url": parts[11],
+            }
+        )
     return cases
 
 
@@ -115,14 +116,28 @@ def load_survey_feedback(path: str) -> dict | None:
             gt = ground_truth.get(pid, {})
             if not gt:
                 continue
-            if resp.get("condition") and resp["condition"] != "uncertain" and resp["condition"] != gt["cv_condition"]:
-                disagreements.append(f"  PID {pid}: Claude={gt['cv_condition']} (conf={gt['cv_condition_conf']}), Human={resp['condition']}. Notes: {resp.get('notes', '')}")
-            if resp.get("finish_quality") and resp["finish_quality"] != "uncertain" and resp["finish_quality"] != gt["cv_finish"]:
-                disagreements.append(f"  PID {pid}: Claude={gt['cv_finish']} (conf={gt['cv_finish_conf']}), Human={resp['finish_quality']}. Notes: {resp.get('notes', '')}")
+            if (
+                resp.get("condition")
+                and resp["condition"] != "uncertain"
+                and resp["condition"] != gt["cv_condition"]
+            ):
+                disagreements.append(
+                    f"  PID {pid}: Claude={gt['cv_condition']} (conf={gt['cv_condition_conf']}), Human={resp['condition']}. Notes: {resp.get('notes', '')}"
+                )
+            if (
+                resp.get("finish_quality")
+                and resp["finish_quality"] != "uncertain"
+                and resp["finish_quality"] != gt["cv_finish"]
+            ):
+                disagreements.append(
+                    f"  PID {pid}: Claude={gt['cv_finish']} (conf={gt['cv_finish_conf']}), Human={resp['finish_quality']}. Notes: {resp.get('notes', '')}"
+                )
             if resp.get("is_render") and resp["is_render"] != "uncertain":
                 cv_render = "render" if gt["cv_is_render"] else "real"
                 if resp["is_render"] != cv_render:
-                    disagreements.append(f"  PID {pid}: Claude={cv_render} (conf={gt['cv_render_conf']}), Human={resp['is_render']}. Notes: {resp.get('notes', '')}")
+                    disagreements.append(
+                        f"  PID {pid}: Claude={cv_render} (conf={gt['cv_render_conf']}), Human={resp['is_render']}. Notes: {resp.get('notes', '')}"
+                    )
         return {
             "evaluator": data.get("evaluator", "unknown"),
             "total_responses": len(data["responses"]),
@@ -165,9 +180,13 @@ identify systematic weaknesses, and propose an improved prompt.
 """
 
     if survey:
-        analysis_intro += f"""## Human evaluator feedback ({survey['evaluator']})
-{survey['total_responses']} listings reviewed. Disagreements:
-""" + "\n".join(survey["disagreements"][:30]) + "\n\n"
+        analysis_intro += (
+            f"""## Human evaluator feedback ({survey["evaluator"]})
+{survey["total_responses"]} listings reviewed. Disagreements:
+"""
+            + "\n".join(survey["disagreements"][:30])
+            + "\n\n"
+        )
 
     analysis_intro += """## Edge cases to review
 Below are listings where the model had low confidence or produced unexpected results.
@@ -196,7 +215,10 @@ Analyze what makes these cases difficult and how the prompt could handle them be
                 content.append({"type": "image", "source": {"type": "url", "url": url}})
 
     # Final instruction
-    content.append({"type": "text", "text": """
+    content.append(
+        {
+            "type": "text",
+            "text": """
 ## Instructions
 
 After reviewing all the edge cases above, provide:
@@ -210,7 +232,9 @@ After reviewing all the edge cases above, provide:
 4. **Expected impact** — Which edge case types should improve, and by how much (rough estimate).
 
 Format the revised prompt in a ```markdown code block so it can be copy-pasted directly.
-"""})
+""",
+        }
+    )
 
     print("Sending 15 edge cases with images to Claude for analysis...")
     print("(This may take 30-60 seconds due to image processing)\n")
@@ -233,7 +257,9 @@ def main():
     if len(sys.argv) > 1:
         survey = load_survey_feedback(sys.argv[1])
         if survey:
-            print(f"Loaded survey feedback: {survey['total_responses']} responses, {len(survey['disagreements'])} disagreements")
+            print(
+                f"Loaded survey feedback: {survey['total_responses']} responses, {len(survey['disagreements'])} disagreements"
+            )
 
     result = run_prompt_engineer(edge_cases, distribution, survey)
 
@@ -253,7 +279,9 @@ def main():
                 # Remove language tag if present
                 prompt_text = block.strip()
                 if prompt_text.startswith(("markdown", "text", "json")):
-                    prompt_text = prompt_text.split("\n", 1)[1] if "\n" in prompt_text else prompt_text
+                    prompt_text = (
+                        prompt_text.split("\n", 1)[1] if "\n" in prompt_text else prompt_text
+                    )
                 revised_path = Path(__file__).parent / "revised_prompt.txt"
                 revised_path.write_text(prompt_text.strip())
                 print(f"Revised prompt extracted to {revised_path}")

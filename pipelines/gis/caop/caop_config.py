@@ -57,22 +57,18 @@ CAOP_CONFIG = GISIngestionConfig(
         "and stores the raw file in MinIO for exploration. "
         "Covers: distritos, concelhos, and freguesias for continental Portugal."
     ),
-
     # --- Source ---
     # URL is supplied at trigger time — it changes with each DGT release.
     download_url="param:download_url",
     expected_format="gpkg",
-
     # --- Validation ---
     # Layer names embed the version, so expected_layers is empty here and
     # layer_name_fn computes the correct names at runtime from the trigger param.
     expected_layers=[],
     layer_name_fn=_caop_layer_names,
-
     # The GeoPackage uses PT-TM06 / ETRS89 (EPSG:3763).
     # Mismatch triggers a warning, not a failure — the file still gets stored.
     expected_crs_epsg=3763,
-
     # Loose bounds covering all three layers:
     #   distritos:  18 features
     #   concelhos:  308 features
@@ -81,26 +77,21 @@ CAOP_CONFIG = GISIngestionConfig(
     # boundary revisions between releases.
     min_feature_count=10,
     max_feature_count=5_000,
-
     # A valid CAOP GeoPackage is typically 50–200 MB.
     # Reject anything under 10 MB as a truncated or empty download.
-    min_file_size_bytes=10 * 1024 * 1024,   # 10 MB
-
+    min_file_size_bytes=10 * 1024 * 1024,  # 10 MB
     # --- MinIO storage ---
     # Lands at: s3://raw/caop/{version}/caop_{version}.gpkg
     minio_bucket="raw",
     minio_prefix="caop",
-
     # --- Schedule ---
     # Manual trigger only — DGT releases CAOP with no predictable date.
     # start_date omitted → template defaults to yesterday UTC.
     schedule=None,
-
     # --- Version ---
     # Always supplied at trigger time via dag_run.conf["version"].
     source_version=None,
     version_param_key="version",
-
     # --- Trigger params (shown in Airflow "Trigger DAG w/ config" dialog) ---
     dag_params={
         "version": {
@@ -119,7 +110,6 @@ CAOP_CONFIG = GISIngestionConfig(
             ),
         },
     },
-
     # --- Tags ---
     tags=["caop", "geography", "dgt", "p0", "annual"],
 )

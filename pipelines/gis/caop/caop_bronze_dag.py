@@ -14,7 +14,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 log = logging.getLogger(__name__)
 
@@ -107,8 +107,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest CAOP GPKG from MinIO to a temp directory."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -122,7 +122,9 @@ def _create_dag():
                 raise RuntimeError("No CAOP GPKG found in MinIO at raw/caop/")
 
             latest = sorted(gpkg_objects, key=lambda o: o.object_name)[-1]
-            log.info("[caop] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6)
+            log.info(
+                "[caop] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6
+            )
 
             tmp_dir = tempfile.mkdtemp(prefix="caop_bronze_")
             local_path = os.path.join(tmp_dir, "caop.gpkg")
@@ -155,7 +157,7 @@ def _create_dag():
                 ddl = f"""
                     CREATE TABLE IF NOT EXISTS {schema_table} (
                         {cols},
-                        geom GEOMETRY({layer['geom_type']}, 3763),
+                        geom GEOMETRY({layer["geom_type"]}, 3763),
                         _load_timestamp TIMESTAMPTZ DEFAULT NOW()
                     )
                 """
@@ -171,8 +173,8 @@ def _create_dag():
             """Load a single GPKG layer into its bronze table."""
             import psycopg2
             import psycopg2.extras
-            from pyogrio.raw import read as raw_read
             from airflow.models import Variable
+            from pyogrio.raw import read as raw_read
 
             gpkg_path = fetch_result["gpkg_path"]
             gpkg_layer = layer_config["gpkg_layer"]
@@ -182,7 +184,7 @@ def _create_dag():
             log.info("[caop] Reading layer %s from %s", gpkg_layer, gpkg_path)
             result = raw_read(gpkg_path, layer=gpkg_layer)
             # raw_read returns (meta, fids, geometry, field_data)
-            geometry = result[2]   # WKB bytes array
+            geometry = result[2]  # WKB bytes array
             field_data = result[3]
 
             n_features = len(geometry)

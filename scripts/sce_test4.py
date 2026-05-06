@@ -1,17 +1,28 @@
 """Test SCE: investigate Turnstile and form JS handlers."""
-from playwright.sync_api import sync_playwright
+
 import json
 import time
+
+from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
     page = browser.new_page()
 
     # Enable console logging
-    page.on('console', lambda msg: print(f'[CONSOLE] {msg.type}: {msg.text}') if 'turnstile' in msg.text.lower() or 'captcha' in msg.text.lower() or 'error' in msg.text.lower() else None)
+    page.on(
+        "console",
+        lambda msg: (
+            print(f"[CONSOLE] {msg.type}: {msg.text}")
+            if "turnstile" in msg.text.lower()
+            or "captcha" in msg.text.lower()
+            or "error" in msg.text.lower()
+            else None
+        ),
+    )
 
-    page.goto('https://www.sce.pt/pesquisa-certificados/', timeout=30000)
-    print('Page loaded, waiting 15s for Turnstile to initialize...')
+    page.goto("https://www.sce.pt/pesquisa-certificados/", timeout=30000)
+    print("Page loaded, waiting 15s for Turnstile to initialize...")
     time.sleep(15)
 
     # Deep dive into Turnstile state
@@ -80,7 +91,7 @@ with sync_playwright() as p:
 
         return result;
     }""")
-    print(f'\nTurnstile state: {json.dumps(turnstile_state, indent=2)}')
+    print(f"\nTurnstile state: {json.dumps(turnstile_state, indent=2)}")
 
     # Check the SCE plugin JS source for form handling logic
     sce_js = page.evaluate("""() => {
@@ -97,9 +108,9 @@ with sync_playwright() as p:
         });
         return inlineScripts;
     }""")
-    print(f'\nRelevant inline scripts: {len(sce_js)}')
+    print(f"\nRelevant inline scripts: {len(sce_js)}")
     for i, js in enumerate(sce_js):
-        print(f'\n--- Script {i+1} ---')
+        print(f"\n--- Script {i + 1} ---")
         print(js[:2000])
 
     # Also fetch the main plugin JS file
@@ -113,7 +124,7 @@ with sync_playwright() as p:
         });
         return pluginSrcs;
     }""")
-    print(f'\nPlugin scripts: {json.dumps(plugin_scripts, indent=2)}')
+    print(f"\nPlugin scripts: {json.dumps(plugin_scripts, indent=2)}")
 
     # Try to find the formDataStrCE hidden input purpose
     form_data_str = page.evaluate("""() => {
@@ -121,12 +132,12 @@ with sync_playwright() as p:
         if (el) return {value: el.value, type: el.type, id: el.id};
         return null;
     }""")
-    print(f'\nformDataStrCE: {json.dumps(form_data_str, indent=2)}')
+    print(f"\nformDataStrCE: {json.dumps(form_data_str, indent=2)}")
 
     # Wait a bit more and check if Turnstile appears after interaction
-    page.select_option('select[name="tiposDocumentoSelect"]', '1;4')
+    page.select_option('select[name="tiposDocumentoSelect"]', "1;4")
     time.sleep(1)
-    page.select_option('select[name="distritosCESelect"]', '11')
+    page.select_option('select[name="distritosCESelect"]', "11")
     time.sleep(3)
 
     # Check again after interaction
@@ -141,6 +152,6 @@ with sync_playwright() as p:
             formDataStr: formDataStr ? formDataStr.value.substring(0, 200) : null
         };
     }""")
-    print(f'\nAfter interaction: {json.dumps(post_interaction, indent=2)}')
+    print(f"\nAfter interaction: {json.dumps(post_interaction, indent=2)}")
 
     browser.close()

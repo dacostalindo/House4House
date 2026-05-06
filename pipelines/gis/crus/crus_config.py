@@ -23,9 +23,7 @@ from urllib.parse import quote
 # CRUS WFS endpoint configuration
 # ---------------------------------------------------------------------------
 
-CRUS_WFS_URL_TEMPLATE = (
-    "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_{code}_1/WFService.aspx"
-)
+CRUS_WFS_URL_TEMPLATE = "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_{code}_1/WFService.aspx"
 
 WFS_VERSION = "2.0.0"
 WFS_OUTPUT_FORMAT = "application/vnd.geo+json"
@@ -48,10 +46,7 @@ class CRUSMunicipalityConfig:
         return CRUS_WFS_URL_TEMPLATE.format(code=self.code)
 
     def get_capabilities_url(self) -> str:
-        return (
-            f"{self.wfs_url}?SERVICE=WFS&VERSION={WFS_VERSION}"
-            f"&REQUEST=GetCapabilities"
-        )
+        return f"{self.wfs_url}?SERVICE=WFS&VERSION={WFS_VERSION}&REQUEST=GetCapabilities"
 
     def get_feature_url(self) -> str:
         """Build WFS GetFeature URL that returns ALL features as GeoJSON."""
@@ -81,9 +76,7 @@ MUNICIPALITIES: list[CRUSMunicipalityConfig] = [
     CRUSMunicipalityConfig("1009", "Leiria", "gmgml:CRUS_Leiria_V"),
 ]
 
-MUNICIPALITY_BY_CODE: dict[str, CRUSMunicipalityConfig] = {
-    m.code: m for m in MUNICIPALITIES
-}
+MUNICIPALITY_BY_CODE: dict[str, CRUSMunicipalityConfig] = {m.code: m for m in MUNICIPALITIES}
 
 # ---------------------------------------------------------------------------
 # Field normalization
@@ -168,9 +161,7 @@ class CRUSIngestionConfig:
         "land-use data per municipality, stores GeoJSON in MinIO."
     )
 
-    municipalities: list[CRUSMunicipalityConfig] = field(
-        default_factory=lambda: MUNICIPALITIES
-    )
+    municipalities: list[CRUSMunicipalityConfig] = field(default_factory=lambda: MUNICIPALITIES)
 
     minio_bucket: str = MINIO_BUCKET
     minio_prefix: str = MINIO_PREFIX

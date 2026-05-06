@@ -22,10 +22,10 @@ import tempfile
 from datetime import datetime, timedelta
 
 from pipelines.gis.crus.crus_config import (
-    MUNICIPALITY_BY_CODE,
     CRUS_CONFIG,
-    CRUSMunicipalityConfig,
+    MUNICIPALITY_BY_CODE,
     NORMALIZED_FIELDS,
+    CRUSMunicipalityConfig,
     normalize_field_name,
 )
 
@@ -118,9 +118,7 @@ def _create_dag():
             requested = conf.get("municipalities")
             if requested:
                 munis = [
-                    MUNICIPALITY_BY_CODE[code]
-                    for code in requested
-                    if code in MUNICIPALITY_BY_CODE
+                    MUNICIPALITY_BY_CODE[code] for code in requested if code in MUNICIPALITY_BY_CODE
                 ]
                 if not munis:
                     raise ValueError(
@@ -135,10 +133,7 @@ def _create_dag():
                 len(munis),
                 [m.name for m in munis],
             )
-            return [
-                {"code": m.code, "name": m.name, "feature_type": m.feature_type}
-                for m in munis
-            ]
+            return [{"code": m.code, "name": m.name, "feature_type": m.feature_type} for m in munis]
 
         @task()
         def check_wfs_availability(municipality: dict) -> dict:
@@ -215,8 +210,8 @@ def _create_dag():
         @task()
         def save_to_minio(fetch_result: dict) -> dict:
             """Upload GeoJSON FeatureCollection to MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -232,10 +227,7 @@ def _create_dag():
                 client.make_bucket(cfg.minio_bucket)
 
             date_str = datetime.utcnow().strftime("%Y%m%d")
-            object_name = (
-                f"{cfg.minio_prefix}/{fetch_result['name_lower']}"
-                f"/{date_str}/crus.geojson"
-            )
+            object_name = f"{cfg.minio_prefix}/{fetch_result['name_lower']}/{date_str}/crus.geojson"
 
             client.fput_object(
                 bucket_name=cfg.minio_bucket,
@@ -271,9 +263,15 @@ def _create_dag():
         def log_summary(upload_results: list[dict]):
             """Log ingestion summary."""
             total = sum(r["feature_count"] for r in upload_results)
-            log.info("[crus] Ingestion complete: %d features across %d municipalities", total, len(upload_results))
+            log.info(
+                "[crus] Ingestion complete: %d features across %d municipalities",
+                total,
+                len(upload_results),
+            )
             for r in upload_results:
-                log.info("[crus]   %s: %d features → %s", r["name"], r["feature_count"], r["minio_uri"])
+                log.info(
+                    "[crus]   %s: %d features → %s", r["name"], r["feature_count"], r["minio_uri"]
+                )
 
         # --- Task wiring ---
         municipalities = resolve_municipalities()

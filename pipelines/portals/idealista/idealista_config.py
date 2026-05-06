@@ -90,11 +90,7 @@ def fetch_concelho_mapping(active_distritos: list[str] | None = None) -> list[di
 
     if active_distritos:
         active_slugs = {to_idealista_slug(d) for d in active_distritos}
-        mapping = [
-            m
-            for m in mapping
-            if to_idealista_slug(m["distrito_name"]) in active_slugs
-        ]
+        mapping = [m for m in mapping if to_idealista_slug(m["distrito_name"]) in active_slugs]
 
     return mapping
 
@@ -103,9 +99,7 @@ def fetch_concelho_mapping(active_distritos: list[str] | None = None) -> list[di
 # ZenRows API endpoints
 # ---------------------------------------------------------------------------
 
-ZENROWS_DISCOVERY_URL = (
-    "https://realestate.api.zenrows.com/v1/targets/idealista/discovery/"
-)
+ZENROWS_DISCOVERY_URL = "https://realestate.api.zenrows.com/v1/targets/idealista/discovery/"
 ZENROWS_DETAIL_URL = (
     "https://realestate.api.zenrows.com/v1/targets/idealista/properties/{property_id}"
 )
@@ -280,9 +274,7 @@ class IdealistaIngestionConfig:
     # --- Crawl dimensions ---
     crawl_level: str = "concelho"  # "concelho" (new) or "distrito" (legacy)
     operations: list[str] = field(default_factory=lambda: OPERATIONS)
-    active_distritos: list[str] | None = field(
-        default_factory=lambda: ACTIVE_DISTRITOS
-    )
+    active_distritos: list[str] | None = field(default_factory=lambda: ACTIVE_DISTRITOS)
     distrito_search_urls: dict[str, dict[str, str]] = field(
         default_factory=lambda: DISTRITO_SEARCH_URLS
     )

@@ -30,7 +30,9 @@ def _map_detail_to_row(detail: dict, scrape_date: str, batch_id: str) -> tuple:
     if concelho:
         minio_path = f"s3://raw/idealista/detail/{operation}/{distrito}/{concelho}/{scrape_date.replace('-', '')}.jsonl"
     else:
-        minio_path = f"s3://raw/idealista/detail/{operation}/{distrito}/{scrape_date.replace('-', '')}.jsonl"
+        minio_path = (
+            f"s3://raw/idealista/detail/{operation}/{distrito}/{scrape_date.replace('-', '')}.jsonl"
+        )
 
     def _jsonb(val):
         if val is None:
@@ -154,26 +156,28 @@ def _create_dag():
                 )
             )
             for obj in objects:
-                if scrape_date in obj.object_name and obj.object_name.endswith(
-                    ".jsonl"
-                ):
+                if scrape_date in obj.object_name and obj.object_name.endswith(".jsonl"):
                     parts = obj.object_name.split("/")
                     if len(parts) >= 6:
                         # concelho path: idealista/detail/{op}/{distrito}/{concelho}/{date}.jsonl
-                        files.append({
-                            "minio_path": obj.object_name,
-                            "operation": parts[2],
-                            "distrito": parts[3],
-                            "concelho": parts[4],
-                        })
+                        files.append(
+                            {
+                                "minio_path": obj.object_name,
+                                "operation": parts[2],
+                                "distrito": parts[3],
+                                "concelho": parts[4],
+                            }
+                        )
                     elif len(parts) >= 5:
                         # legacy distrito path: idealista/detail/{op}/{distrito}/{date}.jsonl
-                        files.append({
-                            "minio_path": obj.object_name,
-                            "operation": parts[2],
-                            "distrito": parts[3],
-                            "concelho": None,
-                        })
+                        files.append(
+                            {
+                                "minio_path": obj.object_name,
+                                "operation": parts[2],
+                                "distrito": parts[3],
+                                "concelho": None,
+                            }
+                        )
 
             log.info(
                 "[idealista] Found %d detail files for scrape date %s",
@@ -388,7 +392,11 @@ def _create_dag():
                     operation = file_info["operation"]
                     distrito = file_info["distrito"]
                     concelho = file_info.get("concelho")
-                    segment_key = f"{operation}/{distrito}/{concelho}" if concelho else f"{operation}/{distrito}"
+                    segment_key = (
+                        f"{operation}/{distrito}/{concelho}"
+                        if concelho
+                        else f"{operation}/{distrito}"
+                    )
 
                     try:
                         resp = minio_client.get_object(MINIO_BUCKET, minio_path)
@@ -414,7 +422,9 @@ def _create_dag():
                         except Exception as exc:
                             log.warning(
                                 "[idealista] %s: skipping bad line %d: %s",
-                                segment_key, line_num, exc,
+                                segment_key,
+                                line_num,
+                                exc,
                             )
                             parse_errors += 1
 
@@ -425,9 +435,7 @@ def _create_dag():
                     "DELETE FROM bronze_listings.raw_idealista WHERE _scrape_date = %s",
                     (scrape_date,),
                 )
-                log.info(
-                    "[idealista] Deleted existing rows for _scrape_date=%s", scrape_date
-                )
+                log.info("[idealista] Deleted existing rows for _scrape_date=%s", scrape_date)
 
                 for segment_key, rows in file_rows:
                     if not rows:
@@ -437,9 +445,7 @@ def _create_dag():
 
                     for start in range(0, len(rows), 1000):
                         batch = rows[start : start + 1000]
-                        psycopg2.extras.execute_batch(
-                            cur, insert_sql, batch, page_size=500
-                        )
+                        psycopg2.extras.execute_batch(cur, insert_sql, batch, page_size=500)
 
                     total_rows += len(rows)
                     results[segment_key] = len(rows)
@@ -449,7 +455,11 @@ def _create_dag():
                 cur.close()
 
                 if parse_errors:
-                    log.warning("[idealista] Total: %d rows loaded, %d parse errors skipped", total_rows, parse_errors)
+                    log.warning(
+                        "[idealista] Total: %d rows loaded, %d parse errors skipped",
+                        total_rows,
+                        parse_errors,
+                    )
                 else:
                     log.info("[idealista] Total: %d rows loaded", total_rows)
                 return results
@@ -510,9 +520,7 @@ def _create_dag():
             return {
                 "scrape_date": scrape_date,
                 "total_rows": count,
-                "breakdown": {
-                    f"{op}/{dist}": cnt for op, dist, cnt in breakdown
-                },
+                "breakdown": {f"{op}/{dist}": cnt for op, dist, cnt in breakdown},
             }
 
         @task()
@@ -521,9 +529,9 @@ def _create_dag():
             Incrementally reverse-geocode listing coordinates via local Nominatim.
             Only calls Nominatim for (lat, lon) pairs not already in the lookup table.
             """
-            import psycopg2
             import time
 
+            import psycopg2
             import requests
             from airflow.models import Variable
 
@@ -542,7 +550,8 @@ def _create_dag():
 
                 # Find coordinates not yet geocoded — scoped to today's data
                 scrape_date = validate_result.get("scrape_date", date.today().strftime("%Y-%m-%d"))
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT DISTINCT r.latitude, r.longitude
                     FROM bronze_listings.raw_idealista r
                     LEFT JOIN bronze_listings.reverse_geocoded g
@@ -551,7 +560,9 @@ def _create_dag():
                       AND r.longitude IS NOT NULL
                       AND g.latitude IS NULL
                       AND r._scrape_date = %s
-                """, (scrape_date,))
+                """,
+                    (scrape_date,),
+                )
                 missing = cur.fetchall()
                 log.info("[geocode] %d new coordinate pairs to geocode", len(missing))
 
@@ -583,23 +594,22 @@ def _create_dag():
 
                         addr = data.get("address", {})
                         road = addr.get("road") or addr.get("square")
-                        city = (
-                            addr.get("city")
-                            or addr.get("town")
-                            or addr.get("village")
-                        )
+                        city = addr.get("city") or addr.get("town") or addr.get("village")
 
-                        cur.execute(insert_sql, (
-                            lat,
-                            lon,
-                            data.get("display_name"),
-                            road,
-                            addr.get("house_number"),
-                            addr.get("postcode"),
-                            addr.get("city_district"),
-                            city,
-                            json.dumps(data, ensure_ascii=False),
-                        ))
+                        cur.execute(
+                            insert_sql,
+                            (
+                                lat,
+                                lon,
+                                data.get("display_name"),
+                                road,
+                                addr.get("house_number"),
+                                addr.get("postcode"),
+                                addr.get("city_district"),
+                                city,
+                                json.dumps(data, ensure_ascii=False),
+                            ),
+                        )
                         geocoded += 1
 
                         if geocoded % 100 == 0:
@@ -612,9 +622,7 @@ def _create_dag():
 
                     except Exception as exc:
                         conn.rollback()
-                        log.warning(
-                            "[geocode] Failed for (%s, %s): %s", lat, lon, exc
-                        )
+                        log.warning("[geocode] Failed for (%s, %s): %s", lat, lon, exc)
                         errors += 1
 
                     time.sleep(RATE_LIMIT_SECONDS)

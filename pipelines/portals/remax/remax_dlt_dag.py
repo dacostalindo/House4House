@@ -39,13 +39,12 @@ from airflow.decorators import task
 from airflow.models import Variable
 
 from pipelines.portals.remax.source import (
-    SEARCH_URL,
     PAGE_SIZE,
     PASS1_DELAY_S,
     REQUEST_TIMEOUT_S,
+    SEARCH_URL,
     remax_facts_source,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +77,10 @@ def _alert_on_failure(context: dict) -> None:
     exception = context.get("exception")
     log.error(
         "[ALERT] %s.%s failed (run %s): %s",
-        dag_id, task_id, run_id, exception,
+        dag_id,
+        task_id,
+        run_id,
+        exception,
     )
 
 
@@ -115,8 +117,9 @@ with DAG(
         write a single concatenated JSONL.
         """
         import time
-        from minio import Minio
+
         from dlt.sources.helpers import requests
+        from minio import Minio
 
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         endpoint = Variable.get("MINIO_ENDPOINT", default_var="minio:9000")
@@ -185,8 +188,11 @@ with DAG(
 
         creds = _postgres_credentials()
         conn = psycopg2.connect(
-            host=creds["host"], port=creds["port"], dbname=creds["database"],
-            user=creds["username"], password=creds["password"],
+            host=creds["host"],
+            port=creds["port"],
+            dbname=creds["database"],
+            user=creds["username"],
+            password=creds["password"],
         )
         try:
             with conn.cursor() as cur:
@@ -218,8 +224,7 @@ with DAG(
                 )
                 pass2_enriched = cur.fetchone()[0]
                 cur.execute(
-                    f"SELECT count(*) FROM {DATASET_NAME}.remax_plots "
-                    f"WHERE _dlt_valid_to IS NULL"
+                    f"SELECT count(*) FROM {DATASET_NAME}.remax_plots WHERE _dlt_valid_to IS NULL"
                 )
                 plots_current = cur.fetchone()[0]
 
@@ -250,7 +255,11 @@ with DAG(
                 log.info(
                     "[remax_dlt] validation OK: developments=%d, listings=%d, "
                     "pass2_enriched=%d, plots=%d, load_id=%s",
-                    devs_current, listings_current, pass2_enriched, plots_current, load_id,
+                    devs_current,
+                    listings_current,
+                    pass2_enriched,
+                    plots_current,
+                    load_id,
                 )
                 return {
                     "load_id": load_id,

@@ -1,14 +1,15 @@
 """Test SCE: extract full form JS handler and try submitting."""
-from playwright.sync_api import sync_playwright
-import json
+
 import time
+
+from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
     page = browser.new_page()
 
-    page.goto('https://www.sce.pt/pesquisa-certificados/', timeout=30000)
-    print('Page loaded')
+    page.goto("https://www.sce.pt/pesquisa-certificados/", timeout=30000)
+    print("Page loaded")
     time.sleep(5)
 
     # Get the FULL inline script that contains pesquisa/submeter
@@ -28,7 +29,7 @@ with sync_playwright() as p:
     }""")
 
     for i, js in enumerate(full_scripts):
-        print(f'\n=== Full Script {i+1} ({len(js)} chars) ===')
+        print(f"\n=== Full Script {i + 1} ({len(js)} chars) ===")
         print(js)
 
     browser.close()
