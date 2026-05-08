@@ -1,5 +1,9 @@
 # House4House Wiki
 
+## For future Claude
+
+This is the **landing page** for the wiki — orientation for human readers. It explains how the wiki is structured (sources/concepts/pipelines/decisions/plan/lint-reports), who maintains what (Claude writes; humans read), and how to invoke the lint workflow (`make install-cron` for the weekly cron). The schema document for actual page conventions is at `CLAUDE.md` next to this file. Read this file when a human is exploring the wiki for the first time; otherwise prefer `CLAUDE.md`.
+
 This directory is the project's persistent knowledge base. It is **maintained by Claude Code**, not written by hand. You read it; the LLM writes it.
 
 ## How to use

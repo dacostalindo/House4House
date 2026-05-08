@@ -1,5 +1,9 @@
 # Wiki Plan Section
 
+## For future Claude
+
+This is the **orientation page** for the wiki's strategic-roadmap section — describes how the root README's ~4,300 lines get decomposed into navigable wiki pages (use-cases/, sprints/, sources-by-priority/, data-flows/, conceptual-models/ + single-page topics). Sub-section content arrives iteratively across PR 3+ (PR 2 only lands the "what is" set in sources/ + concepts/ + decisions/). Read this file first to understand which sub-section to look in; sprint pages have a `Status:` field that reflects current project state, and `/wiki-lint` flags drift between declared status and reality.
+
 This section breaks down the **project's strategic plan** from the root [`README.md`](../../README.md) into navigable wiki pages. The root README is ~4,300 lines covering 16 sections; each topic gets its own wiki page (or grouped page) here.
 
 ## Goal: living roadmap
