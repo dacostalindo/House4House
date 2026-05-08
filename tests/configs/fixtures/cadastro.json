@@ -1,0 +1,23 @@
+{
+  "bronze_schema_table": "bronze_regulatory.raw_cadastro",
+  "dag_id": "cadastro_ingestion",
+  "description": "Cadastro Predial \u2014 OGC API ingestion. Fetches property parcel boundaries from DGTERRIT\u00d3RIO OGC API and stores GeoJSON in MinIO.",
+  "max_active_runs": 1,
+  "minio_bucket": "raw",
+  "minio_prefix": "cadastro",
+  "ogcapi_url": "https://ogcapi.dgterritorio.gov.pt/collections/cadastro/items",
+  "page_size": 1000,
+  "request_delay_seconds": 2.0,
+  "request_timeout_seconds": 120,
+  "retries": 2,
+  "retry_delay_minutes": 5,
+  "schedule": null,
+  "source_name": "cadastro",
+  "start_date": "2025-01-01T00:00:00",
+  "tags": [
+    "cadastro",
+    "parcels",
+    "dgt"
+  ],
+  "trigger_dag_id": "cadastro_bronze_load"
+}
