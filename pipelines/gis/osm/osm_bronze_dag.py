@@ -78,7 +78,8 @@ LAYERS = [
     {
         "gpkg_layer": "gis_osm_railways_free",
         "table": "bronze_location.raw_osm_railways",
-        "fields": _BASE + [
+        "fields": _BASE
+        + [
             ("layer", "INTEGER"),
             ("bridge", "TEXT"),
             ("tunnel", "TEXT"),
@@ -90,7 +91,8 @@ LAYERS = [
     {
         "gpkg_layer": "gis_osm_roads_free",
         "table": "bronze_location.raw_osm_roads",
-        "fields": _BASE + [
+        "fields": _BASE
+        + [
             ("ref", "TEXT"),
             ("oneway", "TEXT"),
             ("maxspeed", "INTEGER"),
@@ -221,8 +223,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest OSM GPKG from MinIO to a temp directory."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -235,7 +237,9 @@ def _create_dag():
                 raise RuntimeError("No OSM GPKG found in MinIO at raw/osm/")
 
             latest = sorted(gpkg_objects, key=lambda o: o.object_name)[-1]
-            log.info("[osm] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6)
+            log.info(
+                "[osm] Latest GPKG in MinIO: %s (%.1f MB)", latest.object_name, latest.size / 1e6
+            )
 
             tmp_dir = tempfile.mkdtemp(prefix="osm_bronze_")
             local_path = os.path.join(tmp_dir, "osm.gpkg")
@@ -268,7 +272,7 @@ def _create_dag():
                 ddl = f"""
                     CREATE TABLE IF NOT EXISTS {schema_table} (
                         {cols},
-                        geom GEOMETRY({layer['geom_type']}, 4326),
+                        geom GEOMETRY({layer["geom_type"]}, 4326),
                         _load_timestamp TIMESTAMPTZ DEFAULT NOW()
                     )
                 """
@@ -284,8 +288,8 @@ def _create_dag():
             """Load a single GPKG layer into its bronze table."""
             import psycopg2
             import psycopg2.extras
-            from pyogrio.raw import read as raw_read
             from airflow.models import Variable
+            from pyogrio.raw import read as raw_read
 
             gpkg_path = fetch_result["gpkg_path"]
             gpkg_layer = layer_config["gpkg_layer"]
@@ -341,7 +345,9 @@ def _create_dag():
                 total_inserted += len(rows)
 
                 if total_inserted % 50_000 == 0 or total_inserted == n_features:
-                    log.info("[osm] %s: inserted %d / %d rows", gpkg_layer, total_inserted, n_features)
+                    log.info(
+                        "[osm] %s: inserted %d / %d rows", gpkg_layer, total_inserted, n_features
+                    )
 
             conn.commit()
             cur.close()

@@ -59,6 +59,7 @@ Return ONLY a single JSON object, no other text. Do NOT return an array."""
 
 # ── Tag-based image selection (mirrors DAG logic) ────────────────────────────
 
+
 def select_images_by_tag(images: list[str], tags: list[str]) -> list[dict]:
     """Pick 3 most informative images by tag. Mirrors _select_images_by_tag in the DAG."""
     if not images or not tags:
@@ -98,6 +99,7 @@ def select_images_by_tag(images: list[str], tags: list[str]) -> list[dict]:
 
 # ── Claude Vision call ───────────────────────────────────────────────────────
 
+
 def call_vision(model_id: str, image_urls: list[str]) -> dict:
     """Call Claude Vision with multiple image URLs."""
     try:
@@ -135,6 +137,7 @@ def call_vision(model_id: str, image_urls: list[str]) -> dict:
 
 # ── Fetch 30 listings from warehouse ─────────────────────────────────────────
 
+
 def fetch_sample_listings() -> list[dict]:
     """Query 30 stratified listings (10 per condition) via docker exec."""
     sql = """
@@ -163,10 +166,25 @@ def fetch_sample_listings() -> list[dict]:
     """
 
     result = subprocess.run(
-        ["docker", "exec", "house4house-warehouse-1",
-         "psql", "-U", "warehouse", "-d", "house4house",
-         "-t", "-A", "-F", "|||", "-c", sql],
-        capture_output=True, text=True, timeout=30,
+        [
+            "docker",
+            "exec",
+            "house4house-warehouse-1",
+            "psql",
+            "-U",
+            "warehouse",
+            "-d",
+            "house4house",
+            "-t",
+            "-A",
+            "-F",
+            "|||",
+            "-c",
+            sql,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     if result.returncode != 0:
         print(f"DB query failed: {result.stderr}", file=sys.stderr)
@@ -182,23 +200,28 @@ def fetch_sample_listings() -> list[dict]:
         pid, url, condition, images_str, tags_str = parts[0], parts[1], parts[2], parts[3], parts[4]
         images = json.loads(images_str)
         tags = json.loads(tags_str)
-        listings.append({
-            "property_id": pid,
-            "listing_url": url,
-            "condition": condition,
-            "images": images,
-            "tags": tags,
-        })
+        listings.append(
+            {
+                "property_id": pid,
+                "listing_url": url,
+                "condition": condition,
+                "images": images,
+                "tags": tags,
+            }
+        )
 
     return listings
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     print("Fetching 30 stratified listings from warehouse...")
     listings = fetch_sample_listings()
-    print(f"Got {len(listings)} listings: {', '.join(f'{c}: {sum(1 for l in listings if l["condition"]==c)}' for c in ['good','newdevelopment','renew'])}")
+    print(
+        f"Got {len(listings)} listings: {', '.join(f'{c}: {sum(1 for l in listings if l["condition"] == c)}' for c in ['good', 'newdevelopment', 'renew'])}"
+    )
 
     results = []
     total_cost = {"haiku": 0.0, "sonnet": 0.0}
@@ -209,7 +232,7 @@ def main():
         image_urls = [s["url"] for s in selected]
         image_tags = [s["tag"] for s in selected]
 
-        print(f"\n[{i+1}/{len(listings)}] {pid} ({listing['condition']}) — tags: {image_tags}")
+        print(f"\n[{i + 1}/{len(listings)}] {pid} ({listing['condition']}) — tags: {image_tags}")
 
         entry = {
             "property_id": pid,
@@ -228,8 +251,11 @@ def main():
             if resp["success"]:
                 r = resp["result"]
                 # Cost estimate
-                cost = (resp["input_tokens"] * 0.80 / 1e6 + resp["output_tokens"] * 4.0 / 1e6) if model_name == "haiku" else \
-                       (resp["input_tokens"] * 3.0 / 1e6 + resp["output_tokens"] * 15.0 / 1e6)
+                cost = (
+                    (resp["input_tokens"] * 0.80 / 1e6 + resp["output_tokens"] * 4.0 / 1e6)
+                    if model_name == "haiku"
+                    else (resp["input_tokens"] * 3.0 / 1e6 + resp["output_tokens"] * 15.0 / 1e6)
+                )
                 total_cost[model_name] += cost
 
                 entry["models"][model_name] = {
@@ -244,7 +270,9 @@ def main():
                     "cost_usd": round(cost, 5),
                     "latency_s": round(elapsed, 1),
                 }
-                print(f"  {model_name}: render={r.get('is_render')} cond={r.get('condition_label')} finish={r.get('finish_quality')} ({elapsed:.1f}s ${cost:.4f})")
+                print(
+                    f"  {model_name}: render={r.get('is_render')} cond={r.get('condition_label')} finish={r.get('finish_quality')} ({elapsed:.1f}s ${cost:.4f})"
+                )
             else:
                 entry["models"][model_name] = {"error": resp["error"]}
                 print(f"  {model_name}: FAILED — {resp['error']}")
@@ -280,24 +308,36 @@ def main():
             agree_finish += 1
 
     print(f"\nAgreement (Haiku vs Sonnet) on {total_valid} valid listings:")
-    print(f"  Render:    {agree_render}/{total_valid} ({100*agree_render/total_valid:.0f}%)")
-    print(f"  Condition: {agree_condition}/{total_valid} ({100*agree_condition/total_valid:.0f}%)")
-    print(f"  Finish:    {agree_finish}/{total_valid} ({100*agree_finish/total_valid:.0f}%)")
+    print(f"  Render:    {agree_render}/{total_valid} ({100 * agree_render / total_valid:.0f}%)")
+    print(
+        f"  Condition: {agree_condition}/{total_valid} ({100 * agree_condition / total_valid:.0f}%)"
+    )
+    print(f"  Finish:    {agree_finish}/{total_valid} ({100 * agree_finish / total_valid:.0f}%)")
 
     print(f"\nTotal cost:  Haiku ${total_cost['haiku']:.4f}  |  Sonnet ${total_cost['sonnet']:.4f}")
-    print(f"Ratio: Sonnet is {total_cost['sonnet']/total_cost['haiku']:.1f}x more expensive")
+    print(f"Ratio: Sonnet is {total_cost['sonnet'] / total_cost['haiku']:.1f}x more expensive")
 
     # Per-condition breakdown
     for cond in ["good", "newdevelopment", "renew"]:
-        subset = [e for e in results if e["condition"] == cond and "error" not in e["models"].get("haiku", {}) and "error" not in e["models"].get("sonnet", {})]
+        subset = [
+            e
+            for e in results
+            if e["condition"] == cond
+            and "error" not in e["models"].get("haiku", {})
+            and "error" not in e["models"].get("sonnet", {})
+        ]
         if not subset:
             continue
         print(f"\n--- {cond} ({len(subset)} listings) ---")
-        print(f"{'PID':<12} {'Listing':<46} {'Tags':<30} {'H:render':>10} {'S:render':>10} {'H:cond':<25} {'S:cond':<25} {'H:finish':<12} {'S:finish':<12}")
+        print(
+            f"{'PID':<12} {'Listing':<46} {'Tags':<30} {'H:render':>10} {'S:render':>10} {'H:cond':<25} {'S:cond':<25} {'H:finish':<12} {'S:finish':<12}"
+        )
         for e in subset:
             h, s = e["models"]["haiku"], e["models"]["sonnet"]
             tags_str = ",".join(e["selected_tags"])[:28]
-            print(f"{e['property_id']:<12} {e['listing_url']:<46} {tags_str:<30} {str(h['is_render']):>10} {str(s['is_render']):>10} {h['condition_label']:<25} {s['condition_label']:<25} {h['finish_quality']:<12} {s['finish_quality']:<12}")
+            print(
+                f"{e['property_id']:<12} {e['listing_url']:<46} {tags_str:<30} {h['is_render']!s:>10} {s['is_render']!s:>10} {h['condition_label']:<25} {s['condition_label']:<25} {h['finish_quality']:<12} {s['finish_quality']:<12}"
+            )
 
     print("\n" + "=" * 120)
 

@@ -42,7 +42,6 @@ No config parameters needed — URL and version are hardcoded.
 
 from pipelines.gis.template.gis_ingestion_template import GISIngestionConfig
 
-
 BGRI_CONFIG = GISIngestionConfig(
     # --- DAG identity ---
     dag_id="s12_bgri_ingestion",
@@ -54,46 +53,37 @@ BGRI_CONFIG = GISIngestionConfig(
         "Contains 32 census variables at statistical subsection and section level "
         "for continental Portugal. Islands (Azores, Madeira) are out of scope for MVP."
     ),
-
     # --- Source ---
     # Continental Portugal only — islands are out of scope for MVP.
     # National file (portugal2021.zip) is inaccessible; BGRI21_CONT.zip is confirmed working.
     # The zip wraps a .gpkg; download_file handles zip extraction automatically.
     download_url="https://mapas.ine.pt/download/filesGPG/2021/BGRI21_CONT.zip",
     expected_format="gpkg",
-
     # --- Validation ---
     # Layer names unknown until first inspection — leave empty so the validation
     # report logs all available layers without hard-failing on missing names.
     # Update this list after reading the Airflow task logs.
     expected_layers=[],
-
     # ETRS89 / PT-TM06 (projected, metres) — same CRS as CAOP.
     expected_crs_epsg=3763,
-
     # Loose bounds that accommodate both layers (subsection ~120K–200K,
     # section ~20K–40K) plus any auxiliary tables (layer_styles, etc.).
     # Tighten after layer names are confirmed.
     min_feature_count=1,
     max_feature_count=500_000,
-
     # National GeoPackage with ~200K polygons and 32 attributes.
     # Reject anything under 50 MB as a truncated or empty download.
-    min_file_size_bytes=50 * 1024 * 1024,   # 50 MB
-
+    min_file_size_bytes=50 * 1024 * 1024,  # 50 MB
     # --- MinIO storage ---
     # Lands at: s3://raw/bgri/2021/BGRI21_CONT.gpkg (or similar, confirmed after first run)
     minio_bucket="raw",
     minio_prefix="bgri",
-
     # --- Schedule ---
     # One-time load — Census 2021 is static until the next census (~2031).
     schedule=None,
-
     # --- Version ---
     # Fixed: Census 2021. Not a trigger param.
     source_version="2021",
-
     # --- Tags ---
     tags=["bgri", "census", "geography", "ine", "p0", "static"],
 )

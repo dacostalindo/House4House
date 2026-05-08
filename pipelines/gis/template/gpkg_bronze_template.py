@@ -45,7 +45,6 @@ import shutil
 import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ class GpkgLayerConfig:
     in the GPKG file (useful for single-layer files like COS or BGRI).
     """
 
-    gpkg_layer: Optional[str]  # GPKG layer name, or None for auto-detect
+    gpkg_layer: str | None  # GPKG layer name, or None for auto-detect
     table: str  # Target bronze table (schema-qualified)
     fields: list[tuple[str, str]]  # [(column_name, SQL_TYPE), ...]
     geom_type: str  # PostGIS geometry type: POLYGON, MULTIPOLYGON, POINT, ...
@@ -93,7 +92,7 @@ class GpkgBronzeConfig:
     insert_page_size: int = 500  # Rows per execute_batch page
 
     # --- Downstream ---
-    dbt_trigger_dag_id: Optional[str] = None  # DAG to trigger after loading
+    dbt_trigger_dag_id: str | None = None  # DAG to trigger after loading
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -143,8 +142,8 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest GPKG from MinIO to a temp directory."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -152,7 +151,9 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
             client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=False)
 
             objects = list(
-                client.list_objects(config.minio_bucket, prefix=f"{config.minio_prefix}/", recursive=True)
+                client.list_objects(
+                    config.minio_bucket, prefix=f"{config.minio_prefix}/", recursive=True
+                )
             )
             gpkg_objects = [o for o in objects if o.object_name.endswith(".gpkg")]
             if not gpkg_objects:
@@ -163,7 +164,9 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
             latest = sorted(gpkg_objects, key=lambda o: o.object_name)[-1]
             log.info(
                 "[%s] Latest GPKG in MinIO: %s (%.1f MB)",
-                config.source_name, latest.object_name, latest.size / 1e6,
+                config.source_name,
+                latest.object_name,
+                latest.size / 1e6,
             )
 
             tmp_dir = tempfile.mkdtemp(prefix=f"{config.source_name}_bronze_")
@@ -171,7 +174,9 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
             client.fget_object(config.minio_bucket, latest.object_name, local_path)
 
             file_size = os.path.getsize(local_path)
-            log.info("[%s] Downloaded to %s (%.1f MB)", config.source_name, local_path, file_size / 1e6)
+            log.info(
+                "[%s] Downloaded to %s (%.1f MB)", config.source_name, local_path, file_size / 1e6
+            )
 
             return {"gpkg_path": local_path, "tmp_dir": tmp_dir, "minio_object": latest.object_name}
 
@@ -195,7 +200,9 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
                     layer_name = available[0]
                     log.info(
                         "[%s] Auto-detected layer '%s' for table %s",
-                        config.source_name, layer_name, layer_cfg.table,
+                        config.source_name,
+                        layer_name,
+                        layer_cfg.table,
                     )
                 elif layer_name not in available:
                     raise ValueError(
@@ -207,15 +214,19 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
                 n_features = info.get("features", 0)
                 log.info(
                     "[%s] Layer '%s': %d features",
-                    config.source_name, layer_name, n_features,
+                    config.source_name,
+                    layer_name,
+                    n_features,
                 )
 
-                resolved.append({
-                    "gpkg_layer": layer_name,
-                    "table": layer_cfg.table,
-                    "n_features": n_features,
-                    "layer_index": len(resolved),
-                })
+                resolved.append(
+                    {
+                        "gpkg_layer": layer_name,
+                        "table": layer_cfg.table,
+                        "n_features": n_features,
+                        "layer_index": len(resolved),
+                    }
+                )
 
             fetch_result["resolved_layers"] = resolved
             return fetch_result
@@ -272,8 +283,8 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
             """Load a single GPKG layer into its bronze table with batched reads."""
             import psycopg2
             import psycopg2.extras
-            from pyogrio.raw import read as raw_read
             from airflow.models import Variable
+            from pyogrio.raw import read as raw_read
 
             layer_cfg = config.layers[layer_index]
             resolved = fetch_result["resolved_layers"][layer_index]
@@ -285,7 +296,10 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
 
             log.info(
                 "[%s] Loading layer '%s' (%d features) into %s",
-                config.source_name, gpkg_layer, n_features, schema_table,
+                config.source_name,
+                gpkg_layer,
+                n_features,
+                schema_table,
             )
 
             conn = psycopg2.connect(
@@ -337,16 +351,22 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
                     field_values.append(wkb)
                     rows.append(tuple(field_values))
 
-                psycopg2.extras.execute_batch(cur, insert_sql, rows, page_size=config.insert_page_size)
+                psycopg2.extras.execute_batch(
+                    cur, insert_sql, rows, page_size=config.insert_page_size
+                )
                 conn.commit()
 
                 total_inserted += count
-                log.info("[%s] Inserted %d / %d features", config.source_name, total_inserted, n_features)
+                log.info(
+                    "[%s] Inserted %d / %d features", config.source_name, total_inserted, n_features
+                )
 
             cur.close()
             conn.close()
 
-            log.info("[%s] Loaded %d rows into %s", config.source_name, total_inserted, schema_table)
+            log.info(
+                "[%s] Loaded %d rows into %s", config.source_name, total_inserted, schema_table
+            )
             return {"table": schema_table, "rows_loaded": total_inserted}
 
         @task()
@@ -374,7 +394,10 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
                     )
                 log.info(
                     "[%s] %s: %d rows (>= %d OK)",
-                    config.source_name, layer_cfg.table, count, layer_cfg.expected_min,
+                    config.source_name,
+                    layer_cfg.table,
+                    count,
+                    layer_cfg.expected_min,
                 )
                 results[layer_cfg.table] = count
 

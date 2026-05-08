@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -40,12 +40,12 @@ class APIIndicator:
     is merged with the config's default_params to build the request URL.
     """
 
-    code: str                           # Unique identifier (e.g. "0009201")
-    name: str                           # Snake_case name for paths/logs
-    description: str                    # Human-readable description
-    category: str                       # Grouping tag (e.g. "housing")
+    code: str  # Unique identifier (e.g. "0009201")
+    name: str  # Snake_case name for paths/logs
+    description: str  # Human-readable description
+    category: str  # Grouping tag (e.g. "housing")
     endpoint_params: dict[str, str] = field(default_factory=dict)
-    storage_key: Optional[str] = None   # Override code for MinIO path (for paginated indicators)
+    storage_key: str | None = None  # Override code for MinIO path (for paginated indicators)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for Airflow XCom (JSON-safe)."""
@@ -82,21 +82,23 @@ class APIIngestionConfig:
 
     # --- DAG identity ---
     dag_id: str
-    source_name: str        # Short identifier: "ine", "eurostat", "bpstat"
+    source_name: str  # Short identifier: "ine", "eurostat", "bpstat"
     description: str
 
     # --- API connection ---
-    base_url: str           # e.g. "https://www.ine.pt"
-    api_path: str           # e.g. "/ine/json_indicador/pindica.jsp"
+    base_url: str  # e.g. "https://www.ine.pt"
+    api_path: str  # e.g. "/ine/json_indicador/pindica.jsp"
     default_params: dict[str, str] = field(default_factory=dict)
-    code_param_name: Optional[str] = "varcd"  # Query param for indicator code
+    code_param_name: str | None = "varcd"  # Query param for indicator code
     code_in_path: bool = False  # Append code to URL path instead of query param
 
     request_timeout_seconds: int = 60
     max_retries: int = 3
     retry_backoff_seconds: int = 5
     rate_limit_delay_seconds: float = 1.0
-    extra_headers: dict[str, str] = field(default_factory=dict)  # Custom HTTP headers (e.g. Supabase apikey)
+    extra_headers: dict[str, str] = field(
+        default_factory=dict
+    )  # Custom HTTP headers (e.g. Supabase apikey)
 
     # --- Indicators (catalog) ---
     indicators: list[APIIndicator] = field(default_factory=list)
@@ -106,14 +108,14 @@ class APIIngestionConfig:
     minio_prefix: str = ""  # e.g. "ine" → raw/ine/{code}/...
 
     # --- Scheduling ---
-    schedule: Optional[str] = None
-    start_date: Optional[datetime] = None
+    schedule: str | None = None
+    start_date: datetime | None = None
 
     # --- DAG-level Airflow Params ---
     dag_params: dict = field(default_factory=dict)
 
     # --- Orchestration ---
-    trigger_dag_id: Optional[str | list[str]] = None  # Auto-trigger DAG(s) after ingestion
+    trigger_dag_id: str | list[str] | None = None  # Auto-trigger DAG(s) after ingestion
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -207,11 +209,14 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             log.info(
                 "[%s] Checking API availability: %s (params=%s)",
-                config.source_name, url, test_params,
+                config.source_name,
+                url,
+                test_params,
             )
 
             resp = requests.get(
-                url, params=test_params,
+                url,
+                params=test_params,
                 headers=config.extra_headers or None,
                 timeout=config.request_timeout_seconds,
             )
@@ -262,7 +267,9 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             log.info(
                 "[%s] Fetching indicator %s (%s)",
-                config.source_name, indicator.code, indicator.name,
+                config.source_name,
+                indicator.code,
+                indicator.name,
             )
 
             @retry(
@@ -279,7 +286,8 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
             )
             def _do_fetch():
                 resp = requests.get(
-                    url, params=params,
+                    url,
+                    params=params,
                     headers=config.extra_headers or None,
                     timeout=config.request_timeout_seconds,
                 )
@@ -305,7 +313,9 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             log.info(
                 "[%s] Fetched %s → %s",
-                config.source_name, indicator.code, raw_path,
+                config.source_name,
+                indicator.code,
+                raw_path,
             )
             return result
 
@@ -320,8 +330,8 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             Path:  s3://{bucket}/{prefix}/{code}/{timestamp}.json
             """
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             indicator_dict = fetch_result["indicator"]
             indicator = APIIndicator.from_dict(indicator_dict)
@@ -332,8 +342,10 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
             access_key = Variable.get("MINIO_ACCESS_KEY")
             secret_key = Variable.get("MINIO_SECRET_KEY")
             client = Minio(
-                endpoint, access_key=access_key,
-                secret_key=secret_key, secure=False,
+                endpoint,
+                access_key=access_key,
+                secret_key=secret_key,
+                secure=False,
             )
 
             bucket = config.minio_bucket
@@ -363,7 +375,9 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
 
             log.info(
                 "[%s] Uploaded %s → %s",
-                config.source_name, code, raw_uri,
+                config.source_name,
+                code,
+                raw_uri,
             )
 
             return {
@@ -390,7 +404,8 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
                     seen.add(temp_dir)
             log.info(
                 "[%s] Cleaned up %d temp directories",
-                config.source_name, len(seen),
+                config.source_name,
+                len(seen),
             )
 
         # ------------------------------------------------------------------

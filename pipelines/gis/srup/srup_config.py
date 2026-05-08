@@ -55,10 +55,7 @@ class SRUPEndpointConfig:
         return f"{WFS_BASE_URL}{self.wfs_suffix}/WFService.aspx"
 
     def get_capabilities_url(self) -> str:
-        return (
-            f"{self.wfs_url}?SERVICE=WFS&VERSION={WFS_VERSION}"
-            f"&REQUEST=GetCapabilities"
-        )
+        return f"{self.wfs_url}?SERVICE=WFS&VERSION={WFS_VERSION}&REQUEST=GetCapabilities"
 
     def get_feature_url(self, feature_type: str) -> str:
         """Build WFS GetFeature URL for a specific feature type."""
@@ -108,9 +105,7 @@ SRUP_ENDPOINTS: list[SRUPEndpointConfig] = [
 ]
 
 # Derived lookups
-SRUP_ENDPOINT_BY_SUFFIX: dict[str, SRUPEndpointConfig] = {
-    e.wfs_suffix: e for e in SRUP_ENDPOINTS
-}
+SRUP_ENDPOINT_BY_SUFFIX: dict[str, SRUPEndpointConfig] = {e.wfs_suffix: e for e in SRUP_ENDPOINTS}
 
 SRUP_ENDPOINTS_BY_CATEGORY: dict[str, list[SRUPEndpointConfig]] = {}
 for _e in SRUP_ENDPOINTS:

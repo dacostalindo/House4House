@@ -32,7 +32,7 @@ import time
 import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 
@@ -47,9 +47,7 @@ log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-CRUS_WFS_URL_TEMPLATE = (
-    "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_{code}_1/WFService.aspx"
-)
+CRUS_WFS_URL_TEMPLATE = "https://servicos.dgterritorio.pt/SDISNITWFSCRUS_{code}_1/WFService.aspx"
 WFS_VERSION = "2.0.0"
 REQUEST_TIMEOUT = 30
 REQUEST_DELAY = 2.0
@@ -91,9 +89,7 @@ class DiscoveryReport:
             "unavailable": len(self.unavailable),
             "errors": len(self.errors),
             "coverage_pct": (
-                round(len(self.available) / self.total_probed * 100, 1)
-                if self.total_probed
-                else 0
+                round(len(self.available) / self.total_probed * 100, 1) if self.total_probed else 0
             ),
         }
 
@@ -113,16 +109,10 @@ def get_municipalities_from_db() -> list[tuple[str, str]]:
     user = os.environ.get("WAREHOUSE_USER", "warehouse")
     password = os.environ.get("WAREHOUSE_PASSWORD", "warehouse")
 
-    conn = psycopg2.connect(
-        host=host, port=port, dbname=dbname, user=user, password=password
-    )
+    conn = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password=password)
     try:
         cur = conn.cursor()
-        cur.execute(
-            "SELECT dtmn, municipio "
-            "FROM bronze_geo.raw_caop_municipios "
-            "ORDER BY dtmn"
-        )
+        cur.execute("SELECT dtmn, municipio FROM bronze_geo.raw_caop_municipios ORDER BY dtmn")
         rows = cur.fetchall()
         cur.close()
     finally:
@@ -331,21 +321,15 @@ def probe_wfs_endpoint(code: str, name: str) -> MunicipalityResult:
         )
 
     except requests.exceptions.Timeout:
-        return MunicipalityResult(
-            code=code, name=name, available=False, error="Timeout"
-        )
+        return MunicipalityResult(code=code, name=name, available=False, error="Timeout")
     except requests.exceptions.ConnectionError:
-        return MunicipalityResult(
-            code=code, name=name, available=False, error="Connection refused"
-        )
+        return MunicipalityResult(code=code, name=name, available=False, error="Connection refused")
     except requests.exceptions.HTTPError as e:
         return MunicipalityResult(
             code=code, name=name, available=False, error=f"HTTP {e.response.status_code}"
         )
     except Exception as e:
-        return MunicipalityResult(
-            code=code, name=name, available=False, error=str(e)
-        )
+        return MunicipalityResult(code=code, name=name, available=False, error=str(e))
 
 
 def _extract_feature_type(xml_text: str) -> str | None:
@@ -400,7 +384,7 @@ def run_discovery(
 ) -> DiscoveryReport:
     """Probe all municipalities and build a discovery report."""
     report = DiscoveryReport(
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         total_probed=len(municipalities),
     )
 

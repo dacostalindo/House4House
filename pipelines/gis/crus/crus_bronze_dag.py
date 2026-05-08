@@ -18,9 +18,9 @@ from datetime import timedelta
 
 from pipelines.gis.crus.crus_config import (
     BRONZE_SCHEMA_TABLE,
-    MUNICIPALITIES,
     MINIO_BUCKET,
     MINIO_PREFIX,
+    MUNICIPALITIES,
 )
 
 log = logging.getLogger(__name__)
@@ -99,8 +99,8 @@ def _create_dag():
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest CRUS GeoJSON files in MinIO for each municipality."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")
@@ -117,12 +117,8 @@ def _create_dag():
 
             for muni in MUNICIPALITIES:
                 prefix = f"{MINIO_PREFIX}/{muni.name_lower}/"
-                objects = list(
-                    client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True)
-                )
-                geojson_objects = [
-                    o for o in objects if o.object_name.endswith(".geojson")
-                ]
+                objects = list(client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True))
+                geojson_objects = [o for o in objects if o.object_name.endswith(".geojson")]
 
                 if not geojson_objects:
                     log.warning(
@@ -155,9 +151,7 @@ def _create_dag():
                 )
 
             if not files:
-                raise RuntimeError(
-                    "No CRUS GeoJSON files found in MinIO for any municipality"
-                )
+                raise RuntimeError("No CRUS GeoJSON files found in MinIO for any municipality")
 
             return {"tmp_dir": tmp_dir, "files": files}
 
@@ -211,7 +205,7 @@ def _create_dag():
 
                     log.info("[crus] Loading %s (%s) from %s", name, code, local_path)
 
-                    with open(local_path, "r", encoding="utf-8") as f:
+                    with open(local_path, encoding="utf-8") as f:
                         fc = json.load(f)
 
                     features = fc.get("features", [])
@@ -254,7 +248,9 @@ def _create_dag():
                     psycopg2.extras.execute_batch(cur, INSERT_SQL, rows, page_size=500)
                     conn.commit()
 
-                    log.info("[crus] Loaded %d rows into %s for %s", len(rows), BRONZE_SCHEMA_TABLE, name)
+                    log.info(
+                        "[crus] Loaded %d rows into %s for %s", len(rows), BRONZE_SCHEMA_TABLE, name
+                    )
                     results.append({"code": code, "name": name, "rows_loaded": len(rows)})
 
                 cur.close()

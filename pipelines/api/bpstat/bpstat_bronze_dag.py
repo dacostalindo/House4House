@@ -16,16 +16,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from functools import reduce
-from operator import mul
+from datetime import UTC, datetime, timedelta
 
 log = logging.getLogger(__name__)
 
 
-def _flatten_jsonstat(
-    raw_json: dict, dataset_code: str, batch_id: str
-) -> list[tuple]:
+def _flatten_jsonstat(raw_json: dict, dataset_code: str, batch_id: str) -> list[tuple]:
     """
     Flatten a JSON-stat 2.0 dataset response into rows for INSERT.
 
@@ -169,17 +165,19 @@ def _flatten_jsonstat(
             status = statuses.get(flat_idx)
             period = time_dates[t_idx]
 
-            rows.append((
-                batch_id,
-                domain_id,
-                dataset_id,
-                series_id,
-                series_label,
-                period,
-                value,
-                unit,
-                status,
-            ))
+            rows.append(
+                (
+                    batch_id,
+                    domain_id,
+                    dataset_id,
+                    series_id,
+                    series_label,
+                    period,
+                    value,
+                    unit,
+                    status,
+                )
+            )
 
     return rows
 
@@ -226,29 +224,24 @@ def _create_dag():
 
             latest_files = {}
             for code in DATASET_CODES:
-                objects = list(
-                    client.list_objects(
-                        "raw", prefix=f"bpstat/{code}/", recursive=True
-                    )
-                )
-                json_objects = [
-                    o for o in objects if o.object_name.endswith(".json")
-                ]
+                objects = list(client.list_objects("raw", prefix=f"bpstat/{code}/", recursive=True))
+                json_objects = [o for o in objects if o.object_name.endswith(".json")]
                 if json_objects:
-                    latest = sorted(
-                        json_objects, key=lambda o: o.object_name
-                    )[-1]
+                    latest = sorted(json_objects, key=lambda o: o.object_name)[-1]
                     latest_files[code] = latest.object_name
                     log.info(
                         "[bpstat] %s → %s (%.1f KB)",
-                        code, latest.object_name, latest.size / 1024,
+                        code,
+                        latest.object_name,
+                        latest.size / 1024,
                     )
                 else:
                     log.warning("[bpstat] No JSON found for %s", code)
 
             log.info(
                 "[bpstat] Found %d / %d dataset files",
-                len(latest_files), len(DATASET_CODES),
+                len(latest_files),
+                len(DATASET_CODES),
             )
             return latest_files
 
@@ -329,7 +322,7 @@ def _create_dag():
             )
             cur = conn.cursor()
 
-            batch_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            batch_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
             insert_sql = """
                 INSERT INTO bronze_macro.raw_bpstat (
                     _batch_id, domain_id, dataset_id,
@@ -365,9 +358,7 @@ def _create_dag():
 
                 for start in range(0, len(rows), 5000):
                     batch = rows[start : start + 5000]
-                    psycopg2.extras.execute_batch(
-                        cur, insert_sql, batch, page_size=1000
-                    )
+                    psycopg2.extras.execute_batch(cur, insert_sql, batch, page_size=1000)
 
                 conn.commit()
                 total_rows += len(rows)
@@ -379,7 +370,8 @@ def _create_dag():
 
             log.info(
                 "[bpstat] Total: %d rows across %d datasets",
-                total_rows, len(results),
+                total_rows,
+                len(results),
             )
             return results
 
@@ -417,12 +409,15 @@ def _create_dag():
             for domain, ds_id, count, n_series, min_p, max_p in dataset_info:
                 log.info(
                     "[bpstat] domain=%s dataset=%s: %d rows, %d series (%s → %s)",
-                    domain, ds_id[:12], count, n_series, min_p, max_p,
+                    domain,
+                    ds_id[:12],
+                    count,
+                    n_series,
+                    min_p,
+                    max_p,
                 )
 
-            empty = [
-                code for code, cnt in load_results.items() if cnt == 0
-            ]
+            empty = [code for code, cnt in load_results.items() if cnt == 0]
             if empty:
                 log.warning("[bpstat] %d datasets with 0 rows: %s", len(empty), empty)
 

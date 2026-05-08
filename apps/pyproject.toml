@@ -1,0 +1,23 @@
+[project]
+name = "house4house-apps"
+version = "0.1.0"
+description = "Streamlit app for House4House (Kepler.gl maps + warehouse views)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "streamlit==1.41.0",
+    "streamlit-keplergl==0.3.0",
+    "psycopg2-binary>=2.9.10",
+    # keplergl 0.3.7 does `from pkg_resources import resource_string` at
+    # runtime. setuptools 80+ removed pkg_resources from the default install,
+    # so we need an older setuptools to keep keplergl working.
+    "setuptools>=75,<80",
+    "geopandas==0.14.4",
+    "pandas==2.2.3",
+    # SQLAlchemy pinned to <2.0 to match Airflow 2.10.4 constraint at the
+    # workspace level. apps/ has zero direct SQLAlchemy usage today, so this
+    # has no functional cost.
+    "sqlalchemy>=1.4.36,<2.0",
+]
+
+[tool.uv]
+package = false

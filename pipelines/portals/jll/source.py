@@ -50,12 +50,12 @@ import json
 import logging
 import re
 import time
+from collections.abc import Iterable
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 import dlt
 import requests as _requests
-
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +120,11 @@ LISTINGS_VERSION_COLUMNS: tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 DEVELOPMENTS_FLOAT_COLUMNS = ("gps_lat", "gps_lon")
 LISTINGS_FLOAT_COLUMNS = (
-    "price_value", "gross_area", "net_area", "gps_lat", "gps_lon",
+    "price_value",
+    "gross_area",
+    "net_area",
+    "gps_lat",
+    "gps_lon",
 )
 
 
@@ -160,7 +164,6 @@ LISTINGS_JSON_COLUMNS = (
 )
 
 
-
 # ---------------------------------------------------------------------------
 # HTTP helpers
 # ---------------------------------------------------------------------------
@@ -184,13 +187,19 @@ def _fetch_json(path: str, params: dict | None = None) -> dict:
     url = f"{API_BASE}{path}"
     for attempt in range(MAX_RETRIES):
         resp = _requests.get(
-            url, params=params, headers=_api_headers(), timeout=REQUEST_TIMEOUT_S,
+            url,
+            params=params,
+            headers=_api_headers(),
+            timeout=REQUEST_TIMEOUT_S,
         )
         if resp.status_code == 430:
             wait = RETRY_BACKOFF_S * (attempt + 1)
             log.warning(
                 "[jll] 430 rate limit on %s (attempt %d/%d), waiting %ds",
-                path, attempt + 1, MAX_RETRIES, wait,
+                path,
+                attempt + 1,
+                MAX_RETRIES,
+                wait,
             )
             time.sleep(wait)
             continue
@@ -301,7 +310,9 @@ def _ensure_payload() -> tuple[list[dict], list[dict]]:
         if not devs:
             break
         all_devs.extend(devs)
-        log.info("[jll] Pass 1: page %d → %d developments (total %d)", page, len(devs), len(all_devs))
+        log.info(
+            "[jll] Pass 1: page %d → %d developments (total %d)", page, len(devs), len(all_devs)
+        )
         if len(devs) < DEV_PAGE_SIZE:
             break
         page += 1
@@ -330,14 +341,17 @@ def _ensure_payload() -> tuple[list[dict], list[dict]]:
         if (i + 1) % 20 == 0 or i == len(all_devs) - 1:
             log.info(
                 "[jll] Pass 2: %d/%d developments fetched (%d listings total)",
-                i + 1, len(all_devs), len(all_listings),
+                i + 1,
+                len(all_devs),
+                len(all_listings),
             )
 
     _payload_cache["developments"] = all_devs
     _payload_cache["listings"] = all_listings
     log.info(
         "[jll] payload ready: %d developments, %d listings",
-        len(all_devs), len(all_listings),
+        len(all_devs),
+        len(all_listings),
     )
     return all_devs, all_listings
 
@@ -424,5 +438,3 @@ def jll_listings_state() -> Iterable[dict]:
     _, listings = _ensure_payload()
     for raw in listings:
         yield {"listing_id": raw.get("ID"), "last_seen_date": today}
-
-

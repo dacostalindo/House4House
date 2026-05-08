@@ -72,26 +72,28 @@ def _flatten_indicator(raw_json: dict, batch_id: str) -> list[tuple]:
         if not isinstance(observations, list):
             continue
         for obs in observations:
-            rows.append((
-                indicator_code,
-                indicator_name,
-                last_updated,
-                period,
-                obs.get("geocod"),
-                obs.get("geodsg"),
-                obs.get("dim_3"),
-                obs.get("dim_3_t"),
-                obs.get("dim_4"),
-                obs.get("dim_4_t"),
-                obs.get("dim_5"),
-                obs.get("dim_5_t"),
-                _parse_valor(obs.get("valor")),
-                obs.get("ind_string"),
-                obs.get("sinal_conv"),
-                obs.get("sinal_conv_desc"),
-                batch_id,
-                extraction_ts,
-            ))
+            rows.append(
+                (
+                    indicator_code,
+                    indicator_name,
+                    last_updated,
+                    period,
+                    obs.get("geocod"),
+                    obs.get("geodsg"),
+                    obs.get("dim_3"),
+                    obs.get("dim_3_t"),
+                    obs.get("dim_4"),
+                    obs.get("dim_4_t"),
+                    obs.get("dim_5"),
+                    obs.get("dim_5_t"),
+                    _parse_valor(obs.get("valor")),
+                    obs.get("ind_string"),
+                    obs.get("sinal_conv"),
+                    obs.get("sinal_conv_desc"),
+                    batch_id,
+                    extraction_ts,
+                )
+            )
     return rows
 
 
@@ -123,8 +125,8 @@ def _create_dag():
         @task()
         def list_minio_files() -> dict:
             """Find the latest JSON file per indicator code in MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
@@ -140,7 +142,9 @@ def _create_dag():
                 if json_objects:
                     latest = sorted(json_objects, key=lambda o: o.object_name)[-1]
                     latest_files[code] = latest.object_name
-                    log.info("[ine] %s → %s (%.1f KB)", code, latest.object_name, latest.size / 1024)
+                    log.info(
+                        "[ine] %s → %s (%.1f KB)", code, latest.object_name, latest.size / 1024
+                    )
                 else:
                     log.warning("[ine] No JSON found for indicator %s", code)
 
@@ -210,8 +214,8 @@ def _create_dag():
             """Parse JSON files and load into bronze_ine.raw_indicators."""
             import psycopg2
             import psycopg2.extras
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
@@ -279,7 +283,7 @@ def _create_dag():
                 # Batch insert
                 batch_size = 10_000
                 for start in range(0, len(rows), batch_size):
-                    batch = rows[start:start + batch_size]
+                    batch = rows[start : start + batch_size]
                     psycopg2.extras.execute_batch(cur, insert_sql, batch, page_size=1000)
 
                 conn.commit()

@@ -11,6 +11,7 @@ Dependencies:
     astronomer-cosmos>=1.8.0
     dbt-postgres==1.9.0
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from airflow.decorators import dag
 from airflow.operators.empty import EmptyOperator
-from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig
+from cosmos import DbtTaskGroup, ExecutionConfig, ProfileConfig, ProjectConfig
 from cosmos.profiles import PostgresUserPasswordProfileMapping
 
 DBT_PROJECT_DIR = Path("/opt/airflow/dbt")

@@ -92,8 +92,14 @@ def _get_known_property_ids(config, detail_refresh_days: int) -> set[str]:
 
 
 def _find_previous_detail(
-    config, minio_client, bucket: str, prefix: str, operation: str,
-    distrito: str, concelho: str | None = None, exclude_date: str | None = None,
+    config,
+    minio_client,
+    bucket: str,
+    prefix: str,
+    operation: str,
+    distrito: str,
+    concelho: str | None = None,
+    exclude_date: str | None = None,
 ) -> dict[str, dict]:
     """
     Find the most recent detail JSONL for this segment in MinIO.
@@ -104,29 +110,21 @@ def _find_previous_detail(
         detail_prefix = f"{prefix}/detail/{operation}/{distrito}/{concelho}/"
     else:
         detail_prefix = f"{prefix}/detail/{operation}/{distrito}/"
-    objects = list(
-        minio_client.list_objects(bucket, prefix=detail_prefix, recursive=True)
-    )
-    jsonl_files = [
-        o for o in objects if o.object_name.endswith(".jsonl")
-    ]
+    objects = list(minio_client.list_objects(bucket, prefix=detail_prefix, recursive=True))
+    jsonl_files = [o for o in objects if o.object_name.endswith(".jsonl")]
     if not jsonl_files:
         return {}
 
     # Filter to same path depth to avoid mixing distrito-level and concelho-level files
     expected_depth = detail_prefix.count("/")
-    jsonl_files = [
-        o for o in jsonl_files
-        if o.object_name.count("/") == expected_depth
-    ]
+    jsonl_files = [o for o in jsonl_files if o.object_name.count("/") == expected_depth]
     if not jsonl_files:
         return {}
 
     # Exclude today's (possibly empty) file so we load a real previous day
     if exclude_date:
         jsonl_files = [
-            o for o in jsonl_files
-            if not o.object_name.endswith(f"/{exclude_date}.jsonl")
+            o for o in jsonl_files if not o.object_name.endswith(f"/{exclude_date}.jsonl")
         ]
         if not jsonl_files:
             return {}
@@ -186,16 +184,12 @@ def _create_dag():
         params={
             "distrito": Param(
                 default="all",
-                description=(
-                    "Single distrito to crawl (e.g. 'beja'), or 'all' for all 18."
-                ),
+                description=("Single distrito to crawl (e.g. 'beja'), or 'all' for all 18."),
                 type="string",
             ),
             "operation": Param(
                 default="all",
-                description=(
-                    "Operation type: 'sale', 'rent', or 'all' for both."
-                ),
+                description=("Operation type: 'sale', 'rent', or 'all' for both."),
                 type="string",
             ),
             "concelho": Param(
@@ -208,9 +202,7 @@ def _create_dag():
             ),
             "force_full_refresh": Param(
                 default=False,
-                description=(
-                    "Force re-fetch of ALL listing details, ignoring incremental cache."
-                ),
+                description=("Force re-fetch of ALL listing details, ignoring incremental cache."),
                 type="boolean",
             ),
         },
@@ -246,9 +238,7 @@ def _create_dag():
             if isinstance(data, list):
                 item_count = len(data)
             elif isinstance(data, dict):
-                item_count = len(
-                    data.get("property_list") or data.get("data") or []
-                )
+                item_count = len(data.get("property_list") or data.get("data") or [])
             else:
                 item_count = 0
             log.info(
@@ -309,7 +299,8 @@ def _create_dag():
                 # Filter to single concelho if specified
                 if param_concelho != "all":
                     concelho_mapping = [
-                        m for m in concelho_mapping
+                        m
+                        for m in concelho_mapping
                         if to_idealista_slug(m["concelho_name"]) == param_concelho
                     ]
                     if not concelho_mapping:
@@ -319,16 +310,18 @@ def _create_dag():
                     distrito_slug = to_idealista_slug(entry["distrito_name"])
                     concelho_slug = to_idealista_slug(entry["concelho_name"])
                     for operation in operations:
-                        segments.append({
-                            "operation": operation,
-                            "distrito": distrito_slug,
-                            "concelho": concelho_slug,
-                            "search_url": build_idealista_url(
-                                operation, entry["distrito_name"], entry["concelho_name"]
-                            ),
-                            "known_ids_count": len(known_ids),
-                            "force_full": force_full,
-                        })
+                        segments.append(
+                            {
+                                "operation": operation,
+                                "distrito": distrito_slug,
+                                "concelho": concelho_slug,
+                                "search_url": build_idealista_url(
+                                    operation, entry["distrito_name"], entry["concelho_name"]
+                                ),
+                                "known_ids_count": len(known_ids),
+                                "force_full": force_full,
+                            }
+                        )
             else:
                 # Legacy distrito-level segments
                 if param_distrito != "all":
@@ -349,14 +342,16 @@ def _create_dag():
 
                 for distrito, ops in distritos.items():
                     for operation in operations:
-                        segments.append({
-                            "operation": operation,
-                            "distrito": distrito,
-                            "concelho": None,
-                            "search_url": ops[operation],
-                            "known_ids_count": len(known_ids),
-                            "force_full": force_full,
-                        })
+                        segments.append(
+                            {
+                                "operation": operation,
+                                "distrito": distrito,
+                                "concelho": None,
+                                "search_url": ops[operation],
+                                "known_ids_count": len(known_ids),
+                                "force_full": force_full,
+                            }
+                        )
 
             log.info(
                 "[%s] Built %d segments (level=%s, distrito=%s, "
@@ -390,9 +385,7 @@ def _create_dag():
 
             @retry(
                 stop=stop_after_attempt(config.max_retries),
-                wait=wait_exponential(
-                    multiplier=1, min=config.retry_backoff_seconds, max=60
-                ),
+                wait=wait_exponential(multiplier=1, min=config.retry_backoff_seconds, max=60),
                 retry=retry_if_exception_type(
                     (
                         requests.exceptions.ConnectionError,
@@ -429,9 +422,7 @@ def _create_dag():
 
             while page <= config.max_discovery_pages:
                 params = {"url": search_url, "page": page, "apikey": api_key}
-                resp = _fetch_page(
-                    config.discovery_url, params, config.request_timeout_seconds
-                )
+                resp = _fetch_page(config.discovery_url, params, config.request_timeout_seconds)
                 page_items = _extract_items(resp.json())
 
                 if not page_items:
@@ -581,9 +572,7 @@ def _create_dag():
                     f.write(_jsonl_line(item) + "\n")
 
             if concelho:
-                minio_object = (
-                    f"{config.minio_prefix}/discovery/{operation}/{distrito}/{concelho}/{scrape_date}.jsonl"
-                )
+                minio_object = f"{config.minio_prefix}/discovery/{operation}/{distrito}/{concelho}/{scrape_date}.jsonl"
             else:
                 minio_object = (
                     f"{config.minio_prefix}/discovery/{operation}/{distrito}/{scrape_date}.jsonl"
@@ -646,9 +635,7 @@ def _create_dag():
 
             @retry(
                 stop=stop_after_attempt(config.max_retries),
-                wait=wait_exponential(
-                    multiplier=1, min=config.retry_backoff_seconds, max=60
-                ),
+                wait=wait_exponential(multiplier=1, min=config.retry_backoff_seconds, max=60),
                 retry=retry_if_exception_type(
                     (
                         requests.exceptions.ConnectionError,
@@ -688,9 +675,7 @@ def _create_dag():
                 resp.release_conn()
 
             discovery_items = [
-                json.loads(line)
-                for line in raw_bytes.decode("utf-8").split("\n")
-                if line.strip()
+                json.loads(line) for line in raw_bytes.decode("utf-8").split("\n") if line.strip()
             ]
             # Deduplicate: discovery pagination can return the same listing
             # on multiple pages. Use dict.fromkeys to preserve first occurrence order.
@@ -698,13 +683,16 @@ def _create_dag():
             if items_without_id:
                 log.warning(
                     "[%s] %s/%s: %d discovery items missing property_id — skipped",
-                    config.source_name, operation, segment_label, items_without_id,
+                    config.source_name,
+                    operation,
+                    segment_label,
+                    items_without_id,
                 )
-            all_ids = list(dict.fromkeys(
-                str(item["property_id"])
-                for item in discovery_items
-                if item.get("property_id")
-            ))
+            all_ids = list(
+                dict.fromkeys(
+                    str(item["property_id"]) for item in discovery_items if item.get("property_id")
+                )
+            )
 
             # Determine which IDs need fetching
             if force_full:
@@ -725,9 +713,14 @@ def _create_dag():
 
                 if ids_to_skip:
                     previous_details = _find_previous_detail(
-                        config, minio_client, config.minio_bucket,
-                        config.minio_prefix, operation, distrito,
-                        concelho=concelho, exclude_date=scrape_date,
+                        config,
+                        minio_client,
+                        config.minio_bucket,
+                        config.minio_prefix,
+                        operation,
+                        distrito,
+                        concelho=concelho,
+                        exclude_date=scrape_date,
                     )
                 else:
                     previous_details = {}
@@ -812,9 +805,7 @@ def _create_dag():
 
             # Upload detail JSONL to MinIO
             if concelho:
-                minio_object = (
-                    f"{config.minio_prefix}/detail/{operation}/{distrito}/{concelho}/{scrape_date}.jsonl"
-                )
+                minio_object = f"{config.minio_prefix}/detail/{operation}/{distrito}/{concelho}/{scrape_date}.jsonl"
             else:
                 minio_object = (
                     f"{config.minio_prefix}/detail/{operation}/{distrito}/{scrape_date}.jsonl"
@@ -837,8 +828,7 @@ def _create_dag():
             )
 
             log.info(
-                "[%s] %s/%s: detail done — %d fetched, %d carried forward, "
-                "%d errors → s3://%s/%s",
+                "[%s] %s/%s: detail done — %d fetched, %d carried forward, %d errors → s3://%s/%s",
                 config.source_name,
                 operation,
                 segment_label,
@@ -861,9 +851,7 @@ def _create_dag():
             }
 
         @task(trigger_rule="all_done")
-        def cleanup_temp(
-            discovery_results: list[dict], detail_results: list[dict]
-        ):
+        def cleanup_temp(discovery_results: list[dict], detail_results: list[dict]):
             """Remove temp directories after all crawls complete."""
             seen: set[str] = set()
             for result in list(discovery_results) + list(detail_results):

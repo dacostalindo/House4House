@@ -13,7 +13,7 @@
 x-airflow-common: &airflow-common
   build:
     context: .
-    dockerfile: Dockerfile.airflow
+    dockerfile: Dockerfile.airflow.uv
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD}@postgres/airflow
@@ -215,8 +215,8 @@ services:
 
   streamlit:
     build:
-      context: ./apps
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/Dockerfile.uv
     depends_on:
       warehouse:
         condition: service_healthy

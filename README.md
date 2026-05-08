@@ -1,5 +1,35 @@
 # House4House
 
+Portugal real estate + regulatory GIS data warehouse. Airflow + dlt + dbt-postgres + Cosmos + PostGIS + MinIO + Streamlit/Kepler.gl.
+
+## Getting Started
+
+**Prerequisites**: Docker (or OrbStack), [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh` — make sure `~/.local/bin` is on `PATH`).
+
+```bash
+git clone <repo>
+cd House4House
+make setup       # uv sync (workspace) + pre-commit install
+make verify      # smoke check: imports + ruff lint
+make up          # docker compose up: airflow + postgres + minio + metabase
+```
+
+For project rules and conventions Claude should follow when editing this repo, see [CLAUDE.md](./CLAUDE.md). For the in-flight dev-tooling plan and per-area conventions (bronze-permissive, SCD2, ZenRows two-pass, etc.), see the design doc referenced from `CLAUDE.md`.
+
+## Repo layout
+
+| Path | Role |
+|---|---|
+| [pyproject.toml](./pyproject.toml) | Workspace coordinator (`apps`, `pipelines` members) + ruff/pytest config |
+| [apps/](./apps/) | Streamlit app (Kepler.gl maps, warehouse views) — workspace member |
+| [pipelines/](./pipelines/) | Airflow DAGs + dlt sources + scrapers — workspace member |
+| [dbt/](./dbt/) | dbt-postgres models (staging → silver → gold) |
+| [warehouse/init/](./warehouse/init/) | PostGIS schema bootstrap |
+| [Dockerfile.airflow.uv](./Dockerfile.airflow.uv) | uv-based Airflow image (Phase 1 of dev-tooling plan) |
+| [apps/Dockerfile.uv](./apps/Dockerfile.uv) | uv-based Streamlit image |
+
+---
+
 # Portugal Real Estate Data Warehouse — MVP Blueprint
 ## Complete Technical Architecture: Sources, Stack, Models & Delivery Plan
 ### Scoped to 31 Data Sources (P0 + P1 + P2) for Minimum Viable Product

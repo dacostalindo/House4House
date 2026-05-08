@@ -46,16 +46,15 @@ from airflow.decorators import task
 from airflow.models import Variable
 
 from pipelines.portals.zome.source import (
-    SUPABASE_URL,
-    PAGE_SIZE,
     LISTINGS_MAX_OFFSET,
+    PAGE_SIZE,
     RATE_LIMIT_S,
     REQUEST_TIMEOUT_S,
+    SUPABASE_URL,
     _supabase_headers,
     zome_facts_source,
     zome_refs_source,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +88,10 @@ def _alert_on_failure(context: dict) -> None:
     exception = context.get("exception")
     log.error(
         "[ALERT] %s.%s failed (run %s): %s",
-        dag_id, task_id, run_id, exception,
+        dag_id,
+        task_id,
+        run_id,
+        exception,
     )
 
 
@@ -123,8 +125,8 @@ with DAG(
           s3://raw/zome/tab_ventures/{ts}.json
           s3://raw/zome/tab_listing_list/p{0..9}/{ts}.json
         """
-        from minio import Minio
         from dlt.sources.helpers import requests
+        from minio import Minio
 
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         endpoint = Variable.get("MINIO_ENDPOINT", default_var="minio:9000")
@@ -159,6 +161,7 @@ with DAG(
 
         # Listings — paginate.
         import time
+
         for i, offset in enumerate(range(0, LISTINGS_MAX_OFFSET, PAGE_SIZE)):
             page = requests.get(
                 f"{SUPABASE_URL}/rest/v1/tab_listing_list",
@@ -220,8 +223,11 @@ with DAG(
 
         creds = _postgres_credentials()
         conn = psycopg2.connect(
-            host=creds["host"], port=creds["port"], dbname=creds["database"],
-            user=creds["username"], password=creds["password"],
+            host=creds["host"],
+            port=creds["port"],
+            dbname=creds["database"],
+            user=creds["username"],
+            password=creds["password"],
         )
         try:
             with conn.cursor() as cur:
@@ -237,8 +243,7 @@ with DAG(
                         f"_dlt_loads for load_id={load_id} not status=0 (success): {rows}"
                     )
                 cur.execute(
-                    f"SELECT count(*) FROM {DATASET_NAME}.zome_listings "
-                    f"WHERE _dlt_valid_to IS NULL"
+                    f"SELECT count(*) FROM {DATASET_NAME}.zome_listings WHERE _dlt_valid_to IS NULL"
                 )
                 listings_current = cur.fetchone()[0]
                 cur.execute(
@@ -247,8 +252,7 @@ with DAG(
                 )
                 devs_current = cur.fetchone()[0]
                 cur.execute(
-                    f"SELECT count(*) FROM {DATASET_NAME}.zome_plots "
-                    f"WHERE _dlt_valid_to IS NULL"
+                    f"SELECT count(*) FROM {DATASET_NAME}.zome_plots WHERE _dlt_valid_to IS NULL"
                 )
                 plots_current = cur.fetchone()[0]
                 if listings_current < 1000 or listings_current > 50_000:
@@ -269,7 +273,10 @@ with DAG(
                     )
                 log.info(
                     "[zome_dlt] validation OK: listings=%d, developments=%d, plots=%d, load_id=%s",
-                    listings_current, devs_current, plots_current, load_id,
+                    listings_current,
+                    devs_current,
+                    plots_current,
+                    load_id,
                 )
                 return {
                     "load_id": load_id,

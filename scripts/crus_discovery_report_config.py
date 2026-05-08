@@ -53,7 +53,9 @@ MUNICIPALITIES: list[CRUSMunicipalityConfig] = [
     CRUSMunicipalityConfig("0401", "Alfandega da Fe", "gmgml:CRUS_Alfandega_da_Fe_V"),
     CRUSMunicipalityConfig("0402", "Braganca", "gmgml:CRUS_Braganca_V"),
     CRUSMunicipalityConfig("0403", "Carrazeda de Ansiaes", "gmgml:CRUS_Carrazeda_de_Ansiaes_V"),
-    CRUSMunicipalityConfig("0404", "Freixo de Espada a Cinta", "gmgml:CRUS_Freixo_de_Espada_a_Cinta_V"),
+    CRUSMunicipalityConfig(
+        "0404", "Freixo de Espada a Cinta", "gmgml:CRUS_Freixo_de_Espada_a_Cinta_V"
+    ),
     CRUSMunicipalityConfig("0405", "Macedo de Cavaleiros", "gmgml:CRUS_Macedo_de_Cavaleiros_V"),
     CRUSMunicipalityConfig("0406", "Miranda do Douro", "gmgml:CRUS_Miranda_do_Douro_V"),
     CRUSMunicipalityConfig("0407", "Mirandela", "gmgml:CRUS_Mirandela_V"),
@@ -123,12 +125,16 @@ MUNICIPALITIES: list[CRUSMunicipalityConfig] = [
     CRUSMunicipalityConfig("0813", "Silves", "gmgml:CRUS_Silves_V"),
     CRUSMunicipalityConfig("0814", "Tavira", "gmgml:CRUS_Tavira_V"),
     CRUSMunicipalityConfig("0815", "Vila do Bispo", "gmgml:CRUS_Vila_do_Bispo_V"),
-    CRUSMunicipalityConfig("0816", "Vila Real de Santo Antonio", "gmgml:CRUS_Vila_Real_de_Santo_Antonio_V"),
+    CRUSMunicipalityConfig(
+        "0816", "Vila Real de Santo Antonio", "gmgml:CRUS_Vila_Real_de_Santo_Antonio_V"
+    ),
     # District 09
     CRUSMunicipalityConfig("0901", "Aguiar da Beira", "gmgml:CRUS_Aguiar_da_Beira_V"),
     CRUSMunicipalityConfig("0902", "Almeida", "gmgml:CRUS_Almeida_V"),
     CRUSMunicipalityConfig("0903", "Celorico da Beira", "gmgml:CRUS_Celorico_da_Beira_V"),
-    CRUSMunicipalityConfig("0904", "Figueira de Castelo Rodrigo", "gmgml:CRUS_Figueira_de_Castelo_Rodrigo_V"),
+    CRUSMunicipalityConfig(
+        "0904", "Figueira de Castelo Rodrigo", "gmgml:CRUS_Figueira_de_Castelo_Rodrigo_V"
+    ),
     CRUSMunicipalityConfig("0905", "Fornos de Algodres", "gmgml:CRUS_Fornos_de_Algodres_V"),
     CRUSMunicipalityConfig("0906", "Gouveia", "gmgml:CRUS_Gouveia_V"),
     CRUSMunicipalityConfig("0907", "Guarda", "gmgml:CRUS_Guarda_V"),

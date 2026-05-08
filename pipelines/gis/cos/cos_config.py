@@ -34,7 +34,6 @@ The download URL is hardcoded (static release from DGT).
 
 from pipelines.gis.template.gis_ingestion_template import GISIngestionConfig
 
-
 COS_CONFIG = GISIngestionConfig(
     # --- DAG identity ---
     dag_id="cos2023_ingestion",
@@ -45,34 +44,26 @@ COS_CONFIG = GISIngestionConfig(
         "and stores the raw file in MinIO. "
         "842K polygons with 4-level hierarchical classification for continental Portugal."
     ),
-
     # --- Source ---
     download_url="https://geo2.dgterritorio.gov.pt/cos/S2/COS2023/COS2023v1-S2-gpkg.zip",
     expected_format="gpkg",
-
     # --- Validation ---
     expected_layers=["COS2023v1"],  # skip 'layer_styles' (QGIS styling table)
     expected_crs_epsg=3763,
-
     # COS 2023 has ~784K polygons in the COS2023v1 layer.
     min_feature_count=500_000,
     max_feature_count=1_500_000,
-
     # Extracted GPKG is typically several hundred MB.
     min_file_size_bytes=50 * 1024 * 1024,  # 50 MB
-
     # --- MinIO storage ---
     minio_bucket="raw",
     minio_prefix="cos",
-
     # --- Schedule ---
     schedule=None,
     start_date=None,
-
     # --- Version ---
     source_version=None,
     version_param_key="version",
-
     dag_params={
         "version": {
             "default": "2023",
@@ -82,7 +73,6 @@ COS_CONFIG = GISIngestionConfig(
             ),
         },
     },
-
     # --- Tags ---
     tags=["cos", "land-use", "dgt", "p1"],
 )

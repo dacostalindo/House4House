@@ -22,13 +22,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from pipelines.scraping.template.scraping_ingestion_template import (
-    ScrapingRegion,
-    ScrapingIngestionConfig,
-)
-from pipelines.scraping.template.scraping_bronze_template import BronzeTableConfig
 from pipelines.scraping.sce.sce_scraper import sce_scrape_fn
-
+from pipelines.scraping.template.scraping_bronze_template import BronzeTableConfig
+from pipelines.scraping.template.scraping_ingestion_template import (
+    ScrapingIngestionConfig,
+    ScrapingRegion,
+)
 
 # ---------------------------------------------------------------------------
 # Regions (3 distritos — core coverage area)
@@ -152,6 +151,7 @@ INSERT_SQL = """
 def _extract_scrape_date(object_name: str) -> str:
     """Extract scrape date from MinIO path: sce_pce/{region}/{YYYYMMDD}/{timestamp}.jsonl"""
     import re
+
     match = re.search(r"/(\d{8})/", object_name)
     if match:
         d = match.group(1)
@@ -164,31 +164,33 @@ def _flatten_sce_records(raw_records: list[dict], batch_id: str, minio_path: str
     scrape_date = _extract_scrape_date(minio_path)
     rows = []
     for r in raw_records:
-        rows.append((
-            r.get("doc_number", ""),
-            r.get("morada", ""),
-            r.get("fracao", ""),
-            r.get("localidade", ""),
-            r.get("concelho", ""),
-            r.get("estado", ""),
-            r.get("doc_substituto", ""),
-            r.get("tipo_documento", ""),
-            r.get("classe_energetica", ""),
-            r.get("data_emissao", ""),
-            r.get("data_validade", ""),
-            r.get("freguesia_detail", ""),
-            r.get("perito_num", ""),
-            r.get("conservatoria", ""),
-            r.get("sob_o_num", ""),
-            r.get("artigo_matricial", ""),
-            r.get("fracao_autonoma", ""),
-            r.get("query_distrito", ""),
-            r.get("query_concelho", ""),
-            r.get("query_freguesia", ""),
-            scrape_date,
-            batch_id,
-            minio_path,
-        ))
+        rows.append(
+            (
+                r.get("doc_number", ""),
+                r.get("morada", ""),
+                r.get("fracao", ""),
+                r.get("localidade", ""),
+                r.get("concelho", ""),
+                r.get("estado", ""),
+                r.get("doc_substituto", ""),
+                r.get("tipo_documento", ""),
+                r.get("classe_energetica", ""),
+                r.get("data_emissao", ""),
+                r.get("data_validade", ""),
+                r.get("freguesia_detail", ""),
+                r.get("perito_num", ""),
+                r.get("conservatoria", ""),
+                r.get("sob_o_num", ""),
+                r.get("artigo_matricial", ""),
+                r.get("fracao_autonoma", ""),
+                r.get("query_distrito", ""),
+                r.get("query_concelho", ""),
+                r.get("query_freguesia", ""),
+                scrape_date,
+                batch_id,
+                minio_path,
+            )
+        )
     return rows
 
 

@@ -26,10 +26,8 @@ import asyncio
 import json
 import logging
 import random
-import re
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +54,7 @@ MAX_PAGES = 100
 @dataclass
 class PCERecord:
     """A single pre-certificate record from the SCE portal."""
+
     doc_number: str
     morada: str
     fracao: str
@@ -212,9 +211,9 @@ async def wait_for_results(ctx, timeout: int = 30) -> bool:
                 return 'waiting';
             })()
         """)
-        if status == 'found':
+        if status == "found":
             return True
-        if status in ('empty', 'error'):
+        if status in ("empty", "error"):
             return False
         await asyncio.sleep(1)
     return False
@@ -249,9 +248,14 @@ async def submit_and_wait(ctx, max_retries: int = 3) -> dict:
     return {"count": 0, "rows": []}
 
 
-async def set_form_values(ctx, distrito: str, concelho: str, freguesia: str = "0",
-                          doc_type: str = DOC_TYPE_ALL,
-                          building_type: str = BUILDING_ALL):
+async def set_form_values(
+    ctx,
+    distrito: str,
+    concelho: str,
+    freguesia: str = "0",
+    doc_type: str = DOC_TYPE_ALL,
+    building_type: str = BUILDING_ALL,
+):
     """Set form dropdown values via JS."""
     await ctx.evaluate(f"""
         var sel = document.querySelector('select[name="tiposDocumentoSelect"]');
@@ -314,7 +318,7 @@ async def scrape_query(
     freguesia: str = "0",
     doc_type: str = DOC_TYPE_ALL,
     building_type: str = BUILDING_ALL,
-    max_results: Optional[int] = None,
+    max_results: int | None = None,
     skip_navigation: bool = False,
 ) -> list[dict]:
     """Scrape all pages for a single query.
@@ -359,8 +363,13 @@ async def scrape_query(
     total = result.get("count", 0)
     page_rows = result.get("rows", [])
 
-    log.info("  Query results: %d (distrito=%s, concelho=%s, freguesia=%s)",
-             total, distrito, concelho, freguesia)
+    log.info(
+        "  Query results: %d (distrito=%s, concelho=%s, freguesia=%s)",
+        total,
+        distrito,
+        concelho,
+        freguesia,
+    )
 
     if total == 0 or not page_rows:
         return records
@@ -434,25 +443,38 @@ async def scrape_concelho_by_freguesia(
             for bt in ["1", "2", "3"]:
                 try:
                     sub = await scrape_query(
-                        ctx, distrito, concelho, "0", doc_type, building_type=bt,
+                        ctx,
+                        distrito,
+                        concelho,
+                        "0",
+                        doc_type,
+                        building_type=bt,
                     )
                     if isinstance(sub, dict) and sub.get("_needs_split"):
                         log.info("    Building type %s still >1000 — splitting by doc type", bt)
                         for dt in doc_type.split(";"):
                             try:
                                 sub_sub = await scrape_query(
-                                    ctx, distrito, concelho, "0",
-                                    doc_type=dt, building_type=bt,
+                                    ctx,
+                                    distrito,
+                                    concelho,
+                                    "0",
+                                    doc_type=dt,
+                                    building_type=bt,
                                 )
                                 if isinstance(sub_sub, dict) and sub_sub.get("_needs_split"):
-                                    log.error("    Still >1000 after full split (bt=%s, dt=%s) — capped", bt, dt)
+                                    log.error(
+                                        "    Still >1000 after full split (bt=%s, dt=%s) — capped",
+                                        bt,
+                                        dt,
+                                    )
                                     sub_sub = []
                                 split_records.extend(sub_sub)
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 log.error("    Timeout on sub-split bt=%s dt=%s — skipping", bt, dt)
                     else:
                         split_records.extend(sub)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     log.error("    Timeout on building type %s — skipping", bt)
             for r in split_records:
                 r["query_distrito"] = distrito
@@ -466,8 +488,9 @@ async def scrape_concelho_by_freguesia(
             r["query_freguesia"] = "0"
         return result
 
-    log.info("  Found %d freguesias for distrito=%s, concelho=%s",
-             len(freguesias), distrito, concelho)
+    log.info(
+        "  Found %d freguesias for distrito=%s, concelho=%s", len(freguesias), distrito, concelho
+    )
 
     all_records = []
     # Session is already on the search page with distrito+concelho selected.
@@ -485,19 +508,22 @@ async def scrape_concelho_by_freguesia(
 
         try:
             records = await scrape_query(
-                ctx, distrito, concelho, freg["value"], doc_type,
+                ctx,
+                distrito,
+                concelho,
+                freg["value"],
+                doc_type,
                 skip_navigation=session_alive,
             )
             session_alive = True
-        except asyncio.TimeoutError:
-            log.warning("  Timeout on freguesia %s — restarting browser and retrying",
-                        freg["text"])
+        except TimeoutError:
+            log.warning("  Timeout on freguesia %s — restarting browser and retrying", freg["text"])
             await ctx.restart()
             session_alive = False
             try:
                 records = await scrape_query(ctx, distrito, concelho, freg["value"], doc_type)
                 session_alive = True
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.error("  Second timeout on freguesia %s — skipping", freg["text"])
                 records = []
 
@@ -506,13 +532,21 @@ async def scrape_concelho_by_freguesia(
         # for each sub-query (skip_navigation=False, the default).
         if isinstance(records, dict) and records.get("_needs_split"):
             capped_total = records["total"]
-            log.info("    Splitting %d results by building type for freguesia %s",
-                     capped_total, freg["text"])
+            log.info(
+                "    Splitting %d results by building type for freguesia %s",
+                capped_total,
+                freg["text"],
+            )
             records = []
             for bt in ["1", "2", "3"]:
                 try:
                     sub = await scrape_query(
-                        ctx, distrito, concelho, freg["value"], doc_type, building_type=bt,
+                        ctx,
+                        distrito,
+                        concelho,
+                        freg["value"],
+                        doc_type,
+                        building_type=bt,
                     )
                     # If a sub-query also hits the cap, split further by doc type
                     if isinstance(sub, dict) and sub.get("_needs_split"):
@@ -520,18 +554,26 @@ async def scrape_concelho_by_freguesia(
                         for dt in doc_type.split(";"):
                             try:
                                 sub_sub = await scrape_query(
-                                    ctx, distrito, concelho, freg["value"],
-                                    doc_type=dt, building_type=bt,
+                                    ctx,
+                                    distrito,
+                                    concelho,
+                                    freg["value"],
+                                    doc_type=dt,
+                                    building_type=bt,
                                 )
                                 if isinstance(sub_sub, dict) and sub_sub.get("_needs_split"):
-                                    log.error("    Still >1000 after full split (bt=%s, dt=%s) — capped", bt, dt)
+                                    log.error(
+                                        "    Still >1000 after full split (bt=%s, dt=%s) — capped",
+                                        bt,
+                                        dt,
+                                    )
                                     sub_sub = []
                                 records.extend(sub_sub)
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 log.error("    Timeout on sub-split bt=%s dt=%s — skipping", bt, dt)
                     else:
                         records.extend(sub)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     log.error("    Timeout on building type %s — skipping", bt)
             # Building-type split mutates form state — invalidate session for next freguesia
             session_alive = False
@@ -557,8 +599,9 @@ async def scrape_concelho_by_freguesia(
             seen.add(doc)
             deduped.append(r)
 
-    log.info("  Total for concelho: %d unique records (from %d raw)",
-             len(deduped), len(all_records))
+    log.info(
+        "  Total for concelho: %d unique records (from %d raw)", len(deduped), len(all_records)
+    )
     return deduped
 
 
@@ -605,24 +648,23 @@ async def sce_scrape_fn(ctx, region, config) -> list[dict]:
     await asyncio.sleep(random.uniform(2, 4))
 
     concelhos = await fetch_dropdown_options(ctx, "concelhosCESelect")
-    log.info("[sce] Distrito %s (%s): found %d concelhos",
-             distrito, region.name, len(concelhos))
+    log.info("[sce] Distrito %s (%s): found %d concelhos", distrito, region.name, len(concelhos))
 
     all_records = []
     seen = set()
     for c in concelhos:
-        log.info("[sce] Scraping concelho %s (%s) in distrito %s...",
-                 c["text"], c["value"], distrito)
+        log.info(
+            "[sce] Scraping concelho %s (%s) in distrito %s...", c["text"], c["value"], distrito
+        )
 
         try:
             records = await scrape_concelho_by_freguesia(ctx, distrito, c["value"])
-        except asyncio.TimeoutError:
-            log.warning("[sce] Timeout on concelho %s — restarting browser and retrying",
-                        c["text"])
+        except TimeoutError:
+            log.warning("[sce] Timeout on concelho %s — restarting browser and retrying", c["text"])
             try:
                 await ctx.restart()
                 records = await scrape_concelho_by_freguesia(ctx, distrito, c["value"])
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.error("[sce] Second timeout on concelho %s — skipping", c["text"])
                 records = []
             except RuntimeError as e:
@@ -640,8 +682,9 @@ async def sce_scrape_fn(ctx, region, config) -> list[dict]:
                 all_records.append(r)
 
         ctx.record_success()
-        log.info("[sce] Concelho %s: %d records (total: %d)",
-                 c["text"], len(records), len(all_records))
+        log.info(
+            "[sce] Concelho %s: %d records (total: %d)", c["text"], len(records), len(all_records)
+        )
 
     return all_records
 
@@ -714,7 +757,10 @@ def main():
 
         if args.freguesia != "0":
             records = await scrape_query(
-                ctx, args.distrito, args.concelho, args.freguesia,
+                ctx,
+                args.distrito,
+                args.concelho,
+                args.freguesia,
                 max_results=args.max_results,
             )
             for r in records:
@@ -723,7 +769,9 @@ def main():
                 r["query_freguesia"] = args.freguesia
         else:
             records = await scrape_concelho_by_freguesia(
-                ctx, args.distrito, args.concelho,
+                ctx,
+                args.distrito,
+                args.concelho,
             )
 
         browser.stop()

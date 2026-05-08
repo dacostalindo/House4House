@@ -6,7 +6,9 @@ st.set_page_config(page_title="Pricing Simulator", layout="wide")
 
 st.title("Pricing Simulator")
 st.caption("UC-2 | Sprint 8")
-st.info("Select a development project, adjust unit attributes, and see recommended price, margin, and absorption forecast.")
+st.info(
+    "Select a development project, adjust unit attributes, and see recommended price, margin, and absorption forecast."
+)
 
 with st.form("pricing_form"):
     project = st.text_input("Development project name")

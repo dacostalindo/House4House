@@ -15,13 +15,14 @@ Dependencies:
     astronomer-cosmos>=1.8.0
     dbt-postgres==1.9.0
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
 
 from airflow.decorators import dag, task
-from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
+from cosmos import DbtTaskGroup, ExecutionConfig, ProfileConfig, ProjectConfig, RenderConfig
 from cosmos.profiles import PostgresUserPasswordProfileMapping
 
 DBT_PROJECT_DIR = Path("/opt/airflow/dbt")
@@ -116,6 +117,7 @@ DBT_SOURCE_CONFIGS: dict[str, dict] = {
 
 
 # ── DAG factory ─────────────────────────────────────────────────────────
+
 
 def _create_source_dag(source: str, config: dict):
     """Create a Cosmos DAG for a single data source."""

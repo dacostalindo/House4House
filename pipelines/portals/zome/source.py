@@ -33,12 +33,12 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Iterable
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 import dlt
 from dlt.sources.helpers import requests
-
 
 SUPABASE_URL = "https://luvskhnljpxllkxpeasu.supabase.co"
 PAGE_SIZE = 1000
@@ -221,9 +221,7 @@ def _fetch_page(
     params = {"select": "*", "limit": str(limit), "offset": str(offset)}
     if extra_params:
         params.update(extra_params)
-    resp = requests.get(
-        url, params=params, headers=_supabase_headers(), timeout=REQUEST_TIMEOUT_S
-    )
+    resp = requests.get(url, params=params, headers=_supabase_headers(), timeout=REQUEST_TIMEOUT_S)
     resp.raise_for_status()
     return resp.json()
 

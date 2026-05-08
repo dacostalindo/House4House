@@ -106,8 +106,8 @@ def _create_dag():
         @task()
         def upload_to_minio(download_info: dict) -> dict:
             """Upload PBF to MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),

@@ -1,0 +1,9 @@
+# Revisions to ignore when running `git blame`. Enable globally with:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# (or per-invocation with `git blame --ignore-revs-file`).
+
+# ruff autofix + format sweep (Phase 1 finalization of dev-tooling plan)
+# 232 ruff --fix changes + 94 ruff format reformats.
+340751bbecf427efe34be902178b729e599aa4f8

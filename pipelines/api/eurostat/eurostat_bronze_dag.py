@@ -16,14 +16,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 log = logging.getLogger(__name__)
 
 
-def _flatten_eurostat_jsonstat(
-    raw_json: dict, dataset_code: str, batch_id: str
-) -> list[tuple]:
+def _flatten_eurostat_jsonstat(raw_json: dict, dataset_code: str, batch_id: str) -> list[tuple]:
     """
     Flatten a Eurostat JSON-stat 2.0 response into rows for INSERT.
 
@@ -88,9 +86,7 @@ def _flatten_eurostat_jsonstat(
     time_codes = dim_codes[time_dim_id]
 
     # Identify non-time dimensions and their positions
-    non_time_dims = [
-        (i, dim_id) for i, dim_id in enumerate(dim_ids) if dim_id != time_dim_id
-    ]
+    non_time_dims = [(i, dim_id) for i, dim_id in enumerate(dim_ids) if dim_id != time_dim_id]
 
     rows = []
 
@@ -112,17 +108,19 @@ def _flatten_eurostat_jsonstat(
                 value = values[flat_idx]
                 status = statuses.get(flat_idx)
 
-                rows.append((
-                    batch_id,
-                    dataset_code,
-                    freq,
-                    purchase,
-                    unit,
-                    geo,
-                    time_code,
-                    value,
-                    status,
-                ))
+                rows.append(
+                    (
+                        batch_id,
+                        dataset_code,
+                        freq,
+                        purchase,
+                        unit,
+                        geo,
+                        time_code,
+                        value,
+                        status,
+                    )
+                )
             return
 
         i, dim_id = non_time_dims[dim_pos]
@@ -179,28 +177,25 @@ def _create_dag():
             latest_files = {}
             for code in DATASET_CODES:
                 objects = list(
-                    client.list_objects(
-                        "raw", prefix=f"eurostat/{code}/", recursive=True
-                    )
+                    client.list_objects("raw", prefix=f"eurostat/{code}/", recursive=True)
                 )
-                json_objects = [
-                    o for o in objects if o.object_name.endswith(".json")
-                ]
+                json_objects = [o for o in objects if o.object_name.endswith(".json")]
                 if json_objects:
-                    latest = sorted(
-                        json_objects, key=lambda o: o.object_name
-                    )[-1]
+                    latest = sorted(json_objects, key=lambda o: o.object_name)[-1]
                     latest_files[code] = latest.object_name
                     log.info(
                         "[eurostat] %s → %s (%.1f KB)",
-                        code, latest.object_name, latest.size / 1024,
+                        code,
+                        latest.object_name,
+                        latest.size / 1024,
                     )
                 else:
                     log.warning("[eurostat] No JSON found for %s", code)
 
             log.info(
                 "[eurostat] Found %d / %d dataset files",
-                len(latest_files), len(DATASET_CODES),
+                len(latest_files),
+                len(DATASET_CODES),
             )
             return latest_files
 
@@ -280,7 +275,7 @@ def _create_dag():
             )
             cur = conn.cursor()
 
-            batch_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            batch_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
             insert_sql = """
                 INSERT INTO bronze_macro.raw_eurostat (
                     _batch_id, dataset_code,
@@ -312,9 +307,7 @@ def _create_dag():
 
                 for start in range(0, len(rows), 5000):
                     batch = rows[start : start + 5000]
-                    psycopg2.extras.execute_batch(
-                        cur, insert_sql, batch, page_size=1000
-                    )
+                    psycopg2.extras.execute_batch(cur, insert_sql, batch, page_size=1000)
 
                 conn.commit()
                 total_rows += len(rows)
@@ -326,7 +319,8 @@ def _create_dag():
 
             log.info(
                 "[eurostat] Total: %d rows across %d datasets",
-                total_rows, len(results),
+                total_rows,
+                len(results),
             )
             return results
 
@@ -358,9 +352,7 @@ def _create_dag():
             cur.execute("SELECT COUNT(*) FROM bronze_macro.raw_eurostat")
             total = cur.fetchone()[0]
 
-            cur.execute(
-                "SELECT COUNT(DISTINCT geo) FROM bronze_macro.raw_eurostat"
-            )
+            cur.execute("SELECT COUNT(DISTINCT geo) FROM bronze_macro.raw_eurostat")
             n_geos = cur.fetchone()[0]
 
             cur.close()
@@ -369,20 +361,18 @@ def _create_dag():
             for ds, geo, count, min_t, max_t in geo_info:
                 log.info(
                     "[eurostat] %s geo=%s: %d rows (%s → %s)",
-                    ds, geo, count, min_t, max_t,
+                    ds,
+                    geo,
+                    count,
+                    min_t,
+                    max_t,
                 )
 
-            empty = [
-                code for code, cnt in load_results.items() if cnt == 0
-            ]
+            empty = [code for code, cnt in load_results.items() if cnt == 0]
             if empty:
-                log.warning(
-                    "[eurostat] %d datasets with 0 rows: %s", len(empty), empty
-                )
+                log.warning("[eurostat] %d datasets with 0 rows: %s", len(empty), empty)
 
-            log.info(
-                "[eurostat] Total: %d rows, %d geo entities", total, n_geos
-            )
+            log.info("[eurostat] Total: %d rows, %d geo entities", total, n_geos)
             return {
                 "total_rows": total,
                 "geo_entities": n_geos,

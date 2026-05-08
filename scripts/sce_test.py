@@ -1,8 +1,10 @@
 """Quick test of SCE portal with Playwright to capture actual data."""
-from playwright.sync_api import sync_playwright
+
 import json
 import re
 import time
+
+from playwright.sync_api import sync_playwright
 
 JS_CHECK = """() => {
     var result = {};
@@ -38,29 +40,33 @@ with sync_playwright() as p:
 
     # Intercept responses
     responses_data = []
+
     def handle_response(response):
-        if 'functions.php' in response.url:
+        if "functions.php" in response.url:
             try:
                 body = response.body()
-                responses_data.append({
-                    'status': response.status,
-                    'length': len(body),
-                    'preview': body[:500].decode('utf-8', errors='replace'),
-                })
+                responses_data.append(
+                    {
+                        "status": response.status,
+                        "length": len(body),
+                        "preview": body[:500].decode("utf-8", errors="replace"),
+                    }
+                )
             except Exception as ex:
-                responses_data.append({'error': str(ex)})
-    page.on('response', handle_response)
+                responses_data.append({"error": str(ex)})
 
-    page.goto('https://www.sce.pt/pesquisa-certificados/', timeout=30000)
-    print('Page loaded')
+    page.on("response", handle_response)
+
+    page.goto("https://www.sce.pt/pesquisa-certificados/", timeout=30000)
+    print("Page loaded")
     time.sleep(5)
 
     # Check turnstile setup
     check = page.evaluate(JS_CHECK)
-    print(f'Turnstile check: {json.dumps(check, indent=2)}')
+    print(f"Turnstile check: {json.dumps(check, indent=2)}")
 
     # Wait longer for Turnstile to solve
-    print('Waiting 15s for Turnstile...')
+    print("Waiting 15s for Turnstile...")
     time.sleep(15)
 
     # Set form values using JS to ensure onChange handlers fire
@@ -88,9 +94,9 @@ with sync_playwright() as p:
         }
         return opts;
     }""")
-    print(f'\nConcelhos loaded: {len(concelhos)}')
+    print(f"\nConcelhos loaded: {len(concelhos)}")
     for c in concelhos[:5]:
-        print(f'  {c["value"]}: {c["text"]}')
+        print(f"  {c['value']}: {c['text']}")
 
     # Select Lisboa concelho
     if len(concelhos) > 1:
@@ -103,7 +109,7 @@ with sync_playwright() as p:
 
     # Get form data before submit
     form_data = page.evaluate(JS_GET_FORM_DATA)
-    print(f'\nForm data: {json.dumps(form_data, indent=2)}')
+    print(f"\nForm data: {json.dumps(form_data, indent=2)}")
 
     # Submit via JS click
     page.evaluate("""() => {
@@ -112,56 +118,59 @@ with sync_playwright() as p:
     }""")
     time.sleep(8)
 
-    print(f'\nNetwork responses: {len(responses_data)}')
+    print(f"\nNetwork responses: {len(responses_data)}")
     for r in responses_data:
         print(json.dumps(r, indent=2, ensure_ascii=False))
 
     # Parse final page
     content = page.content()
     from bs4 import BeautifulSoup
-    soup = BeautifulSoup(content, 'html.parser')
 
-    match = re.search(r'Resultados encontrados:\s*([\d.]+)', content)
+    soup = BeautifulSoup(content, "html.parser")
+
+    match = re.search(r"Resultados encontrados:\s*([\d.]+)", content)
     if match:
-        print(f'\nResults: {match.group(1)}')
+        print(f"\nResults: {match.group(1)}")
 
-    error = soup.find('span', class_='search-captcha-error')
+    error = soup.find("span", class_="search-captcha-error")
     if error:
-        print(f'Error: {error.text}')
+        print(f"Error: {error.text}")
 
     rows = []
-    for tr in soup.find_all('tr'):
-        cells = tr.find_all('td')
+    for tr in soup.find_all("tr"):
+        cells = tr.find_all("td")
         if len(cells) >= 6:
-            link = cells[0].find('a')
-            if link and link.text.strip().startswith('SCE'):
+            link = cells[0].find("a")
+            if link and link.text.strip().startswith("SCE"):
                 row = {
-                    'doc_number': link.text.strip(),
-                    'morada': cells[1].get_text(strip=True),
-                    'fracao': cells[2].get_text(strip=True),
-                    'localidade': cells[3].get_text(strip=True),
-                    'concelho': cells[4].get_text(strip=True),
-                    'estado': cells[5].get_text(strip=True),
-                    'doc_substituto': cells[6].get_text(strip=True) if len(cells) > 6 else '',
+                    "doc_number": link.text.strip(),
+                    "morada": cells[1].get_text(strip=True),
+                    "fracao": cells[2].get_text(strip=True),
+                    "localidade": cells[3].get_text(strip=True),
+                    "concelho": cells[4].get_text(strip=True),
+                    "estado": cells[5].get_text(strip=True),
+                    "doc_substituto": cells[6].get_text(strip=True) if len(cells) > 6 else "",
                 }
                 rows.append(row)
 
-    print(f'\nTable rows: {len(rows)}')
+    print(f"\nTable rows: {len(rows)}")
     for r in rows[:5]:
         print(json.dumps(r, ensure_ascii=False, indent=2))
 
     # Also parse detail popups if available
     if rows:
-        doc = rows[0]['doc_number']
-        popup = soup.find('div', {'id': f'div_{doc}'})
+        doc = rows[0]["doc_number"]
+        popup = soup.find("div", {"id": f"div_{doc}"})
         if popup:
-            print(f'\nPopup for {doc}:')
-            print(popup.get_text(separator='\n')[:600])
+            print(f"\nPopup for {doc}:")
+            print(popup.get_text(separator="\n")[:600])
         else:
             # Find any divs with SCE IDs
-            sce_divs = [d.get('id') for d in soup.find_all('div') if d.get('id', '').startswith('div_SCE')]
-            print(f'\nSCE popup divs found: {len(sce_divs)}')
+            sce_divs = [
+                d.get("id") for d in soup.find_all("div") if d.get("id", "").startswith("div_SCE")
+            ]
+            print(f"\nSCE popup divs found: {len(sce_divs)}")
             if sce_divs:
-                print(f'First few: {sce_divs[:3]}')
+                print(f"First few: {sce_divs[:3]}")
 
     browser.close()

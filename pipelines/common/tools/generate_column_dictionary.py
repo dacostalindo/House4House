@@ -51,10 +51,10 @@ from typing import Any
 import psycopg2
 import psycopg2.extras
 
-
 # ---------------------------------------------------------------------------
 # Connection
 # ---------------------------------------------------------------------------
+
 
 def _connect():
     """Connect to the warehouse using env vars. Compatible with Airflow."""
@@ -70,6 +70,7 @@ def _connect():
 # ---------------------------------------------------------------------------
 # Schema introspection
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ColumnInfo:
@@ -100,10 +101,7 @@ def _get_columns(conn, schema: str, table: str) -> list[ColumnInfo]:
         rows = cur.fetchall()
     if not rows:
         raise ValueError(f"Table {schema}.{table} not found or has no columns")
-    return [
-        ColumnInfo(name=r[0], data_type=r[1], is_nullable=(r[2] == "YES"))
-        for r in rows
-    ]
+    return [ColumnInfo(name=r[0], data_type=r[1], is_nullable=(r[2] == "YES")) for r in rows]
 
 
 def _has_scd2_columns(columns: list[ColumnInfo]) -> bool:
@@ -134,9 +132,7 @@ def _enrich_with_stats(
             quoted_col = f'"{col.name}"'
 
             # Null percentage
-            cur.execute(
-                f"SELECT COUNT(*) - COUNT({quoted_col}) FROM {quoted_tbl} {where}"
-            )
+            cur.execute(f"SELECT COUNT(*) - COUNT({quoted_col}) FROM {quoted_tbl} {where}")
             nulls = cur.fetchone()[0]
             col.null_pct = round(100.0 * nulls / total, 1)
 
@@ -171,6 +167,7 @@ def _enrich_with_stats(
 # Fixtures (JSONL)
 # ---------------------------------------------------------------------------
 
+
 def _json_default(obj):
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
@@ -181,9 +178,7 @@ def _json_default(obj):
     raise TypeError(f"Not JSON-serializable: {type(obj).__name__}")
 
 
-def _generate_fixtures(
-    conn, schema: str, table: str, n_rows: int, active_only: bool
-) -> str:
+def _generate_fixtures(conn, schema: str, table: str, n_rows: int, active_only: bool) -> str:
     where = "WHERE _dlt_valid_to IS NULL" if active_only else ""
     quoted_tbl = f'"{schema}"."{table}"'
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -191,14 +186,13 @@ def _generate_fixtures(
         # deterministic output across regenerations.
         cur.execute(f"SELECT * FROM {quoted_tbl} {where} ORDER BY 1 LIMIT %s", (n_rows,))
         rows = cur.fetchall()
-    return "\n".join(
-        json.dumps(dict(r), default=_json_default, ensure_ascii=False) for r in rows
-    )
+    return "\n".join(json.dumps(dict(r), default=_json_default, ensure_ascii=False) for r in rows)
 
 
 # ---------------------------------------------------------------------------
 # Output formats
 # ---------------------------------------------------------------------------
+
 
 def _format_meta_comment(col: ColumnInfo) -> str:
     """Concise machine-readable comment summarizing introspection results."""
@@ -255,6 +249,7 @@ def _format_markdown(table: str, columns: list[ColumnInfo]) -> str:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate column dictionaries for any bronze table.",
@@ -263,24 +258,29 @@ def main() -> int:
     )
     parser.add_argument("--schema", required=True, help="e.g. bronze_listings")
     parser.add_argument("--table", required=True, help="e.g. remax_developments")
+    parser.add_argument("--format", choices=("yaml", "markdown", "fixtures"), default="yaml")
     parser.add_argument(
-        "--format", choices=("yaml", "markdown", "fixtures"), default="yaml"
-    )
-    parser.add_argument(
-        "--rows", type=int, default=5,
+        "--rows",
+        type=int,
+        default=5,
         help="Number of fixture rows (only used with --format fixtures)",
     )
     parser.add_argument("--output", help="Write to file instead of stdout")
     parser.add_argument(
-        "--no-active-only", action="store_true",
+        "--no-active-only",
+        action="store_true",
         help="Disable WHERE _dlt_valid_to IS NULL filter on SCD2 tables",
     )
     parser.add_argument(
-        "--sample-cap", type=int, default=10000,
+        "--sample-cap",
+        type=int,
+        default=10000,
         help="Row cap for distinct-count / sampling queries (default 10000)",
     )
     parser.add_argument(
-        "--distinct-threshold", type=int, default=20,
+        "--distinct-threshold",
+        type=int,
+        default=20,
         help=(
             "Top-3 sample values are only included when distinct_count "
             "is <= this threshold (default 20)"
@@ -294,9 +294,7 @@ def main() -> int:
         active_only = _has_scd2_columns(columns) and not args.no_active_only
 
         if args.format == "fixtures":
-            output = _generate_fixtures(
-                conn, args.schema, args.table, args.rows, active_only
-            )
+            output = _generate_fixtures(conn, args.schema, args.table, args.rows, active_only)
         else:
             _enrich_with_stats(
                 conn,

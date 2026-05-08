@@ -47,7 +47,6 @@ BPSTAT_INDICATORS = [
         description="Floating rate loan shares",
         category="housing_credit",
     ),
-
     # -----------------------------------------------------------------------
     # Domain 21 — Interest rates (10 datasets, 253 series)
     # -----------------------------------------------------------------------
@@ -111,7 +110,6 @@ BPSTAT_INDICATORS = [
         description="Credit flows/stocks/prices by maturity and sectors",
         category="interest_rates",
     ),
-
     # -----------------------------------------------------------------------
     # Domain 39 — Housing prices (2 datasets, 18 series)
     # -----------------------------------------------------------------------

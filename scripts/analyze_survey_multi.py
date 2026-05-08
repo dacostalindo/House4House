@@ -123,7 +123,9 @@ def analyze_multi(response_files: list[str]):
 
         if not pairs:
             inter_rater["features"][feature] = {
-                "n": 0, "kappa": None, "interpretation": "N/A",
+                "n": 0,
+                "kappa": None,
+                "interpretation": "N/A",
                 "agreement_rate": "N/A",
             }
             continue
@@ -146,7 +148,7 @@ def analyze_multi(response_files: list[str]):
 
         inter_rater["features"][feature] = {
             "n": n,
-            "agreement_rate": f"{agree}/{n} ({100*agree/n:.0f}%)",
+            "agreement_rate": f"{agree}/{n} ({100 * agree / n:.0f}%)",
             "kappa": round(k, 3),
             "interpretation": kappa_interpretation(k),
             "confusion": confusion,
@@ -154,7 +156,7 @@ def analyze_multi(response_files: list[str]):
 
         print(f"--- {feature.upper()} (inter-rater) ---")
         print(f"  Paired observations: {n}")
-        print(f"  Agreement: {agree}/{n} ({100*agree/n:.0f}%)")
+        print(f"  Agreement: {agree}/{n} ({100 * agree / n:.0f}%)")
         print(f"  Cohen's kappa: {k:.3f} ({kappa_interpretation(k)})")
 
         # Print confusion matrix
@@ -197,7 +199,7 @@ def analyze_multi(response_files: list[str]):
                     cv_val = "render" if cv_val else "real"
                 if cv_val == label:
                     agree += 1
-            pct = f"{agree}/{total} ({100*agree/total:.0f}%)" if total > 0 else "N/A"
+            pct = f"{agree}/{total} ({100 * agree / total:.0f}%)" if total > 0 else "N/A"
             stats[feature] = {"agree": agree, "total": total, "rate": pct}
 
         evaluator_vs_claude[name] = stats
@@ -243,9 +245,7 @@ def analyze_multi(response_files: list[str]):
                 else:
                     labels.append((names[j], None))
 
-            entry["evaluator_labels"][feature] = {
-                name: label for name, label in labels
-            }
+            entry["evaluator_labels"][feature] = {name: label for name, label in labels}
 
             non_null = [(name, label) for name, label in labels if label is not None]
 
@@ -275,11 +275,21 @@ def analyze_multi(response_files: list[str]):
 
         consensus[pid] = entry
 
-    total_decisions = stats["agreed"] + stats["one_abstained"] + stats["disputed"] + stats["both_abstained"]
-    print(f"  Agreed:         {stats['agreed']}/{total_decisions} ({100*stats['agreed']/total_decisions:.0f}%)")
-    print(f"  One abstained:  {stats['one_abstained']}/{total_decisions} ({100*stats['one_abstained']/total_decisions:.0f}%)")
-    print(f"  Disputed:       {stats['disputed']}/{total_decisions} ({100*stats['disputed']/total_decisions:.0f}%)")
-    print(f"  Both abstained: {stats['both_abstained']}/{total_decisions} ({100*stats['both_abstained']/total_decisions:.0f}%)")
+    total_decisions = (
+        stats["agreed"] + stats["one_abstained"] + stats["disputed"] + stats["both_abstained"]
+    )
+    print(
+        f"  Agreed:         {stats['agreed']}/{total_decisions} ({100 * stats['agreed'] / total_decisions:.0f}%)"
+    )
+    print(
+        f"  One abstained:  {stats['one_abstained']}/{total_decisions} ({100 * stats['one_abstained'] / total_decisions:.0f}%)"
+    )
+    print(
+        f"  Disputed:       {stats['disputed']}/{total_decisions} ({100 * stats['disputed'] / total_decisions:.0f}%)"
+    )
+    print(
+        f"  Both abstained: {stats['both_abstained']}/{total_decisions} ({100 * stats['both_abstained'] / total_decisions:.0f}%)"
+    )
 
     # ── Disputed details ─────────────────────────────────────────────────────
     disputed = []
@@ -289,12 +299,14 @@ def analyze_multi(response_files: list[str]):
                 cv_label = entry["claude"].get(feature if feature != "render" else "is_render")
                 if feature == "render" and isinstance(cv_label, bool):
                     cv_label = "render" if cv_label else "real"
-                disputed.append({
-                    "pid": pid,
-                    "feature": feature,
-                    "evaluator_labels": cons["labels"],
-                    "claude": cv_label,
-                })
+                disputed.append(
+                    {
+                        "pid": pid,
+                        "feature": feature,
+                        "evaluator_labels": cons["labels"],
+                        "claude": cv_label,
+                    }
+                )
 
     if disputed:
         print(f"\n  DISPUTED LABELS ({len(disputed)}):")
@@ -320,7 +332,7 @@ def analyze_multi(response_files: list[str]):
                 cv_label = "render" if cv_label else "real"
             if cv_label == cons["label"]:
                 agree += 1
-        pct = f"{agree}/{total} ({100*agree/total:.0f}%)" if total > 0 else "N/A"
+        pct = f"{agree}/{total} ({100 * agree / total:.0f}%)" if total > 0 else "N/A"
         print(f"  {feature:<18} {pct}")
 
     # ── Save outputs ─────────────────────────────────────────────────────────

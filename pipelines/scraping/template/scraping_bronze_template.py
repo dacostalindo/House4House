@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
 
 log = logging.getLogger(__name__)
 
@@ -47,31 +47,31 @@ class BronzeTableConfig:
     description: str
 
     # --- Database ---
-    schema_name: str            # e.g. "bronze_regulatory"
-    table_name: str             # e.g. "raw_sce_certificates"
-    create_table_sql: str       # Full CREATE TABLE IF NOT EXISTS DDL
+    schema_name: str  # e.g. "bronze_regulatory"
+    table_name: str  # e.g. "raw_sce_certificates"
+    create_table_sql: str  # Full CREATE TABLE IF NOT EXISTS DDL
     create_indexes_sql: list[str] = field(default_factory=list)
-    insert_sql: str = ""        # INSERT statement with %s placeholders
+    insert_sql: str = ""  # INSERT statement with %s placeholders
 
     # --- MinIO ---
     minio_bucket: str = "raw"
-    minio_prefix: str = ""      # e.g. "sce_pce" — scans raw/sce_pce/
+    minio_prefix: str = ""  # e.g. "sce_pce" — scans raw/sce_pce/
 
     # --- Data transformation ---
-    flatten_fn: Optional[Callable] = None  # (raw_data, batch_id, minio_path) -> list[tuple]
+    flatten_fn: Callable | None = None  # (raw_data, batch_id, minio_path) -> list[tuple]
     file_format: str = "jsonl"  # "json" or "jsonl"
 
     # --- Idempotency ---
     delete_before_insert: bool = True
-    delete_sql: str = ""        # e.g. "DELETE FROM ... WHERE _scrape_date = %s"
-    delete_key_fn: Optional[Callable] = None  # (object_name) -> key value
+    delete_sql: str = ""  # e.g. "DELETE FROM ... WHERE _scrape_date = %s"
+    delete_key_fn: Callable | None = None  # (object_name) -> key value
 
     # --- Batch processing ---
     insert_batch_size: int = 10_000
     insert_page_size: int = 1_000
 
     # --- Orchestration ---
-    trigger_dag_id: Optional[str] = None
+    trigger_dag_id: str | None = None
 
     # --- DAG settings ---
     tags: list[str] = field(default_factory=list)
@@ -122,8 +122,8 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
         @task()
         def list_minio_files() -> dict:
             """Find JSONL/JSON files in MinIO for this source."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
@@ -135,23 +135,29 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
             prefix = config.minio_prefix
             ext = ".jsonl" if config.file_format == "jsonl" else ".json"
 
-            objects = list(client.list_objects(
-                config.minio_bucket, prefix=f"{prefix}/", recursive=True,
-            ))
-            data_files = [
-                o.object_name for o in objects
-                if o.object_name.endswith(ext)
-            ]
+            objects = list(
+                client.list_objects(
+                    config.minio_bucket,
+                    prefix=f"{prefix}/",
+                    recursive=True,
+                )
+            )
+            data_files = [o.object_name for o in objects if o.object_name.endswith(ext)]
 
-            log.info("[%s] Found %d %s files in s3://%s/%s/",
-                     config.source_name, len(data_files), ext,
-                     config.minio_bucket, prefix)
+            log.info(
+                "[%s] Found %d %s files in s3://%s/%s/",
+                config.source_name,
+                len(data_files),
+                ext,
+                config.minio_bucket,
+                prefix,
+            )
 
             # Group by region (second path component after prefix)
             by_region: dict[str, list[str]] = {}
             for f in data_files:
                 # Path: {prefix}/{region}/{date}/{timestamp}.jsonl
-                relative = f[len(prefix):].strip("/")
+                relative = f[len(prefix) :].strip("/")
                 parts = relative.split("/")
                 region = parts[0] if parts else "unknown"
                 by_region.setdefault(region, []).append(f)
@@ -185,8 +191,12 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
                 for idx_sql in config.create_indexes_sql:
                     cur.execute(idx_sql)
 
-                log.info("[%s] Ensured %s.%s exists with indexes",
-                         config.source_name, config.schema_name, config.table_name)
+                log.info(
+                    "[%s] Ensured %s.%s exists with indexes",
+                    config.source_name,
+                    config.schema_name,
+                    config.table_name,
+                )
 
                 cur.close()
             finally:
@@ -197,8 +207,8 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
             """Parse files from MinIO and load into the bronze table."""
             import psycopg2
             import psycopg2.extras
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
@@ -245,8 +255,13 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
                         delete_key = config.delete_key_fn(object_name)
                         cur.execute(config.delete_sql, (delete_key,))
                         deleted = cur.rowcount
-                        log.info("[%s] %s: deleted %d existing rows (key=%s)",
-                                 config.source_name, region, deleted, delete_key)
+                        log.info(
+                            "[%s] %s: deleted %d existing rows (key=%s)",
+                            config.source_name,
+                            region,
+                            deleted,
+                            delete_key,
+                        )
 
                     # Flatten and insert
                     region_batch_id = f"{region}_{batch_id}"
@@ -259,9 +274,11 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
 
                     # Batch insert
                     for start in range(0, len(rows), config.insert_batch_size):
-                        batch = rows[start:start + config.insert_batch_size]
+                        batch = rows[start : start + config.insert_batch_size]
                         psycopg2.extras.execute_batch(
-                            cur, config.insert_sql, batch,
+                            cur,
+                            config.insert_sql,
+                            batch,
                             page_size=config.insert_page_size,
                         )
 
@@ -272,8 +289,12 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
 
                 cur.close()
 
-                log.info("[%s] Total: %d rows across %d regions",
-                         config.source_name, total_rows, len(results))
+                log.info(
+                    "[%s] Total: %d rows across %d regions",
+                    config.source_name,
+                    total_rows,
+                    len(results),
+                )
                 return results
             finally:
                 conn.close()

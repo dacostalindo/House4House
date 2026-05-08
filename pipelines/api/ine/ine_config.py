@@ -36,13 +36,11 @@ from pipelines.api.template.api_ingestion_template import (
     APIIngestionConfig,
 )
 
-
 # ---------------------------------------------------------------------------
 # Indicator catalog
 # ---------------------------------------------------------------------------
 
 INE_INDICATORS = [
-
     # ── Housing: prices ────────────────────────────────────────────────────
     APIIndicator(
         code="0009201",
@@ -78,7 +76,6 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: transactions ──────────────────────────────────────────────
     APIIndicator(
         code="0012785",
@@ -114,14 +111,12 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: rental market ─────────────────────────────────────────────
     APIIndicator(
         code="0012571",
         name="median_rental_value_nuts",
         description=(
-            "Median house rental value of new lease agreements (€/m²) "
-            "by NUTS-2024; Quarterly"
+            "Median house rental value of new lease agreements (€/m²) by NUTS-2024; Quarterly"
         ),
         category="housing",
         endpoint_params={"Dim1": "T"},
@@ -147,20 +142,17 @@ INE_INDICATORS = [
         code="0012574",
         name="new_lease_agreements_count_cities",
         description=(
-            "New lease agreements of dwellings (No.) by Municipalities "
-            ">100k inhabitants; Quarterly"
+            "New lease agreements of dwellings (No.) by Municipalities >100k inhabitants; Quarterly"
         ),
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: construction ──────────────────────────────────────────────
     APIIndicator(
         code="0012096",
         name="licensed_buildings",
         description=(
-            "Licensed buildings (No.) by NUTS-2024, Type of project "
-            "and Project purpose; Monthly"
+            "Licensed buildings (No.) by NUTS-2024, Type of project and Project purpose; Monthly"
         ),
         category="housing",
         endpoint_params={"Dim1": "T"},
@@ -185,7 +177,6 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: mortgage finance ──────────────────────────────────────────
     APIIndicator(
         code="0006340",
@@ -227,7 +218,6 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: sales (updated methodology) ────────────────────────────────
     APIIndicator(
         code="0012236",
@@ -239,7 +229,6 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: construction (additional) ────────────────────────────────
     APIIndicator(
         code="0012097",
@@ -261,15 +250,11 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Housing: building stock (Census 2021) ─────────────────────────────
     APIIndicator(
         code="0012575",
         name="building_aging_index",
-        description=(
-            "Building aging index (No.) by Geographic location "
-            "at Census 2021; Decennial"
-        ),
+        description=("Building aging index (No.) by Geographic location at Census 2021; Decennial"),
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
@@ -283,7 +268,6 @@ INE_INDICATORS = [
         category="housing",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Demographics ───────────────────────────────────────────────────────
     APIIndicator(
         code="0001271",
@@ -295,29 +279,23 @@ INE_INDICATORS = [
     APIIndicator(
         code="0008273",
         name="resident_population",
-        description=(
-            "Resident population (No.) by NUTS-2013, Sex and Age group; Annual"
-        ),
+        description=("Resident population (No.) by NUTS-2013, Sex and Age group; Annual"),
         category="demographics",
         endpoint_params={"Dim1": "T"},
     ),
     APIIndicator(
         code="0008337",
         name="population_density",
-        description=(
-            "Population density (No./km²) by Place of residence; Annual"
-        ),
+        description=("Population density (No./km²) by Place of residence; Annual"),
         category="demographics",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Census 2021: employment (parish-level) ───────────────────────────
     APIIndicator(
         code="0012357",
         name="census_employment_rate",
         description=(
-            "Employment rate (%) by Geographic location "
-            "at Census 2021; Decennial (parish-level)"
+            "Employment rate (%) by Geographic location at Census 2021; Decennial (parish-level)"
         ),
         category="census_2021",
         endpoint_params={"Dim1": "T"},
@@ -326,8 +304,7 @@ INE_INDICATORS = [
         code="0012328",
         name="census_unemployment_rate",
         description=(
-            "Unemployment rate (%) by Geographic location "
-            "at Census 2021; Decennial (parish-level)"
+            "Unemployment rate (%) by Geographic location at Census 2021; Decennial (parish-level)"
         ),
         category="census_2021",
         endpoint_params={"Dim1": "T"},
@@ -336,8 +313,7 @@ INE_INDICATORS = [
         code="0012317",
         name="census_activity_rate",
         description=(
-            "Activity rate (%) by Geographic location "
-            "at Census 2021; Decennial (parish-level)"
+            "Activity rate (%) by Geographic location at Census 2021; Decennial (parish-level)"
         ),
         category="census_2021",
         endpoint_params={"Dim1": "T"},
@@ -352,7 +328,6 @@ INE_INDICATORS = [
         category="census_2021",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Census 2021: education (parish-level) ────────────────────────────
     APIIndicator(
         code="0012316",
@@ -394,7 +369,6 @@ INE_INDICATORS = [
         category="census_2021",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Census 2021: foreign population (parish-level) ───────────────────
     APIIndicator(
         code="0012314",
@@ -416,7 +390,6 @@ INE_INDICATORS = [
         category="census_2021",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Census 2021: age & commuting (parish-level) ──────────────────────
     APIIndicator(
         code="0012374",
@@ -438,7 +411,6 @@ INE_INDICATORS = [
         category="census_2021",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Employment: annual (municipality-level) ──────────────────────────
     APIIndicator(
         code="0012652",
@@ -460,7 +432,6 @@ INE_INDICATORS = [
         category="economy",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Tourism ───────────────────────────────────────────────────────────
     APIIndicator(
         code="0009808",
@@ -472,14 +443,12 @@ INE_INDICATORS = [
         category="tourism",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Economy ───────────────────────────────────────────────────────────
     APIIndicator(
         code="0008351",
         name="consumer_price_index",
         description=(
-            "Consumer price index (CPI, Base 2012) "
-            "by NUTS-II and COICOP consumption class; Annual"
+            "Consumer price index (CPI, Base 2012) by NUTS-II and COICOP consumption class; Annual"
         ),
         category="economy",
         endpoint_params={"Dim1": "T"},
@@ -487,32 +456,22 @@ INE_INDICATORS = [
     APIIndicator(
         code="0011190",
         name="gdp_per_capita_ppc",
-        description=(
-            "GDP per capita in PPC (EU27, Base 2016 - €) "
-            "by NUTS-2013; Annual"
-        ),
+        description=("GDP per capita in PPC (EU27, Base 2016 - €) by NUTS-2013; Annual"),
         category="economy",
         endpoint_params={"Dim1": "T"},
     ),
-
     # ── Innovation & technology ──────────────────────────────────────────
     APIIndicator(
         code="0008515",
         name="ict_companies_count",
-        description=(
-            "Enterprises with ICT activities (No.) "
-            "by NUTS-2013 (CAE Rev. 3); Annual"
-        ),
+        description=("Enterprises with ICT activities (No.) by NUTS-2013 (CAE Rev. 3); Annual"),
         category="innovation",
         endpoint_params={"Dim1": "T"},
     ),
     APIIndicator(
         code="0008519",
         name="ict_gross_value_added",
-        description=(
-            "Gross value added in ICT activities (€) "
-            "by NUTS-2013 (CAE Rev. 3); Annual"
-        ),
+        description=("Gross value added in ICT activities (€) by NUTS-2013 (CAE Rev. 3); Annual"),
         category="innovation",
         endpoint_params={"Dim1": "T"},
     ),
@@ -542,32 +501,25 @@ INE_CONFIG = APIIngestionConfig(
         "Fetches 33 indicators (housing, demographics, tourism, economy, innovation), "
         "stores raw JSON (bronze) in MinIO. No authentication required."
     ),
-
     # --- API connection ---
     base_url="https://www.ine.pt",
     api_path="/ine/json_indicador/pindica.jsp",
     default_params={"op": "2", "lang": "EN"},
     code_param_name="varcd",
-
     request_timeout_seconds=60,
     max_retries=3,
     retry_backoff_seconds=5,
     rate_limit_delay_seconds=1.0,
-
     # --- Indicators ---
     indicators=INE_INDICATORS,
-
     # --- MinIO ---
     minio_bucket="raw",
     minio_prefix="ine",
-
     # --- Schedule: monthly refresh (1st of each month at 06:00 UTC) ---
     schedule="0 6 1 * *",
     start_date=datetime(2025, 1, 1),
-
     # --- Orchestration: auto-trigger bronze load after ingestion ---
     trigger_dag_id="ine_bronze_load",
-
     # --- Tags ---
     tags=["ine", "housing", "demographics", "tourism", "economy", "innovation", "quarterly"],
 )
