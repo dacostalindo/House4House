@@ -17,7 +17,7 @@ Output: redirects stdout+stderr to wiki/lint-reports/<timestamp>.md inside the r
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>cd "__REPO_PATH__" &amp;&amp; "__CLAUDE_BIN__" -p /wiki-lint --max-turns 5 &gt; "wiki/lint-reports/$(date -u +%Y-%m-%dT%H%M%S).log" 2&gt;&amp;1</string>
+        <string>cd "__REPO_PATH__" &amp;&amp; "__CLAUDE_BIN__" -p /wiki-lint --max-turns 30 &gt; "wiki/lint-reports/$(date -u +%Y-%m-%dT%H%M%S).log" 2&gt;&amp;1</string>
     </array>
 
     <key>StartCalendarInterval</key>

@@ -22,7 +22,13 @@
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git rev-parse:*)",
-      "Bash(claude:*)"
+      "Bash(claude:*)",
+      "Read(./**)",
+      "Glob(**)",
+      "Grep(./**)",
+      "Edit(./wiki/**)",
+      "Write(./wiki/**)",
+      "MultiEdit(./wiki/**)"
     ]
   },
   "hooks": {

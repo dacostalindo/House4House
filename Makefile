@@ -62,7 +62,7 @@ wiki-lint:
 	@mkdir -p wiki/lint-reports
 	@TS=$$(date -u +%Y-%m-%dT%H%M%S); \
 	  echo "→ Running /wiki-lint (output → wiki/lint-reports/$$TS.log)"; \
-	  claude -p /wiki-lint --max-turns 5 > "wiki/lint-reports/$$TS.log" 2>&1 || \
+	  claude -p /wiki-lint --max-turns 30 > "wiki/lint-reports/$$TS.log" 2>&1 || \
 	    (echo "wiki-lint failed; see wiki/lint-reports/$$TS.log" >&2; exit 1)
 	@echo "wiki-lint complete."
 

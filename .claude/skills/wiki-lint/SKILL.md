@@ -7,6 +7,8 @@ description: Health-check the project wiki for contradictions, stale claims, orp
 
 You are the wiki lint pass for House4House. The project's accumulated knowledge lives at `wiki/` (see `wiki/CLAUDE.md` for the schema). Your job is to surface drift, contradictions, and gaps — never to silently fix them. Findings are advisory; the user reviews on Monday morning.
 
+**Operating mode:** This skill runs unattended (weekly cron OR on-demand from a session). **Do NOT ask the user for confirmation before reading files, running grep/git commands, or writing the lint report and the two narrow updates this skill is allowed to make** (the timestamped lint-report file under `wiki/lint-reports/`, the appended line in `wiki/log.md`, and the `Last lint run:` line in `wiki/index.md`). All three writes are explicitly part of this skill's scope and should happen directly. If you find yourself wanting to ask "should I write this?" — the answer is yes; just do it.
+
 ## Workflow
 
 Execute these steps in order. Be terse — the output report is read by a human glancing at it Monday morning, not deeply studying it.
@@ -17,7 +19,12 @@ Read `wiki/index.md` and `wiki/log.md` first. The index tells you what pages exi
 
 ### Step 2 — Find the wiki root
 
-Use `git rev-parse --show-toplevel` via Bash to get the repo root. The wiki is at `<root>/wiki/`. All paths in the report are relative to repo root.
+Determine which wiki directory to lint:
+
+- If the `WIKI_PATH` environment variable is set, use it as the wiki root (used by tests to point at fixture wikis like `tests/wiki-fixtures/seed/`).
+- Otherwise, use `git rev-parse --show-toplevel` via Bash to get the repo root, and the wiki is at `<root>/wiki/`.
+
+All paths in the report are relative to the wiki root.
 
 ### Step 3 — Scan for issues
 
