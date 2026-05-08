@@ -98,6 +98,7 @@
 | #8 `confidence: high \| medium \| speculation` on `wiki/decisions/` ADRs (rule #7 in `references/ai-first-rules.md`) | PR 2 schema amendment | Phase 3e "Schema amendments before PR 2 ships" |
 | #9 `llms.txt` at repo root | Phase 4d | Phase 4 CI/CD section |
 | #10 `wiki/raw/` immutable-clipping pattern (from `references/vault-schema.md`) | DEFERRED — trigger-gated | TODO entry below ("`wiki/raw/` immutable-clipping directory") |
+| #11 Cross-links are mandatory, Obsidian-style `[[wikilinks]]` (from `references/ai-first-rules.md` rule #6; user chose Obsidian as primary reader 2026-05-08) | PR 2 schema amendment + Phase 4e BLOCKING CI rule | wiki/CLAUDE.md "Cross-links are mandatory" subsection + Phase 4e wiki_health.py |
 
 **PostCompact hook pattern** (their `obsidian-bg-agent.sh`) is NOT being borrowed today — captured here as a future note: their hook fires after Claude compacts session context to propagate session learnings to vault automatically. Could complement our weekly cron with per-session wiki updates. Revisit only if our manual + cron model produces stale pages between cron runs.
 

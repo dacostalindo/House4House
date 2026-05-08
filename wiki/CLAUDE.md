@@ -64,6 +64,34 @@ superseded_by: <new-record-filename>   # only when this ADR has been obsoleted
 
 The `confidence:` field is required on every decision record. `high` = battle-tested in a Phase spike or production run; `medium` = picked deliberately but not yet stress-tested; `speculation` = best-guess at decision time, expected to be revisited. Tells a future Claude session how much to trust an old ADR before proposing changes. Scoped to decisions/ only — sources/concepts/pipelines have their confidence implicit in the underlying code.
 
+### Cross-links are mandatory (per obsidian-second-brain `references/ai-first-rules.md` borrow #11, locked 2026-05-08)
+
+Every wiki page MUST link to every other wiki page it references on first mention, using **Obsidian-style `[[wikilinks]]`**. The wiki is browsed by humans in Obsidian (graph view, backlinks panel, autocomplete on `[[`) and edited by Claude Code via file reads. Both modes work: Obsidian renders `[[wikilinks]]` as first-class clickable links with graph traversal; Claude (the LLM) reads them as text and resolves them to file paths via the rule below.
+
+**Resolution rule** (Claude follows this when resolving `[[name]]` during reads/grep/ingest):
+
+- `[[name]]` resolves to the first match found across `wiki/concepts/<name>.md`, `wiki/sources/<name>.md`, `wiki/decisions/<name>.md`, `wiki/pipelines/<name>.md` — basename match (case-insensitive, ignoring `.md` extension).
+- For ambiguous names (e.g., a concept and a source with the same slug), use an explicit subdir prefix: `[[concepts/scd2-row-hash]]` or `[[sources/srup]]`.
+- For human-readable label override: `[[scd2-row-hash|the row-hash dedup pattern]]` — Obsidian renders "the row-hash dedup pattern" as the link text; the link still targets `scd2-row-hash`.
+- Decision records: link by full filename including date prefix — `[[2026-05-05-cosmos-pin]]`, NOT `[[cosmos-pin]]`.
+
+**Apply on first mention** of any:
+
+- concept that has its own `wiki/concepts/<name>.md` page → `[[name]]`
+- source that has its own `wiki/sources/<name>.md` page → `[[name]]`
+- decision record → `[[YYYY-MM-DD-topic]]`
+- pipeline that has its own `wiki/pipelines/<name>.md` page → `[[name]]`
+
+Subsequent mentions on the same page do not need to repeat the link (avoids link soup; matches markdown convention).
+
+**Caveat for Claude Code IDE preview:** Claude Code's built-in VSCode markdown preview does NOT natively render `[[wikilinks]]` as clickable links (they appear as literal text). This affects only the IDE preview UX during editing — Claude (the LLM) still reads + resolves them correctly via the rule above, and Obsidian renders them perfectly. If you want clickable in the IDE preview, install an Obsidian-compatible VSCode extension (e.g., "Foam" or "Markdown Memo"). Not a blocker.
+
+**Why mandatory, not advisory:** the wiki's value compounds with its graph density. A future Claude session (or human in Obsidian) reading `wiki/sources/idealista.md` and seeing "SCD2 + ZenRows two-pass" should get one-click access to `[[scd2-row-hash]]` and `[[zenrows-universal-vs-re-api]]`. That's the difference between a flat collection of pages and a traversable knowledge graph. Obsidian's graph view becomes meaningful; backlinks tell you which pages cite a given concept.
+
+**Lint enforcement:** `scripts/wiki_health.py --format=github` (Phase 4e, runs in CI on every PR) parses `\[\[([^|\]]+)(?:\|[^\]]+)?\]\]` from page bodies and resolves each match to a file via the rule above. Treats unresolved `[[wikilink]]`s and missing cross-references as BLOCKING findings (CI red). The weekly `/wiki-lint` LLM cron (Phase 3e) catches the semantic-level cases the mechanical check misses (e.g., a page describing "the row-hash dedup pattern" without using the canonical "SCD2" name — synonyms are out of reach for the mechanical check).
+
+**Mid-PR caveat:** during iterative commits within a single PR (e.g., PR 2 commits sources/ in commit 2, concepts/ in commit 3), forward `[[wikilinks]]` from sources/ to not-yet-created concepts/ pages will appear "broken" in the intermediate state. Lint runs against the merged final state, so the BLOCKING check fires only when a fully merged wiki has missing cross-refs — but if you run `make wiki-lint-fast` against a partial commit during authoring, expect false-positive findings until the rest of the PR's commits land.
+
 ### `## For future Claude` preamble (required on every page)
 
 Per obsidian-second-brain `references/ai-first-rules.md` borrow #7 (locked 2026-05-08), every wiki page begins with a 2-3 sentence preamble in plain English, immediately after the frontmatter (or after the page title for structural files without frontmatter), before any other section:
@@ -142,7 +170,7 @@ Lint surface:
 - **Stale claims**: pages whose `last_verified` is older than 90 days.
 - **Orphan pages**: no inbound links from `index.md` or other wiki pages.
 - **Concepts mentioned but lacking own page**: a term keeps appearing in 3+ pages without its own `concepts/<term>.md`.
-- **Missing cross-references**: a page mentions a canonical name (e.g., "SCD2") without linking to its concept page.
+- **Missing cross-references / unresolved `[[wikilinks]]`**: a page mentions a canonical name (e.g., "SCD2") without an `[[scd2-row-hash]]` link OR has an `[[wikilink]]` that doesn't resolve to any wiki page. Per the cross-links-are-mandatory rule (above), the mechanical `wiki_health.py` check treats both as BLOCKING findings in CI; the weekly LLM lint additionally catches synonym/paraphrase variants the mechanical check can't see.
 - **`index.md` drift**: index summaries that no longer match the page content.
 
 Output:
