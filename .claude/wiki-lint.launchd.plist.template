@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+launchd plist for the wiki-lint weekly cron.
+Installed via `make install-cron` which substitutes __REPO_PATH__ before
+copying to ~/Library/LaunchAgents/wiki-lint.plist.
+
+Schedule: Sunday 06:00 local time.
+Output: redirects stdout+stderr to wiki/lint-reports/<timestamp>.md inside the repo.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>wiki-lint</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd "__REPO_PATH__" &amp;&amp; "__CLAUDE_BIN__" -p /wiki-lint --max-turns 30 &gt; "wiki/lint-reports/$(date -u +%Y-%m-%dT%H%M%S).log" 2&gt;&amp;1</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_PATH__/wiki/lint-reports/launchd.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_PATH__/wiki/lint-reports/launchd.stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:__HOME__/.local/bin:__HOME__/.nvm/versions/node/v24.14.0/bin</string>
+    </dict>
+</dict>
+</plist>

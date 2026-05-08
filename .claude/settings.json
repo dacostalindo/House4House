@@ -1,0 +1,62 @@
+{
+  "$comment": "Project-level Claude Code settings for House4House. Committed to the repo. Per-user overrides go in .claude/settings.local.json (gitignored). Phase 3 PR 1.",
+  "permissions": {
+    "allow": [
+      "Bash(uv:*)",
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv pip:*)",
+      "Bash(make:*)",
+      "Bash(ruff:*)",
+      "Bash(pytest:*)",
+      "Bash(pre-commit:*)",
+      "Bash(dbt parse:*)",
+      "Bash(dbt compile:*)",
+      "Bash(dbt run --select:*)",
+      "Bash(dbt test --select:*)",
+      "Bash(airflow dags list:*)",
+      "Bash(airflow dags list-import-errors:*)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(claude:*)",
+      "Read(./**)",
+      "Glob(**)",
+      "Grep(./**)",
+      "Edit(./wiki/**)",
+      "Write(./wiki/**)",
+      "MultiEdit(./wiki/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/ruff_post.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/dbt_parse_post.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/bash_destructive_pre.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
