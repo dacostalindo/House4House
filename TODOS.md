@@ -64,6 +64,42 @@
 
 ---
 
+## Reusable patterns from eugeniughelbur/obsidian-second-brain
+
+**What:** the [obsidian-second-brain](https://github.com/eugeniughelbur/obsidian-second-brain) Claude Code skill (951 stars, actively maintained) is "an evolution of Karpathy's LLM Wiki pattern" — same conceptual ground we built Phase 3e on. Cherry-pick three patterns from it as we expand:
+
+1. **Two-tier `/wiki-lint`** — they run a Python `vault_health.py` for mechanical checks (orphans, missing frontmatter, broken links, duplicates) FIRST, then spawn parallel LLM subagents only for semantic checks (contradictions, concept gaps, stale claims). Our current `/wiki-lint` is LLM-only (per devex-review B decision). Revisit if pure-LLM cost or latency becomes a problem at scale.
+
+2. **Parallel-subagent ingest** — their `obsidian-ingest` skill spawns parallel subagents for entities / concepts / claims / tasks extraction during a single ingest. Adopt this architecture when we build `/wiki-ingest` in Phase 7.
+
+3. **PostCompact hook** — their `obsidian-bg-agent.sh` fires after Claude compacts the session context, propagating session learnings to the vault automatically. Complements (doesn't replace) our weekly cron — could give us per-session wiki updates without manual `/wiki-ingest` calls.
+
+**Pros:** validated patterns from a 951-star repo; saves design effort on `/wiki-ingest` and any future programmatic lint.
+
+**Cons:** their personal-second-brain shape (daily notes, kanban, people, ideas) is wrong domain for our technical-knowledge wiki — borrow patterns, not page conventions.
+
+**Context:** spotted during Phase 3 PR 1 verification on 2026-05-08. Our Phase 3e implementation is independently good but their work confirms our architectural choices and shows where to evolve.
+
+**Depends on:** `/wiki-ingest` skill design (Phase 7) for #2; `/wiki-lint` cost/latency feedback (~3 months of weekly runs) for #1; nothing for #3 (could prototype any time).
+
+---
+
+## Live contradiction-detection integration test (deferred from Phase 3 PR 1)
+
+**What:** re-enable `tests/test_wiki_lint_skill.py::test_skill_detects_intentional_contradiction` once PR 2 has landed real wiki content. The `with-contradiction/` fixture exists; the test is currently `@pytest.mark.skip`'d because the `WIKI_PATH` env-var override in SKILL.md isn't reliably honored by claude in headless mode — it falls back to the real wiki via `git rev-parse --show-toplevel`.
+
+**Why:** live integration testing of contradiction detection is the strongest validation that the lint mechanism works on real-world cases. Phase 3 PR 1 verified the skill works end-to-end (clean run produces a coherent report) but didn't verify it catches actual contradictions.
+
+**Pros:** restores the eng-review T1 acceptance gate's third test.
+
+**Cons:** requires either a different override mechanism (e.g., a `--wiki-path` argument to the skill, or a wrapper script) or accepting that the test runs against real wiki content.
+
+**Context:** discovered during Phase 3 PR 1 implementation on 2026-05-08. The fixture is at `tests/wiki-fixtures/with-contradiction/` and is fully usable. Two paths forward: (a) add a real arg-parsing mechanism in SKILL.md, or (b) test by temporarily symlinking `wiki/` → fixture before the test (cleanup in finally).
+
+**Depends on:** PR 2 landing real wiki content + a robust override mechanism for SKILL.md.
+
+---
+
 ## Phase 2.5 — closed (no work to do)
 
 **Status:** absorbed by Phase 2 on 2026-05-08.
