@@ -37,6 +37,8 @@ Each table: boundary polygons + names + Dicofre codes (DT, DT-CC, DT-CC-FF respe
 - **PT-TM06 native**: matches [[bgri]], [[apa]], [[srup-ogc]], etc. CAOP is the "ground truth" CRS for the regulatory-GIS stack.
 - **Cross-source role — central**: CAOP is the spatial dimension that nearly every other source links to. [[idealista]] uses concelho IDs from CAOP; [[bgri]] census subsections nest within freguesias; [[cadastro]] / [[bupi]] administrative_unit fields reference CAOP municipios. Updating CAOP requires a downstream review of dim_geography in dbt staging.
 - **Continental + islands**: CAOP includes Madeira and Açores. Most other sources are continental-only ([[bgri]], [[bupi]] notably). Be mindful when joining: a continental-only source against full-CAOP produces island concelhos with no listings/parcels.
+- **CAOP is the P0 foundation source**: every entity in the warehouse resolves to a `freguesia` via spatial join. CAOP must be loaded BEFORE any other GIS source — downstream silver-layer joins assume `dim_geography` is present.
+- **CRS mismatches are warnings, not hard-fails**: if the GeoPackage layer comes in EPSG:4258 instead of EPSG:3763 (occasionally happens on bulk releases), the loader logs a warning and reprojects in silver. Hard-failing on CRS would be brittle for a P0 source.
 
 ## Last verified
 

@@ -22,7 +22,7 @@ This is a source page about INE (Statistics Portugal), the National Statistics I
 
 Bronze table: `bronze_statistics.raw_ine` — one fetch per indicator, raw JSON-stat payload preserved as-is per [[bronze-permissive]].
 
-- **Indicator coverage** (33 total, encoded in `INE_INDICATORS`):
+- **Indicator coverage** (47 total per the README; 33 represent the actively-fetched subset encoded in `INE_INDICATORS` — the remaining 14 are documented but commented out, ready to enable):
   - **Housing**: prices (HPI, transaction medians), transactions (volume, value), rental, construction, mortgage flows
   - **Demographics**: resident population, dependency ratio, NUTS-level breakdowns
   - **Census 2021**: dwelling stock, household composition, housing typology
@@ -34,7 +34,8 @@ Bronze table: `bronze_statistics.raw_ine` — one fetch per indicator, raw JSON-
 
 ## Quirks
 
-- **JSON-stat 1.0 format** (NOT JSON-stat 2.0): payload structure is hierarchical with `dimension` / `value` / `status` blocks. Bronze stores raw; staging unpacks per-indicator into long-format facts.
+- **JSON-stat 1.0 format** (NOT JSON-stat 2.0; [[bpstat]] and [[eurostat]] use 2.0): payload structure is hierarchical with `Dim1` / `value` / `status` blocks. Bronze stores raw; staging unpacks per-indicator into long-format facts.
+- **`sinal_conv` missing-data codes**: `'x'` = not available, `'...'` = provisional. Both parsed as NULL in silver-layer normalization. Without this, downstream models would treat `'x'` strings as legitimate values.
 - **Rate limit 1.0s**, request timeout 60s, max_retries 3. Stable endpoint, rarely backpressures.
 - **Adding a new indicator**: append an `APIIndicator` entry to `INE_INDICATORS` in `ine_config.py`. Indicator codes can be discovered via:
   1. Browsing `https://www.ine.pt`

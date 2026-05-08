@@ -37,7 +37,7 @@ Bronze table: `bronze_regulatory.raw_crus_ordenamento`.
   - Strip diacritics from ALL field names (`DESIGNAÇÃO` → `DESIGNACAO`, `PLANTA_ORDENAMENTO` → unchanged but its label has accents).
   - Explicit rename: Porto's `ID1` → `ID` to match the other 4 municipalities. Without this, downstream models break on the join.
 - **No STARTINDEX pagination**: this WFS implementation ignores `STARTINDEX` and always returns the same first-N features. Workaround: each municipality has < 2k features, so a single un-paginated request suffices.
-- **Dual-run with [[crus-ogc]]** in progress: bronze tables coexist (`raw_crus_ordenamento` for WFS, `raw_crus_national_ogc` for OGC API). Parity validation in dbt — `dbt/macros/gis_dual_run_count_parity.sql` (per the recent commit) compares feature counts and bounding boxes. Once parity holds, this WFS pipeline is decommissioned.
+- **Dual-run with [[crus-ogc]]** in progress: bronze tables coexist (`raw_crus_ordenamento` for WFS, `raw_crus_national_ogc` for OGC API). Parity validation in dbt — `dbt/macros/gis_dual_run_count_parity.sql` (per the recent commit) compares feature counts and bounding boxes for the 5-município WFS subset against the same-bbox slice of the national OGC. Equality on counts + centroid distance below tolerance = parity confirmed. Once parity holds for two consecutive runs, this WFS pipeline is decommissioned.
 - **Cross-source role**: CRUS is the regulatory classification of land use per the municipal PDM. It tells you what the local zoning rules say; [[cos]] tells you what the satellite observed. Mismatches between CRUS and COS = regulatory red flags (e.g., residential listing on CRUS-protected land).
 
 ## Last verified

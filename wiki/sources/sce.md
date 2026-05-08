@@ -29,7 +29,9 @@ Bronze table: `bronze_regulatory.raw_sce_certificates` — 22 fields per certifi
 
 ## Quirks
 
-- **Cloudflare Turnstile**: nodriver's 15-second wait window handles the challenge; failures are transient (re-run the task). The `BROWSER_RESTART_EVERY=500_REQUESTS` setting recycles the browser to avoid session-fingerprint accumulation.
+- **Only nodriver scraper in the stack**: Cloudflare Turnstile protection requires undetected Chrome with real rendering. Headed mode required (Xvfb on the Airflow worker provides the display). The `BROWSER_RESTART_EVERY=500_REQUESTS` setting recycles Chrome to prevent fingerprint accumulation — required for sustained Cloudflare evasion.
+- **Cloudflare Turnstile**: nodriver's 15-second wait window handles the challenge; failures are transient (re-run the task).
+- **Full-country backfill estimate**: ~680k records, 1-2 days of crawl time across all 22 distritos. Current Aveiro-only scope is ~30-50k records.
 - **Currently scoped to 1 distrito (Aveiro)**: the docstring lists 22 distritos commented out in the config. Uncomment them when ready for full-country coverage; each adds ~10-30 minutes of crawl time. Per the original docstring: "3 distritos (Aveiro, Coimbra, Leiria) — initial scope matching core coverage area" (note: scope was further narrowed to Aveiro only post-config edit).
 - **Concelhos fetched dynamically**: the SCE search form's distrito dropdown returns the concelho list at scrape-time. We don't hardcode the concelho mapping — saves us from drift when ADENE adds/renames municipalities.
 - **Per-distrito Airflow task** topology: each distrito = 1 task, iterating all concelhos within. Distrito-level parallelism keeps task duration bounded.

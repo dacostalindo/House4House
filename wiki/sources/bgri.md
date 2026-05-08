@@ -25,11 +25,13 @@ Bronze tables:
 - `bronze_statistics.raw_bgri_subsections` — finest-grain (statistical subsection, ~120k-200k polygons)
 - `bronze_statistics.raw_bgri_sections` — coarser (statistical section, ~20k-40k polygons)
 
-**32 variables across 4 thematic groups**:
+**32 variables across 4 thematic groups** (the 32-variable count comes from the README's full enumeration; the config exposes the same set):
 - **Buildings** (12 vars): stock count, typology, floor count, construction period, repair needs, etc.
 - **Dwellings** (8 vars): occupancy status, dwelling-type breakdown
 - **Households** (5 vars): composition, size
 - **Population** (7 vars): age groups, sex breakdown
+
+City-block-grain polygons WITH embedded geometry (not separate boundary lookup) — directly usable for spatial joins against listings without a join through [[caop]] freguesias.
 
 Geometry: Polygon, EPSG:3763 (PT-TM06).
 

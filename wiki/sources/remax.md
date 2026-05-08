@@ -31,7 +31,12 @@ Plus per-listing heartbeat sidecars (per [[heartbeat-sidecar]]).
 
 ## Quirks
 
-- **Two-pass enrichment** (per [[zenrows-universal-vs-re-api]]): Pass 1 = PaginatedSearch (bulk listings, ~3,900 results). Pass 2 = parallel Next.js detail fetch at ~4 req/s (~15-20 min total). Pass 2 details are pre-fetched inside `source._prefetch_pass2()` BEFORE the SCD2 merge runs, so SCD2 sees a single denormalized row per listing.
+- **Two-pass enrichment** (per [[zenrows-universal-vs-re-api]]): Pass 1 = PaginatedSearch (bulk listings, ~3,900 results). Pass 2 = parallel Next.js detail fetch at ~4 req/s (~15-20 min total). Pass 2 details are pre-fetched inside `source._prefetch_pass2()` via ThreadPoolExecutor BEFORE dlt sees the rows — so SCD2 receives single denormalized rows already enriched.
+- **Pass 2 enrichment hit rate ~45%**: only online units get enrichment; offline / sold units retain Pass 1 basic data + NULL enrichment. Pass 2 timeouts yield NULL enrichment, never block the load (failure isolation).
+- **Plots use a totally different entry point**: `/api/Development/PaginatedSearch` is housing-only; plots come via a sitemap.xml walk + Next.js detail filter on `listingTypeID == 21`. No RE API equivalent. The plots stream is structurally different from listings/developments.
+- **buildId extraction quirk**: RE/MAX's Next.js endpoint changes its `buildId` on every deployment. `source.py` auto-extracts it by fetching `/en/comprar-empreendimentos` and grep-ing for the buildId in the landing-page HTML. Updates take effect on the next DAG run with no code change.
+- **RE/MAX Collection overlap**: `remaxcollection.pt` uses the same API with 100% ID overlap — an `is_special` flag distinguishes Collection listings within the same payload. No separate scrape needed.
+- **Floor encoding has dual representation**: `floor_id` (dropdown) + `floor_number` (typed integer) can mismatch on ~5% of rows. Silver-layer logic prefers `floor_description` (Pass 2 string) when available, falls back to `floor_id`.
 - **Validation bands**: `listings` ∈ [3k, 30k]; `developments` ∈ [200, 2k]; `pass2_enriched` ∈ [1k, 15k]; `plots` ∈ [5k, 25k]. Outside bands → DAG fails.
 - **Legacy three-DAG decommissioned**: prior topology (separate listings DAG, separate developments DAG, separate plots DAG) was replaced by the unified `remax_dlt_dag.py`. References to `remax_listings_dag`, `remax_developments_dag`, `remax_plots_dag` in old commits are historical.
 - **Audit copy on Pass 1 only**: raw JSON from PaginatedSearch is mirrored to MinIO under `audit/remax/<date>/`. Pass 2 details are NOT mirrored (too granular; ~3,900 small JSONs would inflate audit storage with no benefit).

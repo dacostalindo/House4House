@@ -42,6 +42,13 @@ Total: ~4.5M features across 18 layers.
 - **Buildings layer is permissive**: includes residential, commercial, agricultural, and ancillary structures. Distinguishing residential-buildings from sheds requires joining on the `building` tag value (yes/house/apartments/residential = likely residential; barn/shed/garage = ancillary).
 - **Cross-source role**: OSM is the "everyday geography" complement to the regulatory stack. Where [[caop]] gives administrative boundaries, [[bupi]]/[[cadastro]] give property parcels, [[bgri]] gives census subsections, OSM gives the POIs/roads/buildings overlay that turns those polygons into a navigable feature space.
 
+## Companion services (built from the same OSM data)
+
+The OSM ingest doesn't just produce wiki-source bronze tables — it also feeds two long-running query services. Both are built from the same `portugal-latest-free.gpkg.zip` extract; rebuild on each new OSM ingest:
+
+- **OSRM routing engine** (3 profiles: car / walking / cycling on ports `5050` / `5051` / `5052`): self-hosted via Docker, built from the OSM PBF using OSRM's contraction-hierarchies preprocessor. Used by silver-layer features like "drive-time to nearest school". Profiles map to the standard OSRM `car.lua` / `foot.lua` / `bicycle.lua` configs.
+- **Nominatim geocoder** (port `8088`, image `mediagis/nominatim:4.4`): self-hosted geocoding for listing addresses → coordinates and reverse-geocoding for parcel centroids → place names. First startup on a fresh PT import takes ~30-45 min; data persisted on a Docker volume so subsequent restarts are fast.
+
 ## Last verified
 
 2026-05-08 (Phase 3 PR 2 seed pass — config re-read).

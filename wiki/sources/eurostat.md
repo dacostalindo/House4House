@@ -27,7 +27,10 @@ Bronze table: `bronze_statistics.raw_eurostat_hpi` — single dataset, all EU/EE
 
 ## Quirks
 
-- **Single dataset, no pagination**: SDMX 2.1 returns the full PRC_HPI_Q payload in one fetch. `rate_limit_delay=0`, `request_timeout=120s` (Eurostat is slower than [[ecb]]).
+- **Single dataset, no pagination**: SDMX 2.1 returns the full PRC_HPI_Q payload in one fetch. ~31k observations across 38 EU/EEA countries × 83 quarters. `rate_limit_delay=0`, `request_timeout=120s` (Eurostat is slower than [[ecb]]).
+- **No server-side filtering**: the API ignores `geo` and `unit` query params on PRC_HPI_Q — always returns the full ~31k dataset. Filtering happens in dbt staging. Small enough that this isn't a problem.
+- **Quarterly cadence + 3-month publication lag**: Eurostat typically publishes a quarter's data ~3 months after the quarter ends. A `2025-Q4` value usually appears in late March 2026. The 5-day buffer in the cron schedule accommodates this.
+- **Status flags**: ~1,100 of the ~31k observations carry SDMX status flags — `p` (provisional), `e` (estimated), `b` (broken series), `d` (definition differs), `|C` (confidential). Silver-layer logic preserves the flags so downstream consumers can choose to filter.
 - **SDMX 2.1 vs SDMX 2.0** ([[ecb]]): minor structural differences in dimension encoding. dbt staging handles both shapes.
 - **Cross-source role**: Eurostat HPI is the canonical cross-EU benchmark. [[ine]]'s HPI is PT-native granularity (concelho-level transaction medians). Reporting that compares "PT housing 30% above 2015" needs the index from one of these two; Eurostat is the right choice for cross-country narrative, INE for PT-internal narrative.
 - **Quarterly cadence**: lower-frequency than [[ine]] (monthly) or [[ecb]] (monthly). Phase 5 enrichment / dashboards should respect the cadence — pulling Eurostat HPI hourly or daily produces no new data.

@@ -34,7 +34,7 @@ Two SCD2 fact tables + per-entity heartbeat sidecars (per [[heartbeat-sidecar]])
 - **Validation bands**: post-load checks assert `listings_current` ∈ [1000, 30000] and `developments_current` ∈ [50, 500]. Outside bands → fail. Catches both upstream collapses (empty response) and runaway duplicates.
 - **Audit copy**: best-effort raw JSON copy to MinIO under `audit/jll/<date>/` runs as a separate task; failure is non-blocking (load_facts continues on its own dlt-managed fetch).
 - **Three-task DAG topology**: `audit_to_minio` (best-effort) → `load_facts` (hard-fail SCD2 merge) → `validate_facts` (band checks).
-- **Origin agency/agent fields collapsed**: per recent refactor (commit `5906fa1`), nested agency/agent objects collapsed into single JSONB columns to match dlt's flatten-or-jsonb resolution; staging models unpack as needed.
+- **Origin agency/agent fields collapsed into JSONB** (per recent refactor `5906fa1`): nested agency/agent objects were originally flattened into many top-level columns by dlt's auto-resolve. The collapse to single JSONB columns simplifies staging (one `properties->>'name'` extract per field) and decouples bronze schema from upstream's nested-object drift.
 
 ## Last verified
 
