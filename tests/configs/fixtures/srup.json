@@ -1,0 +1,20 @@
+{
+  "dag_id": "srup_ingestion",
+  "description": "SRUP WFS ingestion \u2014 queries DGTERRIT\u00d3RIO for property constraint data (IC, RAN, DPH), stores GeoJSON in MinIO.",
+  "max_active_runs": 1,
+  "max_active_tasks": 2,
+  "minio_bucket": "raw",
+  "minio_prefix": "srup",
+  "request_delay_seconds": 2.0,
+  "request_timeout_seconds": 300,
+  "retries": 2,
+  "retry_delay_minutes": 5,
+  "schedule": null,
+  "source_name": "srup",
+  "start_date": "2025-01-01T00:00:00",
+  "tags": [
+    "srup",
+    "constraints"
+  ],
+  "trigger_dag_id": "srup_bronze_load"
+}

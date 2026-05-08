@@ -15,9 +15,10 @@ Confirmed municipalities: Aveiro, Lisboa, Porto, Coimbra, Leiria
 from __future__ import annotations
 
 import unicodedata
-from dataclasses import dataclass, field
 from datetime import datetime
 from urllib.parse import quote
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # CRUS WFS endpoint configuration
@@ -33,9 +34,10 @@ WFS_OUTPUT_FORMAT = "application/vnd.geo+json"
 # everything in a single request by omitting COUNT.
 
 
-@dataclass(frozen=True)
-class CRUSMunicipalityConfig:
+class CRUSMunicipalityConfig(BaseModel):
     """Configuration for a single municipality's CRUS WFS endpoint."""
+
+    model_config = ConfigDict(frozen=True)
 
     code: str  # 4-digit DTCC code, e.g. "0105"
     name: str  # e.g. "Aveiro"
@@ -69,11 +71,11 @@ class CRUSMunicipalityConfig:
 # ---------------------------------------------------------------------------
 
 MUNICIPALITIES: list[CRUSMunicipalityConfig] = [
-    CRUSMunicipalityConfig("0105", "Aveiro", "gmgml:CRUS_Aveiro_V"),
-    CRUSMunicipalityConfig("1106", "Lisboa", "gmgml:CRUS_Lisboa_V"),
-    CRUSMunicipalityConfig("1312", "Porto", "gmgml:CRUS_Porto_V"),
-    CRUSMunicipalityConfig("0603", "Coimbra", "gmgml:CRUS_Coimbra_V"),
-    CRUSMunicipalityConfig("1009", "Leiria", "gmgml:CRUS_Leiria_V"),
+    CRUSMunicipalityConfig(code="0105", name="Aveiro", feature_type="gmgml:CRUS_Aveiro_V"),
+    CRUSMunicipalityConfig(code="1106", name="Lisboa", feature_type="gmgml:CRUS_Lisboa_V"),
+    CRUSMunicipalityConfig(code="1312", name="Porto", feature_type="gmgml:CRUS_Porto_V"),
+    CRUSMunicipalityConfig(code="0603", name="Coimbra", feature_type="gmgml:CRUS_Coimbra_V"),
+    CRUSMunicipalityConfig(code="1009", name="Leiria", feature_type="gmgml:CRUS_Leiria_V"),
 ]
 
 MUNICIPALITY_BY_CODE: dict[str, CRUSMunicipalityConfig] = {m.code: m for m in MUNICIPALITIES}
@@ -150,8 +152,7 @@ WFS_REQUEST_TIMEOUT_SECONDS: int = 120
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class CRUSIngestionConfig:
+class CRUSIngestionConfig(BaseModel):
     """All parameters for the CRUS ingestion pipeline."""
 
     dag_id: str = "crus_ingestion"
@@ -161,7 +162,7 @@ class CRUSIngestionConfig:
         "land-use data per municipality, stores GeoJSON in MinIO."
     )
 
-    municipalities: list[CRUSMunicipalityConfig] = field(default_factory=lambda: MUNICIPALITIES)
+    municipalities: list[CRUSMunicipalityConfig] = Field(default_factory=lambda: MUNICIPALITIES)
 
     minio_bucket: str = MINIO_BUCKET
     minio_prefix: str = MINIO_PREFIX
@@ -172,13 +173,13 @@ class CRUSIngestionConfig:
     request_timeout_seconds: int = WFS_REQUEST_TIMEOUT_SECONDS
 
     schedule: str | None = None  # manual trigger
-    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    start_date: datetime = Field(default_factory=lambda: datetime(2025, 1, 1))
     max_active_runs: int = 1
     max_active_tasks: int = 2
 
     trigger_dag_id: str = "crus_bronze_load"
 
-    tags: list[str] = field(default_factory=lambda: ["crus", "zoning"])
+    tags: list[str] = Field(default_factory=lambda: ["crus", "zoning"])
     retries: int = 2
     retry_delay_minutes: int = 5
 

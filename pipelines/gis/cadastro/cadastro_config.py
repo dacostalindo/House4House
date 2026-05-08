@@ -33,8 +33,9 @@ Downloads all available parcels via OGC API pagination.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # OGC API endpoint configuration
@@ -64,8 +65,7 @@ MINIO_PREFIX = "cadastro"
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class CadastroIngestionConfig:
+class CadastroIngestionConfig(BaseModel):
     """All parameters for the Cadastro Predial ingestion pipeline.
 
     Follows the same dataclass-based config pattern as PDMIngestionConfig
@@ -93,12 +93,12 @@ class CadastroIngestionConfig:
     bronze_schema_table: str = BRONZE_SCHEMA_TABLE
 
     schedule: str | None = None  # manual trigger
-    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    start_date: datetime = Field(default_factory=lambda: datetime(2025, 1, 1))
     max_active_runs: int = 1
 
     trigger_dag_id: str = "cadastro_bronze_load"
 
-    tags: list[str] = field(default_factory=lambda: ["cadastro", "parcels", "dgt"])
+    tags: list[str] = Field(default_factory=lambda: ["cadastro", "parcels", "dgt"])
     retries: int = 2
     retry_delay_minutes: int = 5
 

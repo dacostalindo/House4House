@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # URL slug utilities
@@ -240,8 +241,7 @@ BRONZE_SCHEMA_TABLE = "bronze_listings.raw_idealista"
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class IdealistaIngestionConfig:
+class IdealistaIngestionConfig(BaseModel):
     """
     All parameters needed to run the Idealista ingestion DAG.
 
@@ -273,9 +273,9 @@ class IdealistaIngestionConfig:
 
     # --- Crawl dimensions ---
     crawl_level: str = "concelho"  # "concelho" (new) or "distrito" (legacy)
-    operations: list[str] = field(default_factory=lambda: OPERATIONS)
-    active_distritos: list[str] | None = field(default_factory=lambda: ACTIVE_DISTRITOS)
-    distrito_search_urls: dict[str, dict[str, str]] = field(
+    operations: list[str] = Field(default_factory=lambda: OPERATIONS)
+    active_distritos: list[str] | None = Field(default_factory=lambda: ACTIVE_DISTRITOS)
+    distrito_search_urls: dict[str, dict[str, str]] = Field(
         default_factory=lambda: DISTRITO_SEARCH_URLS
     )
 
@@ -291,7 +291,7 @@ class IdealistaIngestionConfig:
 
     # --- Scheduling ---
     schedule: str | None = None
-    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    start_date: datetime = Field(default_factory=lambda: datetime(2025, 1, 1))
     max_active_runs: int = 1
     max_active_tasks: int = 4
 
@@ -299,7 +299,7 @@ class IdealistaIngestionConfig:
     trigger_dag_id: str | None = "idealista_bronze_load"
 
     # --- DAG settings ---
-    tags: list[str] = field(default_factory=lambda: ["idealista"])
+    tags: list[str] = Field(default_factory=lambda: ["idealista"])
     retries: int = 2
     retry_delay_minutes: int = 5
 

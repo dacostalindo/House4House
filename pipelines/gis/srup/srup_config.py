@@ -20,9 +20,10 @@ Phase 2 (not yet implemented):
 from __future__ import annotations
 
 import unicodedata
-from dataclasses import dataclass, field
 from datetime import datetime
 from urllib.parse import quote
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # WFS constants
@@ -41,9 +42,10 @@ WFS_REQUEST_TIMEOUT_SECONDS: int = 300
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class SRUPEndpointConfig:
+class SRUPEndpointConfig(BaseModel):
     """One WFS endpoint serving one or more feature types at a single URL."""
+
+    model_config = ConfigDict(frozen=True)
 
     category: str  # "ic", "ran", "dph"
     wfs_suffix: str  # e.g. "SRUP_IC_PT1"
@@ -185,8 +187,7 @@ BRONZE_TABLES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class SRUPIngestionConfig:
+class SRUPIngestionConfig(BaseModel):
     """All parameters for the SRUP ingestion pipeline."""
 
     dag_id: str = "srup_ingestion"
@@ -203,13 +204,13 @@ class SRUPIngestionConfig:
     request_timeout_seconds: int = WFS_REQUEST_TIMEOUT_SECONDS
 
     schedule: str | None = None  # manual trigger
-    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    start_date: datetime = Field(default_factory=lambda: datetime(2025, 1, 1))
     max_active_runs: int = 1
     max_active_tasks: int = 2
 
     trigger_dag_id: str = "srup_bronze_load"
 
-    tags: list[str] = field(default_factory=lambda: ["srup", "constraints"])
+    tags: list[str] = Field(default_factory=lambda: ["srup", "constraints"])
     retries: int = 2
     retry_delay_minutes: int = 5
 
