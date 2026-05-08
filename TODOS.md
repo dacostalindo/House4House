@@ -64,6 +64,24 @@
 
 ---
 
+## Recency annotations on wiki/sources/* pages (deferred from PR 2)
+
+**What:** add a `last_api_check: <date>` YAML frontmatter field + inline `(as of YYYY-MM, url)` markers to every external claim (rate limits, schema column behaviors, deprecation notes, pagination patterns) on every `wiki/sources/<name>.md` page.
+
+**Why:** the wiki describes upstream APIs and GIS sources whose behavior drifts over time. Without dated annotations, future-Claude reading a quirk doesn't know whether to trust it or re-verify against current API behavior. With annotations: `/wiki-lint` flags pages whose `last_api_check` is older than 90 days; future-Claude can decide per-claim whether a fact is fresh.
+
+**Pros:** scales as the wiki ages; small operational cost per ingest (re-stamp `last_api_check` when refreshing a page); makes `/wiki-lint` materially more useful at staleness detection.
+
+**Cons:** zero benefit on day 1 (every seed page would carry the same date). Only kicks in 60-90 days post-PR-2. Reviewing inline markers in PR 2 would inflate the diff. Separation of concerns argues for "extract content first, annotate later."
+
+**Context:** borrowed from [eugeniughelbur/obsidian-second-brain](https://github.com/eugeniughelbur/obsidian-second-brain) per [research artifact 2026-05-08](file:///Users/manuellindo/.gstack/projects/dacostalindo-House4House/obsidian-second-brain-research-20260508.md), top-5 borrow #5. Their case was stronger because they're an AI-first personal-knowledge vault (free-form claims that age fast). Ours is a technical-infrastructure wiki anchored to code in the same repo — stale claims can be re-derived by reading the code, so the urgency is lower.
+
+**Depends on:** PR 2 seed content lands; ~60-90 days of `/wiki-lint` cron runs to confirm staleness becomes a real concern.
+
+**Estimated effort when actioned:** ~1 day to walk all `wiki/sources/<name>.md` pages, add `last_api_check` frontmatter + inline `(as of ..., url)` to each claim against an upstream source, update `wiki/CLAUDE.md` schema to document the convention.
+
+---
+
 ## Reusable patterns from eugeniughelbur/obsidian-second-brain
 
 **What:** the [obsidian-second-brain](https://github.com/eugeniughelbur/obsidian-second-brain) Claude Code skill (951 stars, actively maintained) is "an evolution of Karpathy's LLM Wiki pattern" — same conceptual ground we built Phase 3e on. Cherry-pick three patterns from it as we expand:
