@@ -1,5 +1,69 @@
 # TODOS
 
+## Obsidian Local REST API integration (Phase 3e enhancement, deferred)
+
+**What:** wire the [Obsidian Local REST API plugin](https://github.com/coddingtonbear/obsidian-local-rest-api) into Claude Code workflows for real-time wiki updates when Obsidian is open, plus a programmatic query surface for the Streamlit app and future skills.
+
+**Why:** today, Claude Code writes to `wiki/*.md` on disk. Obsidian re-reads on focus, but there's a small lag and occasional file-lock weirdness when both are writing. The plugin's REST API solves both. Beyond that, it unlocks: a `/wiki-search` skill that queries Obsidian's native full-text + tags + Dataview indexes (much faster than grep at 100+ pages), and a Phase 5+ Streamlit page that surfaces wiki context alongside Idealista enrichment data.
+
+**Pros:** real-time edit sync, structured queries via Dataview, programmable graph queries (find orphan pages, hubs, dead links), no filesystem-locking edge cases.
+
+**Cons:** requires Obsidian running locally with the plugin installed and an API token. Couples some workflows to Obsidian (the wiki is still readable as plain markdown without it, but advanced features require it). Not a fit for Docker-side workflows like `wiki_lint_dag` (which keeps using filesystem reads).
+
+**Context:** Phase 3e plan defers this. The wiki itself is plain markdown; the REST API is an opt-in enhancement layer. Right time to revisit: when the wiki crosses ~50 pages OR when the first concrete Streamlit use case for surfacing wiki content lands.
+
+**Depends on:** Phase 3e (LLM Wiki) shipped first.
+
+---
+
+## Wiki schema-version migration
+
+**What:** when `wiki/CLAUDE.md` schema evolves (new required sections, new YAML frontmatter fields, new naming convention), establish a migration playbook. Without one, schema drift accumulates: half the source pages have `## Last verified`, half don't.
+
+**Why:** Phase 3e seeds the wiki with one schema. Over months the schema will evolve (new section types, new tags, new required metadata). Pages written under the old schema get inconsistent with the new schema. The wiki/lint DAG can flag drift but doesn't fix it.
+
+**Pros:** keeps the wiki structurally consistent as it grows; makes Dataview queries reliable; reduces "search returned 8 pages but only 5 have the field I need" bugs.
+
+**Cons:** requires committing to a versioning convention upfront (e.g., `schema_version: 1` in CLAUDE.md frontmatter) and a migration command (`/wiki-migrate-schema vN→vM`).
+
+**Context:** captured during Phase 3e devex-review (Pass 5 gap). Not blocking — Phase 3e ships with one schema; revisit when the second schema change is needed.
+
+**Depends on:** Phase 3e shipped + at least one real schema evolution observed.
+
+---
+
+## Wiki rot signal — DX measurement
+
+**What:** instrument the wiki to detect when it's rotting vs being maintained. Candidate metrics: weekly lint-finding count trend, ratio of source pages with `Last verified` < 30 days, ingest count per week, query count per week (if we can count those).
+
+**Why:** the wiki only delivers value if it stays current. The risk pattern: ingest enthusiasm fades after 3 months, lint findings climb, no one notices, the wiki becomes a museum. Adding a small dashboard (or appending a 1-line metric to `wiki/log.md` weekly) catches this before it gets bad.
+
+**Pros:** lets us answer "is the wiki actually working" with data instead of vibes.
+
+**Cons:** adds a tiny instrumentation burden. The metrics could become noise if the user dismisses them.
+
+**Context:** Phase 3e devex-review Pass 8 gap. The wiki_lint_dag is the natural place to emit metrics — extend it to write a one-line trend entry to log.md or a separate `wiki/health.md` page.
+
+**Depends on:** Phase 3e shipped + wiki_lint_dag running for ≥4 weeks (need a baseline).
+
+---
+
+## Adopt qmd or equivalent search engine for the wiki
+
+**What:** integrate [qmd](https://github.com/tobi/qmd) (or build a minimal alternative) for hybrid BM25 + vector search over `wiki/*.md`. Expose as both a CLI (so Claude can shell out) and an MCP server (so Claude uses it as a native tool).
+
+**Why:** at small scale (~50 pages), `index.md` + grep is fine. At ~150+ pages, finding the relevant subset becomes the bottleneck for Claude's ingest/query workflows.
+
+**Pros:** much faster than reading index.md + grepping at scale; semantic search catches topical matches grep misses.
+
+**Cons:** new infrastructure to maintain; qmd is a tool we don't yet use; alternative homemade search is "vibe-coded helper" territory.
+
+**Context:** explicit non-goal of Phase 3e. Re-evaluate when wiki crosses ~150 pages.
+
+**Depends on:** Phase 3e shipped + wiki growing past the search-by-grep threshold.
+
+---
+
 ## Phase 2.5 — closed (no work to do)
 
 **Status:** absorbed by Phase 2 on 2026-05-08.
