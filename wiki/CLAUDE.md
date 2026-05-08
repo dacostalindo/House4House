@@ -1,5 +1,9 @@
 # Wiki Schema for Claude Code
 
+## For future Claude
+
+This is the **schema document** for the House4House wiki. It defines the page conventions (filename rules, required frontmatter, required sections per page type), the ingest workflow (how new sources enter the wiki), the query workflow (how Claude answers using the wiki), and the lint workflow (how the weekly `/wiki-lint` cron + the per-PR `scripts/wiki_health.py` check the wiki for drift). Read this file at the start of any session that touches `wiki/`.
+
 This file is the **schema layer** for the House4House wiki — the configuration that makes Claude a disciplined wiki maintainer rather than a generic chatbot. It defines page conventions, ingest workflow, query workflow, and lint workflow.
 
 You and Claude co-evolve this document over time as conventions firm up. **Read this file at the start of any session that touches `wiki/`.**
@@ -49,6 +53,30 @@ sprint_number: <int>
 weeks: "<n>-<m>"
 last_status_update: <date>
 ```
+
+Decision records additionally carry (per obsidian-second-brain `references/ai-first-rules.md` borrow #8, locked 2026-05-08):
+
+```yaml
+confidence: high | medium | speculation
+supersedes: <old-record-filename>      # only when this ADR obsoletes an older one
+superseded_by: <new-record-filename>   # only when this ADR has been obsoleted
+```
+
+The `confidence:` field is required on every decision record. `high` = battle-tested in a Phase spike or production run; `medium` = picked deliberately but not yet stress-tested; `speculation` = best-guess at decision time, expected to be revisited. Tells a future Claude session how much to trust an old ADR before proposing changes. Scoped to decisions/ only — sources/concepts/pipelines have their confidence implicit in the underlying code.
+
+### `## For future Claude` preamble (required on every page)
+
+Per obsidian-second-brain `references/ai-first-rules.md` borrow #7 (locked 2026-05-08), every wiki page begins with a 2-3 sentence preamble in plain English, immediately after the frontmatter (or after the page title for structural files without frontmatter), before any other section:
+
+```markdown
+## For future Claude
+
+This note is a [type] about [topic]. It [main purpose]. [Optional caveat about staleness, confidence, or scope.]
+```
+
+The preamble lets a future Claude Code session judge a page's relevance in ~10 seconds before parsing the full content. The schema-header routing in the CLAUDE.md hierarchy directs Claude to specific wiki pages on every edit; the preamble shaves the per-page-load cost when the routing was a near-miss rather than a direct hit.
+
+**Typed-content pages** (`source` / `concept` / `pipeline` / `decision` / `plan` types) follow the canonical shape above. **Structural files** (`README.md`, `CLAUDE.md`, `index.md`, `log.md`, `plan/README.md`) carry the same `## For future Claude` heading but the body describes the file's role in the wiki ("This is the catalog Claude reads first…", "This is the schema document…") rather than a typed [type]/[topic]. Same purpose, slightly different shape.
 
 ### Required sections per page type
 
