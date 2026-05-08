@@ -82,23 +82,19 @@
 
 ---
 
-## Reusable patterns from eugeniughelbur/obsidian-second-brain
+## obsidian-second-brain borrows — distributed into PRs (TODO closed)
 
-**What:** the [obsidian-second-brain](https://github.com/eugeniughelbur/obsidian-second-brain) Claude Code skill (951 stars, actively maintained) is "an evolution of Karpathy's LLM Wiki pattern" — same conceptual ground we built Phase 3e on. Cherry-pick three patterns from it as we expand:
+**Status:** the four cherry-picked patterns from [eugeniughelbur/obsidian-second-brain](https://github.com/eugeniughelbur/obsidian-second-brain) (per [research artifact 2026-05-08](file:///Users/manuellindo/.gstack/projects/dacostalindo-House4House/obsidian-second-brain-research-20260508.md)) have been folded into specific PRs in the design doc. Tracking pointers below — no further TODO action needed; each lands when its PR/Phase is built.
 
-1. **Two-tier `/wiki-lint`** — they run a Python `vault_health.py` for mechanical checks (orphans, missing frontmatter, broken links, duplicates) FIRST, then spawn parallel LLM subagents only for semantic checks (contradictions, concept gaps, stale claims). Our current `/wiki-lint` is LLM-only (per devex-review B decision). Revisit if pure-LLM cost or latency becomes a problem at scale.
+| Borrow | Lands in | Where in design doc |
+|---|---|---|
+| #1 Reconcile pattern → `/wiki-reconcile` skill + reconcile-on-merge workflow | Phase 7d (skill); PR 3+ workflow note | Phase 7 section + implementation plan PR 3+ section |
+| #2 `vault_health.py` programmatic wiki health check | Phase 4d | Phase 4 CI/CD section |
+| #3 Parallel-subagent orchestration in skills | Phase 7 cross-skill conventions | Phase 7 cross-skill conventions section |
+| #4 ADR frontmatter shape on decision records | PR 2 seed | Phase 3e seed-sources section |
+| #5 Recency markers on source pages | DEFERRED — separate TODO above | TODO entry above this one |
 
-2. **Parallel-subagent ingest** — their `obsidian-ingest` skill spawns parallel subagents for entities / concepts / claims / tasks extraction during a single ingest. Adopt this architecture when we build `/wiki-ingest` in Phase 7.
-
-3. **PostCompact hook** — their `obsidian-bg-agent.sh` fires after Claude compacts the session context, propagating session learnings to the vault automatically. Complements (doesn't replace) our weekly cron — could give us per-session wiki updates without manual `/wiki-ingest` calls.
-
-**Pros:** validated patterns from a 951-star repo; saves design effort on `/wiki-ingest` and any future programmatic lint.
-
-**Cons:** their personal-second-brain shape (daily notes, kanban, people, ideas) is wrong domain for our technical-knowledge wiki — borrow patterns, not page conventions.
-
-**Context:** spotted during Phase 3 PR 1 verification on 2026-05-08. Our Phase 3e implementation is independently good but their work confirms our architectural choices and shows where to evolve.
-
-**Depends on:** `/wiki-ingest` skill design (Phase 7) for #2; `/wiki-lint` cost/latency feedback (~3 months of weekly runs) for #1; nothing for #3 (could prototype any time).
+**PostCompact hook pattern** (their `obsidian-bg-agent.sh`) is NOT being borrowed today — captured here as a future note: their hook fires after Claude compacts session context to propagate session learnings to vault automatically. Could complement our weekly cron with per-session wiki updates. Revisit only if our manual + cron model produces stale pages between cron runs.
 
 ---
 
