@@ -93,8 +93,64 @@
 | #3 Parallel-subagent orchestration in skills | Phase 7 cross-skill conventions | Phase 7 cross-skill conventions section |
 | #4 ADR frontmatter shape on decision records | PR 2 seed | Phase 3e seed-sources section |
 | #5 Recency markers on source pages | DEFERRED — separate TODO above | TODO entry above this one |
+| #6 `/research-deep` 4-phase pipeline (Anthropic-only port) | DEFERRED — Phase 7+ trigger-gated | TODO entry below ("`/research-deep` skill") |
+| #7 `## For future Claude` preamble (from `references/ai-first-rules.md`) | PR 2 schema amendment | Phase 3e "Schema amendments before PR 2 ships" |
+| #8 `confidence: high \| medium \| speculation` on `wiki/decisions/` ADRs (rule #7 in `references/ai-first-rules.md`) | PR 2 schema amendment | Phase 3e "Schema amendments before PR 2 ships" |
+| #9 `llms.txt` at repo root | Phase 4d | Phase 4 CI/CD section |
+| #10 `wiki/raw/` immutable-clipping pattern (from `references/vault-schema.md`) | DEFERRED — trigger-gated | TODO entry below ("`wiki/raw/` immutable-clipping directory") |
 
 **PostCompact hook pattern** (their `obsidian-bg-agent.sh`) is NOT being borrowed today — captured here as a future note: their hook fires after Claude compacts session context to propagate session learnings to vault automatically. Could complement our weekly cron with per-session wiki updates. Revisit only if our manual + cron model produces stale pages between cron runs.
+
+---
+
+## `/research-deep` skill — Phase 7+ candidate (Anthropic-API-only path) (NEW 2026-05-08)
+
+**What:** port the obsidian-second-brain `/research-deep` 4-phase pipeline (vault scan → gap analysis → gap-fill → delta synthesis) as a House4House skill at `.claude/skills/research-deep/SKILL.md`, but **without the Perplexity + Grok external API dependencies**. Run the whole pipeline on the existing Claude Code subscription using Claude Code's native `WebSearch` + `WebFetch` tools for the gap-fill phase.
+
+**Why we chose this over the original obsidian implementation:**
+
+- The original calls Perplexity sonar-pro / sonar-deep-research and Grok+Live Search; ~$0.20-0.80 per run, plus separate API keys to manage.
+- Anthropic-only path: same skill structure, but each phase runs as Claude reasoning + Claude Code tool calls. Gap analysis = Claude reads `wiki/index.md` + greps the wiki for the topic, then proposes 3-5 targeted queries. Gap-fill = Claude runs each query via `WebSearch`, fetches the top results via `WebFetch`. Synthesis = Claude in the same session writes the delta. No external API keys, no per-run dollar cost — the cost is subscription rate-limit usage, which is a budget the user already pays for and visibly tracks.
+- Trade-off: Anthropic web search isn't quite as deep as Perplexity sonar-deep-research. For most House4House research workflows (regulatory API changes, dependency upgrade risks, OGC spec details), this is good enough. If we later hit a topic where the depth gap actually bites, we can layer Perplexity in as an optional second pass.
+
+**Trigger condition (do not build until met):** the user repeatedly hits the same research topic 2-3+ times because informal Claude conversation can't compress the answer (i.e., Claude re-derives from web every session, no compounding). Examples that would qualify: "what's actually changed in OGC API Features 1.1?", "Airflow 2 → 3 migration risk in the wild", "Cosmos 1.6 vs 1.7 actual breakage list". One-off curiosity does NOT qualify.
+
+**Gating dependencies:**
+- PR 2 must have landed (~30 wiki pages) so the vault-scan phase has a real baseline. Running gap-analysis against an empty wiki produces "all gaps" which is useless.
+- Ideally PR 3+ has populated `wiki/plan/` so the topic taxonomy is settled — gap-fill respects existing `wiki/concepts/` and `wiki/sources/` rather than creating duplicates.
+
+**Implementation sketch (Phase 7+):**
+1. `wiki-scan` agent: Read `wiki/index.md`, grep wiki/ for topic keywords, return baseline page list.
+2. `gap-analyze` agent: Given baseline + topic, propose 3-5 web queries that would close the gap.
+3. `gap-fill` agents (parallel, one per query): each runs `WebSearch <query>` + `WebFetch <top-3-urls>`, returns extracted facts + sources.
+4. `synthesize` step: main thread merges all agent outputs, writes a delta report to `wiki/research/YYYY-MM-DD-<slug>.md` (new directory, parallel to `wiki/lint-reports/`), proposes updates to existing wiki/sources/ + wiki/concepts/ pages, and offers to apply them via the standard manual ingest flow.
+5. Honors the multi-agent error reporting convention (Phase 7 cross-skill conventions, devex-review G3): each subagent prefixes output with `[<agent>]`, the main thread prints a per-agent summary, partial successes commit by default.
+
+**Does NOT need:** Perplexity API key, Grok API key, X-discourse search (the obsidian original tags some queries as `x` for Twitter discourse — irrelevant for our regulatory-data domain).
+
+**Cost:** $0 incremental (covered by Claude Code subscription). Per-run uses ~5-10 web searches + several reads — comparable to a verbose investigate session.
+
+**Acceptance gate (when built):** invoke `/research-deep "OGC API Features schema evolution 2024-2026"` against the post-PR 2 wiki; produces a delta report at `wiki/research/<date>-ogc-api-evolution.md` that (a) cites specific URLs, (b) flags at least one drift between current `wiki/sources/srup-ogc.md` claims and upstream spec, (c) proposes targeted page updates rather than full rewrites.
+
+**Status:** captured 2026-05-08 (during Phase 3 PR 1 DX-review closeout). User explicitly chose Anthropic-API-only path. Defer to post-PR 2 + post-PR 3 minimum; concretely build only when the trigger condition above is hit.
+
+---
+
+## `wiki/raw/` immutable-clipping directory (deferred, trigger-gated, NEW 2026-05-08)
+
+**What:** add a `wiki/raw/` directory pattern borrowed from [obsidian-second-brain/references/vault-schema.md](https://github.com/eugeniughelbur/obsidian-second-brain/blob/main/references/vault-schema.md). Holds immutable original artifacts (regulator press releases as `.html`, source-API spec PDFs, scraped HAR files, Excel datasheets exported by INE/eurostat, screenshots from a portal's "what changed in 2026" page) that the wiki layer derives summaries from. Pattern: `wiki/raw/` is read-only — Claude may read it but never overwrite or rewrite. The corresponding `wiki/sources/<name>.md` page summarizes what's in `raw/` and links to the original artifact for verification.
+
+**Why we don't need it today:** PR 2's seed pages derive entirely from in-repo artifacts (docstrings, design doc, git log, prior commits). No external clippings yet. The orphan `scripts/smiga.cm-aveiro.pt.har` is a counter-example — it's already a captured external artifact sitting in the wrong place, but it's a one-off and doesn't justify a new directory pattern by itself.
+
+**Trigger condition (do not build until met):** the user needs to preserve a non-trivial external artifact for re-verification later — typically a regulator's API spec PDF that we want to diff against next year, or a portal's "deprecated endpoints" announcement we want to cite verbatim in `wiki/decisions/`. When the second such artifact accumulates (proving it's a recurring need, not one-off), establish `wiki/raw/<source-slug>/<date>-<artifact-name>` as the canonical location and migrate any stragglers (the HAR file, etc.) into it.
+
+**When triggered, also do:**
+- Add `wiki/raw/` to `wiki/CLAUDE.md` schema with the read-only convention spelled out.
+- Update `scripts/wiki_health.py` (Phase 4e) to skip `wiki/raw/` for schema checks (different rules apply — original artifacts don't get a "For future Claude" preamble, frontmatter, etc.).
+- Update `/wiki-lint` skill prompt to note that `wiki/raw/` orphan-detection runs differently (raw files are deliberately not linked from `index.md`; only the corresponding `wiki/sources/<name>.md` summary needs an inbound link).
+- Decide on storage: `wiki/raw/` committed to git for small text artifacts (HTML pages, JSON dumps); large binaries (PDFs over a few MB, screenshots) go to MinIO via a `raw_artifacts/` bucket and `wiki/raw/<source>/<date>-<name>.md` becomes a small pointer page with the MinIO URL + sha256.
+
+**Status:** captured 2026-05-08 (during Phase 3 PR 1 DX-review closeout, obsidian-second-brain `references/` review). Defer indefinitely; build only when the second non-trivial external artifact accumulates.
 
 ---
 
