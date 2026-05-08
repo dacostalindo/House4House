@@ -1,6 +1,6 @@
 # Wiki Index
 
-Last lint run: never
+Last lint run: 2026-05-08
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
