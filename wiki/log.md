@@ -97,3 +97,44 @@ post plan-eng-review):
 After PR 3 merges, hand off to user for the Phase 1 README cleanup PR (8
 specific edits with line numbers + diffs). PR 4-7 strict-sequential per
 eng-review finding 1.4: PR 3 → 4 → 5 → 6 → 7 → 8.
+
+## [2026-05-09] seed | PR 4 — wiki/use-cases/ (UC-1 + UC-2 + UC-3)
+
+PR 4 of Phase 3. 5 commits adding the new top-level wiki/use-cases/ folder
+with 3 unified UC pages (each combining product narrative + conceptual data
+model + serving layer per /plan-design-review finding 2.3 lock).
+
+Per the eng-review locked sequence (PR 3 → 4 → 5 → 6 → 7 → 8), PR 4 stacks
+on PR 3 head locally; rebases onto main when PR 3 merges. Migration sources:
+README §1 (Business Use Cases) + §7 (Conceptual Data Models) + §17 (Serving
+Layer per UC).
+
+Commits:
+
+- **Commit 4a** — wiki/use-cases/README.md schema + orientation. Page
+  conventions (frontmatter incl. uc_number + sprint_target + status enum),
+  required sections (10 sections per UC page), cross-linking expectations,
+  UC roster (3 pages: UC-1 → sprint-06 M1; UC-2 → sprint-07 M2; UC-3 →
+  sprint-08 M3).
+- **Commit 4b** — UC-1 (Undervalued Property Identification). Investment
+  use case; foundation for UC-2 + UC-3 via hedonic price model. 7 analytical
+  layers (hedonic + residual + neighbourhood trajectory + renovation
+  opportunity + yield + catalysts + composite). 3 serving surfaces at
+  sprint-06.
+- **Commit 4c** — UC-2 (New Housing Unit Pricing Strategy). Reuses UC-1
+  hedonic. 10 analytical layers (price decomposition into base + premiums
+  + competitive positioning + absorption forecast + margin). 2 serving
+  surfaces at sprint-07.
+- **Commit 4d** — UC-3 (Land Development Opportunity Detection). Most
+  spatially-intensive UC; depends on UC-1 hedonic for GDV anchor. 12
+  analytical layers (vacant detection + buildability + constraint overlay +
+  parcel assembly + economics + opportunity scoring + competition reuses
+  UC-1's neighbourhood_market_stats). 3 serving surfaces at sprint-08 +
+  Opportunity Heatmap deferred to sprint-09.
+- **Commit 4e** (this) — wiki/index.md regen with Use Cases subsection +
+  log.md append.
+
+PR 4 stats: 5 files added, ~520 lines.
+
+Cross-UC dependency lock: UC-2 + UC-3 both REQUIRE UC-1 hedonic. Documented
+explicitly in each UC page's Dependencies section.
