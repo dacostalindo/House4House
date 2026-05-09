@@ -90,16 +90,23 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 
 - [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2 done; Phase 2.5 closed; Phase 3 in_progress; Phases 4-7 planned)
 
-## Forthcoming (PR 4-7)
+## Use cases (3 pages — PR 4 seed)
+
+Each UC combines product narrative + conceptual data model + serving layer in one page (per `/plan-design-review` finding 2.3 lock). See [[use-cases/README|use-cases orientation]] for schema + cross-UC dependencies.
+
+- [[UC-1]] — Undervalued Property Identification (investors / promoters / fund managers / flippers) — MVP at [[sprint-06]] 🏁 M1
+- [[UC-2]] — New Housing Unit Pricing Strategy (developers / commercial directors / project managers) — MVP at [[sprint-07]] 🏁 M2; depends on UC-1 hedonic
+- [[UC-3]] — Land Development Opportunity Detection (land developers / promoters / funds / municipal offices) — MVP at [[sprint-08]] 🏁 M3; depends on UC-1 hedonic for development economics
+
+## Forthcoming (PR 5-8)
 
 The README → wiki migration continues iteratively. Per locked plan:
 
 | PR | New folder | Pages | README section |
 |---|---|---|---|
-| PR 4 | `wiki/use-cases/` | 3 (UC-1, UC-2, UC-3 — narrative + data model + serving combined) | §1 + §7 + §17 partial |
 | PR 5 | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 24 frontmatter additions + 1 new concept | §2 + §6 |
 | PR 6 | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 5-7 new ADRs | §3 + §4 + §11 + §13 |
-| PR 7 | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR | §9 + §14 + §15 + §16 + §17 |
+| PR 7 | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR | §9 + §14 + §15 + §16 + §17 partial |
 | PR 8 (optional) | README → stub rewrite | 1 file | retire README's strategic narrative |
 
 §8 Physical Data Models is **dropped from migration**; dbt + dbt-docs is source of truth. See [[medallion-layering]] for the architecture.
