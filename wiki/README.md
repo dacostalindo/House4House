@@ -2,27 +2,32 @@
 
 ## For future Claude
 
-This is the **landing page** for the wiki — orientation for human readers. It explains how the wiki is structured (sources/concepts/pipelines/decisions/plan/lint-reports), who maintains what (Claude writes; humans read), and how to invoke the lint workflow (`make install-cron` for the weekly cron). The schema document for actual page conventions is at `CLAUDE.md` next to this file. Read this file when a human is exploring the wiki for the first time; otherwise prefer `CLAUDE.md`.
+This is the **canonical first-visit entry** for the wiki — the trunk-test page. Read this first when you open `wiki/` for the first time. It tells you what each file at this directory level does and which subdirectory holds what kind of typed content. The wiki is **maintained by Claude Code** (you read it; the LLM writes it) and **read primarily in Obsidian** (graph view, backlinks panel, autocomplete on `[[`). For Claude Code editing, file paths + `[[wikilinks]]` are how navigation works.
 
-This directory is the project's persistent knowledge base. It is **maintained by Claude Code**, not written by hand. You read it; the LLM writes it.
+## Where to go
 
-## How to use
+| If you want… | Read |
+|---|---|
+| 1-page synthesis of the project (entry-point for "what is this?") | [`overview.md`](./overview.md) |
+| The schema doc — how the wiki is structured, page conventions, ingest/query/lint workflows | [`CLAUDE.md`](./CLAUDE.md) |
+| The catalog — every page grouped by type with a 1-line summary | [`index.md`](./index.md) |
+| The chronological event log — when each page was created/updated, lint runs, schema changes | [`log.md`](./log.md) |
+| Output of the weekly `/wiki-lint` cron + on-demand `make wiki-lint` runs | [`lint-reports/`](./lint-reports/) |
 
-- **Browse**: open `index.md` to see every page with a one-line summary.
-- **Schema for Claude**: `CLAUDE.md` is the schema document — it tells Claude how to maintain the wiki (page conventions, ingest workflow, query workflow, lint workflow). Read it if you want to understand how the LLM treats this directory.
-- **What you do**: drop new sources into `raw/` (or paste them in chat), tell Claude to ingest them. Claude reads the source, updates the relevant wiki pages, refreshes `index.md`, and appends an entry to `log.md`.
-- **What Claude does**: writes and maintains everything in `sources/`, `concepts/`, `pipelines/`, `decisions/`, and `plan/`.
+## Typed-content folders
 
-## Sections
+Each folder holds one shape of page (the schema in `CLAUDE.md` defines required frontmatter + sections per type):
 
-- `sources/` — one page per data source (idealista, srup, crus, etc.).
-- `concepts/` — architectural patterns and cross-cutting rules (bronze-permissive, SCD2 row-hash, Pydantic-not-in-dlt, etc.).
-- `pipelines/` — one page per ingestion pipeline.
-- `decisions/` — dated decision records (why we picked uv workspace, why cosmos pinned, etc.).
-- `plan/` — the project's strategic roadmap, decomposed from the root README. See `plan/README.md` for organization.
-- `lint-reports/` — output of the weekly `/wiki-lint` cron. Last lint timestamp visible at the top of `index.md`.
-- `log.md` — chronological append-only record of ingest/query/lint events.
+| Folder | Page type | What it holds |
+|---|---|---|
+| [`sources/`](./sources/) | source | One page per data source — Idealista, JLL, REMAX, Zome (portals); INE, BPStat, ECB, Eurostat (APIs); SCE (scraper); 14 GIS sources |
+| [`concepts/`](./concepts/) | concept | Rules + patterns the project enforces — `[[bronze-permissive]]`, `[[scd2-row-hash]]`, `[[pydantic-not-in-dlt]]`, `[[medallion-layering]]`, etc. |
+| [`decisions/`](./decisions/) | decision | Dated ADRs — why we picked uv workspace, why Cosmos pinned, why SQLA 1.4 concession, etc. |
+| [`sprints/`](./sprints/) | plan / sprint | Sprint pages tracking the project's data-product roadmap + a single dev-tooling sprint covering the gstack-driven Phase 1-7 work |
+| `use-cases/` (lands in PR 4) | plan / use-case | One page per UC — UC-1 investment, UC-2 pricing, UC-3 land development. Each combines product narrative + data model + serving layer |
+| `architecture/` (lands in PR 6) | plan / architecture | "How it's built" reference — stack, infra, orchestration, data-quality strategy |
+| `planning/` (lands in PR 7) | plan / planning | "What might/will happen" — risks, resources, P3/P4 roadmap, milestones |
 
 ## Lint
 
-A weekly `launchd` cron fires `claude -p /wiki-lint --max-turns 5` Sundays 06:00 local. Output lands in `lint-reports/`. Install via `make install-cron` from the repo root.
+A weekly `launchd` cron fires `claude -p /wiki-lint --max-turns 30` Sundays 06:00 local. Output lands in [`lint-reports/`](./lint-reports/). Install via `make install-cron` from the repo root. On-demand: `make wiki-lint`.

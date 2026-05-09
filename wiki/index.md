@@ -68,17 +68,38 @@ This is the catalog of every wiki page. Each entry has a 1-line summary. Updated
 - [[2026-05-08-phase-2-5-closure]] — Phase 2.5 absorbed into Phase 2 (zero Pydantic-eligible sites surfaced by audit).
 - [[2026-05-08-idealista-enrichment-architecture]] — three coexisting streams; Phase 5 enrichment writes to silver, not bronze.
 
-## Plan
+## Sprints (12 pages — PR 3 seed)
 
-Plan content arrives iteratively across PR 3+ alongside README-derived ADRs (PostGIS-as-warehouse, MinIO-not-S3, etc.). Recommended sequencing:
+Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driven Phase 1-7 roadmap). See [[sprints/README|sprints orientation]] for the schema, status semantics, and living-roadmap mechanic.
 
-| PR | Content | Pages |
-|---|---|---|
-| 3 | `plan/sprints/*` | ~11 |
-| 4 | `plan/use-cases/*` | 3 |
-| 5 | `plan/sources-by-priority/*` | 3 |
-| 6 | `plan/data-flows/*` | 6 |
-| 7 | `plan/conceptual-models/*` | 3 |
-| 8 | Single-page topics: tech-stack, infra, data-quality, risks, resources, roadmap-p3-p4 | 6 |
+### Data-product sprints
 
-- [[plan/README|Plan section overview]] — orientation for the strategic-roadmap decomposition; sub-section content arrives iteratively in PR 3+.
+- [[sprint-01]] — Infrastructure & Geography (Weeks 1-2) — `done`
+- [[sprint-02]] — Core Market Data (Weeks 3-4) — `done`
+- [[sprint-03]] — Silver Layer + UC-3 GIS Foundation (Weeks 5-6) — `mostly_done`
+- [[sprint-04]] — Image Classification + Location Scores (Weeks 7-8) — `in_progress`
+- [[sprint-04.4]] — Pre-Sprint-4.5 Preparation (Week 8.5) — `done` (audit-corrected: shipped 2026-04-30)
+- [[sprint-04.5]] — Listings + Developments Cross-Portal Dedup (Week 9) — `planned`
+- [[sprint-05]] — Hedonic Model & Valuation (Weeks 10-11) — `planned`
+- [[sprint-06]] — UC-1 MVP Investment Opportunities (Weeks 12-13) — `planned` 🏁 M1
+- [[sprint-07]] — UC-2 MVP Pricing Strategy (Weeks 14-15) — `planned` 🏁 M2
+- [[sprint-08]] — UC-3 MVP Land Development Opportunities (Weeks 16-18) — `planned` 🏁 M3
+- [[sprint-09]] — Enhancements + Production Hardening (Weeks 19-20) — `planned`
+
+### Dev-tooling sprint (parallel track)
+
+- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2 done; Phase 2.5 closed; Phase 3 in_progress; Phases 4-7 planned)
+
+## Forthcoming (PR 4-7)
+
+The README → wiki migration continues iteratively. Per locked plan:
+
+| PR | New folder | Pages | README section |
+|---|---|---|---|
+| PR 4 | `wiki/use-cases/` | 3 (UC-1, UC-2, UC-3 — narrative + data model + serving combined) | §1 + §7 + §17 partial |
+| PR 5 | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 24 frontmatter additions + 1 new concept | §2 + §6 |
+| PR 6 | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 5-7 new ADRs | §3 + §4 + §11 + §13 |
+| PR 7 | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR | §9 + §14 + §15 + §16 + §17 |
+| PR 8 (optional) | README → stub rewrite | 1 file | retire README's strategic narrative |
+
+§8 Physical Data Models is **dropped from migration**; dbt + dbt-docs is source of truth. See [[medallion-layering]] for the architecture.
