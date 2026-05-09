@@ -213,3 +213,6 @@ __marimo__/
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+
+# Obsidian per-user vault config (workspace state, hotkeys, plugins)
+wiki/.obsidian/
