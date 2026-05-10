@@ -63,13 +63,34 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[ingest-flows]] — six-flow taxonomy (A REST / B scraping / C GIS / D derived / E spatial composition / F portal cross-reference) with decision tree for new sources.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
-## Decisions (5 ADRs)
+## Architecture (4 pages — PR 6 seed)
+
+The as-built / as-designed architecture, decomposed from README §3 + §4 + §11 + §13 with `[[wikilinks]]` to relevant ADRs and concepts. See [[architecture/README|architecture orientation]] for page conventions.
+
+- [[tech-stack]] — every technology choice with rationale + alternatives-considered table.
+- [[infra]] — Docker Compose service map + Hetzner AX102 server spec + PostgreSQL schema organization.
+- [[orchestration]] — Airflow DAG taxonomy + schedule map for ~22 recurring DAGs.
+- [[data-quality]] — dbt tests + Great Expectations + `metadata.pipeline_runs` audit trail.
+
+## Decisions (12 ADRs)
+
+**Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
 - [[2026-05-05-uv-workspace-shape]] — single root pyproject + apps/pipelines workspace members; one lockfile.
 - [[2026-05-05-cosmos-pin]] — `astronomer-cosmos>=1.6,<1.7` because 1.7+ imports `airflow.sdk` (Airflow-3-only).
 - [[2026-05-08-sqla-1.4-concession]] — apps/ accepts workspace-wide SQLA 1.4 (Airflow 2.10 forces <2.0; apps had zero SQLA code).
 - [[2026-05-08-phase-2-5-closure]] — Phase 2.5 absorbed into Phase 2 (zero Pydantic-eligible sites surfaced by audit).
 - [[2026-05-08-idealista-enrichment-architecture]] — three coexisting streams; Phase 5 enrichment writes to silver, not bronze.
+
+**Stack** (PR 6 — README §3 + §4 surfaced):
+
+- [[2026-05-10-single-server-self-hosted]] — root decision; 6 other ADRs cascade from this.
+- [[2026-05-10-postgis-as-warehouse]] — PostgreSQL 16 + PostGIS 3.4, rejecting Snowflake/BigQuery/RDS.
+- [[2026-05-10-minio-not-s3]] — self-hosted MinIO for raw landing, rejecting S3/GCS.
+- [[2026-05-10-airflow-2-not-3]] — Airflow 2.10 stay-the-course; Airflow 3 migration deferred.
+- [[2026-05-10-dbt-not-sqlmodel]] — dbt Core for transformations, rejecting SQLModel + SQLMesh.
+- [[2026-05-10-nominatim-osrm-self-hosted]] — Nominatim + OSRM self-hosted, rejecting Google Maps APIs.
+- [[2026-05-10-metabase-streamlit-not-superset]] — Metabase (BI) + Streamlit + Kepler.gl (custom apps); rejecting Superset.
 
 ## Sprints (12 pages — PR 3 seed)
 
@@ -108,7 +129,7 @@ The README → wiki migration continues iteratively. Per locked plan:
 | PR | New folder | Pages | README section |
 |---|---|---|---|
 | ~~PR 5~~ ✅ | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 23 frontmatter additions + 1 new concept | §2 + §6 |
-| PR 6 | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 5-7 new ADRs | §3 + §4 + §11 + §13 |
+| ~~PR 6~~ ✅ | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 7 new ADRs | §3 + §4 + §11 + §13 |
 | PR 7 | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR | §9 + §14 + §15 + §16 + §17 partial |
 | PR 8 (optional) | README → stub rewrite | 1 file | retire README's strategic narrative |
 
