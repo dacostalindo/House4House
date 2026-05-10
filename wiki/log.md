@@ -259,3 +259,57 @@ After PR 8 (or if PR 8 is declined): the README → wiki migration
 chapter closes, and the wiki becomes the canonical reading surface.
 Future updates land in wiki pages directly; the README becomes a
 thin orientation file.
+
+## [2026-05-10] retire | PR 8 — README → stub; wiki is canonical
+
+PR 8 of Phase 3 — closes the README → wiki migration chapter. Single
+commit: replace README.md's ~4,500-line strategic blueprint with a
+72-line stub that:
+
+- Keeps Getting Started (lines 1-15) + Repo layout table (lines 19-30)
+  unchanged — the operational entry-point a contributor reads first
+- Replaces the §1-§17 strategic narrative with a "Project blueprint —
+  see the wiki" section pointing to wiki/overview.md as the new
+  canonical entry-point
+- Adds a section-mapping table: every former README section →
+  current wiki location (or "deferred — dbt-docs is source of truth"
+  for §8 Physical Data Models per the eng-review pre-flight audit)
+- Adds a "Why this README is a stub" closing paragraph documenting
+  the migration rationale + how to recover the original content via
+  git history (`git log --diff-filter=D` + `git show <commit>^`)
+
+README delta: +35 / -4,458 (one file).
+
+Migration scope confirmed shipped:
+
+- §1 (use cases) → wiki/use-cases/ (3 pages)
+- §2 (sources) → wiki/sources/ (23 pages with priority frontmatter)
+- §3 (tech stack) → wiki/architecture/tech-stack.md + 7 ADRs
+- §4 (infra) → wiki/architecture/infra.md + single-server-self-hosted ADR
+- §5 (medallion) → wiki/concepts/medallion-layering.md (already shipped PR 2)
+- §6 (data flows) → wiki/concepts/ingest-flows.md
+- §7 (conceptual data models) → folded into UC pages
+- §8 (physical data models) → DEFERRED; dbt-docs canonical
+- §9 (spatial strategy) → wiki/concepts/spatial-strategy.md + dual-crs ADR
+- §10 (dependency graph) → folded into wiki/sprints/ frontmatter + body
+- §11 (orchestration) → wiki/architecture/orchestration.md
+- §12 (sprint plan) → wiki/sprints/ (11 data-product + 1 dev-tooling)
+- §13 (data quality) → wiki/architecture/data-quality.md
+- §14 (risks) → wiki/planning/risks.md
+- §15 (resources) → wiki/planning/resources.md
+- §16 (P3/P4 roadmap) → wiki/planning/roadmap-p3-p4.md
+- §17 (serving layer + Go/No-Go milestones) → per-UC pages + planning/milestones.md
+
+PR 8 closes Phase 3 of the dev-tooling plan. The wiki is now the
+canonical reading + writing surface for project knowledge; the
+README is a thin stub pointing here. Future updates land in wiki
+pages directly. The full PR sequence shipped: PR 1 (scaffold) → PR 2
+(seed content) → PR 3 (sprints) → PR 4 (use-cases) → PR 5 (priority
+frontmatter + ingest-flows) → PR 6 (architecture + 7 stack ADRs) →
+PR 7 (planning + spatial-strategy + dual-crs ADR) → PR 8 (README
+stub).
+
+Wiki final state: ~80 typed-content pages across 23 sources + 10
+concepts + 13 ADRs + 4 architecture + 4 planning + 12 sprints + 3
+use-cases + 1 overview + structural files (CLAUDE.md, README.md,
+index.md, log.md, plus per-section orientation READMEs).
