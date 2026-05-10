@@ -3,6 +3,7 @@ title: BUPI RGG — Simplified Cadastral Property Parcels
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, cadastre, geopackage]
+priority: P1
 ---
 
 ## For future Claude

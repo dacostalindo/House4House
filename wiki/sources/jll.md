@@ -3,6 +3,7 @@ title: JLL Residential PT
 type: source
 last_verified: 2026-05-08
 tags: [portal, real-estate, dlt, scd2]
+priority: P1
 ---
 
 ## For future Claude

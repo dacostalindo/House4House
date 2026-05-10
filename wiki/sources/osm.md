@@ -3,6 +3,7 @@ title: OpenStreetMap Portugal (Geofabrik)
 type: source
 last_verified: 2026-05-08
 tags: [gis, community, geofabrik, geopackage, multi-layer]
+priority: P0
 ---
 
 ## For future Claude

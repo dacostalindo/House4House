@@ -3,6 +3,7 @@ title: Aveiro PMOT — Municipal WebGIS Bulk Extractor
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, municipality, bulk-extractor, wms, gfi]
+priority: P2
 ---
 
 ## For future Claude

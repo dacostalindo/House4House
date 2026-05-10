@@ -3,6 +3,7 @@ title: SRUP — Property Constraints (legacy WFS)
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, wfs, legacy]
+priority: P1
 ---
 
 ## For future Claude

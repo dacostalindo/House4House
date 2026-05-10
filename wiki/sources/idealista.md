@@ -3,6 +3,7 @@ title: Idealista
 type: source
 last_verified: 2026-05-08
 tags: [portal, real-estate, scraper, zenrows]
+priority: P0
 ---
 
 ## For future Claude

@@ -3,6 +3,7 @@ title: Eurostat — European Commission Statistics
 type: source
 last_verified: 2026-05-08
 tags: [api, statistics, international, sdmx]
+priority: P1
 ---
 
 ## For future Claude

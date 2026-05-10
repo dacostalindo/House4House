@@ -3,6 +3,7 @@ title: DGT LiDAR Aveiro (2m DTM & DSM)
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, terrain, raster, stac]
+priority: P1
 ---
 
 ## For future Claude

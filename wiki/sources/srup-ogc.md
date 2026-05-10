@@ -3,6 +3,7 @@ title: SRUP OGC API — Constraints & Drivers (modern path)
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, ogc-api, multi-layer]
+priority: P1
 ---
 
 ## For future Claude
