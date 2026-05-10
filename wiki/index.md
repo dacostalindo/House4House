@@ -12,7 +12,9 @@ This is the catalog of every wiki page. Each entry has a 1-line summary. Updated
 
 - [[overview]] — 1-page synthesis of the project from the root README's 16 sections; entry-point for orientation queries.
 
-## Sources (23 pages)
+## Sources (23 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, cos, crus, crus-ogc, eurostat, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
 ### Real-estate portals (4)
 
@@ -49,7 +51,7 @@ This is the catalog of every wiki page. Each entry has a 1-line summary. Updated
 - [[osm]] — OpenStreetMap PT via Geofabrik; 18 layers, ~4.5M features; companion OSRM + Nominatim services.
 - [[aveiro-pmot]] — Aveiro municipal WebGIS bulk WMS-GFI extractor; one-off, not a recurring DAG; ~1,669 feature types.
 
-## Concepts (8 pages)
+## Concepts (9 pages)
 
 - [[bronze-permissive]] — bronze accepts whatever the source returns; validation lives in dbt staging; never-delete invariant.
 - [[pydantic-not-in-dlt]] — Pydantic in configs YES, in dlt resources NO; the strict guardrail protecting [[bronze-permissive]].
@@ -58,6 +60,7 @@ This is the catalog of every wiki page. Each entry has a 1-line summary. Updated
 - [[zenrows-universal-vs-re-api]] — [[idealista]]'s mixed-API scrape strategy; ~5× cheaper RE API + Universal Scraper for HTML pages.
 - [[payload-cache-lifecycle]] — module-level `_payload_cache` shared across [[idealista]]'s four resources; saves ~85% of ZenRows spend per run.
 - [[medallion-layering]] — bronze/silver/gold + per-source-bronze-schema architecture; transformation-placement rules.
+- [[ingest-flows]] — six-flow taxonomy (A REST / B scraping / C GIS / D derived / E spatial composition / F portal cross-reference) with decision tree for new sources.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
 ## Decisions (5 ADRs)
@@ -104,7 +107,7 @@ The README → wiki migration continues iteratively. Per locked plan:
 
 | PR | New folder | Pages | README section |
 |---|---|---|---|
-| PR 5 | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 24 frontmatter additions + 1 new concept | §2 + §6 |
+| ~~PR 5~~ ✅ | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 23 frontmatter additions + 1 new concept | §2 + §6 |
 | PR 6 | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 5-7 new ADRs | §3 + §4 + §11 + §13 |
 | PR 7 | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR | §9 + §14 + §15 + §16 + §17 partial |
 | PR 8 (optional) | README → stub rewrite | 1 file | retire README's strategic narrative |

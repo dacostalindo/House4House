@@ -3,6 +3,7 @@ title: APA ARPSI — Floodplain (EU Floods Directive)
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, hydrology, arcgis-rest]
+priority: P2
 ---
 
 ## For future Claude

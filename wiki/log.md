@@ -138,3 +138,33 @@ PR 4 stats: 5 files added, ~520 lines.
 
 Cross-UC dependency lock: UC-2 + UC-3 both REQUIRE UC-1 hedonic. Documented
 explicitly in each UC page's Dependencies section.
+
+## [2026-05-10] seed | PR 5 — source priorities + ingest-flows concept
+
+PR 5 of Phase 3 of the dev-tooling design. Two-commit shape:
+
+- **Commit 1** (9a5dadc) — added `priority: P0|P1|P2` frontmatter to all
+  23 sources/ pages. P0 (7): caop, bgri, osm, idealista, ine, bpstat,
+  ecb. P1 (13): bupi, cadastro, cos, crus, crus-ogc, eurostat, jll,
+  lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot,
+  lneg. Tier ordering drives load sequencing for cold bootstrap and
+  prioritization in [[sprint-04.5]] and beyond.
+- **Commit 2** (next) — wiki/concepts/ingest-flows.md, the six-flow
+  taxonomy from README §6 (A REST / B scraping / C GIS / D derived /
+  E spatial composition / F portal cross-reference). Lifts each
+  flow's verbatim diagram from README + adds [[wikilinks]] to source
+  pages and the concept dependencies. Replaces the originally-planned
+  wiki/plan/data-flows/ subdirectory — single concept page beats
+  per-flow page proliferation.
+- **Commit 3** (this) — wiki/CLAUDE.md schema update (priority field
+  required on source pages going forward), wiki/index.md regen with
+  the priority breakdown line + ingest-flows concept entry, log.md
+  append.
+
+PR 5 stats: 25 files modified (1 schema + 23 sources + 1 index), 1
+file added (ingest-flows.md), ~210 lines net.
+
+Replaces the original plan that had wiki/plan/sources-by-priority/
+as 3 separate pages and wiki/plan/data-flows/ as 6 separate pages.
+The frontmatter-on-existing-pages + single-concept-page approach is
+strictly less duplication for the same information density.

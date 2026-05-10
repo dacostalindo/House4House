@@ -3,6 +3,7 @@ title: BPStat — Banco de Portugal Statistical Data
 type: source
 last_verified: 2026-05-08
 tags: [api, financial, government, json-stat]
+priority: P0
 ---
 
 ## For future Claude

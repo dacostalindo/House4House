@@ -3,6 +3,7 @@ title: LNEG — Geology & Hydrogeology
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, geology, hydrogeology, arcgis-rest]
+priority: P2
 ---
 
 ## For future Claude

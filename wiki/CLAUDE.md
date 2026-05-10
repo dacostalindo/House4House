@@ -54,6 +54,14 @@ weeks: "<n>-<m>"
 last_status_update: <date>
 ```
 
+Source pages additionally carry (locked 2026-05-08 in PR 5):
+
+```yaml
+priority: P0 | P1 | P2
+```
+
+`P0` = foundation, must load first (dim_geography backbone, primary listing portal, statistical-API foundation). `P1` = use-case-enabling (secondary portals, regulatory layers, terrain). `P2` = specialty / Aveiro-specific / coverage-narrowed (e.g. APA's EU-Floods-Directive scope, LNEG's 1:500k geology, the aveiro-pmot one-off extractor). Every new source page MUST declare a priority on creation; absence is a `wiki_health.py` BLOCKING finding (Phase 4e). Tier ordering drives load sequencing for cold bootstrap and prioritization in [[sprint-04.5]] and beyond.
+
 Decision records additionally carry (per obsidian-second-brain `references/ai-first-rules.md` borrow #8, locked 2026-05-08):
 
 ```yaml

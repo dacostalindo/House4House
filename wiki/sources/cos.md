@@ -3,6 +3,7 @@ title: COS 2023 — Carta de Uso e Ocupação do Solo
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, landuse, geopackage]
+priority: P1
 ---
 
 ## For future Claude

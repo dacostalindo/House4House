@@ -3,6 +3,7 @@ title: CAOP — Carta Administrativa Oficial de Portugal
 type: source
 last_verified: 2026-05-08
 tags: [gis, regulatory, government, administrative, geopackage]
+priority: P0
 ---
 
 ## For future Claude

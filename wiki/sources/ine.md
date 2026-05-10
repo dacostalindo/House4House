@@ -3,6 +3,7 @@ title: INE — Instituto Nacional de Estatística
 type: source
 last_verified: 2026-05-08
 tags: [api, statistics, government, json-stat]
+priority: P0
 ---
 
 ## For future Claude

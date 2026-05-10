@@ -3,6 +3,7 @@ title: SCE — Sistema de Certificação Energética
 type: source
 last_verified: 2026-05-08
 tags: [scraper, regulatory, government, energy, nodriver]
+priority: P1
 ---
 
 ## For future Claude

@@ -3,6 +3,7 @@ title: BGRI Census 2021 — INE Statistical Geography
 type: source
 last_verified: 2026-05-08
 tags: [gis, statistics, government, census, geopackage]
+priority: P0
 ---
 
 ## For future Claude

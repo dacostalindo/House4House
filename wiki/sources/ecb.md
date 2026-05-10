@@ -3,6 +3,7 @@ title: ECB — European Central Bank Euribor
 type: source
 last_verified: 2026-05-08
 tags: [api, financial, international, sdmx]
+priority: P0
 ---
 
 ## For future Claude
