@@ -168,3 +168,41 @@ Replaces the original plan that had wiki/plan/sources-by-priority/
 as 3 separate pages and wiki/plan/data-flows/ as 6 separate pages.
 The frontmatter-on-existing-pages + single-concept-page approach is
 strictly less duplication for the same information density.
+
+## [2026-05-10] seed | PR 6 — wiki/architecture/ (4 pages) + 7 stack-decision ADRs
+
+PR 6 of Phase 3 — README §3 + §4 + §11 + §13 decomposition.
+
+Five-commit shape:
+
+- **Commit 6a** — wiki/architecture/README.md orientation +
+  tech-stack.md (README §3 primary stack table + alternative-stack-
+  considered table). Cross-links forward to 7 stack-decision ADRs in
+  commit 6d.
+- **Commit 6b** — infra.md (README §4: Docker Compose service map,
+  Hetzner AX102 server spec, PostgreSQL schema map matched to
+  warehouse/init/001_create_schemas.sql) + orchestration.md (README
+  §11: DAG taxonomy + schedule map for ~22 recurring DAGs).
+- **Commit 6c** — data-quality.md (README §13: dbt tests + Great
+  Expectations + metadata.pipeline_runs audit trail). Decision tree:
+  dbt test (shape) vs GE check (distribution / cross-source /
+  temporal / spatial).
+- **Commit 6d** — 7 stack-decision ADRs (all dated 2026-05-10):
+  postgis-as-warehouse, minio-not-s3, airflow-2-not-3, dbt-not-
+  sqlmodel, nominatim-osrm-self-hosted, metabase-streamlit-not-
+  superset, single-server-self-hosted. The single-server-self-hosted
+  decision is the load-bearing root that 6 others cascade from.
+- **Commit 6e** (this) — wiki/index.md regen (Architecture section
+  added + Decisions section grew from 5 to 12) + log.md append.
+
+PR 6 stats: 4 architecture pages (~580 lines) + 7 ADRs (~390 lines)
++ index/log changes (~40 lines) = ~1,010 lines net addition across
+12 new files + 2 modified.
+
+Decisions section now organized into "Foundational" (Phase 1-3
+dev-tooling, surfaced via gstack reviews — 5 ADRs) and "Stack" (PR 6,
+README §3 + §4 surfaced — 7 ADRs). Total ADRs: 12.
+
+After PR 6 merges, PR 7 lands wiki/planning/ (risks, resources,
+roadmap-p3-p4, milestones) + spatial-strategy concept + 1 ADR.
+PR 8 (optional) is the README → stub rewrite.
