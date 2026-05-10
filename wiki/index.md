@@ -145,6 +145,6 @@ The README → wiki migration continues iteratively. Per locked plan:
 | ~~PR 5~~ ✅ | extends `wiki/sources/` (priority frontmatter) + new `wiki/concepts/ingest-flows.md` | 23 frontmatter additions + 1 new concept | §2 + §6 |
 | ~~PR 6~~ ✅ | `wiki/architecture/` | 4 pages (stack, infra, orchestration, data-quality) + 7 new ADRs | §3 + §4 + §11 + §13 |
 | ~~PR 7~~ ✅ | `wiki/planning/` | 4 pages (risks, resources, roadmap-p3-p4, milestones) + 1 concept (spatial-strategy) + 1 ADR (dual-crs-storage) | §9 + §14 + §15 + §16 + §17 partial |
-| PR 8 (optional) | README → stub rewrite | 1 file | retire README's strategic narrative |
+| ~~PR 8~~ ✅ | README → stub rewrite | 1 file | retire README's strategic narrative; wiki is now canonical |
 
 §8 Physical Data Models is **dropped from migration**; dbt + dbt-docs is source of truth. See [[medallion-layering]] for the architecture.
