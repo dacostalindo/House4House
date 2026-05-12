@@ -516,3 +516,13 @@ Pages updated: `wiki/sprints/sprint-08.md` (substantial rewrite — WS1 expanded
 ## [2026-05-12] claude-md-update | Post-commit wiki-update rule added to root CLAUDE.md (`3d8c8ed`)
 
 Root `CLAUDE.md` "Schema for Claude Code" section gets one new sentence: "After every commit, update the wiki: append a one-line entry to wiki/log.md and update any wiki pages whose claims the commit affected." Loaded at root level on every task — fills the gap where `wiki/CLAUDE.md` §Write rules §3 (Propagation Rule) only fires when editing the wiki, leaving code→wiki direction unenforced. Triggered by the missed propagation when `171114d` (GIS recovery) landed without the wiki updates following.
+
+## [2026-05-12] claude-md-consolidation | Per-area `CLAUDE.md` files retired; all routing in `wiki/index.md`
+
+Deleted `pipelines/CLAUDE.md`, `dbt/CLAUDE.md`, `apps/CLAUDE.md`. Their task→concept routing tables only pointed at `wiki/concepts/` pages (and several pointed at non-existent ones — `staging-yaml-conventions`, `streamlit-keplergl-quirks`, `geopandas-postgis-quirks` — surfaced as drift here and in prior `/wiki-reconcile` runs).
+
+Replacement: new `## By area of code` section in [[index]] between Overview and Sources. Each code area (`pipelines/`, `dbt/`, `apps/`) lists the relevant **concepts + sources + decisions + architecture + currently-relevant sprints** in one place. Wider span than the old per-area files (which only covered concepts) and zero duplication risk since the listing IS the index.
+
+Root `CLAUDE.md` updated: "Schema for Claude Code" now points at `wiki/index.md` §"By area of code"; "Area routing" table replaced with a one-line pointer to the same. Wiki remains the single source of truth; the previous CLAUDE.md hierarchy was a redundant cache.
+
+**Why**: the per-area files didn't auto-update when wiki pages were added/renamed, producing drift the wiki linter couldn't catch (it lints inside `wiki/`, not outside). Folding routing into `wiki/index.md` puts it back under linter coverage. Triggered by user concern that "CLAUDE.md on the pipeline folders don't get updated. I want to have only one source of truth in the wiki."

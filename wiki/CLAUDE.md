@@ -213,16 +213,16 @@ The rule also extends to near-synonyms (`scd2-row-hash.md` and `row-hash-dedup.m
 **Never create a note in isolation.** Every write to the wiki has ripple effects. AFTER the search-and-update steps above, trace forward and ask: what other pages need to know about this?
 
 - New `wiki/sources/<name>.md` → add to `wiki/index.md` Sources section; cross-link from any `wiki/concepts/` page that mentions this source's domain; if the source crosses a P0/P1/P2 boundary, update `wiki/planning/resources.md` data-volume table.
-- New `wiki/concepts/<name>.md` → add to `wiki/index.md` Concepts section; add to per-area `CLAUDE.md` task→concept routing where relevant; cross-link from `wiki/overview.md` if it's a load-bearing rule.
+- New `wiki/concepts/<name>.md` → add to `wiki/index.md` Concepts section; add to the relevant area subsection(s) of `wiki/index.md` §"By area of code" (the area-routing index); cross-link from `wiki/overview.md` if it's a load-bearing rule.
 - New `wiki/decisions/<date>-<topic>.md` → add to `wiki/index.md` Decisions section under the right group (Foundational / Stack / Spatial / etc.); if it supersedes an old ADR, flip the old ADR's `status: superseded` + `superseded_by:` per the existing convention.
 - New sprint page → update `wiki/sprints/README.md` + `wiki/planning/milestones.md` if it gates a milestone.
 - Always append a one-line entry to `wiki/log.md` describing what changed.
 
 ## No-content-duplication guardrail
 
-Rules and patterns live ONLY in `wiki/concepts/`. The CLAUDE.md hierarchy at the project root + per-area directories are pure pointer indexes — they say "see `wiki/concepts/<topic>.md`" and never duplicate the content. This is the single-source-of-truth guarantee.
+Rules and patterns live ONLY in `wiki/concepts/`. The root `CLAUDE.md` is a pure pointer index — it points at `wiki/index.md` §"By area of code" and never duplicates content. This is the single-source-of-truth guarantee. Per-area `CLAUDE.md` files were retired 2026-05-12 (see [[log#2026-05-12-claude-md-consolidation]]); having them outside the wiki meant they drifted invisibly to the wiki linter.
 
-When Claude updates a rule, it updates the wiki page. The CLAUDE.md pointers don't drift because they are 1-line stubs.
+When Claude updates a rule, it updates the wiki page. The root pointer doesn't drift because it points at an indexed location, not at content.
 
 ## Version of this schema
 
