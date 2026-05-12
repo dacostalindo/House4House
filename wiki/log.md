@@ -500,3 +500,15 @@ Triggered by user `/wiki-reconcile` after the UC-3 reframe (gstack /office-hours
 ## [2026-05-12] sprint-10-create | Displaced sprint-09 scope absorbed
 
 Created `wiki/sprints/sprint-10.md` (weeks 22-24) to absorb the scope displaced from [[sprint-09]] when [[sprint-09]] was restructured to be UC-3 v1 wedge Part 2. Sprint 10 has two tracks: Track A (Imovirtual / RNAL / INE Permits / REN / data-quality monitoring / docs — always ships), Track B (ARU / hedonic v2 / OSRM drive-times / UC-3 v2 economics scoping — gated on [[sprint-09]] wedge-validation outcome). Updated sprint-09 Key Decisions to reference sprint-10 instead of "future v1.5+ sprint to be created."
+
+## [2026-05-12] gis-recovery | 26 lost GIS pipeline files recovered + committed (`171114d`)
+
+Six `pipelines/gis/` subdirs had `__pycache__/` but no `.py` source (lost between May 8 and May 9 — never committed to git). Recovered via two paths: `pdm` restored verbatim from `feature/pdm` branch (4 files, real source); apa/crus_ogc/lidar/lneg/srup_ogc reconstructed from `.pyc` bytecode using Python `dis` + `marshal` + the wiki source-page specs (22 files). All 26 files pass ruff + ruff-format + py_compile.
+
+Recovery provenance preserved at `/tmp/recovery/<mod>/*.spec.txt` (bytecode extracts). Commit `171114d` lands the integration.
+
+**Sprint 8 impact**: WS3 (LiDAR) flips from build-from-scratch to validate-recovered-code (~3 days saved). WS1 scope expands from "extract `ogcapi_template.py`" to full `pipelines/gis/template/ingestion_template.py` with three adapters (`OgcApiAdapter`, `ArcgisRestAdapter`, `DgtStacAdapter`) + `UnifiedIngestionConfig` — the API surface is fully specified by the recovered DAGs' imports. Day-8 srup_ogc evaluation gate added: if cleaner than legacy WFS, integrate the 22-layer SRUP OGC registry into `silver/geo/parcel_constraints.sql` on Day 10 (3 sources → up to 22 sources).
+
+Pages updated: `wiki/sprints/sprint-08.md` (substantial rewrite — WS1 expanded, WS3 reframed, Recovery section added, status update history entry added).
+
+**Caveat (Propagation Rule)**: `wiki/sources/{apa,crus-ogc,lidar,lneg,srup-ogc}.md` carry `last_verified: 2026-05-08` — technically stale now that the code those pages reference is in HEAD. Source-page content is still accurate (the recovered code matches the wiki spec because the wiki was the recovery oracle). Bumping `last_verified` is a low-priority follow-up; defer to a future `/wiki-reconcile` pass.
