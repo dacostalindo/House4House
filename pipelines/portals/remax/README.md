@@ -7,7 +7,7 @@
 > weekly (Tuesdays 06:00 UTC) and writes SCD2 bronze tables (`remax_developments`,
 > `remax_listings`, `remax_plots`) plus heartbeat sidecars. Pass 2 enrichment is
 > parallelized via `ThreadPoolExecutor`. See [CUTOVER.md](CUTOVER.md) for the
-> dlt migration runbook; see [../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md)
+> dlt migration runbook; see [../../wiki/concepts/portal-plot-conventions.md](../../wiki/concepts/portal-plot-conventions.md)
 > for the cross-pipeline plot conventions; see
 > [SITEMAP_REFACTOR_PROPOSAL.md](SITEMAP_REFACTOR_PROPOSAL.md) for an investigation
 > into using the same sitemap pathway to reach the full ~47k housing inventory

@@ -35,5 +35,5 @@ Specifically:
 
 - dlt issue #3811 — original justification.
 - `pipelines/portals/*/source.py` — *_JSON_COLUMNS definitions per portal.
-- `pipelines/common/SCD2_RULES.md` — JSONB exclusion rules.
+- `wiki/concepts/scd2-row-hash.md` — JSONB exclusion rules.
 - Sample silver model that consumes a JSONB column (when one exists post-Sprint 4.5).

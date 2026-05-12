@@ -1,19 +1,25 @@
-# Portal Field Map (observed, as-is)
+---
+title: Portal field map (cross-portal correspondence matrix)
+type: concept
+last_verified: 2026-05-12
+tags: [portals, fields, mapping, sprint-04.5, dedup, reference]
+---
 
-Cross-portal correspondence matrix for the three real-estate listing portals — RE/MAX, Idealista, Zome.
+## For future Claude
 
-**Purpose:** input contract for Sprint 4.5's Portuguese normalization library and matching framework. Documents which portal columns mean the same thing today, and the data-quality differences between them.
-
-**This is descriptive (as-is) not prescriptive.** Sprint 4.5 Task 2.5 produces the canonical column contract that silver staging models implement. This file documents what's in the bronze data today.
-
-**Sources documented:**
-- `bronze_listings.remax_developments`, `remax_listings`, `remax_plots`
-- `bronze_listings.idealista_developments`, `idealista_development_units`, `idealista_plots`
-- `bronze_listings.zome_developments`, `zome_listings`, `zome_plots`
+This is a **descriptive (as-is)** cross-portal correspondence matrix for the three real-estate listing portals — [[remax]], [[idealista]], [[zome]]. It documents which portal columns mean the same thing today, and the data-quality differences between them. Input contract for [[sprint-04.5]]'s Portuguese normalization library and matching framework. Not prescriptive — the canonical column contract that silver staging models implement is produced by Sprint 4.5 Task 2.5. Read this when designing cross-portal dedup, building staging models, or asking "where does X live in portal Y?".
 
 Per-column meanings live in [dbt sources YAML](../../dbt/models/staging/listings/_staging_listings__sources.yml).
 
----
+## What it is
+
+A reference table organized by canonical concept across three grains: development-level, listing/unit-level, and plot-level. Each row of the matrix names the column for each of [[remax]] / [[idealista]] / [[zome]] plus a "Notes" column explaining any cross-portal divergence.
+
+**Sources documented:**
+
+- `bronze_listings.remax_developments`, `remax_listings`, `remax_plots`
+- `bronze_listings.idealista_developments`, `idealista_development_units`, `idealista_plots`
+- `bronze_listings.zome_developments`, `zome_listings`, `zome_plots`
 
 ## Development-level fields
 
@@ -49,7 +55,7 @@ One row per real-world development across all three portals.
 
 ## Listing / unit-level fields
 
-One row per individual unit. Note that Idealista uses `idealista_development_units` for new-construction units and `raw_idealista` for resale (legacy, slated for decommission post-Sprint 4.5).
+One row per individual unit. Note that Idealista uses `idealista_development_units` for new-construction units and `raw_idealista` for resale (legacy, slated for decommission post-[[sprint-04.5]]).
 
 | Canonical concept | RE/MAX (`remax_listings`) | Idealista (`idealista_development_units`) | Zome (`zome_listings`) | Notes |
 |---|---|---|---|---|
@@ -143,9 +149,9 @@ These came up across multiple tables and are worth surfacing in one place for th
 - Snapshot-derived fields that change every run (modified timestamps, market_days, anything Pass-2-fetched at run time).
 - Immutable physical attributes (GPS, address, construction year — changes here are corrections, not events).
 
-This means: matching by GPS or address is safe (those don't drift across SCD2 versions). Matching by price or status will surface real changes.
+This means: matching by GPS or address is safe (those don't drift across SCD2 versions). Matching by price or status will surface real changes. See [[scd2-row-hash]] for the policy.
 
-## Open questions for Sprint 4.5
+## Open questions for [[sprint-04.5]]
 
 1. **Promoter resolution** — RE/MAX surfaces the selling office, Idealista the developer, Zome the hub. Cross-portal promoter dedup is a separate problem from listing dedup.
 2. **Reserved units** — RE/MAX has no "reserved" status. Cross-portal absorption modeling (S5+) needs to handle this asymmetry.
@@ -154,7 +160,10 @@ This means: matching by GPS or address is safe (those don't drift across SCD2 ve
 
 ## See also
 
-- [`SCD2_RULES.md`](SCD2_RULES.md) — version-column include/exclude policy per portal
-- [`PLOTS_RULES.md`](PLOTS_RULES.md) — plot-table conventions
+- [[scd2-row-hash]] — version-column include/exclude policy per portal
+- [[portal-naming-conventions]] — structural-uniformity rules + leaf-name policy
+- [[portal-plot-conventions]] — plot-table conventions
+- [[heartbeat-sidecar]] — "is this entity still in the source?" mechanism
 - [dbt sources YAML](../../dbt/models/staging/listings/_staging_listings__sources.yml) — per-column descriptions and source paths
-- Sprint 4.5 plan in [README.md](../../README.md) — the matching framework that consumes this map
+- [[idealista]], [[remax]], [[zome]] — the three current portal pipelines
+- [[sprint-04.5]] — the matching framework that consumes this map

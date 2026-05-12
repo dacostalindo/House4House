@@ -55,8 +55,8 @@ refined after the first Aveiro run** — see "First run" below.
 ## SCD2 rules
 
 This pipeline follows the cross-pipeline SCD2 conventions documented in
-[../../common/SCD2_RULES.md](../../common/SCD2_RULES.md). Field-naming policy
-is documented in [../../common/NAMING_CONVENTIONS.md](../../common/NAMING_CONVENTIONS.md).
+[../../../wiki/concepts/scd2-row-hash.md](../../../wiki/concepts/scd2-row-hash.md). Field-naming policy
+is documented in [../../../wiki/concepts/portal-naming-conventions.md](../../../wiki/concepts/portal-naming-conventions.md).
 
 `UNITS_VERSION_COLUMNS` (12 cols including `last_deactivated_at` so a unit
 going inactive opens an SCD2 version) and `DEVELOPMENTS_VERSION_COLUMNS`

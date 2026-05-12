@@ -182,7 +182,7 @@ def _supabase_headers() -> dict[str, str]:
 # slipping into version_cols fails loudly instead of being str()-stringified.
 #
 # Kept in sync with remax/idealista intentionally — see
-# pipelines/common/SCD2_RULES.md for the conventions; the helpers below are
+# wiki/concepts/scd2-row-hash.md for the conventions; the helpers below are
 # duplicated across pipelines by design (small surface, zero shared deps
 # preferred over an abstraction with one consumer migrated and others lagging).
 # ---------------------------------------------------------------------------

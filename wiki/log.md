@@ -562,3 +562,28 @@ WebFetch on `ogcapi.dgterritorio.gov.pt/collections` 2026-05-12 confirmed the OG
 - Redirect downstream dbt staging models: `stg_crus_ordenamento` → `raw_crus_national_ogc`; `stg_srup_ran` → `raw_srup_ran_ogc`; new `stg_cos` consumer → `raw_cos_national_ogc`. `stg_srup_dph` + `stg_srup_ic` unchanged.
 
 Outcomes + Exit criteria + Key decisions sections of sprint-08 updated accordingly. Activity 6 (constraint severity) reframed: OGC SRUP + legacy DPH/IC is now the default, no gate hedge. Activity 3 (LiDAR) lost the "PDM quick win" bullet (PDM is being dropped). Status `planned`.
+
+## [2026-05-12] common-markdowns-to-wiki | 4 cross-pipeline convention docs migrated from `pipelines/common/` into `wiki/concepts/`
+
+Per the consolidation rule that surfaced earlier today ("only one source of truth in the wiki"), four convention markdowns were moved out of `pipelines/common/` into the wiki:
+
+- `NAMING_CONVENTIONS.md` → [[portal-naming-conventions]] (new wiki page)
+- `PLOTS_RULES.md` → [[portal-plot-conventions]] (new wiki page)
+- `PORTAL_FIELD_MAP.md` → [[portal-field-map]] (new wiki page, 160-line cross-portal correspondence matrix)
+- `SCD2_RULES.md` → merged into existing [[scd2-row-hash]] (added worked examples — per-pipeline `*_VERSION_COLUMNS` tuples for [[zome]]/[[remax]]/[[idealista]] — plus the 21-day floor formula)
+
+Each new page carries the standard frontmatter + `## For future Claude` preamble per [[wiki/CLAUDE.md|wiki schema]]; all wikilinks resolve. The wiki/index.md Concepts section grew from 10 to 13 pages; the `## By area of code` `pipelines/` row updated to list the three new portal-* concepts.
+
+Inbound references redirected across **15 active-tree files**:
+
+- `pipelines/portals/{remax,zome,jll,idealista}/source.py` (8 docstring refs)
+- `pipelines/portals/{remax,zome,idealista}/README.md` (5 link refs)
+- `pipelines/portals/remax/SITEMAP_REFACTOR_PROPOSAL.md` (1 ref)
+- `wiki/sprints/sprint-04.4.md` (2 refs)
+- `wiki/concepts/heartbeat-sidecar.md` (cross-link)
+- `docs/adr/{001,003,005,006}*.md` (4 ADR refs; ADR 001 prose updated to explain the migration)
+- `archive/portal_dlt_cutover_2026/idealista/CUTOVER.md` (depth-corrected to `../../../wiki/concepts/...`)
+
+Originals deleted from HEAD. Worktree files (`.claude/worktrees/...`) left alone — those are gstack-managed and migrate naturally on the next rebase.
+
+**Why this matters going forward**: with these docs in `wiki/concepts/`, the weekly `/wiki-reconcile` lint catches drift (stale `last_verified` dates, missing cross-links, unresolved `[[wikilinks]]`). The previous location wasn't under lint coverage and the docs had silently accumulated content debt (e.g. `SCD2_RULES.md` had a "See [SCD2_RULES](../../wiki/concepts/scd2-row-hash.md)" link in `wiki/concepts/scd2-row-hash.md` saying the .md was canonical and the wiki page was the summary — both pointing at each other circularly). The wiki is now unambiguously canonical.

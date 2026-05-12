@@ -34,7 +34,7 @@ Categories systematically excluded:
 
 ## References to dig into when filling
 
-- `pipelines/common/SCD2_RULES.md` — current policy doc.
+- `wiki/concepts/scd2-row-hash.md` — current policy doc.
 - `pipelines/portals/{remax,idealista,zome}/source.py` — `*_VERSION_COLUMNS` and `*_JSON_COLUMNS` lists per fact table.
 - `dbt/models/staging/listings/_staging_listings__sources.yml` — column descriptions note "IN row_hash" / "EXCLUDED from row_hash" inline.
 - `_stable_hash` implementation in source.py.

@@ -54,4 +54,4 @@ Why 21 days: weekly cadence (7) + one missed run (7) + slack (7). **Do not lower
 - [[scd2-row-hash]] — the companion mechanism this complements
 - [[bronze-permissive]] — bronze never deletes, only marks stale; heartbeat is the staleness signal
 - [[idealista]], [[jll]], [[remax]], [[zome]] — the four current heartbeat producers
-- [pipelines/common/SCD2_RULES.md](../../pipelines/common/SCD2_RULES.md) — the heartbeat section of the canonical rules
+- [wiki/concepts/scd2-row-hash.md](../../wiki/concepts/scd2-row-hash.md) — the heartbeat section of the canonical rules
