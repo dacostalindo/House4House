@@ -17,6 +17,8 @@ These rules apply at the *behavior* layer; the area-routing table below tells yo
 
 This project uses a **karpathy-style LLM Wiki** at [`wiki/`](./wiki/). The wiki is the single source of truth for project rules, patterns, and accumulated knowledge. **Before editing files in this repo, scan the area-CLAUDE.md (linked below) for your task type and read the linked `wiki/concepts/` page(s).** Don't read every wiki page on every edit — the per-area task routing tells you exactly which to read.
 
+**After every commit, update the wiki**: append a one-line entry to [`wiki/log.md`](./wiki/log.md) and update any wiki pages whose claims the commit affected (sprint pages, source pages, concept pages, decision records). Commits that diverge from the wiki create drift; the wiki is the source of truth.
+
 The schema for the wiki itself (page conventions, ingest/query/lint workflows) lives at [`wiki/CLAUDE.md`](./wiki/CLAUDE.md) — read it if you'll be touching wiki content.
 
 ## Area routing
