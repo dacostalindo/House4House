@@ -82,7 +82,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 
-## Decisions (13 ADRs)
+## Decisions (15 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -106,6 +106,11 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 
 - [[2026-05-10-dual-crs-storage]] — every spatial table stores `geom` (4326 for display + joins) + `geom_pt` (3763 for distance + area in metres).
 
+**Dev-tooling** (Phase 4 — gstack plan-eng-review + plan-devex-review surfaced):
+
+- [[2026-05-12-wiki-linter-deferred-to-phase-7]] — mechanical `wiki_health.py` moves to Phase 7 to co-design with structured `wiki/_schema.yaml` (single source of truth).
+- [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
+
 ## Sprints (12 pages — PR 3 seed)
 
 Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driven Phase 1-7 roadmap). See [[sprints/README|sprints orientation]] for the schema, status semantics, and living-roadmap mechanic.
@@ -126,7 +131,7 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 
 ### Dev-tooling sprint (parallel track)
 
-- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2 done; Phase 2.5 closed; Phase 3 in_progress; Phases 4-7 planned)
+- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4 done; Phase 2.5 closed; Phases 5-7 planned; Phase 7 absorbs deferred wiki linter)
 
 ## Use cases (3 pages — PR 4 seed)
 

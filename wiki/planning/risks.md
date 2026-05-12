@@ -48,7 +48,7 @@ For risk-register maintenance going forward, propose:
 - `realized` — risk has materialized; mitigation activated; track resolution
 - `obsolete` — risk no longer applies (scope change, environmental change)
 
-`/wiki-lint` could check that every active/monitored/realized risk has a `last_revisited:` date < 90 days. (Phase 4e or later — captured as candidate enhancement.)
+`/wiki-lint` could check that every active/monitored/realized risk has a `last_revisited:` date < 90 days. (Phase 7 or later — captured as candidate enhancement; the structured `wiki/_schema.yaml` from [[2026-05-12-wiki-linter-deferred-to-phase-7]] is the right place to declare this rule.)
 
 ## Mechanic — when does this page get updated?
 

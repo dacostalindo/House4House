@@ -313,3 +313,42 @@ Wiki final state: ~80 typed-content pages across 23 sources + 10
 concepts + 13 ADRs + 4 architecture + 4 planning + 12 sprints + 3
 use-cases + 1 overview + structural files (CLAUDE.md, README.md,
 index.md, log.md, plus per-section orientation READMEs).
+
+## [2026-05-12] ingest | gstack-artifact phase-4-plan
+
+Post-merge wiki ingest for Phase 4 (PR #22 merged at 593ec18 + PR #23
+follow-up). Source: gstack plan `~/.claude/plans/give-me-a-full-virtual-crown.md`
+which went through `/plan-eng-review` (5 findings, 3 folded) +
+`/plan-devex-review` (CLEAR) per `~/.gstack/projects/dacostalindo-House4House/main-reviews.jsonl`.
+
+Two ADRs locked from the plan's architectural decisions:
+
+- `wiki/decisions/2026-05-12-wiki-linter-deferred-to-phase-7.md` —
+  `scripts/wiki_health.py` moves from Phase 4 to Phase 7 to co-design
+  with the structured `wiki/_schema.yaml` (single source of truth
+  consumed by the schema doc, the linter, `/wiki-reconcile`, and
+  `/wiki-import-gstack`). Surfaced during a working prototype linter
+  pass that caught 12 findings — validating the linter design but
+  also surfacing the DRY violation against `wiki/CLAUDE.md` prose.
+- `wiki/decisions/2026-05-12-pre-commit-local-hook.md` —
+  `.pre-commit-config.yaml` uses `language: system` + `uv run ruff`
+  instead of pinned `astral-sh/ruff-pre-commit`, eliminating ruff
+  version drift between pre-commit, CI, and Makefile. Confidence:
+  medium (pattern is less common; reversible if PATH issues surface).
+
+Propagation:
+
+- `wiki/CLAUDE.md` — 4 stale forward-refs to "Phase 4e" `wiki_health.py`
+  rewritten to "Phase 7" + pointing at the deferral ADR. Lint-workflow
+  section updated to reflect LLM cron as sole automated gate until
+  Phase 7.
+- `wiki/sprints/sprint-dev-tooling.md` — Phase 4 row flipped to `✅ done`
+  (shipped 2026-05-12); Phase 7 row expanded to absorb the deferred
+  wiki-linter scope. Status-update-history appended with 2 entries
+  (Phase 3 PR 4-8 done 2026-05-10; Phase 4 done 2026-05-12).
+- `wiki/index.md` — Decisions count 13 → 15; new "Dev-tooling" group
+  added under Decisions; sprint-dev-tooling status line updated.
+
+The gstack plan artifact remains at `~/.claude/plans/give-me-a-full-virtual-crown.md`
+as the historical record. Only the derived knowledge (the 2 ADRs +
+the propagation updates) flowed into the wiki.

@@ -78,7 +78,7 @@ This shows: when the sprint was declared, when it shipped, and what evidence (co
 
 For dev-tooling sprint transitions, list per-Phase shipping dates (e.g., `2026-05-05: Phase 1 → done (uv workspace + Ruff sweep merged in commit X)`).
 
-Phase 4e `wiki_health.py` enforces the format via regex `^(\d{4}-\d{2}-\d{2}): (\w+) → (\w+)( \(.*\))?$` — malformed entries are findings.
+Phase 7 `wiki_health.py` will enforce the format via regex `^(\d{4}-\d{2}-\d{2}): (\w+) → (\w+)( \(.*\))?$` — malformed entries are findings. Until then, human/Claude discipline (per [[2026-05-12-wiki-linter-deferred-to-phase-7]]).
 
 ## Living-roadmap mechanic
 
