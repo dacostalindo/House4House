@@ -534,3 +534,17 @@ Root `CLAUDE.md` updated: "Schema for Claude Code" now points at `wiki/index.md`
 Pages updated: `wiki/sprints/sprint-08.md` (full body rewrite; frontmatter `last_verified` + `last_status_update` bumped to 2026-05-12; status-history line appended). The engineering plan at `~/.claude/plans/wobbly-kindling-hopcroft.md` is now stale relative to this page; the sprint page is the source of truth for activity definitions.
 
 Sprint-09 follow-up: same refactor pending; user wanted to tackle sprint-08 first and review before committing to the same shape for sprint-09.
+
+## [2026-05-12] sprint-08-activity-1 | Shared GIS ingestion template + cadastro refactor
+
+Activity 1 of [[sprint-08]] landed: `pipelines/gis/template/ingestion_template.py` (~370 lines) with `UnifiedIngestionConfig` (Pydantic frozen model) + three protocol adapters sharing the same `.probe()` + `.fetch_to(tmp_dir) -> {feature_count, pages, bytes, files}` interface:
+
+- **`OgcApiAdapter`** — limit/offset pagination → single GeoJSON. Used by [[cadastro]], [[crus-ogc]], [[srup-ogc]].
+- **`ArcgisRestAdapter`** — `resultOffset` / `resultRecordCount` pagination, server-side reproject via `outSR=3763`. Used by [[apa]], [[lneg]]. LNEG SSL workaround for `sig.lneg.pt` (self-signed cert) stays in `lneg_ingestion_dag.py` as a `requests.Session.request` patch around the adapter call — adapter itself unchanged.
+- **`DgtStacAdapter`** — POST `/v1/search` (collections + bbox filter) → paginate → per-tile cookie-gated GeoTIFF download (Keycloak session cookie via Airflow Variable). Writes `tiles/{tile_id}.tif` + `manifest.json` (rich metadata for downstream `lidar_bronze_dag.py`). Used by [[lidar]].
+
+`pipelines/gis/cadastro/cadastro_ingestion_dag.py` refactored onto `OgcApiAdapter` (the previous ~260-line implementation collapsed to ~150 lines with the inline pagination helper deleted). Mirrors the `probe_endpoint` → `fetch_to_minio` → `log_summary` task shape used by the recovered apa/crus_ogc/srup_ogc DAGs — cadastro is now the validated reference caller.
+
+Verification gates: `py_compile` clean on all 16 GIS DAG modules; `ruff check` clean; `from pipelines.gis.template.ingestion_template import UnifiedIngestionConfig, OgcApiAdapter, ArcgisRestAdapter, DgtStacAdapter` imports cleanly in the venv. End-to-end DAG import (`importlib.import_module`) still hits Airflow's xcom_backend config error because the local venv lacks the `AIRFLOW_HOME=$(PWD)/.airflow-home` isolation that `make verify` sets up — pre-existing, not caused by this work (see [[airflow-home-isolation]]).
+
+Cadastro row-count parity test (Test #1 from the eng-review test plan) and recovered-DAG smoke tests are pending — they require live infrastructure (running Airflow + Postgres + MinIO + cookie variable) and will fire when the sprint's Activity 2 + 7 reach trigger stage.
