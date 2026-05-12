@@ -526,3 +526,11 @@ Replacement: new `## By area of code` section in [[index]] between Overview and 
 Root `CLAUDE.md` updated: "Schema for Claude Code" now points at `wiki/index.md` §"By area of code"; "Area routing" table replaced with a one-line pointer to the same. Wiki remains the single source of truth; the previous CLAUDE.md hierarchy was a redundant cache.
 
 **Why**: the per-area files didn't auto-update when wiki pages were added/renamed, producing drift the wiki linter couldn't catch (it lints inside `wiki/`, not outside). Folding routing into `wiki/index.md` puts it back under linter coverage. Triggered by user concern that "CLAUDE.md on the pipeline folders don't get updated. I want to have only one source of truth in the wiki."
+
+## [2026-05-12] sprint-08-refactor | Sprint-08 page rewritten for clarity — plain-language objectives + activities
+
+[[sprint-08]] rewrite per user feedback that "objectives are not very clear and the activities". Structural changes: explicit `## Objective` (1-paragraph plain English), `## Outcomes (verifiable at sprint end)` (bullet checklist), `## Activities` (9 named activities each with WHY / concrete deliverables / DONE WHEN), `## Out of scope` (explicit list with reasons), `## Dependencies / blockers` (must-be-true-before + calendar-parallel), `## Exit criteria` (checkbox-shape version of Outcomes). The `WS1`/`WS3`/`WS4 Slice B` jargon dropped in favor of named activities like "Plug the recovered GIS pipelines into a shared template", "Validate the recovered LiDAR pipeline end-to-end on Aveiro", "Geocode the SCE certificates". No scope change. Single `[[pdm]]` wikilink that didn't resolve replaced with plain text "PDM zoning" (no wiki/sources/pdm.md yet — PDM concept lives under [[crus]]).
+
+Pages updated: `wiki/sprints/sprint-08.md` (full body rewrite; frontmatter `last_verified` + `last_status_update` bumped to 2026-05-12; status-history line appended). The engineering plan at `~/.claude/plans/wobbly-kindling-hopcroft.md` is now stale relative to this page; the sprint page is the source of truth for activity definitions.
+
+Sprint-09 follow-up: same refactor pending; user wanted to tackle sprint-08 first and review before committing to the same shape for sprint-09.
