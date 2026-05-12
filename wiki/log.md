@@ -548,3 +548,17 @@ Activity 1 of [[sprint-08]] landed: `pipelines/gis/template/ingestion_template.p
 Verification gates: `py_compile` clean on all 16 GIS DAG modules; `ruff check` clean; `from pipelines.gis.template.ingestion_template import UnifiedIngestionConfig, OgcApiAdapter, ArcgisRestAdapter, DgtStacAdapter` imports cleanly in the venv. End-to-end DAG import (`importlib.import_module`) still hits Airflow's xcom_backend config error because the local venv lacks the `AIRFLOW_HOME=$(PWD)/.airflow-home` isolation that `make verify` sets up — pre-existing, not caused by this work (see [[airflow-home-isolation]]).
 
 Cadastro row-count parity test (Test #1 from the eng-review test plan) and recovered-DAG smoke tests are pending — they require live infrastructure (running Airflow + Postgres + MinIO + cookie variable) and will fire when the sprint's Activity 2 + 7 reach trigger stage.
+
+## [2026-05-12] sprint-08-activity-2 | Add cleanup-pass activity to sprint-08; OGC vs WFS coverage map locked
+
+WebFetch on `ogcapi.dgterritorio.gov.pt/collections` 2026-05-12 confirmed the OGC API has equivalents for [[crus]] (collection `crus`), [[srup]]-RAN (collection `srup_ran`), and adds 20+ SRUP layers (`srup_ren_areal`, `srup_ren_linear`, `srup_areas_protegidas`, `srup_zpe`, `srup_zec`, `srup_defesa_militar*`, `srup_perigosidade_inc_rural`, `srup_aquiferos`, `srup_albufeiras`, etc.). [[cos]] is also there as `cos2023v1` + `cos2018v3`. **Confirmed NOT present**: DPH (Domínio Público Hídrico) and IC (Imóveis Classificados) — those stay on the legacy WFS path as the only public PT source.
+
+[[sprint-08]] page restructured: prior Activity 3 ("srup-ogc evaluation gate") deleted — the gate question resolved itself when the WebFetch confirmed which layers exist. Replaced with new **Activity 2: cleanup pass** covering:
+
+- Extract `pipelines/common/minio_upload.py` (11 GIS DAGs currently duplicate ~15 lines of MinIO client + bucket-create + fput_object boilerplate; Karpathy Rule 3 cleared at ≥3 callers, 7 to migrate post-cleanup)
+- Drop `pipelines/gis/crus/` (legacy per-município CRUS WFS), `pipelines/gis/pdm/` (also legacy CRUS WFS per-município), `pipelines/gis/cos/` (bulk-GPKG)
+- Slim `pipelines/gis/srup/` to DPH + IC only (the two layers OGC doesn't publish)
+- Build `pipelines/gis/cos_ogc/` using `OgcApiAdapter` + `collection_id="cos2023v1"` + Aveiro bbox filter (~30s for the v1 wedge scope vs ~5 min for the national bulk download)
+- Redirect downstream dbt staging models: `stg_crus_ordenamento` → `raw_crus_national_ogc`; `stg_srup_ran` → `raw_srup_ran_ogc`; new `stg_cos` consumer → `raw_cos_national_ogc`. `stg_srup_dph` + `stg_srup_ic` unchanged.
+
+Outcomes + Exit criteria + Key decisions sections of sprint-08 updated accordingly. Activity 6 (constraint severity) reframed: OGC SRUP + legacy DPH/IC is now the default, no gate hedge. Activity 3 (LiDAR) lost the "PDM quick win" bullet (PDM is being dropped). Status `planned`.

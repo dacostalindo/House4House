@@ -22,10 +22,12 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 - All Aveiro parcels merged into one table — `silver_parcels.parcel_universe` (~50K rows, dedup-tested)
 - LiDAR slope + elevation computed per parcel — `bronze_terrain.parcel_terrain_stats`, 20-parcel QGIS spot-check within 5%
 - Zoning rules parsed — `max_floors`, `max_density_index`, `max_coverage_ratio` populated on the zoning silver model
-- Constraint severity pre-classified per parcel — `silver_geo.parcel_constraints` with severity 0-4
+- Constraint severity pre-classified per parcel — `silver_geo.parcel_constraints` with severity 0-4, sourced from OGC SRUP layers + legacy DPH/IC
 - SCE certificates pinned to coordinates — `bronze_enrichment.raw_sce_geocoded` with ≥90% non-null lat/lng
 - One shared ingestion template runs OGC API + ArcGIS REST + DGT STAC — `pipelines/gis/template/ingestion_template.py`
+- One shared MinIO upload helper — `pipelines/common/minio_upload.py`, called by 7 GIS DAGs (no duplicated boilerplate)
 - [[cadastro]] DAG refactored onto the template with row-count parity within 1%
+- Legacy WFS pipelines retired where the DGT OGC API has equivalents — `pipelines/gis/{crus,pdm,cos}/` removed; `pipelines/gis/srup/` slimmed to DPH + IC only (the two layers OGC doesn't publish); replaced by `crus_ogc`, `srup_ogc`, and new `cos_ogc`
 - pgTAP test runner wired into CI (empty test dir passes through green this sprint; gate activates [[sprint-09]])
 - ≥1 PT land developer interview SCHEDULED (kill-criteria check from [[2026-05-12-uc3-expanded-scope]])
 
@@ -42,7 +44,27 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 
 **DONE WHEN:** all 5 recovered DAGs + the refactored cadastro DAG import cleanly in Airflow; cadastro row count within 1% of the pre-refactor baseline.
 
-### 2. Validate the recovered LiDAR pipeline end-to-end on Aveiro
+### 2. Cleanup pass — extract MinIO helper + retire legacy WFS pipelines now superseded by OGC
+
+**Why:** Activity 1 surfaced two patterns. (a) Every adapter caller duplicates ~15 lines of MinIO client construction + `bucket_exists` check + `fput_object` loop — 11 GIS DAGs now repeat it. (b) Several legacy WFS pipelines (`pipelines/gis/crus/`, `pipelines/gis/pdm/`, parts of `pipelines/gis/srup/`) are fully redundant with their OGC equivalents that the recovery brought online. A WebFetch on `ogcapi.dgterritorio.gov.pt/collections` 2026-05-12 confirmed which legacy layers have OGC successors and which don't.
+
+- **Extract** `pipelines/common/minio_upload.py` exposing `upload_files_to_minio(files, bucket, prefix, date_str, source_name) -> dict`. Single source for: env-driven `Minio()` client construction, idempotent `bucket_exists` + `make_bucket`, `fput_object` loop, return-summary shape.
+- **Migrate** 7 DAGs onto the helper: [[cadastro]], [[apa]], [[crus-ogc]], [[lneg]], [[srup-ogc]], [[lidar]], plus `derive_terrain_dag` (LiDAR slope-COG upload).
+- **Drop `pipelines/gis/crus/`** — legacy per-município CRUS WFS (5 munis). Superseded by [[crus-ogc]] which the OGC API publishes nationally as the `crus` collection. Redirect `stg_crus_ordenamento` to read `bronze_regulatory.raw_crus_national_ogc`.
+- **Drop `pipelines/gis/pdm/`** — also legacy CRUS WFS per-município. Same data, same successor (`crus_ogc`). No separate OGC PDM collection exists; the OGC `crus` collection serves both. PDM's "Aveiro quick-win" reframes as "trigger `crus_ogc_ingestion` filtered to Aveiro município".
+- **Refactor `pipelines/gis/srup/`** to keep ONLY the DPH + IC layers. The OGC API publishes 20+ SRUP layers (REN×2, RAN, áreas protegidas, ZPE, ZEC, defesa militar ×2, perigosidade incêndio rural, SGIFR×3, etc.) but **does not publish DPH (Domínio Público Hídrico) or IC (Imóveis Classificados)** — those stay on legacy WFS as the only PT public source. Drop the legacy RAN component (replaced by `srup_ran_ogc` in [[srup-ogc]]).
+- **Build `pipelines/gis/cos_ogc/`** using `OgcApiAdapter` with `collection_id="cos2023v1"` + Aveiro bbox filter (v1 wedge scope is Aveiro-only; bbox-filter on a paginated OGC call returns Aveiro polygons in ~30s vs ~5 min for a national bulk download). New bronze table `bronze_landuse.raw_cos_national_ogc`. **Drop `pipelines/gis/cos/`** (the bulk-GPKG path); redirect the existing `stg_cos` consumer to read from the new OGC bronze table.
+- Update `dbt/models/staging/regulatory/_staging_regulatory__sources.yml` (and `_staging_landuse__sources.yml` if it exists): remove dropped source entries; add new OGC ones.
+
+**DONE WHEN:**
+- `pipelines/common/minio_upload.py` exists; 7 adapter+derived DAGs use it; `py_compile` + `ruff` clean.
+- `pipelines/gis/crus/`, `pipelines/gis/pdm/`, `pipelines/gis/cos/` directories removed from HEAD.
+- `pipelines/gis/srup/` contains only DPH + IC layers (RAN code path removed).
+- `pipelines/gis/cos_ogc/` exists with config + ingestion + bronze DAGs.
+- All downstream dbt models compile cleanly against the new bronze sources (`dbt parse --target ci` green).
+- LiDAR re-audit recorded: only `lidar_ingestion_dag.py` consumes the new template (via `DgtStacAdapter`); the other 3 LiDAR DAGs (`lidar_bronze_dag`, `derive_terrain_dag`, `parcel_zonal_stats_dag`) read MinIO-landed manifests/tiles and are architecturally separate from the template — correct as-is.
+
+### 3. Validate the recovered LiDAR pipeline end-to-end on Aveiro
 
 **Why:** the LiDAR pipeline code is in HEAD post-recovery, but never ran. Without it, no terrain stats — and slope is the demo's coastal-vs-flat contrast moment.
 
@@ -50,21 +72,9 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 - Trigger `lidar_aveiro_bronze_load`: one row per tile in `bronze_terrain.raw_lidar_mdt_2m_manifest` + `..._mds_2m_manifest`.
 - Trigger `lidar_derive_terrain` with `limit=5` for smoke, then `limit=0` for full run. Slope COGs land in `bronze_terrain.derived_lidar_slope_2m_manifest`.
 - Trigger `lidar_parcel_zonal_stats` in both `polygon` mode (ad-hoc WKT — the keystone for [[sprint-09]]'s draw-polygon Inspector) and `bulk` mode (writes `bronze_terrain.parcel_terrain_stats`).
-- Trigger the existing PDM zoning DAGs (in HEAD from `feature/pdm` branch) to populate PDM zoning bronze for Aveiro município — a quick-win zoning enrichment for the demo.
 - **Spot-check**: pick 20 random Aveiro parcels, compute slope in QGIS, compare to `slope_p90_pct`. If divergence > 5%, investigate tile-edge handling.
 
-**DONE WHEN:** `bronze_terrain.parcel_terrain_stats` populated for Aveiro parcels; 20-parcel spot-check matches QGIS within 5%; PDM CRUS bronze populated for Aveiro município.
-
-### 3. Decide whether to use the richer OGC SRUP data
-
-**Why:** the recovered [[srup-ogc]] config covers 22 constraint layers (REN×2, áreas protegidas, ZPE, ZEC, defesa militar ×2, perigosidade incêndio rural, SGIFR ×3, RAN OGC, etc.) — substantially richer than the legacy [[srup]] WFS path (3 layers: RAN / DPH / IC). Day 8 is the decision gate.
-
-- Trigger `srup_ogc_ingestion` with `layer_filter=srup_ran_ogc,srup_ren_areal,srup_ren_linear` — the three layers that overlap legacy SRUP.
-- Compare row counts + coverage vs. existing `bronze_regulatory.raw_srup_ran` etc.
-- **Decision recorded as a follow-up commit comment or inline in [[sprint-09]]**: if OGC is meaningfully richer or cleaner, Activity 6 (`parcel_constraints.sql`) builds on `stg_srup_*_ogc` (3 sources → up to 22 sources). If marginal, leave the OGC pipelines as committed v2 work.
-- Default decision = preserve as v2.
-
-**DONE WHEN:** decision documented in a commit or sprint-09 page; if "yes", Activity 6 plan updated accordingly.
+**DONE WHEN:** `bronze_terrain.parcel_terrain_stats` populated for Aveiro parcels; 20-parcel spot-check matches QGIS within 5%.
 
 ### 4. Build the parcel universe for Aveiro
 
@@ -92,13 +102,14 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 
 ### 6. Pre-classify constraint severity per parcel
 
-**Why:** the Inspector needs to surface gates ("RAN_full", "DPH", "IC", etc.) instantly. Computing them live for every query is wasteful — precompute once per parcel.
+**Why:** the Inspector needs to surface gates ("RAN_full", "DPH", "IC", "REN", "defesa militar", etc.) instantly. Computing them live for every query is wasteful — precompute once per parcel.
 
-- Create `dbt/models/silver/geo/parcel_constraints.sql` — per-parcel `ST_Intersects` against [[srup]] RAN / DPH / IC bronze (legacy WFS, default) OR `stg_srup_*_ogc` if Activity 3 gated green.
-- `severity` column: 0 = none, 1 = DPH buffer, 2 = RAN partial, 3 = RAN full, 4 = heritage / ZEC.
+- Create `dbt/models/silver/geo/parcel_constraints.sql` — per-parcel `ST_Intersects` against the OGC [[srup-ogc]] layers (`stg_srup_ran_ogc`, `stg_srup_ren_areal`, `stg_srup_ren_linear`, `stg_srup_areas_protegidas`, `stg_srup_defesa_militar`, `stg_srup_zpe`, `stg_srup_zec`, `stg_srup_perigosidade_inc_rural`) plus legacy [[srup]] DPH + IC (the two layers DGT does not publish via OGC API).
+- `severity` column: 0 = none, 1 = soft constraint (ZPE/ZEC/SGIFR/DPH buffer), 2 = moderate gate (RAN partial / defesa militar zona), 3 = hard gate (RAN full / REN / áreas protegidas core / DPH core), 4 = heritage (IC / monumentos).
+- `constraint_codes` array column listing every layer hit per parcel (e.g. `['RAN', 'ZPE']`) for the Inspector readout.
 - `materialized=table` + GIST + B-tree on `(parcel_id, severity)`.
 
-**DONE WHEN:** every Aveiro parcel has a `parcel_constraints` row (severity 0 if unaffected); a hand-picked known-RAN parcel returns severity ≥ 3.
+**DONE WHEN:** every Aveiro parcel has a `parcel_constraints` row (severity 0 if unaffected); a hand-picked known-RAN parcel returns severity ≥ 3; a hand-picked known-IC parcel returns severity 4.
 
 ### 7. Geocode the SCE certificates
 
@@ -167,14 +178,15 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 
 - [ ] `pipelines/gis/template/ingestion_template.py` exists; all 5 recovered DAGs + refactored [[cadastro]] DAG parse cleanly
 - [ ] [[cadastro]] row-count parity test passes within 1%
+- [ ] `pipelines/common/minio_upload.py` exists; 7 GIS DAGs use it (no duplicated MinIO boilerplate)
+- [ ] `pipelines/gis/{crus,pdm,cos}/` directories removed; `pipelines/gis/srup/` slimmed to DPH + IC; `pipelines/gis/cos_ogc/` created
+- [ ] `dbt parse --target ci` green against the new bronze sources (legacy sources removed, OGC sources added)
 - [ ] `bronze_terrain.raw_lidar_mdt_2m_manifest` has ≥ 400 rows (per `LIDAR_LAYERS[*].expected_min_features`)
 - [ ] `bronze_terrain.derived_lidar_slope_2m_manifest` ≥ 400 rows
 - [ ] `bronze_terrain.parcel_terrain_stats` populated for Aveiro parcels; 20-parcel QGIS spot-check within 5%
-- [ ] PDM CRUS bronze populated for Aveiro município
-- [ ] `srup_ogc` evaluation-gate decision documented
 - [ ] `silver_parcels.parcel_universe` materialized (~50K rows); dedup test passing
 - [ ] `silver_geo.zoning` density columns landed
-- [ ] `silver_geo.parcel_constraints` materialized with severity classification
+- [ ] `silver_geo.parcel_constraints` materialized with severity classification (OGC SRUP + legacy DPH/IC)
 - [ ] `bronze_enrichment.raw_sce_geocoded` populated for Aveiro distrito with ≥90% non-null coords
 - [ ] `stg_sce_certificates` regression test (Test #1) passes
 - [ ] `silver_sce_buildings` skeleton present (empty body OK)
@@ -201,7 +213,8 @@ All wired into existing `make dbt-test` / `make test` per Phase 4 scaffolding.
 - **SCE geocoding uses CTT centroids first, Nominatim fallback** — not pure Nominatim. CTT is faster, free, and good enough for 500m-radius spatial joins.
 - **Recovered-DAG signatures are authoritative** — if the new ingestion template's API doesn't match a recovered DAG's expectations, patch the template, not the DAG.
 - **Karpathy Rule 3**: do not refactor `idealista_bronze_dag.py` to use the new geocoding helper this sprint. Two callers don't justify cleanup yet.
-- **OGC-vs-WFS SRUP integration is a Day-8 evaluation gate**, not a sprint commitment. Default = preserve OGC code as v2; activate only if richer.
+- **Legacy WFS pipelines retire when their OGC equivalent exists** — `crus`, `pdm`, RAN-component-of-`srup`, and bulk-GPKG `cos` are all dropped, replaced by `crus_ogc` / `srup_ogc` / new `cos_ogc`. DPH and IC stay on legacy WFS (no OGC equivalent at DGT). Source of truth: WebFetch on `ogcapi.dgterritorio.gov.pt/collections`, 2026-05-12.
+- **COS via OGC API is bbox-filtered for Aveiro** — `cos2023v1` collection, ~30s ingestion for the v1 wedge scope vs ~5 min for the legacy national bulk-GPKG download.
 
 ## Status update history
 
@@ -209,6 +222,7 @@ All wired into existing `make dbt-test` / `make test` per Phase 4 scaffolding.
 - 2026-05-12 (am): restructured to "UC-3 v1 wedge Part 1 (Foundations + Aveiro Vertical Slice)" per [[2026-05-12-uc3-expanded-scope]]. WS2 (national OGC migration) dropped from v1 wedge. SCE geocoding pulled forward from [[sprint-09]]. Status `planned`.
 - 2026-05-12 (pm): post-recovery reshape. 26 lost GIS pipeline files recovered + committed (`171114d`). Shared ingestion template scope expanded from one OGC adapter to three (OGC + ArcGIS REST + DGT STAC) per the recovered DAGs' imports. LiDAR work reframed from build-from-scratch to validate-recovered-code; ~3 days saved. PDM available as bonus quick win; SRUP-OGC evaluation gate added. Status `planned`.
 - 2026-05-12 (evening): refactored for clarity — plain-language objectives + activities; "WS1/WS3/WS4 Slice B" jargon dropped in favor of named activities. No scope change. Status `planned`.
+- 2026-05-12 (late): added **Activity 2 (cleanup pass)** — extract MinIO upload helper + retire legacy WFS pipelines superseded by OGC (`crus`, `pdm`, RAN-component-of-`srup`, bulk-GPKG `cos`) + new `cos_ogc` pipeline for Aveiro bbox. The prior Activity 3 ("srup-ogc evaluation gate") removed — decision resolved (use OGC by default, keep legacy WFS only for DPH + IC which DGT does not publish via OGC). 9 activities total. Status `planned`.
 
 ## See also
 
