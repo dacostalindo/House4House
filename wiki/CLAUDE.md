@@ -2,7 +2,7 @@
 
 ## For future Claude
 
-This is the **schema document** for the House4House wiki. It defines the page conventions (filename rules, required frontmatter, required sections per page type), the ingest workflow (how new sources enter the wiki), the query workflow (how Claude answers using the wiki), and the lint workflow (how the weekly `/wiki-lint` cron + the per-PR `scripts/wiki_health.py` check the wiki for drift). Read this file at the start of any session that touches `wiki/`.
+This is the **schema document** for the House4House wiki. It defines the page conventions (filename rules, required frontmatter, required sections per page type), the ingest workflow (how new sources enter the wiki), the query workflow (how Claude answers using the wiki), and the lint workflow (how the weekly `/wiki-lint` LLM cron checks the wiki for drift — the mechanical companion `scripts/wiki_health.py` is deferred to Phase 7 per [[2026-05-12-wiki-linter-deferred-to-phase-7]]). Read this file at the start of any session that touches `wiki/`.
 
 This file is the **schema layer** for the House4House wiki — the configuration that makes Claude a disciplined wiki maintainer rather than a generic chatbot. It defines page conventions, ingest workflow, query workflow, and lint workflow.
 
@@ -60,7 +60,7 @@ Source pages additionally carry (locked 2026-05-08 in PR 5):
 priority: P0 | P1 | P2
 ```
 
-`P0` = foundation, must load first (dim_geography backbone, primary listing portal, statistical-API foundation). `P1` = use-case-enabling (secondary portals, regulatory layers, terrain). `P2` = specialty / Aveiro-specific / coverage-narrowed (e.g. APA's EU-Floods-Directive scope, LNEG's 1:500k geology, the aveiro-pmot one-off extractor). Every new source page MUST declare a priority on creation; absence is a `wiki_health.py` BLOCKING finding (Phase 4e). Tier ordering drives load sequencing for cold bootstrap and prioritization in [[sprint-04.5]] and beyond.
+`P0` = foundation, must load first (dim_geography backbone, primary listing portal, statistical-API foundation). `P1` = use-case-enabling (secondary portals, regulatory layers, terrain). `P2` = specialty / Aveiro-specific / coverage-narrowed (e.g. APA's EU-Floods-Directive scope, LNEG's 1:500k geology, the aveiro-pmot one-off extractor). Every new source page MUST declare a priority on creation; absence will be a `wiki_health.py` BLOCKING finding once Phase 7 ships the mechanical linter (per [[2026-05-12-wiki-linter-deferred-to-phase-7]]). Until then, the rule is human/Claude discipline + LLM cron. Tier ordering drives load sequencing for cold bootstrap and prioritization in [[sprint-04.5]] and beyond.
 
 Decision records additionally carry (per obsidian-second-brain `references/ai-first-rules.md` borrow #8, locked 2026-05-08):
 
@@ -96,7 +96,7 @@ Subsequent mentions on the same page do not need to repeat the link (avoids link
 
 **Why mandatory, not advisory:** the wiki's value compounds with its graph density. A future Claude session (or human in Obsidian) reading `wiki/sources/idealista.md` and seeing "SCD2 + ZenRows two-pass" should get one-click access to `[[scd2-row-hash]]` and `[[zenrows-universal-vs-re-api]]`. That's the difference between a flat collection of pages and a traversable knowledge graph. Obsidian's graph view becomes meaningful; backlinks tell you which pages cite a given concept.
 
-**Lint enforcement:** `scripts/wiki_health.py --format=github` (Phase 4e, runs in CI on every PR) parses `\[\[([^|\]]+)(?:\|[^\]]+)?\]\]` from page bodies and resolves each match to a file via the rule above. Treats unresolved `[[wikilink]]`s and missing cross-references as BLOCKING findings (CI red). The weekly `/wiki-lint` LLM cron (Phase 3e) catches the semantic-level cases the mechanical check misses (e.g., a page describing "the row-hash dedup pattern" without using the canonical "SCD2" name — synonyms are out of reach for the mechanical check).
+**Lint enforcement:** the weekly `/wiki-lint` LLM cron (Phase 3e, Sundays 06:00 via launchd) is the only automated wiki gate until Phase 7. It parses pages semantically and catches contradictions, stale claims, orphans, AND unresolved `[[wikilinks]]` / missing cross-refs (synonym variants included). The mechanical companion `scripts/wiki_health.py --format=github` (parses `\[\[([^|\]]+)(?:\|[^\]]+)?\]\]` from page bodies, resolves each match via the rule above, treats unresolved links as BLOCKING) ships in Phase 7 alongside `/wiki-reconcile` and `/wiki-import-gstack`, all reading from a structured `wiki/_schema.yaml` so the rules in this prose doc and the linter stay synchronized. See [[2026-05-12-wiki-linter-deferred-to-phase-7]] for the DRY/single-source-of-truth reasoning.
 
 **Mid-PR caveat:** during iterative commits within a single PR (e.g., PR 2 commits sources/ in commit 2, concepts/ in commit 3), forward `[[wikilinks]]` from sources/ to not-yet-created concepts/ pages will appear "broken" in the intermediate state. Lint runs against the merged final state, so the BLOCKING check fires only when a fully merged wiki has missing cross-refs — but if you run `make wiki-lint-fast` against a partial commit during authoring, expect false-positive findings until the rest of the PR's commits land.
 
@@ -178,7 +178,7 @@ Lint surface:
 - **Stale claims**: pages whose `last_verified` is older than 90 days.
 - **Orphan pages**: no inbound links from `index.md` or other wiki pages.
 - **Concepts mentioned but lacking own page**: a term keeps appearing in 3+ pages without its own `concepts/<term>.md`.
-- **Missing cross-references / unresolved `[[wikilinks]]`**: a page mentions a canonical name (e.g., "SCD2") without an `[[scd2-row-hash]]` link OR has an `[[wikilink]]` that doesn't resolve to any wiki page. Per the cross-links-are-mandatory rule (above), the mechanical `wiki_health.py` check treats both as BLOCKING findings in CI; the weekly LLM lint additionally catches synonym/paraphrase variants the mechanical check can't see.
+- **Missing cross-references / unresolved `[[wikilinks]]`**: a page mentions a canonical name (e.g., "SCD2") without an `[[scd2-row-hash]]` link OR has an `[[wikilink]]` that doesn't resolve to any wiki page. Per the cross-links-are-mandatory rule (above), the weekly LLM lint catches both — including synonym/paraphrase variants. Phase 7 adds the mechanical `wiki_health.py` companion that treats these as BLOCKING findings in CI (per [[2026-05-12-wiki-linter-deferred-to-phase-7]]).
 - **`index.md` drift**: index summaries that no longer match the page content.
 
 Output:

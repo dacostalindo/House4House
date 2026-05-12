@@ -53,4 +53,4 @@ Second listing portal live; hedonic model v2 deployed; UC-3 enriched with ARU + 
 - [[idealista]], [[sce]], [[srup]], [[srup-ogc]], [[osm]], [[ine]] — sources
 - [[medallion-layering]], [[scd2-row-hash]], [[bronze-permissive]] — concepts applied
 - [[sprint-08]] — predecessor (OSRM drive-time landed there; ARU/REN/permits queued for here)
-- Phase 4 (gstack dev-tooling roadmap, see [[sprint-dev-tooling]]) — `wiki_health.py` + CI/CD work overlaps with this sprint's data-quality monitoring
+- Phase 4 (gstack dev-tooling roadmap, see [[sprint-dev-tooling]]) — CI/CD work shipped 2026-05-12 enforces ruff/pytest/dbt-parse on every PR; complements this sprint's data-quality monitoring. The mechanical wiki linter (`wiki_health.py`) deferred to Phase 7 per [[2026-05-12-wiki-linter-deferred-to-phase-7]].

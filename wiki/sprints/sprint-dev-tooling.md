@@ -1,12 +1,12 @@
 ---
 title: Sprint dev-tooling — gstack-driven 7-Phase roadmap
 type: plan
-last_verified: 2026-05-09
+last_verified: 2026-05-12
 tags: [sprint, plan, dev-tooling, gstack, parallel-track]
 status: in_progress
 sprint_number: "dev-tooling"
 weeks: "parallel"
-last_status_update: 2026-05-09
+last_status_update: 2026-05-12
 ---
 
 ## For future Claude
@@ -33,10 +33,10 @@ See the Phase status table below for current state. Each Phase's deliverables ar
 | Phase 2 | Pydantic v2 BaseModel configs (4 source configs migrated: idealista, srup, crus, cadastro) | ✅ done | 2026-Q2 | [[pydantic-not-in-dlt]], snapshot test fixtures at `tests/configs/fixtures/{idealista,srup,crus,cadastro}.json` |
 | Phase 2.5 | (originally: sweep ALL inline validators to Pydantic) — ABSORBED by Phase 2 audit | ✅ closed | 2026-05-08 | [[2026-05-08-phase-2-5-closure]] (audit found 0 Pydantic-eligible sites among 90 actual call sites; closure is the deliverable) |
 | Phase 3 | Claude Code integration + LLM Wiki (CLAUDE.md hierarchy + wiki/ + /wiki-lint + post-merge gstack-ingest convention) | 🔄 in_progress | partial | PR 1 (scaffold), PR 2 (seed), PR 3 (sprints + this page); PR 4-7 (use cases, sources priorities, architecture, planning) coming |
-| Phase 4 | CI/CD bootstrap + `scripts/wiki_health.py` BLOCKING lint + Phase 1 README cleanup verifier + pointer-table-discipline check | planned | — | Will land: `make wiki-lint-fast`, `wiki_health.py` with `[[wikilinks]]` resolution, frontmatter schema validation, sprint Status update history regex enforcement, decisions/ confidence enum check, supersedes/superseded_by reciprocal validation |
+| Phase 4 | CI/CD bootstrap (ruff + ruff-format + pytest + dbt-parse) + `llms.txt` manifest + write-rules borrow into `wiki/CLAUDE.md` + pre-commit local-hook pattern. Mechanical wiki linter DEFERRED to Phase 7. | ✅ done | 2026-05-12 | PR #22 (CI/CD + llms.txt + write-rules) + PR #23 (dbt-deps fix). ADRs: [[2026-05-12-wiki-linter-deferred-to-phase-7]], [[2026-05-12-pre-commit-local-hook]]. Phase 1 README verifier obsolete (README retired to 72-line stub in PR #21). |
 | Phase 5 | [[idealista]] description enrichment via Pydantic AI ([[2026-05-08-idealista-enrichment-architecture]] locked: `ListingEnrichment` schema; writes to silver, NOT bronze; description-hash idempotency cache; dead-letter table for parse failures) | planned | — | Couples to Sprint 5 hedonic features (energy-class enrichment); runs in parallel with data-product sprint |
-| Phase 6 | `ty` advisory type-check (Astral's static type-checker for Python; advisory-only initially; graduates to BLOCKING via TODO trigger) | planned | — | Adds `ty check` to `make verify` + CI as `continue-on-error: true`; Phase 4e CI annotation grouping (per `/plan-devex-review` G5) tags ty findings as `[ty]` |
-| Phase 7 | Claude Skills: `/add-gis-source`, `/add-portal-source`, `/stg-from-bronze`, `/wiki-reconcile`, `/wiki-import-gstack` | planned | — | Skills codify scaffolding patterns 3-5x done manually; `/wiki-reconcile` is interactive-only (per `/plan-devex-review` G1); `/wiki-import-gstack` is the Phase 7e structured-ingest skill that closes the post-merge gstack-ingest convention loop |
+| Phase 6 | `ty` advisory type-check (Astral's static type-checker for Python; advisory-only initially; graduates to BLOCKING via TODO trigger) | planned | — | Adds `ty check` to `make verify` + CI as `continue-on-error: true`; reuses the Phase 4 CI annotation-grouping pattern (`::group::ty` + `[ty]` tag prefix per `/plan-devex-review` G5) |
+| Phase 7 | Claude Skills: `/add-gis-source`, `/add-portal-source`, `/stg-from-bronze`, `/wiki-reconcile`, `/wiki-import-gstack` + the deferred Phase 4 wiki linter (`scripts/wiki_health.py` + tests + Makefile + pre-commit hook + CI step) + structured `wiki/_schema.yaml` (single source of truth for both the schema doc and the linter) | planned | — | Skills codify scaffolding patterns 3-5x done manually; `/wiki-reconcile` is interactive-only (per `/plan-devex-review` G1); `/wiki-import-gstack` is the structured-ingest skill that closes the post-merge gstack-ingest convention loop. Per [[2026-05-12-wiki-linter-deferred-to-phase-7]], the wiki linter co-designs with these skills so all three consume one schema instead of re-implementing rules from `wiki/CLAUDE.md` prose. |
 
 ## Exit criteria
 
@@ -68,6 +68,8 @@ The dev-tooling roadmap is decision-rich. Top decisions (each linked to its ADR)
 - 2026-05-08: Phase 3 PR 1 → done (wiki scaffold + CLAUDE.md hierarchy + /wiki-lint cron)
 - 2026-05-08: Phase 3 PR 2 → done (23 source pages + 8 concept pages + 5 ADRs + overview.md)
 - 2026-05-09: Phase 3 PR 3 (this PR) → in_progress (sprints + dev-tooling sprint + folder relocation + wiki/README.md trunk-test refresh)
+- 2026-05-10: Phase 3 PR 4-8 → done (use cases, source priorities, architecture, planning, README stub) — PRs #16-#21 merged
+- 2026-05-12: Phase 4 → done. PR #22 (593ec18) shipped CI/CD + llms.txt + write-rules; PR #23 follow-up fixed missing `dbt deps` step. Wiki linter (`scripts/wiki_health.py` + tests + Makefile + pre-commit hook + CI step) deferred to Phase 7 per [[2026-05-12-wiki-linter-deferred-to-phase-7]] — single-source-of-truth refactor (structured `wiki/_schema.yaml`) belongs with the Phase 7 skills. Pre-commit pattern locked in [[2026-05-12-pre-commit-local-hook]].
 
 ## See also
 
