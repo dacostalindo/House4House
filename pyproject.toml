@@ -7,6 +7,7 @@ dev = [
     "pytest>=8.0",
     "pytest-mock>=3.12",
     "pre-commit>=3.7",
+    "ty>=0.0.1,<0.1.0",          # Phase 6: advisory type-check. Pin capped to 0.0.x — next minor bump intentional.
 ]
 
 [tool.ruff]
