@@ -12,6 +12,10 @@ __pycache__/
 # .claude/scripts/ for Claude-harness scripts; wiki/ for accumulated knowledge.
 scripts/
 
+# Gstack-generated worktree scratch dirs (named adjective-name-hash). Runtime
+# artifacts from /agent or worktree-isolated runs; never project content.
+.claude/worktrees/
+
 # C extensions
 *.so
 

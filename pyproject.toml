@@ -21,6 +21,26 @@ extend-exclude = [
     "**/.venv/**",
 ]
 
+# Phase 6 followup (2026-05-12): [tool.ty.src.exclude] mirrors ruff's
+# extend-exclude as a safety net for generated dirs that ty might otherwise
+# scan. Note: the initial /devex-review hypothesis (.venv noise) turned out
+# wrong — triage revealed ~60% of errors mention `XComArg` (Airflow TaskFlow
+# @task() return type that ty beta doesn't model). The Makefile's
+# `unexport VIRTUAL_ENV` also raised the diagnostic count from 159 → 319
+# by letting ty resolve types correctly. Excluding paths here doesn't
+# reduce the count; the noise is inherent to ty's understanding of Airflow.
+# Documented in wiki/decisions/2026-05-12-phase-6-ty-advisory.md. Advisory
+# posture is correct — surfaces the gap without blocking.
+[tool.ty.src]
+exclude = [
+    "dbt/dbt_packages/**",
+    "data/**",
+    "warehouse/init/**",
+    "scripts/**",
+    "**/.venv/**",
+    ".airflow-home/**",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = [

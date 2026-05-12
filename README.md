@@ -10,7 +10,7 @@ Portugal real estate + regulatory GIS data warehouse. Airflow + dlt + dbt-postgr
 git clone <repo>
 cd House4House
 make setup       # uv sync (workspace) + pre-commit install
-make verify      # smoke check: imports + ruff lint
+make verify      # smoke check: imports + ruff + ty (advisory) + pytest
 make up          # docker compose up: airflow + postgres + minio + metabase
 ```
 

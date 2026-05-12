@@ -7,6 +7,12 @@
 UV ?= uv
 AIRFLOW_HOME := $(PWD)/.airflow-home
 
+# macOS CommandLineTools sets VIRTUAL_ENV to the system Python framework,
+# which makes every `uv run` emit a "does not match the project environment"
+# warning. Unexport it project-wide so make verify / lint / format run clean.
+# Phase 6 followup (2026-05-12) per /devex-review finding.
+unexport VIRTUAL_ENV
+
 help:
 	@echo "House4House developer commands:"
 	@echo "  make setup    Install dependencies and pre-commit hooks"

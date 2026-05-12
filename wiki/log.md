@@ -352,3 +352,54 @@ Propagation:
 The gstack plan artifact remains at `~/.claude/plans/give-me-a-full-virtual-crown.md`
 as the historical record. Only the derived knowledge (the 2 ADRs +
 the propagation updates) flowed into the wiki.
+
+## [2026-05-12] ingest | gstack-artifact phase-6-plan + devex-review
+
+Post-merge wiki ingest for Phase 6 (PR #25 merged at 4e01516) bundled
+with the Phase 6 followup work — `[tool.ty.src.exclude]` safety net,
+README staleness fix, `unexport VIRTUAL_ENV` Makefile workaround, and
+this ingest. Source artifacts: gstack plan
+`~/.claude/plans/give-me-a-full-virtual-crown.md` (revised to Phase 6
+scope after Phase 4 closed); `/plan-eng-review` 2026-05-12 (4 findings,
+2 folded into plan: ty pin tightening + graduation trigger rewrite);
+`/devex-review` 2026-05-12 (live audit, 8/10 overall, 4 findings, 3
+folded into this followup PR).
+
+One ADR locked from the work:
+
+- `wiki/decisions/2026-05-12-phase-6-ty-advisory.md` —
+  Phase 6 ships `ty` advisory-only with 3 concrete graduation triggers
+  (ty 1.0 / `[tool.ty.rules]` config / Phase 6.5 sweep). Documents the
+  live finding picture: 319 diagnostics (287 errors + 32 warnings), 172
+  confirmed Airflow `XComArg` false positives (~60% of errors). The
+  followup `unexport VIRTUAL_ENV` Makefile fix raised the count from
+  the initial PR-#25 measurement of 159 — earlier ty was under-resolving
+  due to a macOS-CommandLineTools env shadow on `.venv`. Higher count
+  reflects ty seeing the codebase correctly, not regression. Captures the
+  defaults-first posture decision + rejected alternatives (mypy /
+  pyright / gating from day one / `[tool.ty.rules]` overrides).
+
+Phase 6 followup mechanical changes (this PR):
+
+- `pyproject.toml` — added `[tool.ty.src.exclude]` mirroring ruff's
+  extend-exclude as a safety net (observed no-op on current findings;
+  the noise is XComArg-shaped, not path-shaped). Inline comment
+  documents the corrected understanding.
+- `README.md` — line 14 `make verify` description updated to include
+  `ty (advisory)` + `pytest` (was stale after Phase 6).
+- `Makefile` — `unexport VIRTUAL_ENV` directive at top; silences the
+  macOS CommandLineTools warning that bled into every `uv run`
+  invocation. Applies to all targets.
+
+Propagation:
+
+- `wiki/sprints/sprint-dev-tooling.md` — Phase 6 row flipped to
+  `✅ done` (2026-05-12); Status-update-history appended with the
+  Phase 6 entry + DevEx review boomerang.
+- `wiki/index.md` — Decisions count 15 → 16; new ADR linked under
+  "Dev-tooling" decisions group; sprint-dev-tooling status line updated.
+
+The gstack plan + review artifacts remain at `~/.claude/plans/` and
+`~/.gstack/projects/dacostalindo-House4House/main-reviews.jsonl` as
+the historical record. Only the derived knowledge (the ADR + the
+propagation updates) flowed into the wiki.
