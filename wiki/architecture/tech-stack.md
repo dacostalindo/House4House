@@ -1,13 +1,13 @@
 ---
 title: Tech stack — primary + alternatives considered
 type: plan
-last_verified: 2026-05-10
+last_verified: 2026-05-12
 tags: [architecture, tech-stack, rationale, plan]
 ---
 
 ## For future Claude
 
-This is the **tech stack** page — every technology choice in House4House with a one-line rationale, plus the alternative-stack-considered table that names what was rejected. The decisions behind individual stack picks (PostGIS, MinIO, Airflow 2, dbt vs SQLModel, Nominatim + OSRM self-hosted, Streamlit + Kepler.gl, single-server-self-hosted) live as ADRs in [[wiki/decisions/]] and are linked inline below. Read this when adding a new tool to the project, when asked "why did we pick X?", or when scoping a future stack migration.
+This is the **tech stack** page — every technology choice in House4House with a one-line rationale, plus the alternative-stack-considered table that names what was rejected. The decisions behind individual stack picks (PostGIS, MinIO, Airflow 2, dbt vs SQLModel, Nominatim + OSRM self-hosted, Streamlit + Kepler.gl, single-server-self-hosted) live as ADRs and are linked inline below. Read this when adding a new tool to the project, when asked "why did we pick X?", or when scoping a future stack migration.
 
 ## What it is
 

@@ -13,7 +13,7 @@ Four pages from README §14-§17, each a focused planning artifact:
 - [[roadmap-p3-p4]] — README §16 — deferred sources organized into Phase 2A (Risk & Environment) / 2D (Land Development Intelligence) / 2B (Supply & Costs) / 2C (Coverage & Niche) post-MVP expansion plan.
 - [[milestones]] — README §17 partial (Go/No-Go criteria for M1 / M2 / M3 + MVP hedonic feature coverage) — the explicit hard-fail / soft-fail gates per use-case MVP.
 
-Plus one paired concept page (lives in [[wiki/concepts/]]):
+Plus one paired concept page (lives in concepts/):
 
 - [[spatial-strategy]] — README §9 — CRS dual-storage convention (geom in 4326 + geom_pt in 3763), spatial indexing patterns (GIST + H3), common spatial query templates, location-score computation logic. Concept-shaped (rule + pattern), not planning-shaped.
 

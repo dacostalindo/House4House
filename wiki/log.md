@@ -44,7 +44,7 @@ PR 1 scaffold:
   derived stack-decision ADRs deferred to PR 3+ alongside `wiki/plan/`
   content.
 - Overview synthesis (ade1d08): wiki/overview.md compresses the root
-  README's 16 sections into a 1-page entry-point with [[wikilinks]]
+  README's 16 sections into a 1-page entry-point with `[[wikilinks]]`
   outbound to every typed-content page.
 
 PR 3+ will iteratively populate `wiki/plan/` (sprints, use-cases, source-
@@ -152,7 +152,7 @@ PR 5 of Phase 3 of the dev-tooling design. Two-commit shape:
 - **Commit 2** (next) — wiki/concepts/ingest-flows.md, the six-flow
   taxonomy from README §6 (A REST / B scraping / C GIS / D derived /
   E spatial composition / F portal cross-reference). Lifts each
-  flow's verbatim diagram from README + adds [[wikilinks]] to source
+  flow's verbatim diagram from README + adds `[[wikilinks]]` to source
   pages and the concept dependencies. Replaces the originally-planned
   wiki/plan/data-flows/ subdirectory — single concept page beats
   per-flow page proliferation.
@@ -403,3 +403,78 @@ The gstack plan + review artifacts remain at `~/.claude/plans/` and
 `~/.gstack/projects/dacostalindo-House4House/main-reviews.jsonl` as
 the historical record. Only the derived knowledge (the ADR + the
 propagation updates) flowed into the wiki.
+
+## [2026-05-12] phase-7c | 3 scaffolding skills shipped (/add-gis-source + /add-portal-source + /stg-from-bronze)
+
+Phase 7c closes the dev-tooling roadmap's skill backlog. Three new
+skills at `.claude/skills/`:
+
+- `add-gis-source/SKILL.md` — bootstraps new GIS source (Pydantic config
+  + Airflow DAG + wiki page + dbt source YAML). Mirrors 17 existing
+  GIS sources; canonical template at `pipelines/gis/bgri/`.
+- `add-portal-source/SKILL.md` — bootstraps new property portal (dlt
+  resources + Airflow DAG + tests + README + wiki page + dbt source
+  YAML). Mirrors 6 portals; canonical template at `pipelines/portals/zome/`
+  (simple) or `pipelines/portals/idealista/` (rich).
+- `stg-from-bronze/SKILL.md` — bootstraps dbt staging model from a
+  bronze table (type casts + NULL guards + CRS reprojection + dbt-utils
+  tests). Mirrors 21+ staging models; canonical templates per domain.
+
+All three follow the obsidian-second-brain command pattern locked in
+Phase 7b: pure-prose markdown (~75 lines), Cosmos frontmatter
+(`name:` + `description:`), numbered procedural steps, parallel
+subagents where applicable, AI-first compliance mandate at the end.
+Skill-only — no Python helpers, no CI, no Makefile, no pre-commit.
+
+Phase 7 status table updated in `sprint-dev-tooling.md` to ✅ done.
+Phase 7 closes the dev-tooling roadmap's skill backlog. Remaining
+roadmap work: Phase 5 (idealista enrichment via Pydantic AI) — coupled
+to data-product Sprint 4.5/5, currently queued behind in-progress
+Sprint 4.
+
+## [2026-05-12] reconcile | 6 findings, 6 auto-fixed, 0 flagged for user, 0 ADRs created (of which 0 from gstack ingest)
+
+First `/wiki-reconcile` run since the skill shipped in Phase 7b. Four
+parallel subagents (schema / links / reciprocity / freshness) plus
+ingest-check.
+
+- **Schema agent:** clean — 81 pages scanned, 100% compliance on
+  required frontmatter (priority for sources, confidence for decisions,
+  status/sprint_number/weeks/last_status_update for sprints), required
+  sections per page type, and `## For future Claude` preamble.
+- **Links agent:** 6 unresolved `[[wikilinks]]` — all auto-fixed.
+  4 were directory-path links (`[[wiki/decisions/]]`, `[[wiki/sources/]]`,
+  `[[wiki/concepts/]]`) that don't resolve under the basename rule and
+  needed either removal (when prose already covered the reference) or
+  rewriting to specific page links. 2 were bare meta-references to
+  `[[wikilinks]]` in `log.md` describing the wiki schema — wrapped in
+  backticks to match the existing convention at log.md:30.
+- **Reciprocity agent:** clean — 0 supersedes chains exist across the
+  16 ADRs; all 12 sprint `## Status update history` sections pass the
+  `^- \d{4}[-Q]\S*:\s+\S.*` regex on every line.
+- **Freshness agent:** clean — 0 pages with `last_verified:` older than
+  90 days; the 5 structural files without `last_verified:` are
+  exempt per schema.
+- **Ingest agent:** no new gstack artifacts since the Phase 6 ingest
+  (the last `~/.gstack/projects/dacostalindo-House4House/main-reviews.jsonl`
+  entry is 2026-05-12T09:45:22Z, already ingested as
+  `[[2026-05-12-phase-6-ty-advisory]]`).
+
+Files touched (`last_verified` bumped where applicable):
+
+- `wiki/architecture/tech-stack.md` — removed `[[wiki/decisions/]]`
+  (prose already says "linked inline below"); `last_verified` 2026-05-10
+  → 2026-05-12.
+- `wiki/concepts/ingest-flows.md` — removed `[[wiki/sources/]]` (generic
+  prose, no specific target); `last_verified` 2026-05-08 → 2026-05-12.
+- `wiki/planning/README.md` — directory hint kept but as plain text
+  ("lives in concepts/"); no `last_verified` (structural).
+- `wiki/planning/resources.md` — replaced `as per [[wiki/sources/]]`
+  with `as documented above` (the row already lists 5 source wikilinks);
+  `last_verified` 2026-05-10 → 2026-05-12.
+- `wiki/log.md` — wrapped 2 bare `[[wikilinks]]` mentions in backticks;
+  no `last_verified` (structural).
+- `wiki/index.md` — added `Last reconcile run: 2026-05-12` line below
+  the existing `Last lint run:`.
+
+Session report at `wiki/lint-reports/2026-05-12T120000.md`.

@@ -5,6 +5,7 @@
 This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last lint run:` line is the freshness indicator (updated by `/wiki-lint`); a stale date means lint hasn't fired recently and contradiction-detection coverage is degrading.
 
 Last lint run: 2026-05-08
+Last reconcile run: 2026-05-12
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
@@ -132,7 +133,7 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 
 ### Dev-tooling sprint (parallel track)
 
-- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4+6 done; Phase 2.5 closed; Phases 5+7 planned; Phase 7 absorbs deferred wiki linter)
+- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4+6+7 done; Phase 2.5 closed; Phase 5 planned)
 
 ## Use cases (3 pages — PR 4 seed)
 
