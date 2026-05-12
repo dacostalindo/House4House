@@ -117,7 +117,7 @@ Three surfaces, all shipping in [[sprint-06]] (Week 13, Milestone 1 LIVE):
 | Surface | Tool | Purpose | Filters / interactions |
 |---|---|---|---|
 | **Investment Dashboard** | Metabase OSS 0.48+ on port 3000 | KPIs, ranked table by `investment_score`, yield-vs-price scatter | Budget, location, typology, min yield |
-| **Investment Map** | Kepler.gl 3.0 embedded in Streamlit (`streamlit-keplergl` 0.3.0 — no separate container per [[2026-05-08-streamlit-keplergl-not-superset]] decision; ADR lands in PR 6) | Spatial exploration: listing points colored by valuation gap, neighbourhood-trajectory polygons, infrastructure catalysts | Layer toggles, zoom-level filtering, click-for-details |
+| **Investment Map** | Kepler.gl 3.0 embedded in Streamlit (`streamlit-keplergl` 0.3.0 — no separate container per [[2026-05-10-metabase-streamlit-not-superset]] decision) | Spatial exploration: listing points colored by valuation gap, neighbourhood-trajectory polygons, infrastructure catalysts | Layer toggles, zoom-level filtering, click-for-details |
 | **Property Valuator** | Streamlit 1.41+ on port 8501 | Single-listing deep-dive: enter address/listing URL → predicted value, valuation gap, comparable sales, neighbourhood stats | Address autocomplete via Nominatim |
 
 Database access: Metabase + Streamlit roles SELECT-only on `gold_analytics`, `silver_geo`, `silver_properties`, `silver_market` (per `warehouse/init/001_create_schemas.sql` schema layout, see [[medallion-layering]]).

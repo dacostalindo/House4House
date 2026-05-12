@@ -219,7 +219,6 @@ def _create_dag():
         tags=["osm", "bronze", "pois", "transport", "roads", "postgis"],
     )
     def osm_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest OSM GPKG from MinIO to a temp directory."""

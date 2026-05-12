@@ -245,7 +245,6 @@ def create_gis_ingestion_dag(config: GISIngestionConfig):
         tags=["ingestion", "gis", "minio"] + config.tags,
     )
     def gis_ingestion_dag():
-
         # ------------------------------------------------------------------
         # Task 1: Check source availability
         # ------------------------------------------------------------------

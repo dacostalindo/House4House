@@ -188,6 +188,36 @@ Output:
 
 Failure mode: lint findings are advisory. The skill never errors loudly; if a Sunday cron is missed (Mac off), `Last lint run:` shows staleness as the signal.
 
+## Write rules
+
+Per obsidian-second-brain [`references/write-rules.md`](https://github.com/eugeniughelbur/obsidian-second-brain/blob/main/references/write-rules.md) borrow (locked 2026-05-11). Three rules form a complete write-discipline triad — proactive check + corrective check + followup. They apply to every write into `wiki/` regardless of trigger (manual edits, `/wiki-ingest`, ADR drafts, sprint creation, `/wiki-import-gstack` invocations in Phase 7+).
+
+### 1. Search before write (proactive)
+
+Before creating a new wiki page or adding a substantive new claim to an existing page, **search the wiki first**. Cheapest version: read `wiki/index.md` (the catalog) + run `grep -ri "<topic>" wiki/`.
+
+- Before creating a new `wiki/sources/<name>.md`: `grep -ri "<source-name>" wiki/` — catches name-variant collisions (`srup_ogc` vs `srup-ogc`) AND catches the case where another page already documents this source under a different filename.
+- Before creating a new `wiki/concepts/<name>.md`: scan `wiki/index.md` Concepts section + `grep -ri "<concept-keyword>" wiki/concepts/` — catches cases where the pattern is already documented under a different name (e.g., considering writing `concepts/dlt-schema-contract.md` when `concepts/bronze-permissive.md` already covers it).
+- Before adding a fact to an existing page: scan the page for prior statements on the same topic that might already cover, contradict, or need updating instead.
+
+The ingest workflow (step 2 above: "read `index.md` first... then grep the wiki for keyword overlap") already mandates this for ingest. This rule extends the same discipline to ALL writes.
+
+### 2. Update-not-duplicate (corrective)
+
+When the search above finds an existing page on the same topic, **UPDATE it**; don't create a parallel `<name>-v2.md` or a near-synonym file. The basename-ambiguity check in the future `wiki_health.py` (Phase 7) will enforce this mechanically — two files sharing a basename across `wiki/{concepts,sources,decisions,pipelines}/` produces a BLOCKING `[[wikilinks]]` ambiguity finding. Until Phase 7 lands, the rule is human/Claude discipline.
+
+The rule also extends to near-synonyms (`scd2-row-hash.md` and `row-hash-dedup.md` are NOT a basename collision but ARE a violation of this rule).
+
+### 3. The Propagation Rule (followup)
+
+**Never create a note in isolation.** Every write to the wiki has ripple effects. AFTER the search-and-update steps above, trace forward and ask: what other pages need to know about this?
+
+- New `wiki/sources/<name>.md` → add to `wiki/index.md` Sources section; cross-link from any `wiki/concepts/` page that mentions this source's domain; if the source crosses a P0/P1/P2 boundary, update `wiki/planning/resources.md` data-volume table.
+- New `wiki/concepts/<name>.md` → add to `wiki/index.md` Concepts section; add to per-area `CLAUDE.md` task→concept routing where relevant; cross-link from `wiki/overview.md` if it's a load-bearing rule.
+- New `wiki/decisions/<date>-<topic>.md` → add to `wiki/index.md` Decisions section under the right group (Foundational / Stack / Spatial / etc.); if it supersedes an old ADR, flip the old ADR's `status: superseded` + `superseded_by:` per the existing convention.
+- New sprint page → update `wiki/sprints/README.md` + `wiki/planning/milestones.md` if it gates a milestone.
+- Always append a one-line entry to `wiki/log.md` describing what changed.
+
 ## No-content-duplication guardrail
 
 Rules and patterns live ONLY in `wiki/concepts/`. The CLAUDE.md hierarchy at the project root + per-area directories are pure pointer indexes — they say "see `wiki/concepts/<topic>.md`" and never duplicate the content. This is the single-source-of-truth guarantee.

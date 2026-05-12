@@ -99,8 +99,52 @@
 | #9 `llms.txt` at repo root | Phase 4d | Phase 4 CI/CD section |
 | #10 `wiki/raw/` immutable-clipping pattern (from `references/vault-schema.md`) | DEFERRED — trigger-gated | TODO entry below ("`wiki/raw/` immutable-clipping directory") |
 | #11 Cross-links are mandatory, Obsidian-style `[[wikilinks]]` (from `references/ai-first-rules.md` rule #6; user chose Obsidian as primary reader 2026-05-08) | PR 2 schema amendment + Phase 4e BLOCKING CI rule | wiki/CLAUDE.md "Cross-links are mandatory" subsection + Phase 4e wiki_health.py |
+| #12 Write rules triad (Search-before-write + Update-not-duplicate + Propagation; from `references/write-rules.md`) | Phase 4 schema amendment | wiki/CLAUDE.md "Write rules" subsection (locked 2026-05-11) |
 
 **PostCompact hook pattern** (their `obsidian-bg-agent.sh`) is NOT being borrowed today — captured here as a future note: their hook fires after Claude compacts session context to propagate session learnings to vault automatically. Could complement our weekly cron with per-session wiki updates. Revisit only if our manual + cron model produces stale pages between cron runs.
+
+---
+
+## `scripts/wiki_health.py` mechanical linter — DEFERRED to Phase 7 (NEW 2026-05-12)
+
+**What:** the original Phase 4 plan included `scripts/wiki_health.py` (~400 lines) enforcing the `wiki/CLAUDE.md` schema as a BLOCKING CI rule. Implementation started, then was annulled during the Phase 4 PR. The work moves to Phase 7 where it co-locates with the structured-schema-first refactor and the `/wiki-reconcile` + `/wiki-import-gstack` skills that also need schema knowledge.
+
+**Why deferred to Phase 7:**
+
+1. **Single source of truth concern.** `wiki_health.py` as drafted would have re-implemented rules already stated in `wiki/CLAUDE.md` prose (frontmatter enums, required sections, `[[wikilinks]]` resolution algorithm). Two parallel sources of truth drift. The right fix is to extract machine-parseable rules into `wiki/_schema.yaml` (or equivalent structured format) that both the human-readable schema doc and the linter read from. That refactor is Phase 7-shaped.
+
+2. **Co-design with Phase 7 skills.** `/wiki-reconcile` and `/wiki-import-gstack` (Phase 7d + 7e) also need to know the schema. Designing the structured schema once and landing three consumers (linter + reconcile + import) against it is one coherent design pass instead of "ship linter against prose-as-truth in Phase 4, refactor when Phase 7 lands."
+
+3. **No regression in safety.** The weekly `/wiki-lint` LLM cron (Phase 3e, already shipped) continues to catch contradictions, stale claims, and orphans semantically. The mechanical layer is the missing piece, not the only layer.
+
+**What Phase 7 absorbs (from the original Phase 4 plan):**
+
+- `wiki/_schema.yaml` (NEW) — structured schema, single source of truth
+- `scripts/wiki_health.py` or `.claude/scripts/wiki_health.py` — reads `_schema.yaml`, enforces full rule set (frontmatter per type, preamble, `[[wikilinks]]` resolution incl. directory-refs + placeholder allowlist + schema-doc self-exclusion, supersedes reciprocity, sprint Status-update-history)
+- `tests/test_wiki_health.py` — per-check unit tests + integration + clean-wiki regression guard, `--wiki-root` injectable for `tmp_path` fixtures
+- `Makefile` `wiki-lint-fast` target
+- `.pre-commit-config.yaml` `wiki-health` local hook
+- `.github/workflows/ci.yml` `wiki_health` step with `[wiki-health]` annotation tag
+- `pyproject.toml` dev-group `pyyaml>=6` explicit addition (defensive against transitive churn — currently reachable via `airflow → apispec[yaml]`)
+- `tests/test_wiki_schema_consistency.py` — drift-sentinel test asserting known rule strings in `wiki/CLAUDE.md` match `_schema.yaml`
+
+**Implementation notes from the Phase 4 prototype** (the partial-implementation surfaced these conventions that the schema doc should formalize before the linter enforces them):
+
+- `wiki/CLAUDE.md` self-exclusion clause needed — schema doc contains illustrative `[[wikilinks]]` examples (e.g., `[[name]]`, `[[YYYY-MM-DD-topic]]`) that aren't real refs.
+- Documentation-placeholder allowlist needed — tokens `[[wikilinks]]`, `[[wikilink]]`, `[[name]]`, `[[topic]]`, `[[slug]]`, `[[YYYY-MM-DD-topic]]`, `[[subdir/name]]` used in prose as generic syntax placeholders, not real targets.
+- Directory-reference syntax needed — `[[wiki/sources/]]` (trailing slash) is a directory pointer; resolver should validate the directory exists rather than expecting a page.
+- Inline-code skip — `` `[[wikilinks]]` `` (inside single-backtick code spans) is a documentation reference, not a real link. Inline-code-stripping logic was prototyped and works.
+- Sprint Status-history regex — should accept ISO date (`YYYY-MM-DD`), quarterly (`YYYY-Q1`-`YYYY-Q4`), and month-precision (`YYYY-MM`) entries. Prototype used `^- \d{4}[-Q]\S*:\s+\S.*$` and worked against real wiki content.
+
+**Real wiki drift surfaced during the Phase 4 prototype run** (fixed during Phase 4 PR, kept fixed regardless of when the linter lands):
+
+- `wiki/concepts/medallion-layering.md:84` referenced `[[staging-yaml-conventions]]` — page doesn't exist (was a forward-placeholder).
+- `wiki/sprints/sprint-dev-tooling.md:49` referenced `[[dev-tooling-design]]` — page was deleted in PR 3.
+- `wiki/use-cases/UC-1.md:120` referenced `[[2026-05-08-streamlit-keplergl-not-superset]]` — wrong date AND wrong name; correct ADR is `[[2026-05-10-metabase-streamlit-not-superset]]`.
+
+These three real bugs were caught by the prototype linter before it was annulled. The catch validates that the linter approach works — just needs a clean architecture (structured schema) before it ships permanently.
+
+**Status:** annulled 2026-05-12 (the script + pyyaml dev-dep). Re-instates in Phase 7 with structured-schema-first design. No further TODO action; tracked here for Phase 7 implementation.
 
 ---
 

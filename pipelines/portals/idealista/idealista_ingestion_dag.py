@@ -209,7 +209,6 @@ def _create_dag():
         tags=["ingestion", "api", "minio", "listings"] + config.tags,
     )
     def idealista_ingestion():
-
         @task()
         def check_api_availability(**context) -> dict:
             """Validate ZenRows API key with a single test discovery call."""

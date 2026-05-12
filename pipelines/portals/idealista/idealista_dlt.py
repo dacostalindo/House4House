@@ -68,7 +68,6 @@ from pipelines.portals.idealista.source import (
     idealista_plots_facts_source,
 )
 
-
 log = logging.getLogger(__name__)
 
 PIPELINES_DIR = "/opt/airflow/dlt_state/idealista_developments"
@@ -102,7 +101,10 @@ def _alert_on_failure(context: dict) -> None:
     exception = context.get("exception")
     log.error(
         "[ALERT] %s.%s failed (run %s): %s",
-        dag_id, task_id, run_id, exception,
+        dag_id,
+        task_id,
+        run_id,
+        exception,
     )
 
 
@@ -136,7 +138,7 @@ with DAG(
             default=None,
             description=(
                 "Optional dict overriding source.TARGET_AREAS for this run only. "
-                "Example: {\"aveiro\": [\"aveiro-distrito\"]} to scope to one distrito. "
+                'Example: {"aveiro": ["aveiro-distrito"]} to scope to one distrito. '
                 "Auditable in Airflow run config; no code edit to revert."
             ),
             type=["null", "object"],
@@ -186,8 +188,11 @@ with DAG(
                     client.fput_object(MINIO_BUCKET, obj, str(fp))
                     uploaded.append(f"s3://{MINIO_BUCKET}/{obj}")
 
-        log.info("[idealista_dev_dlt] audit upload complete: %d files (override=%s)",
-                 len(uploaded), bool(override))
+        log.info(
+            "[idealista_dev_dlt] audit upload complete: %d files (override=%s)",
+            len(uploaded),
+            bool(override),
+        )
         return {"uploaded": uploaded, "ts": ts, "override_used": bool(override)}
 
     @task()
@@ -209,15 +214,15 @@ with DAG(
             dataset_name=DATASET_NAME,
             pipelines_dir=PIPELINES_DIR,
         )
-        info = pipeline.run(
-            idealista_developments_facts_source(target_areas=override)
-        )
+        info = pipeline.run(idealista_developments_facts_source(target_areas=override))
         log.info("[idealista_dev_dlt] facts load: %s", info)
 
         counters = get_pass3_counters()
         log.info(
             "[idealista_dev_dlt] Pass 3 counters: total=%d stubs=%d errors=%d",
-            counters["total"], counters["stubs"], counters["errors"],
+            counters["total"],
+            counters["stubs"],
+            counters["errors"],
         )
         return {
             "load_id": pipeline.last_trace.last_load_info.loads_ids[-1],
@@ -243,15 +248,14 @@ with DAG(
             dataset_name=DATASET_NAME,
             pipelines_dir=PIPELINES_DIR_PLOTS,
         )
-        info = pipeline.run(
-            idealista_plots_facts_source(target_areas=override)
-        )
+        info = pipeline.run(idealista_plots_facts_source(target_areas=override))
         log.info("[idealista_dev_dlt] plots load: %s", info)
 
         counters = get_plots_pass2_counters()
         log.info(
             "[idealista_dev_dlt] Plots Pass 2 counters: total=%d stubs=%d",
-            counters["total"], counters["stubs"],
+            counters["total"],
+            counters["stubs"],
         )
         return {
             "load_id": pipeline.last_trace.last_load_info.loads_ids[-1],
@@ -276,8 +280,11 @@ with DAG(
 
         creds = _postgres_credentials()
         conn = psycopg2.connect(
-            host=creds["host"], port=creds["port"], dbname=creds["database"],
-            user=creds["username"], password=creds["password"],
+            host=creds["host"],
+            port=creds["port"],
+            dbname=creds["database"],
+            user=creds["username"],
+            password=creds["password"],
         )
         try:
             with conn.cursor() as cur:
@@ -289,9 +296,7 @@ with DAG(
                 )
                 rows = cur.fetchall()
                 if not rows or any(r[0] != 0 for r in rows):
-                    raise RuntimeError(
-                        f"_dlt_loads for load_id={load_id} not status=0: {rows}"
-                    )
+                    raise RuntimeError(f"_dlt_loads for load_id={load_id} not status=0: {rows}")
 
                 cur.execute(
                     f"SELECT count(*) FROM {DATASET_NAME}.idealista_developments "
@@ -400,10 +405,18 @@ with DAG(
                     "[idealista_dev_dlt] validation OK: developments=%d (%d enriched), "
                     "units=%d, pass3_total=%d stubs=%d errors=%d, plots=%d (pass2_total=%d stubs=%d), "
                     "load_id=%s, plots_load_id=%s, override_used=%s",
-                    devs_current, devs_enriched, units_current,
-                    pass3_total, pass3_stubs, pass3_errors,
-                    plots_current, plots_pass2_total, plots_pass2_stubs,
-                    load_id, plots_load_id, override_used,
+                    devs_current,
+                    devs_enriched,
+                    units_current,
+                    pass3_total,
+                    pass3_stubs,
+                    pass3_errors,
+                    plots_current,
+                    plots_pass2_total,
+                    plots_pass2_stubs,
+                    load_id,
+                    plots_load_id,
+                    override_used,
                 )
                 return {
                     "load_id": load_id,

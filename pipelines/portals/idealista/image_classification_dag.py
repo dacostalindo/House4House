@@ -274,7 +274,6 @@ def _create_dag():
         tags=["idealista", "cv", "classification", "images"],
     )
     def image_classification():
-
         # ── Task: Create tables ──────────────────────────────────────────
 
         @task()

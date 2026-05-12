@@ -90,7 +90,6 @@ def _create_dag():
         tags=["srup", "bronze", "postgis", "constraints"],
     )
     def srup_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest SRUP GeoJSON files in MinIO for each category."""

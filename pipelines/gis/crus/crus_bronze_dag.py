@@ -95,7 +95,6 @@ def _create_dag():
         tags=["crus", "bronze", "postgis", "zoning"],
     )
     def crus_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest CRUS GeoJSON files in MinIO for each municipality."""

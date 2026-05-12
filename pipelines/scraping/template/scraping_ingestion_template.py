@@ -330,7 +330,6 @@ def create_scraping_ingestion_dag(config: ScrapingIngestionConfig):
         tags=["ingestion", "scraping", "minio"] + config.tags,
     )
     def scraping_ingestion_dag():
-
         # ------------------------------------------------------------------
         # Task 1: Check site availability
         # ------------------------------------------------------------------

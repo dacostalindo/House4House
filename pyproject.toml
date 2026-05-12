@@ -16,15 +16,42 @@ extend-exclude = [
     "dbt/dbt_packages/**",
     "data/**",
     "warehouse/init/**",
-    "scripts/*.har",
+    "scripts/**",       # gitignored; experimentation / prototypes
     "**/.venv/**",
 ]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = [
-    "E501",
+    "E501",     # line length (let formatter handle)
+    # Cosmetic rules — Phase 4 baseline. Legacy code uses Unicode typography
+    # in docstrings (`×`, `–`, `╱`) and stylistic patterns that ruff flags
+    # but don't affect correctness. Tracked in Phase 1 acceptance-gate's
+    # "first-PR escape hatch" provision.
+    "RUF001",   # ambiguous unicode in strings
+    "RUF002",   # ambiguous unicode in docstrings (×, –, ╱)
+    "RUF003",   # ambiguous unicode in comments
+    "RUF005",   # list concatenation → unpacking
+    "SIM105",   # contextlib.suppress over try/except/pass
+    "SIM108",   # ternary over if/else
+    "SIM113",   # enumerate over manual counter
+    "SIM118",   # `key in dict` over `key in dict.keys()`
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Phase 4 baseline (locked 2026-05-12) for genuine lint findings in legacy
+# code. Per the Phase 1 acceptance-gate's "first-PR escape hatch" provision.
+# Whittle down opportunistically as files get touched for other work.
+# E741 = ambiguous variable name `l` (used as "listing").
+# B905 = zip without strict=.
+# E402 = module-level import not at top.
+# F821 = undefined name (false positive on f-string self-reference).
+"pipelines/portals/idealista/source.py" = ["E741", "B905", "F821"]
+"pipelines/portals/idealista/image_classification_dag.py" = ["E741"]
+"pipelines/portals/remax/source.py" = ["E741"]
+"pipelines/portals/jll/jll_dlt_dag.py" = ["F821"]
+"pipelines/api/ine/ine_bronze_dag.py" = ["E402"]
+"pipelines/gis/template/gis_ingestion_template.py" = ["E741", "B905"]
 
 [tool.ruff.format]
 quote-style = "double"

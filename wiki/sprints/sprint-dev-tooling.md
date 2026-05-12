@@ -46,7 +46,7 @@ Per Phase, locked at the time the Phase shipped:
 - Phase 2: 4 source configs migrated to Pydantic v2; snapshot test fixtures locked; `make verify` includes the snapshot test. Met 2026-Q2.
 - Phase 2.5: audit finds zero Pydantic-eligible sites; design doc updated to `ABSORBED BY PHASE 2`. Met 2026-05-08.
 - Phase 3: `wiki/` exists with schema in CLAUDE.md; PR 1 scaffold + PR 2 seed shipped; CLAUDE.md hierarchy at root + per-area routes Claude to relevant concepts; weekly `/wiki-lint` cron operational. Pending: PR 3 (this) + PR 4-7 + PR 8 README stub.
-- Phase 4-7: see each Phase's spec in [[dev-tooling-design]] (preserved as wiki/sprints/sprint-dev-tooling.md content) once ready to ship.
+- Phase 4-7: see each Phase's spec in this page's body (the gstack `dev-tooling-design.md` snapshot was folded in during PR 3; this page is now the canonical roadmap surface).
 
 ## Key decisions
 

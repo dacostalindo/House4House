@@ -74,7 +74,9 @@ def _fetch_all_features_to_file(
             total += len(batch)
             log.info(
                 "[cadastro] Got %d features (total: %d, offset: %d)",
-                len(batch), total, offset,
+                len(batch),
+                total,
+                offset,
             )
 
             if len(batch) < page_size:
@@ -115,7 +117,6 @@ def _create_dag():
         tags=["ingestion", "gis", "minio"] + cfg.tags,
     )
     def cadastro_ingestion():
-
         @task()
         def check_api_availability() -> dict:
             """Verify the OGC API endpoint is reachable."""
@@ -154,7 +155,9 @@ def _create_dag():
             file_size = os.path.getsize(geojson_path)
             log.info(
                 "[cadastro] Wrote %s (%.1f MB, %d features)",
-                geojson_path, file_size / 1e6, feature_count,
+                geojson_path,
+                file_size / 1e6,
+                feature_count,
             )
 
             return {
@@ -167,8 +170,8 @@ def _create_dag():
         @task()
         def save_to_minio(fetch_result: dict) -> dict:
             """Upload GeoJSON FeatureCollection to MinIO."""
-            from minio import Minio
             from airflow.models import Variable
+            from minio import Minio
 
             endpoint = Variable.get("MINIO_ENDPOINT")
             access_key = Variable.get("MINIO_ACCESS_KEY")

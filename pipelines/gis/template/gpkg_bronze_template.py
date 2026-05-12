@@ -138,7 +138,6 @@ def create_gpkg_bronze_dag(config: GpkgBronzeConfig):
         tags=["bronze", "postgis"] + config.tags,
     )
     def gpkg_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest GPKG from MinIO to a temp directory."""

@@ -150,7 +150,6 @@ def _create_dag():
         tags=["ecb", "bronze", "euribor", "postgis"],
     )
     def ecb_bronze_load():
-
         @task()
         def list_minio_files() -> dict:
             """Find the latest JSON file per series key in MinIO."""

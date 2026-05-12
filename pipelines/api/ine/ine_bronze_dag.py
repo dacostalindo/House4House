@@ -121,7 +121,6 @@ def _create_dag():
         tags=["ine", "bronze", "indicators", "postgis"],
     )
     def ine_bronze_load():
-
         @task()
         def list_minio_files() -> dict:
             """Find the latest JSON file per indicator code in MinIO."""

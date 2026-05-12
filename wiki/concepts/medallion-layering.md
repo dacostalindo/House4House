@@ -81,7 +81,7 @@ The schemas are created by [warehouse/init/001_create_schemas.sql](../../warehou
 | Aggregations, KPI denormalization | Gold | `gold_analytics.fct_listings_monthly` |
 | Validation tests | dbt-utils on staging + silver | column-not-null, accepted-values, range |
 
-**Source YAML conventions**: each `dbt/models/staging/<domain>/_staging_<domain>__sources.yml` declares its bronze sources. Naming: `_staging_<domain>__sources.yml` (note the double underscore). See [[staging-yaml-conventions]] (TODO — concept page captures this).
+**Source YAML conventions**: each `dbt/models/staging/<domain>/_staging_<domain>__sources.yml` declares its bronze sources. Naming: `_staging_<domain>__sources.yml` (note the double underscore). A dedicated `wiki/concepts/staging-yaml-conventions.md` page is TODO (see `TODOS.md`).
 
 **MinIO landing-zone convention**: `s3://raw/{source}/{version}/{filename}` with audit copy stored per run. No overwrites — the audit layer sits BEFORE bronze and is the genuine ground truth if bronze gets corrupted.
 

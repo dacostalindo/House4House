@@ -6,6 +6,12 @@ __pycache__/
 # Local Airflow config isolation (prevents bleed from ~/airflow/airflow.cfg)
 .airflow-home/
 
+# Scripts folder — local experimentation, prototyping, one-off data work.
+# Not part of the project's runtime. Excluded from git per user decision
+# 2026-05-12 (Phase 4 PR). Use pipelines/ + dbt/ + apps/ for durable code;
+# .claude/scripts/ for Claude-harness scripts; wiki/ for accumulated knowledge.
+scripts/
+
 # C extensions
 *.so
 
