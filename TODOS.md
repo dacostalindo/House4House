@@ -264,10 +264,25 @@ The eng-review's "267 inline validators" estimate was a bad-grep artifact. The a
 
 ## Graduate `ty` from advisory to gating CI step
 
-**What:** flip the `continue-on-error: true` flag off in the GitHub Actions workflow added in Phase 4, making `ty check` a hard gate on PRs.
+**What:** flip `ty check` from advisory (`--exit-zero` + `|| echo` patterns) to BLOCKING in `.github/workflows/ci.yml` + `Makefile`. After the flip, ty findings make CI red the same way `ruff check` does.
 
-**Why:** type errors should block PRs once tooling is mature, same as `ruff check`. Today ty is in preview and noisy enough that gating would cause more friction than it saves.
+**Why:** type errors should block PRs once tooling is mature, same as `ruff check`. Today ty is in beta (per [`docs.astral.sh/ty`](https://docs.astral.sh/ty/), late 2025) and noisy enough that gating would cause more friction than it saves — known gaps in Pydantic + Django typing support that House4House would hit immediately.
 
-**Context:** Phase 6 of the 2026-05-05 dev-tooling design lands ty as advisory. Trigger to graduate is external — Astral declaring ty stable. No deadline. Watch the Astral blog and ty changelog.
+**Context:** Phase 6 of the dev-tooling roadmap (PR shipped 2026-05-12) lands ty as advisory. The plan locks the advisory posture at `--exit-zero` in CI + `|| echo` in `make verify`, with `ty>=0.0.1,<0.1.0` pinned in `pyproject.toml`. Mechanics for the flip are documented in the plan's "Dev-tooling graduation triggers" table.
 
-**Depends on:** Astral marking ty stable (external trigger, no internal blocker).
+**When to act (ANY of):**
+
+1. **ty hits 1.0 release** — Astral declares stable; the project moves with it.
+2. **A follow-up PR adds `[tool.ty]` config** — signals we've learned enough about ty's behavior to tune rule severity; once we have a config, graduation is a one-line CI change.
+3. **A Phase 6.5 annotation-sweep PR lands** — explicit codebase-readiness signal (e.g., the team decides type coverage is now high enough that BLOCKING is reasonable).
+
+Three concrete triggers replace the original "vague 80%-typed measured ad-hoc" framing (per `/plan-eng-review` finding #4, 2026-05-12).
+
+**Mechanics for the flip:**
+
+- Remove `--exit-zero` from `.github/workflows/ci.yml` ty step.
+- Remove `|| echo "(ty findings present...)"` fallback from `Makefile verify` target.
+- Tighten the pin in `pyproject.toml` (e.g., `ty>=1.0,<2.0` post-stable, or whatever the current state is).
+- Document the flip in a new `wiki/decisions/<date>-phase-6-ty-blocking.md` ADR.
+
+**Depends on:** any one of the three triggers above (external or internal).

@@ -63,6 +63,16 @@ jobs:
           uv run pytest -q tests/
           echo "::endgroup::"
 
+      - name: ty check (advisory)
+        run: |
+          echo "::group::ty"
+          # --exit-zero: advisory mode (CI green regardless of findings).
+          # --output-format=github: PR diff annotations.
+          # Graduation to BLOCKING: see TODOS.md "Graduate ty" entry — three
+          # concrete triggers (ty 1.0, [tool.ty] config, or Phase 6.5 sweep PR).
+          uv run ty check --output-format=github --exit-zero
+          echo "::endgroup::"
+
       - name: dbt parse
         env:
           AIRFLOW_HOME: ${{ github.workspace }}/.airflow-home

@@ -10,7 +10,7 @@ AIRFLOW_HOME := $(PWD)/.airflow-home
 help:
 	@echo "House4House developer commands:"
 	@echo "  make setup    Install dependencies and pre-commit hooks"
-	@echo "  make verify   Run smoke checks: imports + ruff"
+	@echo "  make verify   Run smoke checks: imports + ruff + ty (advisory) + pytest"
 	@echo "  make up       Start Airflow + warehouse + MinIO + Metabase"
 	@echo "  make down     Stop services"
 	@echo "  make lint     Run ruff check"
@@ -32,6 +32,8 @@ verify:
 	@AIRFLOW_HOME=$(AIRFLOW_HOME) $(UV) run python -c "import airflow, dlt, pydantic, streamlit, geopandas; from cosmos import DbtDag; from airflow.providers.postgres.hooks.postgres import PostgresHook; print('imports OK')"
 	@echo "→ Running ruff check..."
 	@$(UV) run ruff check
+	@echo "→ Running ty check (advisory; Phase 6 — graduates to BLOCKING per TODOS.md trigger)..."
+	@$(UV) run ty check || echo "(ty findings present — see above; advisory mode, not blocking)"
 	@echo "→ Collecting pytest..."
 	@$(UV) run pytest --co -q tests/ 2>/dev/null || echo "(no tests collected — Phase 2 adds snapshot tests)"
 	@echo ""
