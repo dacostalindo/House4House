@@ -206,7 +206,6 @@ def _create_dag():
         tags=["bpstat", "bronze", "macro", "postgis"],
     )
     def bpstat_bronze_load():
-
         @task()
         def list_minio_files() -> dict:
             """Find the latest JSON file per dataset in MinIO."""

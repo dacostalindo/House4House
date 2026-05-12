@@ -73,9 +73,10 @@ import logging
 import os
 import re
 import time
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 import dlt
 import requests as _requests
@@ -85,7 +86,6 @@ from pipelines.portals.idealista.idealista_config import (
     ZENROWS_DETAIL_URL,
     ZENROWS_DISCOVERY_URL,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -107,9 +107,9 @@ ZENROWS_PARAMS_BASE: dict[str, str] = {
 # Discovery: max pages per area before we bail. Idealista shows ~30 cards/page,
 # so 50 pages × 30 = 1,500 — safely above any single-distrito expected count.
 DISCOVERY_MAX_PAGES = 50
-PASS1_DELAY_S = 1.0          # between discovery pages within an area
+PASS1_DELAY_S = 1.0  # between discovery pages within an area
 PASS2_PASS3_MAX_WORKERS = 8  # raised from 4 after Aveiro test showed 0 RE API errors;
-                              # halves load_facts runtime. Drop back to 4 if 429s appear.
+# halves load_facts runtime. Drop back to 4 if 429s appear.
 PASS_PER_WORKER_DELAY_S = 0.5
 REQUEST_TIMEOUT_S = 180
 
@@ -140,13 +140,13 @@ RE_API_STUB_FIELD_THRESHOLD = 6
 # all the way down to `_ensure_payload`. NEVER mutate this dict at runtime.
 # ---------------------------------------------------------------------------
 TARGET_AREAS: dict[str, list[str]] = {
-    "aveiro":   ["aveiro-distrito"],
-    "braga":    ["braga-distrito"],
-    "coimbra":  ["coimbra-distrito"],
-    "leiria":   ["leiria-distrito"],
-    "lisboa":   ["lisboa-distrito"],
-    "porto":    ["porto-distrito"],
-    "setubal":  ["setubal-distrito"],
+    "aveiro": ["aveiro-distrito"],
+    "braga": ["braga-distrito"],
+    "coimbra": ["coimbra-distrito"],
+    "leiria": ["leiria-distrito"],
+    "lisboa": ["lisboa-distrito"],
+    "porto": ["porto-distrito"],
+    "setubal": ["setubal-distrito"],
 }
 
 
@@ -279,7 +279,7 @@ def _stable_hash(row: dict, version_cols: Iterable[str]) -> str:
 # Incremented by Pass 3 workers; reset in _ensure_payload.
 # ---------------------------------------------------------------------------
 _re_api_error_count = 0  # non-200/non-404 RE API responses across all retries
-_stub_count = 0          # units whose RE API payload was a stub (skipped from SCD2)
+_stub_count = 0  # units whose RE API payload was a stub (skipped from SCD2)
 
 
 # ---------------------------------------------------------------------------
@@ -319,8 +319,9 @@ def _zenrows_get(url: str, wait_for: str | None = None) -> str | None:
         if attempt < ZENROWS_RETRIES:
             time.sleep(ZENROWS_BACKOFF_S * attempt)
 
-    log.warning("[idealista_dev] giving up on %s after %d tries: %s",
-                url, ZENROWS_RETRIES, last_err)
+    log.warning(
+        "[idealista_dev] giving up on %s after %d tries: %s", url, ZENROWS_RETRIES, last_err
+    )
     return None
 
 
@@ -357,8 +358,13 @@ def _zenrows_re_api_discovery(target_url: str, page: int) -> dict | list | None:
             time.sleep(backoff)
 
     _re_api_error_count += 1
-    log.warning("[idealista_plots] RE API discovery giving up on %s page %d after %d tries: %s",
-                target_url, page, RE_API_RETRIES, last_err)
+    log.warning(
+        "[idealista_plots] RE API discovery giving up on %s page %d after %d tries: %s",
+        target_url,
+        page,
+        RE_API_RETRIES,
+        last_err,
+    )
     return None
 
 
@@ -394,8 +400,12 @@ def _zenrows_re_api_get(property_id: str) -> dict | None:
             time.sleep(backoff)
 
     _re_api_error_count += 1
-    log.warning("[idealista_dev] RE API giving up on property_id=%s after %d tries: %s",
-                property_id, RE_API_RETRIES, last_err)
+    log.warning(
+        "[idealista_dev] RE API giving up on property_id=%s after %d tries: %s",
+        property_id,
+        RE_API_RETRIES,
+        last_err,
+    )
     return None
 
 
@@ -442,7 +452,7 @@ def _parse_discovery_card(art) -> dict | None:
     classes = art.get("class") or []
     is_featured = "item_hightop" in classes
     is_branded = "item_contains_branding" in classes
-    online_booking = (art.get("data-online-booking") == "true")
+    online_booking = art.get("data-online-booking") == "true"
 
     min_price = None
     if price_text:
@@ -455,7 +465,9 @@ def _parse_discovery_card(art) -> dict | None:
 
     return {
         "development_id": str(dev_id),
-        "development_url": (SITE_BASE + rel_url) if rel_url and rel_url.startswith("/") else rel_url,
+        "development_url": (SITE_BASE + rel_url)
+        if rel_url and rel_url.startswith("/")
+        else rel_url,
         "name": name,
         "min_price": min_price,
         "min_price_text": price_text,
@@ -496,8 +508,13 @@ def _fetch_discovery_for_area(area_key: str, slug: str) -> list[dict]:
             rows.append(row)
             page_added += 1
 
-        log.info("[idealista_dev] Pass 1 %s page %d → %d cards (cumulative %d)",
-                 slug, page, page_added, len(rows))
+        log.info(
+            "[idealista_dev] Pass 1 %s page %d → %d cards (cumulative %d)",
+            slug,
+            page,
+            page_added,
+            len(rows),
+        )
         if page_added == 0:
             break
         time.sleep(PASS1_DELAY_S)
@@ -525,9 +542,11 @@ def _parse_development_detail(html: str) -> dict:
         m = soup.find("meta", property=prop)
         out[prop.replace(":", "_")] = m.get("content") if m else None
 
-    prom_el = (soup.select_one(".professional-name")
-               or soup.select_one(".advertiser-name")
-               or soup.select_one("[class*='advertiser']"))
+    prom_el = (
+        soup.select_one(".professional-name")
+        or soup.select_one(".advertiser-name")
+        or soup.select_one("[class*='advertiser']")
+    )
     out["promoter_name"] = prom_el.get_text(" ", strip=True) if prom_el else None
 
     desc_el = soup.select_one(".comment, .item-description, [class*='description']")
@@ -555,12 +574,14 @@ def _parse_development_detail(html: str) -> dict:
         if unit_id in seen_units:
             continue
         seen_units.add(unit_id)
-        unit_links.append({
-            "development_id": dev_id,
-            "unit_id": unit_id,
-            "unit_url": SITE_BASE + a["href"],
-            "summary": a.get_text(" ", strip=True)[:300] or None,
-        })
+        unit_links.append(
+            {
+                "development_id": dev_id,
+                "unit_id": unit_id,
+                "unit_url": SITE_BASE + a["href"],
+                "summary": a.get_text(" ", strip=True)[:300] or None,
+            }
+        )
     out["unit_links"] = unit_links
     out["units_count"] = len(unit_links)
 
@@ -571,10 +592,12 @@ def _parse_development_detail(html: str) -> dict:
         if not href or href in seen_attachments:
             continue
         seen_attachments.add(href)
-        attachments.append({
-            "url": SITE_BASE + href if href.startswith("/") else href,
-            "label": a.get_text(" ", strip=True) or None,
-        })
+        attachments.append(
+            {
+                "url": SITE_BASE + href if href.startswith("/") else href,
+                "label": a.get_text(" ", strip=True) or None,
+            }
+        )
     out["attachments"] = attachments
     return out
 
@@ -612,13 +635,10 @@ def _parse_unit_detail_re(payload: dict) -> dict:
     if not isinstance(payload, dict):
         return {"_re_api_stub": True}
 
-    is_stub = (
-        len(payload) <= RE_API_STUB_FIELD_THRESHOLD
-        or (
-            payload.get("property_price") is None
-            and payload.get("address") is None
-            and not payload.get("property_features")
-        )
+    is_stub = len(payload) <= RE_API_STUB_FIELD_THRESHOLD or (
+        payload.get("property_price") is None
+        and payload.get("address") is None
+        and not payload.get("property_features")
     )
     if is_stub:
         return {"_re_api_stub": True}
@@ -627,8 +647,13 @@ def _parse_unit_detail_re(payload: dict) -> dict:
     out.pop("bedrooms_count", None)  # surgical: keep `bedroom_count`, drop redundant duplicate
 
     # Coerce JSONB list/dict columns to defaults so dlt schema stays well-typed.
-    for k in ("property_features", "property_equipment", "property_images",
-              "property_image_tags", "location_hierarchy"):
+    for k in (
+        "property_features",
+        "property_equipment",
+        "property_images",
+        "property_image_tags",
+        "location_hierarchy",
+    ):
         if k in out and out[k] is None:
             out[k] = [] if k != "location_hierarchy" else {}
     return out
@@ -642,8 +667,7 @@ def _fetch_one_unit_detail(unit: dict) -> dict:
             return {}
         return _parse_unit_detail_re(payload)
     except Exception as exc:
-        log.warning("[idealista_dev] Pass 3 failed for unit=%s: %s",
-                    unit.get("unit_id"), exc)
+        log.warning("[idealista_dev] Pass 3 failed for unit=%s: %s", unit.get("unit_id"), exc)
         return {}
     finally:
         time.sleep(PASS_PER_WORKER_DELAY_S)
@@ -656,7 +680,9 @@ def _fetch_one_unit_detail(unit: dict) -> dict:
 _payload_cache: dict[str, Any] = {}
 
 
-def _ensure_payload(target_areas: dict | None = None) -> tuple[list[dict], dict[str, dict], dict[str, dict]]:
+def _ensure_payload(
+    target_areas: dict | None = None,
+) -> tuple[list[dict], dict[str, dict], dict[str, dict]]:
     """Returns (dev_rows, dev_details_by_id, unit_details_by_id).
 
     Populates the module-level cache on first call. Subsequent calls (from
@@ -688,17 +714,25 @@ def _ensure_payload(target_areas: dict | None = None) -> tuple[list[dict], dict[
                     continue  # same dev surfaced from multiple areas; keep first
                 seen_global.add(r["development_id"])
                 all_rows.append(r)
-    log.info("[idealista_dev] Pass 1 complete: %d unique developments across %d areas",
-             len(all_rows), len(areas))
+    log.info(
+        "[idealista_dev] Pass 1 complete: %d unique developments across %d areas",
+        len(all_rows),
+        len(areas),
+    )
 
     # ----- Pass 2 (parallel) -----
     dev_details: dict[str, dict] = {}
     if all_rows:
-        log.info("[idealista_dev] Pass 2 starting: %d dev detail pages, max_workers=%d",
-                 len(all_rows), PASS2_PASS3_MAX_WORKERS)
+        log.info(
+            "[idealista_dev] Pass 2 starting: %d dev detail pages, max_workers=%d",
+            len(all_rows),
+            PASS2_PASS3_MAX_WORKERS,
+        )
         with ThreadPoolExecutor(max_workers=PASS2_PASS3_MAX_WORKERS) as ex:
-            futures = {ex.submit(_fetch_one_dev_detail, r["development_id"]): r["development_id"]
-                       for r in all_rows}
+            futures = {
+                ex.submit(_fetch_one_dev_detail, r["development_id"]): r["development_id"]
+                for r in all_rows
+            }
             done = 0
             for fut in as_completed(futures):
                 dev_id = futures[fut]
@@ -714,12 +748,15 @@ def _ensure_payload(target_areas: dict | None = None) -> tuple[list[dict], dict[
     # ----- Pass 3 (parallel) — RE API -----
     all_units: list[dict] = []
     for r in all_rows:
-        for u in (dev_details.get(r["development_id"], {}).get("unit_links") or []):
+        for u in dev_details.get(r["development_id"], {}).get("unit_links") or []:
             all_units.append(u)
     unit_details: dict[str, dict] = {}
     if all_units:
-        log.info("[idealista_dev] Pass 3 starting (RE API): %d unit detail fetches, max_workers=%d",
-                 len(all_units), PASS2_PASS3_MAX_WORKERS)
+        log.info(
+            "[idealista_dev] Pass 3 starting (RE API): %d unit detail fetches, max_workers=%d",
+            len(all_units),
+            PASS2_PASS3_MAX_WORKERS,
+        )
         with ThreadPoolExecutor(max_workers=PASS2_PASS3_MAX_WORKERS) as ex:
             futures = {ex.submit(_fetch_one_unit_detail, u): u["unit_id"] for u in all_units}
             done = 0
@@ -738,13 +775,16 @@ def _ensure_payload(target_areas: dict | None = None) -> tuple[list[dict], dict[
                     log.info("[idealista_dev] Pass 3 progress: %d/%d", done, len(all_units))
 
     enriched_d = sum(1 for v in dev_details.values() if v)
-    enriched_u = sum(1 for v in unit_details.values()
-                     if v and not v.get("_re_api_stub"))
+    enriched_u = sum(1 for v in unit_details.values() if v and not v.get("_re_api_stub"))
     log.info(
         "[idealista_dev] Payload ready: %d devs (%d enriched), %d units "
         "(%d enriched, %d stubs, %d RE API errors)",
-        len(all_rows), enriched_d, len(all_units), enriched_u,
-        _stub_count, _re_api_error_count,
+        len(all_rows),
+        enriched_d,
+        len(all_units),
+        enriched_u,
+        _stub_count,
+        _re_api_error_count,
     )
 
     _payload_cache["devs"] = all_rows
@@ -943,7 +983,7 @@ def developments_state() -> Iterable[dict]:
 def development_units() -> Iterable[dict]:
     _rows, dev_details, unit_details = _ensure_payload()
     for _dev_id, dev_detail in dev_details.items():
-        for unit_link in (dev_detail.get("unit_links") or []):
+        for unit_link in dev_detail.get("unit_links") or []:
             detail = unit_details.get(unit_link["unit_id"], {})
             # Skip stubs entirely — heartbeat sidecar still ticks below.
             # Avoids phantom SCD2 versions on stub↔full oscillation.
@@ -967,7 +1007,7 @@ def development_units_state() -> Iterable[dict]:
     _rows, dev_details, _unit_details = _ensure_payload()
     today = date.today()
     for _dev_id, dev_detail in dev_details.items():
-        for unit_link in (dev_detail.get("unit_links") or []):
+        for unit_link in dev_detail.get("unit_links") or []:
             yield {
                 "unit_id": unit_link["unit_id"],
                 "last_seen_date": today,
@@ -990,8 +1030,10 @@ def _fetch_plot_discovery(area_slug: str) -> list[dict]:
         data = _zenrows_re_api_discovery(target_url, page)
         if data is None:
             break
-        items = data if isinstance(data, list) else (
-            data.get("property_list") or data.get("data") or []
+        items = (
+            data
+            if isinstance(data, list)
+            else (data.get("property_list") or data.get("data") or [])
         )
         if not items:
             break
@@ -1004,8 +1046,13 @@ def _fetch_plot_discovery(area_slug: str) -> list[dict]:
             it["_area_slug"] = area_slug
             rows.append(it)
             page_added += 1
-        log.info("[idealista_plots] Pass 1 %s page %d → %d items (cumulative %d)",
-                 area_slug, page, page_added, len(rows))
+        log.info(
+            "[idealista_plots] Pass 1 %s page %d → %d items (cumulative %d)",
+            area_slug,
+            page,
+            page_added,
+            len(rows),
+        )
         if page_added == 0:
             break
         time.sleep(PASS1_DELAY_S)
@@ -1035,18 +1082,26 @@ def _ensure_plots_payload(target_areas: dict | None = None) -> tuple[list[dict],
                 seen_global.add(pid)
                 it["_area_key"] = area_key
                 all_stubs.append(it)
-    log.info("[idealista_plots] Pass 1 complete: %d unique plots across %d areas",
-             len(all_stubs), len(areas))
+    log.info(
+        "[idealista_plots] Pass 1 complete: %d unique plots across %d areas",
+        len(all_stubs),
+        len(areas),
+    )
 
     # Pass 2: detail per plot via RE API (parallel)
     details: dict[str, dict] = {}
     plot_stub_count = 0
     if all_stubs:
-        log.info("[idealista_plots] Pass 2 starting (RE API): %d plot detail fetches, max_workers=%d",
-                 len(all_stubs), PASS2_PASS3_MAX_WORKERS)
+        log.info(
+            "[idealista_plots] Pass 2 starting (RE API): %d plot detail fetches, max_workers=%d",
+            len(all_stubs),
+            PASS2_PASS3_MAX_WORKERS,
+        )
         with ThreadPoolExecutor(max_workers=PASS2_PASS3_MAX_WORKERS) as ex:
-            futures = {ex.submit(_zenrows_re_api_get, str(s["property_id"])): str(s["property_id"])
-                       for s in all_stubs}
+            futures = {
+                ex.submit(_zenrows_re_api_get, str(s["property_id"])): str(s["property_id"])
+                for s in all_stubs
+            }
             done = 0
             for fut in as_completed(futures):
                 pid = futures[fut]
@@ -1071,7 +1126,9 @@ def _ensure_plots_payload(target_areas: dict | None = None) -> tuple[list[dict],
     enriched = sum(1 for v in details.values() if v and not v.get("_re_api_stub"))
     log.info(
         "[idealista_plots] Plots payload ready: %d stubs (%d enriched, %d RE-API-stubs)",
-        len(all_stubs), enriched, plot_stub_count,
+        len(all_stubs),
+        enriched,
+        plot_stub_count,
     )
     _plots_cache["stubs"] = all_stubs
     _plots_cache["details"] = details
@@ -1122,7 +1179,10 @@ def _normalize_plot(stub: dict, detail: dict) -> dict:
         "last_deactivated_at": detail.get("last_deactivated_at"),
         "operation": detail.get("operation"),
         "_has_detail": bool(detail),
-        "raw_meta": {"discovery_stub": stub, "re_api_keys": sorted(detail.keys()) if detail else []},
+        "raw_meta": {
+            "discovery_stub": stub,
+            "re_api_keys": sorted(detail.keys()) if detail else [],
+        },
     }
 
 

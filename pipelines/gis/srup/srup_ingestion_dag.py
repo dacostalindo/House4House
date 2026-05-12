@@ -101,7 +101,6 @@ def _create_dag():
         tags=["ingestion", "gis", "minio"] + cfg.tags,
     )
     def srup_ingestion():
-
         @task()
         def resolve_categories(**context) -> list[str]:
             """Determine which categories to process based on trigger conf."""

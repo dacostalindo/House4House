@@ -85,7 +85,6 @@ def _create_dag():
         tags=["osrm", "routing", "osm", "preprocessing"],
     )
     def osrm_build():
-
         @task()
         def fetch_pbf_to_volume() -> str:
             """Find the latest PBF in MinIO and place it on the OSRM data volume."""

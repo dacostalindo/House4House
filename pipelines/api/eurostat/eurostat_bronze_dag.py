@@ -158,7 +158,6 @@ def _create_dag():
         tags=["eurostat", "bronze", "macro", "postgis"],
     )
     def eurostat_bronze_load():
-
         @task()
         def list_minio_files() -> dict:
             """Find the latest JSON file per dataset in MinIO."""

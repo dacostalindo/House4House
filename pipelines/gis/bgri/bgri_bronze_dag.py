@@ -108,7 +108,6 @@ def _create_dag():
         tags=["bgri", "census", "bronze", "ine", "postgis"],
     )
     def bgri_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Download the BGRI GPKG from MinIO to a temp directory."""

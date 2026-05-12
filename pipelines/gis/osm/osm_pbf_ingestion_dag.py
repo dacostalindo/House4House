@@ -60,7 +60,6 @@ def _create_dag():
         tags=["osm", "pbf", "osrm", "routing", "geofabrik", "quarterly"],
     )
     def osm_pbf_ingestion():
-
         @task()
         def download_pbf(**context) -> dict:
             """Download PBF from Geofabrik to a temp directory."""

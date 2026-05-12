@@ -18,9 +18,9 @@ from .conftest import load_fixture
         # New configs (apa, crus_ogc, lidar, lneg, srup_ogc) get their own
         # parametrize entries when their owning WIP commits land.
         ("idealista", "pipelines.portals.idealista.idealista_config", "IDEALISTA_CONFIG"),
-        ("srup",      "pipelines.gis.srup.srup_config",                "SRUP_CONFIG"),
-        ("crus",      "pipelines.gis.crus.crus_config",                "CRUS_CONFIG"),
-        ("cadastro",  "pipelines.gis.cadastro.cadastro_config",        "CADASTRO_CONFIG"),
+        ("srup", "pipelines.gis.srup.srup_config", "SRUP_CONFIG"),
+        ("crus", "pipelines.gis.crus.crus_config", "CRUS_CONFIG"),
+        ("cadastro", "pipelines.gis.cadastro.cadastro_config", "CADASTRO_CONFIG"),
     ],
 )
 def test_config_matches_fixture(fixture_name: str, module_path: str, var_name: str):

@@ -109,7 +109,6 @@ def _create_dag():
         tags=["ingestion", "gis", "minio"] + cfg.tags,
     )
     def crus_ingestion():
-
         @task()
         def resolve_municipalities(**context) -> list[dict]:
             """Determine which municipalities to process based on trigger conf."""

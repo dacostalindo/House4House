@@ -10,3 +10,16 @@ house4house:
       dbname: "{{ env_var('WAREHOUSE_DB', 'house4house') }}"
       schema: gold_analytics
       threads: 2
+    # Phase 4 CI target — used by .github/workflows/ci.yml `dbt parse` step.
+    # Connects to the workflow's postgres:16 service container. dbt parse
+    # only compiles refs and doesn't need a populated database, but
+    # dbt-postgres validates the connection anyway.
+    ci:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PORT', '5432') | int }}"
+      user: "{{ env_var('DBT_USER', 'ci') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'ci') }}"
+      dbname: "{{ env_var('DBT_DB', 'ci') }}"
+      schema: public
+      threads: 4

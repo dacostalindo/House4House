@@ -42,7 +42,6 @@ DBT_PROJECT_DIR = Path("/opt/airflow/dbt")
     tags=["dbt", "cosmos", "staging", "silver", "gold"],
 )
 def dbt_full_pipeline():
-
     start = EmptyOperator(task_id="start")
     end = EmptyOperator(task_id="end")
 

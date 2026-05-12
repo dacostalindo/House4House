@@ -97,7 +97,6 @@ def _create_dag():
         tags=["cadastro", "bronze", "parcels", "postgis"],
     )
     def cadastro_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Find the latest Cadastro GeoJSON in MinIO."""

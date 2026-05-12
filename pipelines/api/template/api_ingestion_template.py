@@ -182,7 +182,6 @@ def create_api_ingestion_dag(config: APIIngestionConfig):
         tags=["ingestion", "api", "minio"] + config.tags,
     )
     def api_ingestion_dag():
-
         # ------------------------------------------------------------------
         # Task 1: Check API availability
         # ------------------------------------------------------------------

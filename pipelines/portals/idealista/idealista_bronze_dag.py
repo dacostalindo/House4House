@@ -127,7 +127,6 @@ def _create_dag():
         tags=["idealista", "bronze", "listings", "postgis"],
     )
     def idealista_bronze_load():
-
         @task()
         def list_minio_files() -> list[dict]:
             """Find today's detail JSONL files in MinIO."""

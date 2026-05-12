@@ -118,7 +118,6 @@ def create_bronze_loading_dag(config: BronzeTableConfig):
         tags=["bronze", "postgis"] + config.tags,
     )
     def bronze_loading_dag():
-
         @task()
         def list_minio_files() -> dict:
             """Find JSONL/JSON files in MinIO for this source."""

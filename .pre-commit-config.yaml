@@ -1,0 +1,27 @@
+# Pre-commit hooks. Installed by `make setup` via `pre-commit install`.
+# Runs on every `git commit`; pre-commit framework caches hook envs.
+#
+# Phase 4 ships ruff + ruff-format only. The `wiki-health` local hook
+# (mechanical wiki linter) lands in Phase 7 alongside the structured
+# schema refactor; until then, wiki schema correctness is enforced by
+# the weekly /wiki-lint LLM cron (Phase 3e) and human discipline per
+# wiki/CLAUDE.md "Write rules" section.
+#
+# Uses the LOCAL ruff (via `uv run`) instead of the pinned `ruff-pre-commit`
+# hook repo. This eliminates version drift between pre-commit and CI/Makefile.
+# Cost: contributor needs `uv` on PATH (already required by `make setup`).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: false
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: false

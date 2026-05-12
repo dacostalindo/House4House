@@ -1,0 +1,102 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      # postgres:16 service container for `dbt parse` step. dbt-postgres
+      # validates the connection even on parse-only mode, so we need a real
+      # database in CI. Minimal: no PostGIS extension needed (parse compiles
+      # refs but doesn't run model SQL).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: ruff check
+        run: |
+          echo "::group::ruff"
+          uv run ruff check --output-format=github
+          echo "::endgroup::"
+
+      - name: ruff format --check
+        run: |
+          echo "::group::ruff-format"
+          uv run ruff format --check
+          echo "::endgroup::"
+
+      - name: pytest
+        env:
+          AIRFLOW_HOME: ${{ github.workspace }}/.airflow-home
+        run: |
+          mkdir -p $AIRFLOW_HOME
+          echo "::group::pytest"
+          uv run pytest -q tests/
+          echo "::endgroup::"
+
+      - name: dbt parse
+        env:
+          AIRFLOW_HOME: ${{ github.workspace }}/.airflow-home
+          # Point dbt at the postgres service container above. The `ci:`
+          # target in dbt/profiles.yml reads these env vars.
+          DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+          DBT_HOST: localhost
+          DBT_PORT: 5432
+          DBT_USER: ci
+          DBT_PASSWORD: ci
+          DBT_DB: ci
+        shell: bash
+        run: |
+          # set -o pipefail preserves dbt's exit code through the `tee`
+          # pipe. Without it, `tee` always exits 0 and a real dbt failure
+          # would produce a green CI run.
+          set -o pipefail
+          mkdir -p $AIRFLOW_HOME
+          echo "::group::dbt-parse"
+          uv run dbt parse \
+            --project-dir dbt \
+            --target ci \
+            --no-partial-parse 2>&1 \
+            | tee dbt-parse.log
+          dbt_exit=$?
+          echo "::endgroup::"
+          # Post-process the log into GitHub annotations regardless of
+          # pass/fail. The `[dbt-parse]` tag groups them alongside other
+          # tools' annotations on the PR diff (per devex-review G5).
+          python -c "
+          import sys
+          with open('dbt-parse.log') as f:
+              for line in f:
+                  if 'Error' in line or 'Compilation' in line:
+                      print(f'::error file=dbt::[dbt-parse] {line.rstrip()}')
+          "
+          exit $dbt_exit

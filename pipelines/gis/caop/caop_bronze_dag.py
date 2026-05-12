@@ -103,7 +103,6 @@ def _create_dag():
         tags=["caop", "bronze", "geography", "postgis"],
     )
     def caop_bronze_load():
-
         @task()
         def fetch_from_minio() -> dict:
             """Download the latest CAOP GPKG from MinIO to a temp directory."""
