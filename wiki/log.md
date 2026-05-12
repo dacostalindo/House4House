@@ -512,3 +512,7 @@ Recovery provenance preserved at `/tmp/recovery/<mod>/*.spec.txt` (bytecode extr
 Pages updated: `wiki/sprints/sprint-08.md` (substantial rewrite — WS1 expanded, WS3 reframed, Recovery section added, status update history entry added).
 
 **Caveat (Propagation Rule)**: `wiki/sources/{apa,crus-ogc,lidar,lneg,srup-ogc}.md` carry `last_verified: 2026-05-08` — technically stale now that the code those pages reference is in HEAD. Source-page content is still accurate (the recovered code matches the wiki spec because the wiki was the recovery oracle). Bumping `last_verified` is a low-priority follow-up; defer to a future `/wiki-reconcile` pass.
+
+## [2026-05-12] claude-md-update | Post-commit wiki-update rule added to root CLAUDE.md (`3d8c8ed`)
+
+Root `CLAUDE.md` "Schema for Claude Code" section gets one new sentence: "After every commit, update the wiki: append a one-line entry to wiki/log.md and update any wiki pages whose claims the commit affected." Loaded at root level on every task — fills the gap where `wiki/CLAUDE.md` §Write rules §3 (Propagation Rule) only fires when editing the wiki, leaving code→wiki direction unenforced. Triggered by the missed propagation when `171114d` (GIS recovery) landed without the wiki updates following.
