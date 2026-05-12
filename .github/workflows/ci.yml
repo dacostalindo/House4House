@@ -81,6 +81,12 @@ jobs:
           # would produce a green CI run.
           set -o pipefail
           mkdir -p $AIRFLOW_HOME
+          # `dbt deps` populates dbt_packages/ from packages.yml. `dbt parse`
+          # fails compilation if a declared package is missing, so deps must
+          # run first. Cheap (~2-3s for dbt-utils only).
+          echo "::group::dbt-deps"
+          uv run dbt deps --project-dir dbt
+          echo "::endgroup::"
           echo "::group::dbt-parse"
           uv run dbt parse \
             --project-dir dbt \
