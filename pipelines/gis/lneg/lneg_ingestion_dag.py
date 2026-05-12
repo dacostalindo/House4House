@@ -22,10 +22,9 @@ verify state via env var only if needed at runtime — see fetch_one_layer.
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pipelines.gis.lneg.lneg_config import (
     LNEG_CONFIG,
@@ -110,9 +109,8 @@ def _create_dag():
             """
             import requests as _requests
             import urllib3
-            from airflow.models import Variable
-            from minio import Minio
 
+            from pipelines.common.minio_upload import upload_files_to_minio
             from pipelines.gis.template.ingestion_template import (
                 ArcgisRestAdapter,
                 UnifiedIngestionConfig,
@@ -170,31 +168,19 @@ def _create_dag():
                         f"returned, expected >= {layer_cfg.expected_min_features}"
                     )
 
-                endpoint = Variable.get("MINIO_ENDPOINT")
-                access_key = Variable.get("MINIO_ACCESS_KEY")
-                secret_key = Variable.get("MINIO_SECRET_KEY")
-                client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=False)
-
-                if not client.bucket_exists(MINIO_BUCKET):
-                    client.make_bucket(MINIO_BUCKET)
-
-                date_str = datetime.utcnow().strftime("%Y%m%d")
-                uploaded: list[str] = []
-                for local_path in meta["files"]:
-                    rel = os.path.relpath(local_path, tmp_dir)
-                    object_name = f"{minio_prefix_for(layer_cfg)}/{date_str}/{rel}"
-                    client.fput_object(
-                        bucket_name=MINIO_BUCKET,
-                        object_name=object_name,
-                        file_path=local_path,
-                    )
-                    uploaded.append(object_name)
+                upload = upload_files_to_minio(
+                    files=meta["files"],
+                    bucket=MINIO_BUCKET,
+                    prefix=minio_prefix_for(layer_cfg),
+                    source_name=layer_cfg.name,
+                    tmp_dir=tmp_dir,
+                )
 
                 return {
                     "name": layer_cfg.name,
                     "feature_count": meta["feature_count"],
                     "pages": meta["pages"],
-                    "uploaded": uploaded,
+                    "uploaded": upload["uploaded"],
                     "bronze_table": layer_cfg.bronze_table,
                 }
             finally:

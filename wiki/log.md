@@ -587,3 +587,16 @@ Inbound references redirected across **15 active-tree files**:
 Originals deleted from HEAD. Worktree files (`.claude/worktrees/...`) left alone — those are gstack-managed and migrate naturally on the next rebase.
 
 **Why this matters going forward**: with these docs in `wiki/concepts/`, the weekly `/wiki-reconcile` lint catches drift (stale `last_verified` dates, missing cross-links, unresolved `[[wikilinks]]`). The previous location wasn't under lint coverage and the docs had silently accumulated content debt (e.g. `SCD2_RULES.md` had a "See [SCD2_RULES](../../wiki/concepts/scd2-row-hash.md)" link in `wiki/concepts/scd2-row-hash.md` saying the .md was canonical and the wiki page was the summary — both pointing at each other circularly). The wiki is now unambiguously canonical.
+
+## [2026-05-12] sprint-08-activity-2.1 | Extracted MinIO upload helper + migrated 7 GIS DAGs
+
+[[sprint-08]] Activity 2.1 done. New `pipelines/common/minio_upload.py` exposes `upload_files_to_minio(*, files, bucket, prefix, source_name, tmp_dir=None, date_str=None, secure=False) -> {uploaded, bytes, bucket, date_str}` with two object-name modes:
+
+- **basename mode** (`tmp_dir=None`) — `{prefix}/{date_str}/{basename(file)}` — for single-file uploads (cadastro/apa/crus_ogc)
+- **rel-path mode** (`tmp_dir=<path>`) — `{prefix}/{date_str}/{relpath(file, tmp_dir)}` — for multi-file uploads that preserve subdir structure (lneg/srup_ogc/lidar/derive_terrain)
+
+Migrated 7 DAGs onto the helper: `cadastro_ingestion_dag`, `apa_ingestion_dag`, `crus_ogc_ingestion_dag`, `lneg_ingestion_dag`, `srup_ogc_ingestion_dag`, `lidar_ingestion_dag` (ingestion), `derive_terrain_dag` (LiDAR slope-COG upload). Each DAG sheds ~15 lines of duplicated MinIO client + bucket-create + fput_object boilerplate. The `derive_terrain_dag` keeps a Minio() client around for the `fget_object` download (helper is upload-only); refactored to write the slope COG into a `tiles/` subdir of `tmp_dir` so the rel-path mode produces `{MINIO_DERIVED_PREFIX}/{date}/tiles/{tile_id}_slope.tif` — same upload layout as before.
+
+Verification: `py_compile` clean on all 8 files; `ruff check --fix` auto-fixed 10 unused-import warnings (`os`, `datetime.datetime`, `Variable`, `Minio` no longer imported in the migrated tasks); helper imports cleanly via the venv python.
+
+LNEG SSL workaround for `sig.lneg.pt` stays where it was — the helper is unaware of the `requests.Session.request` monkey-patch the caller applies around its adapter call. Adapter and helper both stay clean.

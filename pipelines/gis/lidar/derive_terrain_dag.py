@@ -177,10 +177,13 @@ def _create_dag():
             from airflow.models import Variable
             from minio import Minio
 
+            from pipelines.common.minio_upload import upload_files_to_minio
+
             tile_id = tile["tile_id"]
             source_object = tile["minio_object"]
             geom_json = tile["geom_json"]
 
+            # MinIO download client — separate concern from upload (helper is upload-only).
             client = Minio(
                 Variable.get("MINIO_ENDPOINT"),
                 access_key=Variable.get("MINIO_ACCESS_KEY"),
@@ -194,7 +197,11 @@ def _create_dag():
                 client.fget_object(MINIO_BUCKET, source_object, src_path)
 
                 slope_raw = os.path.join(tmp_dir, f"{tile_id}_slope_raw.tif")
-                slope_cog = os.path.join(tmp_dir, f"{tile_id}_slope.tif")
+                # Write the COG into a `tiles/` subdir so the helper's rel-path mode
+                # produces `{MINIO_DERIVED_PREFIX}/{date}/tiles/{filename}`.
+                tiles_dir = os.path.join(tmp_dir, "tiles")
+                os.makedirs(tiles_dir, exist_ok=True)
+                slope_cog = os.path.join(tiles_dir, f"{tile_id}_slope.tif")
 
                 subprocess.run(
                     [
@@ -230,20 +237,15 @@ def _create_dag():
                     timeout=120,
                 )
 
-                date_str = datetime.utcnow().strftime("%Y%m%d")
-                derived_object = f"{MINIO_DERIVED_PREFIX}/{date_str}/tiles/{tile_id}_slope.tif"
-                client.fput_object(
-                    bucket_name=MINIO_BUCKET,
-                    object_name=derived_object,
-                    file_path=slope_cog,
+                upload = upload_files_to_minio(
+                    files=[slope_cog],
+                    bucket=MINIO_BUCKET,
+                    prefix=MINIO_DERIVED_PREFIX,
+                    source_name=f"derive_terrain[{tile_id}]",
+                    tmp_dir=tmp_dir,
                 )
-                derived_size = os.path.getsize(slope_cog)
-                log.info(
-                    "[derive_terrain] %s -> %s (%.1f KB)",
-                    tile_id,
-                    derived_object,
-                    derived_size / 1024,
-                )
+                derived_object = upload["uploaded"][0]
+                derived_size = upload["bytes"]
 
                 conn = psycopg2.connect(
                     host=Variable.get("WAREHOUSE_HOST"),

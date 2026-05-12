@@ -16,10 +16,9 @@ refreshed manually until v2 hardening lands a Selenium-based cookie cron.
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pipelines.gis.lidar.lidar_config import (
     LIDAR_CONFIG,
@@ -103,9 +102,7 @@ def _create_dag():
             downloads. Each layer runs as its own dynamically-mapped task so a
             failure on one collection doesn't block the other.
             """
-            from airflow.models import Variable
-            from minio import Minio
-
+            from pipelines.common.minio_upload import upload_files_to_minio
             from pipelines.gis.template.ingestion_template import (
                 DgtStacAdapter,
                 UnifiedIngestionConfig,
@@ -163,54 +160,25 @@ def _create_dag():
                         f"returned, expected >= {layer_cfg.expected_min_features}"
                     )
 
-                endpoint = Variable.get("MINIO_ENDPOINT")
-                access_key = Variable.get("MINIO_ACCESS_KEY")
-                secret_key = Variable.get("MINIO_SECRET_KEY")
-                client = Minio(
-                    endpoint,
-                    access_key=access_key,
-                    secret_key=secret_key,
-                    secure=False,
+                upload = upload_files_to_minio(
+                    files=meta["files"],
+                    bucket=MINIO_BUCKET,
+                    prefix=minio_prefix_for(layer_cfg),
+                    source_name=layer_cfg.name,
+                    tmp_dir=tmp_dir,
                 )
-
-                if not client.bucket_exists(MINIO_BUCKET):
-                    client.make_bucket(MINIO_BUCKET)
-
-                date_str = datetime.utcnow().strftime("%Y%m%d")
-                base_prefix = f"{minio_prefix_for(layer_cfg)}/{date_str}"
-                uploaded_count = 0
-                uploaded_bytes = 0
-                manifest_object = None
-
-                for local_path in meta["files"]:
-                    rel = os.path.relpath(local_path, tmp_dir)
-                    object_name = f"{base_prefix}/{rel}"
-                    client.fput_object(
-                        bucket_name=MINIO_BUCKET,
-                        object_name=object_name,
-                        file_path=local_path,
-                    )
-                    sz = os.path.getsize(local_path)
-                    uploaded_count += 1
-                    uploaded_bytes += sz
-                    if local_path.endswith("manifest.json"):
-                        manifest_object = object_name
-
-                log.info(
-                    "[%s] uploaded %d objects (%.1f MB) to %s/%s/",
-                    layer_cfg.name,
-                    uploaded_count,
-                    uploaded_bytes / 1000000.0,
-                    MINIO_BUCKET,
-                    base_prefix,
+                base_prefix = f"{minio_prefix_for(layer_cfg)}/{upload['date_str']}"
+                manifest_object = next(
+                    (obj for obj in upload["uploaded"] if obj.endswith("manifest.json")),
+                    None,
                 )
 
                 return {
                     "name": layer_cfg.name,
                     "collection_id": layer_cfg.collection_id,
                     "feature_count": meta["feature_count"],
-                    "uploaded_count": uploaded_count,
-                    "uploaded_bytes": uploaded_bytes,
+                    "uploaded_count": len(upload["uploaded"]),
+                    "uploaded_bytes": upload["bytes"],
                     "manifest_object": manifest_object,
                     "minio_prefix": base_prefix,
                 }
