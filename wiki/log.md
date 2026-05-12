@@ -403,3 +403,31 @@ The gstack plan + review artifacts remain at `~/.claude/plans/` and
 `~/.gstack/projects/dacostalindo-House4House/main-reviews.jsonl` as
 the historical record. Only the derived knowledge (the ADR + the
 propagation updates) flowed into the wiki.
+
+## [2026-05-12] phase-7c | 3 scaffolding skills shipped (/add-gis-source + /add-portal-source + /stg-from-bronze)
+
+Phase 7c closes the dev-tooling roadmap's skill backlog. Three new
+skills at `.claude/skills/`:
+
+- `add-gis-source/SKILL.md` — bootstraps new GIS source (Pydantic config
+  + Airflow DAG + wiki page + dbt source YAML). Mirrors 17 existing
+  GIS sources; canonical template at `pipelines/gis/bgri/`.
+- `add-portal-source/SKILL.md` — bootstraps new property portal (dlt
+  resources + Airflow DAG + tests + README + wiki page + dbt source
+  YAML). Mirrors 6 portals; canonical template at `pipelines/portals/zome/`
+  (simple) or `pipelines/portals/idealista/` (rich).
+- `stg-from-bronze/SKILL.md` — bootstraps dbt staging model from a
+  bronze table (type casts + NULL guards + CRS reprojection + dbt-utils
+  tests). Mirrors 21+ staging models; canonical templates per domain.
+
+All three follow the obsidian-second-brain command pattern locked in
+Phase 7b: pure-prose markdown (~75 lines), Cosmos frontmatter
+(`name:` + `description:`), numbered procedural steps, parallel
+subagents where applicable, AI-first compliance mandate at the end.
+Skill-only — no Python helpers, no CI, no Makefile, no pre-commit.
+
+Phase 7 status table updated in `sprint-dev-tooling.md` to ✅ done.
+Phase 7 closes the dev-tooling roadmap's skill backlog. Remaining
+roadmap work: Phase 5 (idealista enrichment via Pydantic AI) — coupled
+to data-product Sprint 4.5/5, currently queued behind in-progress
+Sprint 4.

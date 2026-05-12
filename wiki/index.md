@@ -132,7 +132,7 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 
 ### Dev-tooling sprint (parallel track)
 
-- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4+6 done; Phase 2.5 closed; Phases 5+7 planned; Phase 7 absorbs deferred wiki linter)
+- [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4+6+7 done; Phase 2.5 closed; Phase 5 planned)
 
 ## Use cases (3 pages — PR 4 seed)
 
