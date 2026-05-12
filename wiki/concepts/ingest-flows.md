@@ -1,7 +1,7 @@
 ---
 title: Ingest flows — six-flow taxonomy
 type: concept
-last_verified: 2026-05-08
+last_verified: 2026-05-12
 tags: [ingest, flows, architecture, medallion, taxonomy]
 ---
 
@@ -26,7 +26,7 @@ A and B are the "pull from outside" flows; C is the bulk-file analogue for spati
 
 ## Why
 
-**Why a taxonomy at all:** without one, every new source decision becomes "design from scratch." The taxonomy compresses the design space: pick a flow → reuse the template at `pipelines/{api,scraping,gis}/template/` → focus design effort on the source-specific quirks documented in the corresponding [[wiki/sources/]] page.
+**Why a taxonomy at all:** without one, every new source decision becomes "design from scratch." The taxonomy compresses the design space: pick a flow → reuse the template at `pipelines/{api,scraping,gis}/template/` → focus design effort on the source-specific quirks documented in the corresponding source page.
 
 **Why six flows, not four:** the original dev-tooling design ([[2026-05-05-uv-workspace-shape]]'s sibling design doc) named A-D — REST / scraping / GIS / derived. Flows E and F emerged later as use cases firmed up:
 

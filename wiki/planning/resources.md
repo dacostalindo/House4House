@@ -1,7 +1,7 @@
 ---
 title: Resource requirements & costs
 type: plan
-last_verified: 2026-05-10
+last_verified: 2026-05-12
 tags: [planning, resources, budget, effort, plan]
 ---
 
@@ -90,7 +90,7 @@ Per README §15.4 — order-of-magnitude per dataset:
 | Cadastro Predial | [[cadastro]] | partial coverage 2000-2007 | 300 MB | Ad-hoc |
 | MS Building Footprints | (deferred Sprint 9 P1) | ~5M polygons | 1.5-2 GB | Annual |
 | Sentinel-1 SAR | (deferred Sprint 10 P2) | per-parcel flags | 50 MB | Monthly |
-| **Plus PR 7 additions:** [[apa]] + [[lneg]] + [[lidar]] + [[aveiro-pmot]] + [[sce]] | as per [[wiki/sources/]] | small (P2) | <500 MB total | Manual / on-demand |
+| **Plus PR 7 additions:** [[apa]] + [[lneg]] + [[lidar]] + [[aveiro-pmot]] + [[sce]] | as documented above | small (P2) | <500 MB total | Manual / on-demand |
 
 **Total estimated: ~28 GB in PostgreSQL + ~35 GB in MinIO at MVP.** With current infrastructure (4 TB NVMe), capacity is good for ~10× this growth before NVMe pressure (per [[2026-05-10-single-server-self-hosted]] capacity ceiling discussion).
 
