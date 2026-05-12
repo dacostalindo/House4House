@@ -5,7 +5,7 @@
 This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last lint run:` line is the freshness indicator (updated by `/wiki-lint`); a stale date means lint hasn't fired recently and contradiction-detection coverage is degrading.
 
 Last lint run: 2026-05-08
-Last reconcile run: 2026-05-12
+Last reconcile run: 2026-05-12 (UC-3 reframe propagation)
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
@@ -83,7 +83,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 
-## Decisions (16 ADRs)
+## Decisions (17 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -113,7 +113,11 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
 - [[2026-05-12-phase-6-ty-advisory]] — Astral's `ty` (beta) ships as advisory CI check via Phase 4 annotation-grouping pattern; 3 concrete graduation triggers to BLOCKING.
 
-## Sprints (12 pages — PR 3 seed)
+**Use cases** (UC-3 reframe — gstack /office-hours + /plan-eng-review surfaced):
+
+- [[2026-05-12-uc3-expanded-scope]] — UC-3 reframed from national spatial-overlay into end-to-end 7-stage plot economic-value pipeline; v1 wedge = Aveiro Stages 1-4 + SCE + idealista LLM + dev dedup; `confidence: speculation`, gated on 3 PT developer interviews.
+
+## Sprints (13 pages — PR 3 seed)
 
 Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driven Phase 1-7 roadmap). See [[sprints/README|sprints orientation]] for the schema, status semantics, and living-roadmap mechanic.
 
@@ -128,8 +132,9 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 - [[sprint-05]] — Hedonic Model & Valuation (Weeks 10-11) — `planned`
 - [[sprint-06]] — UC-1 MVP Investment Opportunities (Weeks 12-13) — `planned` 🏁 M1
 - [[sprint-07]] — UC-2 MVP Pricing Strategy (Weeks 14-15) — `planned` 🏁 M2
-- [[sprint-08]] — UC-3 MVP Land Development Opportunities (Weeks 16-18) — `planned` 🏁 M3
-- [[sprint-09]] — Enhancements + Production Hardening (Weeks 19-20) — `planned`
+- [[sprint-08]] — UC-3 v1 wedge Part 1 (Foundations + Aveiro Vertical Slice) (Weeks 16-18) — `planned` 🏁 M3 Part 1
+- [[sprint-09]] — UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo) (Weeks 19-21) — `planned` 🏁 M3
+- [[sprint-10]] — Production Hardening + Portal Expansion + UC-3 v2 Readiness (Weeks 22-24) — `planned`
 
 ### Dev-tooling sprint (parallel track)
 
@@ -141,7 +146,7 @@ Each UC combines product narrative + conceptual data model + serving layer in on
 
 - [[UC-1]] — Undervalued Property Identification (investors / promoters / fund managers / flippers) — MVP at [[sprint-06]] 🏁 M1
 - [[UC-2]] — New Housing Unit Pricing Strategy (developers / commercial directors / project managers) — MVP at [[sprint-07]] 🏁 M2; depends on UC-1 hedonic
-- [[UC-3]] — Land Development Opportunity Detection (land developers / promoters / funds / municipal offices) — MVP at [[sprint-08]] 🏁 M3; depends on UC-1 hedonic for development economics
+- [[UC-3]] — End-to-End Plot Economic-Value Pipeline (7-stage funnel: Scout → Inspect → Assemble → Build out → Value → Profit → Competitive Intel; land developers / promoters / funds) — v1 wedge = Aveiro Stages 1-4 + SCE unit aggregation + idealista LLM plot extraction + dev dedup, ships across [[sprint-08]]+[[sprint-09]] 🏁 M3 Week 21. Stages 5-6 (Value/Profit, depends on UC-1 hedonic) + full Stage 7 (national rollout + promoter dedup) defer to v2/v3. Gated on 3 PT developer interviews per [[2026-05-12-uc3-expanded-scope]] kill criteria.
 
 ## Forthcoming (PR 5-8)
 

@@ -478,3 +478,25 @@ Files touched (`last_verified` bumped where applicable):
   the existing `Last lint run:`.
 
 Session report at `wiki/lint-reports/2026-05-12T120000.md`.
+
+## [2026-05-12] uc3-reframe | UC-3 expanded scope — gstack /office-hours + /plan-eng-review
+
+Reframed `wiki/use-cases/UC-3.md` from "national-scope spatial-overlay Land Development Opportunity Detection" into an end-to-end 7-stage plot economic-value pipeline (Scout → Inspect → Assemble → Build out → Value → Profit → Competitive Intel) with a v1 wedge scoped to Aveiro município + Stages 1-4 + SCE unit aggregation + idealista LLM construction-area extraction + development dedup. Architecture pivot: primary user journey is draw-your-own-polygon via `gold.fn_assess_polygon(geom)` Postgres function, NOT pre-computed-parcel-per-row. v1 UI is Streamlit-component; v2 promotes to standalone web app.
+
+Pages touched:
+- `wiki/decisions/2026-05-12-uc3-expanded-scope.md` — NEW ADR (confidence: speculation; gated on 3-developer interview validation).
+- `wiki/use-cases/UC-3.md` — rewritten in place. Old 9-question framing replaced.
+- `wiki/sprints/sprint-08.md` — restructured to "UC-3 v1 wedge Part 1 (Foundations + Aveiro Vertical Slice)". WS2 (national OGC migration) dropped from v1 wedge.
+- `wiki/sprints/sprint-09.md` — restructured to "UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)". Weeks extended 19-20 → 19-21. Existing scope (Imovirtual / RNAL / hedonic v2 / ARU / etc.) deferred to future v1.5+ sprint gated on wedge validation.
+
+Source artifacts: office-hours design doc + /plan-eng-review test plan at `~/.gstack/projects/dacostalindo-House4House/`. Variant B-prime UI mockup at `~/.gstack/projects/dacostalindo-House4House/designs/aveiro-parcel-assessment-inspect-20260506/approved.json`.
+
+**Caveat (Propagation Rule)**: sibling pages [[UC-1]], [[UC-2]], [[sprint-03]], [[sprint-05]], [[sce]], [[idealista]], [[medallion-layering]] referenced in the new UC-3 + ADR have NOT been propagation-updated in this commit. Per the design doc's staged wiki migration plan, propagation was scheduled to gate on interview validation. The user explicitly overrode that gate to update UC-3 + sprints now; propagation to siblings still defers. Run `/wiki-reconcile` to surface drift.
+
+## [2026-05-12] reconcile | 5 findings, 4 auto-fixed, 1 flagged for user, 1 ADR (from earlier same-session ingest)
+
+Triggered by user `/wiki-reconcile` after the UC-3 reframe (gstack /office-hours + /plan-eng-review + sprint-10 create). Auto-fixed: (1) BLOCKING broken `[[wiki-clauder|wiki/CLAUDE.md]]` wikilink in `wiki/decisions/2026-05-12-uc3-expanded-scope.md` — replaced with plain prose; (2) PROPAGATION added `bronze_enrichment` schema row to `wiki/concepts/medallion-layering.md`; (3) PROPAGATION rewrote `wiki/planning/milestones.md` M3 to reflect UC-3 v1 wedge at Week 21 with Atlas Inspector single surface (dropping the old three-surface model); (4) PROPAGATION updated `wiki/index.md` (sprint-08/9/10 lines, UC-3 summary, ADR count 16→17, sprint count 12→13, added Use-cases decision group, reconcile-run line). Flagged for user: ADVISORY schema-scope ambiguity — `wiki/CLAUDE.md` §79 wikilink-resolution rule excludes sprints/ and use-cases/ but ambient convention uses them; needs schema-doc clarification, not urgent. 16 sibling pages (UC-1/UC-2/sprint-03/05/07/sce/idealista/bupi/cos/crus/srup/cadastro/lidar/bronze-permissive/etc.) scanned and confirmed CLEAN — no edits needed. Session report at `wiki/lint-reports/2026-05-12T160000.md`. Caveat: user overrode staged migration plan; wiki now reflects unvalidated UC-3 framing pending developer interviews per [[2026-05-12-uc3-expanded-scope]] kill criteria.
+
+## [2026-05-12] sprint-10-create | Displaced sprint-09 scope absorbed
+
+Created `wiki/sprints/sprint-10.md` (weeks 22-24) to absorb the scope displaced from [[sprint-09]] when [[sprint-09]] was restructured to be UC-3 v1 wedge Part 2. Sprint 10 has two tracks: Track A (Imovirtual / RNAL / INE Permits / REN / data-quality monitoring / docs — always ships), Track B (ARU / hedonic v2 / OSRM drive-times / UC-3 v2 economics scoping — gated on [[sprint-09]] wedge-validation outcome). Updated sprint-09 Key Decisions to reference sprint-10 instead of "future v1.5+ sprint to be created."

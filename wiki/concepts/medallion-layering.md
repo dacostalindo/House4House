@@ -53,6 +53,7 @@ The schemas are created by [warehouse/init/001_create_schemas.sql](../../warehou
 - `bronze_hydrology` — [[apa]] floodplain, [[lneg]] aquifers
 - `bronze_location` — geocoding caches, location-resolution intermediates
 - `bronze_tourism` — tourism-specific feeds
+- `bronze_enrichment` — LLM-extracted outputs (e.g., [[idealista]] plot-listing construction-area extractions for [[UC-3]] v1 wedge Slice C) + geocoded intermediates (e.g., [[sce]] address → CTT centroid lookups). Honors the [[bronze-permissive]] rule — LLM enrichment writes here, then dbt joins into silver. Introduced 2026-05-12 per [[2026-05-12-uc3-expanded-scope]].
 
 **Silver (conformed, by domain):**
 
