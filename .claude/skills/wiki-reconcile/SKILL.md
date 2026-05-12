@@ -1,5 +1,6 @@
 ---
-description: Reconcile the wiki — surface drift, resolve contradictions, ingest post-merge gstack artifacts. The wiki maintains its own truth.
+name: wiki-reconcile
+description: Reconcile the wiki — surface drift, resolve contradictions, ingest post-merge gstack artifacts. The wiki maintains its own truth. Spawns five parallel subagents (schema / links / reciprocity / freshness / ingest) and walks the user through resolution interactively. Complements the weekly /wiki-lint LLM cron.
 ---
 
 Use the wiki-reconcile skill. Execute `/wiki-reconcile $ARGUMENTS`:
