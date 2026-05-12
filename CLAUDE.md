@@ -46,4 +46,4 @@ Key routing rules:
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
 - Wiki maintenance → invoke /wiki-lint (also runs weekly via launchd cron)
-- Wiki reconciliation + post-merge gstack ingest → invoke /wiki-reconcile (Phase 7b — not yet shipped; until then, the ingest convention lives in `wiki/CLAUDE.md` workflows section)
+- Wiki reconciliation + post-merge gstack ingest → invoke /wiki-reconcile
