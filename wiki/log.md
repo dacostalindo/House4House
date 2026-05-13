@@ -684,3 +684,22 @@ Files:
 Verification: `dbt parse --project-dir dbt` runs clean against the new model + sources. Row-count + dedup verification will happen at first `dbt run` against live Postgres bronze tables.
 
 **Downstream consumer**: `gold.fn_assess_polygon` (sprint-09) will spatial-join this table via `ST_Intersects` to populate the `assembled_parcels` field of the JSONB result.
+
+## [2026-05-13] sprint-08-activity-5 | Zoning density rules extracted from `land_designation`
+
+[[sprint-08]] Activity 5 done. `silver_geo.zoning` gains three typed columns parsed from the freetext `land_designation` PDM column via Postgres regex:
+
+- **`max_floors`** — integer, from `(\d+)\s*pisos?` (case-insensitive). Catches "3 pisos", "max 4 piso", "até 5 pisos".
+- **`max_density_index`** — NUMERIC(6,4), from `índice\s*[:=]?\s*([\d,.]+)` (case-insensitive). Catches "índice 0,8", "índice = 1.2", "Indice: 0,5". Portuguese comma decimals (`1,5`) normalized to `1.5` before cast.
+- **`max_coverage_ratio`** — NUMERIC(6,4), from `cobertura\s*[:=]?\s*([\d,.]+)\s*%` (case-insensitive). Catches "cobertura 40%", "cobertura: 25,5%". Same Portuguese-decimal normalization. Stored as the raw percentage (40 = 40%, not 0.40).
+
+All three default to NULL when the regex doesn't match — the PDM freetext varies widely by município and most rural zones don't specify density at all. Downstream `fn_assess_polygon` (sprint-09) reads these to populate the Inspector's "what can I legally build" answer.
+
+Files:
+
+- `dbt/models/silver/geo/zoning.sql` — added the 3 `regexp_match()` projections before the `area_ha` column. Postgres native `regexp_match()` returns an array — index `[1]` for the first capture group; `NULLIF(..., '')` guards empty captures.
+- `dbt/models/silver/geo/_silver_geo__models.yml` — documented the 3 new columns with regex pattern + format notes.
+
+Verification: `dbt parse --project-dir dbt` clean. Empirical-extraction rate (what fraction of Aveiro zoning rows produce non-null `max_floors`) is unknowable without a live run — measure at first build and tighten the regex if recall is low. The Aveiro PDM publication-date check (`pdm_publication_date`) tells us which munis have CRUS data; the regex hit rate per municipality is the next signal.
+
+**Downstream consumer**: `gold.fn_assess_polygon` (sprint-09) reads these typed columns directly; no further dbt model in between.

@@ -37,6 +37,22 @@ SELECT
         WHEN o.land_classification = 'Solo Rústico' THEN 'rural_other'
         ELSE 'other'
     END AS zone_category,
+
+    -- Sprint-08 Activity 5: density rule extraction from `land_designation`.
+    -- The PDM Planta de Ordenamento freetext mixes Portuguese number formats
+    -- (1,5 / 1.5) — `replace(...,',','.')` before ::numeric cast. Defaults
+    -- to NULL when the regex doesn't match.
+    --
+    -- max_floors: "3 pisos", "max 4 piso", "até 5 pisos" → captures integer
+    (regexp_match(o.land_designation, '(\d+)\s*pisos?', 'i'))[1]::INTEGER
+        AS max_floors,
+    -- max_density_index: "índice 0,8", "índice = 1.2", "Indice: 0,5" → captures decimal
+    NULLIF(REPLACE((regexp_match(o.land_designation, 'índice\s*[:=]?\s*([\d,.]+)', 'i'))[1], ',', '.'), '')::NUMERIC(6,4)
+        AS max_density_index,
+    -- max_coverage_ratio: "cobertura 40%", "cobertura: 25,5%" → captures percentage as decimal
+    NULLIF(REPLACE((regexp_match(o.land_designation, 'cobertura\s*[:=]?\s*([\d,.]+)\s*%', 'i'))[1], ',', '.'), '')::NUMERIC(6,4)
+        AS max_coverage_ratio,
+
     o.area_ha,
     o.geom,
     o.geom_wgs84,
