@@ -19,6 +19,7 @@ on-run-start:
   - "CREATE SCHEMA IF NOT EXISTS silver_properties"
   - "CREATE SCHEMA IF NOT EXISTS silver_geo"
   - "CREATE SCHEMA IF NOT EXISTS silver_location"
+  - "CREATE SCHEMA IF NOT EXISTS silver_parcels"
   - "CREATE SCHEMA IF NOT EXISTS gold_analytics"
 
 models:
@@ -36,6 +37,8 @@ models:
         +schema: silver_geo
       location:
         +schema: silver_location
+      parcels:
+        +schema: silver_parcels
     gold:
       +materialized: table
       +schema: gold_analytics

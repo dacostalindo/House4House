@@ -665,3 +665,22 @@ Verification: `ruff` clean; `py_compile` clean across the 4 new + 1 modified fil
 ---
 
 **Sprint-08 Activity 2 (cleanup pass) is now complete** — sub-activities 2.1 (MinIO helper) + 2.2 (CRUS/PDM drop) + 2.3 (SRUP slim) + 2.4 (COS OGC migration) all landed. Next up: Activity 4 (build `silver_parcels.parcel_universe` for Aveiro).
+
+## [2026-05-13] sprint-08-activity-4 | silver_parcels.parcel_universe (Aveiro)
+
+[[sprint-08]] Activity 4 done. New `silver_parcels` schema + new `dbt/models/silver/parcels/parcel_universe.sql` model materializing the Aveiro município parcel universe as a UNION of [[cadastro]] (DGT formal cadastre, partial 2000-2007 survey coverage) + [[bupi]] (modern simplified cadastre, fills the gaps). Spatial dedup: a BUPI parcel is dropped from the universe if ≥50% of its area overlaps a cadastro parcel — cadastro is authoritative where present.
+
+Files:
+
+- `dbt/dbt_project.yml` — new `silver_parcels` entry in `on-run-start` + `models.house4house.silver.parcels.+schema`
+- `dbt/models/silver/parcels/parcel_universe.sql` — the materialized table + GIST indexes on `geom_pt` (EPSG:3763) and `geom_4326` (EPSG:4326), B-tree on `concelho_code` and `source`
+- `dbt/models/silver/parcels/_silver_parcels__models.yml` — column docs + tests: `parcel_id` unique + not_null; `source` accepted_values ['cadastro', 'bupi']; `concelho_code` accepted_values ['0105']; `geom_pt` / `geom_4326` not_null; `dbt_utils.expression_is_true` ensuring both geometries are non-null
+- `dbt/tests/dedup_parcel_universe_known_overlap.sql` — singular test (Appendix C Test #12): asserts no BUPI row in the universe overlaps a cadastro row by ≥50% of its area. Passes when query returns 0 rows.
+
+**Schema** (10 cols): `parcel_id` (composite key `cadastro:{cadastral_ref}` | `bupi:{process_id}`), `source` ('cadastro'|'bupi'), `cadastral_ref`, `process_id`, `matrix_number`, `dicofre`, `concelho_code`, `area_m2`, `geom_pt`, `geom_4326`.
+
+**v1 wedge scope**: Aveiro município only (`concelho_code = '0105'`). National rollout deferred to v2; to extend, drop the `LIKE '0105%'` filter in the two CTEs.
+
+Verification: `dbt parse --project-dir dbt` runs clean against the new model + sources. Row-count + dedup verification will happen at first `dbt run` against live Postgres bronze tables.
+
+**Downstream consumer**: `gold.fn_assess_polygon` (sprint-09) will spatial-join this table via `ST_Intersects` to populate the `assembled_parcels` field of the JSONB result.

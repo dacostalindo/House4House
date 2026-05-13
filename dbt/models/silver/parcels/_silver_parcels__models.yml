@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: parcel_universe
+    description: >
+      Canonical parcel table for the v1 wedge — UNION of cadastro (formal/legal
+      cadastre, partial 2000-2007 survey coverage) + BUPI (modern simplified
+      cadastre, fills the cadastro gaps), spatially deduplicated. Filtered to
+      Aveiro município (`concelho_code = '0105'`) for the v1 wedge scope.
+
+      Where a BUPI parcel overlaps a cadastro parcel by ≥50% of the BUPI area,
+      the cadastro version wins and the BUPI row is dropped from the universe.
+
+      Materialized as a table with GIST indexes on both geometry columns.
+      Consumed by `gold.fn_assess_polygon` in sprint-09 via the
+      "assembled_parcels" `ST_Intersects` join.
+    columns:
+      - name: parcel_id
+        description: "Composite key prefixed by source: `cadastro:{cadastral_ref}` or `bupi:{process_id}`"
+        tests:
+          - unique
+          - not_null
+
+      - name: source
+        description: "Origin system: 'cadastro' (DGT formal cadastre) or 'bupi' (RGG simplified)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['cadastro', 'bupi']
+
+      - name: cadastral_ref
+        description: "Cadastro `nationalcadastralreference` (e.g. 'AAA000338225'). NULL for BUPI parcels."
+
+      - name: process_id
+        description: "BUPI `processoid` (integer cast to text). NULL for cadastro parcels."
+
+      - name: matrix_number
+        description: "BUPI `numeromatriz` — property tax matrix number. NULL for cadastro parcels."
+
+      - name: dicofre
+        description: "6-digit DTCC code: distrito(2) + concelho(2) + freguesia(2). From cadastro `administrativeunit` OR BUPI `dicofre`."
+
+      - name: concelho_code
+        description: "4-digit concelho prefix of `dicofre` (e.g. '0105' = Aveiro município)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['0105']
+
+      - name: area_m2
+        description: "Parcel area in square metres (from cadastro `areavalue` OR BUPI `area_m2`)"
+
+      - name: geom_pt
+        description: "Parcel geometry in EPSG:3763 (PT-TM06/ETRS89)"
+        tests:
+          - not_null
+
+      - name: geom_4326
+        description: "Parcel geometry in EPSG:4326 (WGS84) for display / external joins"
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "geom_pt IS NOT NULL AND geom_4326 IS NOT NULL"
+          config:
+            severity: error
