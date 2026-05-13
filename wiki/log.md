@@ -600,3 +600,25 @@ Migrated 7 DAGs onto the helper: `cadastro_ingestion_dag`, `apa_ingestion_dag`, 
 Verification: `py_compile` clean on all 8 files; `ruff check --fix` auto-fixed 10 unused-import warnings (`os`, `datetime.datetime`, `Variable`, `Minio` no longer imported in the migrated tasks); helper imports cleanly via the venv python.
 
 LNEG SSL workaround for `sig.lneg.pt` stays where it was — the helper is unaware of the `requests.Session.request` monkey-patch the caller applies around its adapter call. Adapter and helper both stay clean.
+
+## [2026-05-13] sprint-08-activity-2.2 | Retired legacy CRUS + PDM WFS pipelines; dbt redirected to OGC bronze
+
+[[sprint-08]] Activity 2.2 done. Deleted from HEAD:
+
+- `pipelines/gis/crus/` (4 files) — legacy per-município CRUS WFS (5 munis: Aveiro/Lisboa/Porto/Coimbra/Leiria)
+- `pipelines/gis/pdm/` (4 files) — also legacy CRUS WFS per-município, redundant with same upstream data
+
+Both fully superseded by [[crus-ogc]] (DGT OGC API `crus` collection, national coverage ~236k polygons, richer schema with `situacao_pdm` + `registo_ou_deposito` columns the WFS path lacked).
+
+Downstream redirects:
+
+- `dbt/models/staging/regulatory/_staging_regulatory__sources.yml` — `raw_crus_ordenamento` source entry renamed to `raw_crus_national_ogc` with updated descriptions reflecting OGC field origins.
+- `dbt/models/staging/regulatory/stg_crus_ordenamento.sql` — `source('bronze_regulatory', 'raw_crus_ordenamento')` → `source('bronze_regulatory', 'raw_crus_national_ogc')`. One-line change; all 11 columns the staging model consumes are 1:1 in the new bronze. Downstream `silver_geo.zoning` model unchanged.
+- `tests/configs/test_config_equivalence.py` — `crus` parametrize entry dropped; the fixture moved to `tests/configs/fixtures/_retired/crus.json` as historical record. `pdm` was never in the parity test.
+- `wiki/sources/crus.md` — marked retired (`status: retired`, `superseded_by: crus-ogc`) with a banner explaining the deletion, historical schema/quirks preserved for anyone reading old log lines. No `wiki/sources/pdm.md` existed (PDM concept lives under [[crus]] / [[crus-ogc]]).
+- `pipelines/gis/cadastro/cadastro_config.py` — docstring stopped referencing the now-deleted `pipelines/gis/pdm/pdm_config.py` as a pattern example; reframed as "Pydantic config pattern shared with the other OGC API ingestion configs (apa, crus_ogc, lneg, srup_ogc)".
+- `wiki/sprints/sprint-08.md` — removed the now-orphan "PDM zoning — bonus quick win" bullet from the See also section.
+
+**Bronze tables NOT dropped** — the PostgreSQL tables `bronze_regulatory.raw_crus_ordenamento` and any PDM bronze tables remain in place for ad-hoc historical queries. Drop manually if needed: `DROP TABLE bronze_regulatory.raw_crus_ordenamento`.
+
+Verification: `py_compile` clean on all 9 active GIS DAG modules; `ruff` clean; no remaining `from pipelines.gis.crus` / `from pipelines.gis.pdm` imports in the active tree.

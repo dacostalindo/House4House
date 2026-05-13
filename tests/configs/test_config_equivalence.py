@@ -17,9 +17,11 @@ from .conftest import load_fixture
         # Tracked configs migrated as part of Phase 2.
         # New configs (apa, crus_ogc, lidar, lneg, srup_ogc) get their own
         # parametrize entries when their owning WIP commits land.
+        # `crus` (legacy WFS per-município path) was retired 2026-05-13 in favor of
+        # the OGC API (`pipelines/gis/crus_ogc/`); the crus fixture is preserved
+        # under fixtures/_retired/ as historical record.
         ("idealista", "pipelines.portals.idealista.idealista_config", "IDEALISTA_CONFIG"),
         ("srup", "pipelines.gis.srup.srup_config", "SRUP_CONFIG"),
-        ("crus", "pipelines.gis.crus.crus_config", "CRUS_CONFIG"),
         ("cadastro", "pipelines.gis.cadastro.cadastro_config", "CADASTRO_CONFIG"),
     ],
 )

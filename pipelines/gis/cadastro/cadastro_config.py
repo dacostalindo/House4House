@@ -68,8 +68,8 @@ MINIO_PREFIX = "cadastro"
 class CadastroIngestionConfig(BaseModel):
     """All parameters for the Cadastro Predial ingestion pipeline.
 
-    Follows the same dataclass-based config pattern as PDMIngestionConfig
-    (pipelines/gis/pdm/pdm_config.py). Unlike COS/CAOP which use
+    Pydantic config pattern shared with the other OGC API ingestion configs
+    (apa, crus_ogc, lneg, srup_ogc). Unlike COS/CAOP which use
     GISIngestionConfig for bulk file downloads, this config supports
     API-based pagination ingestion.
     """

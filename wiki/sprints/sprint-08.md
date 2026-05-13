@@ -233,7 +233,6 @@ All wired into existing `make dbt-test` / `make test` per Phase 4 scaffolding.
 - [[sce]] — load-bearing for the geocoding activity
 - [[lidar]] — DGT 2m DTM/DSM for Aveiro terrain stats
 - [[apa]], [[crus-ogc]], [[lneg]], [[srup-ogc]] — recovered pipelines that need the shared template to parse (v2 scope otherwise)
-- PDM zoning — bonus quick win (zoning enrichment from `feature/pdm` branch)
 - [[caop]] — Aveiro município bbox for tile-manifest filter
 - [[medallion-layering]] — silver/gold pattern + `bronze_enrichment` schema
 - [[bronze-permissive]] — enrichment writes to bronze, not silver directly
