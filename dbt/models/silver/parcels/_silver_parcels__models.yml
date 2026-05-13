@@ -3,17 +3,20 @@ version: 2
 models:
   - name: parcel_universe
     description: >
-      Canonical parcel table for the v1 wedge — UNION of cadastro (formal/legal
-      cadastre, partial 2000-2007 survey coverage) + BUPI (modern simplified
-      cadastre, fills the cadastro gaps), spatially deduplicated. Filtered to
-      Aveiro município (`concelho_code = '0105'`) for the v1 wedge scope.
+      Canonical national parcel table — UNION of cadastro (formal/legal cadastre
+      from DGT OGC API, partial 2000-2007 survey coverage) + BUPI (modern
+      simplified cadastre, fills the cadastro gaps where it's absent), spatially
+      deduplicated. Where a BUPI parcel overlaps a cadastro parcel by ≥50% of
+      the BUPI area, the cadastro version wins and the BUPI row is dropped.
 
-      Where a BUPI parcel overlaps a cadastro parcel by ≥50% of the BUPI area,
-      the cadastro version wins and the BUPI row is dropped from the universe.
+      The dedup join is concelho-prefiltered (`b.concelho_code = c.concelho_code`)
+      before the `ST_Intersects` test so the national-scale spatial dedup is
+      tractable — otherwise the join would be a 3.2M × 1.75M cross-product.
 
-      Materialized as a table with GIST indexes on both geometry columns.
-      Consumed by `gold.fn_assess_polygon` in sprint-09 via the
-      "assembled_parcels" `ST_Intersects` join.
+      Materialized as a table with GIST indexes on both geometry columns + B-tree
+      indexes on `concelho_code` and `source`. v1 wedge consumers (sprint-09's
+      `gold.fn_assess_polygon`) filter at query time, e.g.
+      `WHERE concelho_code = '0105'` for Aveiro município — the B-tree makes it free.
     columns:
       - name: parcel_id
         description: "Composite key prefixed by source: `cadastro:{cadastral_ref}` or `bupi:{process_id}`"
@@ -41,11 +44,9 @@ models:
         description: "6-digit DTCC code: distrito(2) + concelho(2) + freguesia(2). From cadastro `administrativeunit` OR BUPI `dicofre`."
 
       - name: concelho_code
-        description: "4-digit concelho prefix of `dicofre` (e.g. '0105' = Aveiro município)"
+        description: "4-digit concelho prefix of `dicofre` (e.g. '0105' = Aveiro município). Used for the dedup-join prefilter + downstream WHERE filters."
         tests:
           - not_null
-          - accepted_values:
-              values: ['0105']
 
       - name: area_m2
         description: "Parcel area in square metres (from cadastro `areavalue` OR BUPI `area_m2`)"

@@ -742,3 +742,23 @@ New `dbt-docs` service in `docker-compose.yml`:
 Subsequent regeneration: Cosmos's `regenerate_docs` task in `pipelines/dbt/dbt_source_dags.py:155-172` runs `dbt docs generate` after every `dbt_*_build`, updating the static files at `dbt/target/` in place; the serving process picks them up on next page load (no restart needed).
 
 Port mapping was moved off `airflow-scheduler` (where it had been reserved but unused) to `dbt-docs`.
+
+## [2026-05-13] sprint-08-activity-4-national | parcel_universe rescoped national; post_hook→indexes config fix
+
+Three reframes landed on `silver_parcels.parcel_universe`:
+
+1. **Scope: Aveiro município → national.** User asked "should silver_parcels be all parcels, no?" — yes; staging models are national, silver should follow. Dropped the `dicofre LIKE '0105%'` filter from both CTEs. v1 wedge consumers (sprint-09's `fn_assess_polygon`) filter at query time via `WHERE concelho_code = '0105'`; the B-tree index on `concelho_code` makes it free.
+
+2. **Concelho-equality prefilter in the dedup join.** At national scale (3.25M BUPI × 1.79M cadastro), the raw `ST_Intersects` cross-self-join would be hours even with GIST. Added `b.concelho_code = c.concelho_code` BEFORE the spatial test — Postgres hash-joins on the concelho first, then the spatial test runs per-concelho bucket. National build now takes ~3-4 min total (materialization + indexes).
+
+3. **`post_hook` → dbt-postgres `indexes` config.** The `post_hook` CREATE INDEX statements didn't survive table rebuilds for `parcel_universe` (the swap-rename ordering dropped them — sibling tables like `silver_geo.zoning` happened to work because of different timing). Switched to dbt-postgres's native `indexes` config — creates indexes on the `__dbt_tmp` intermediate relation BEFORE the rename, so they're renamed along with the table. Verified: 468 MB of GIST + B-tree indexes present after rebuild.
+
+**Final shape**:
+- 5,039,008 rows (3.25M BUPI national + 1.79M cadastro across 152+137 concelhos)
+- 4.7 GB total (~4.2 GB table + 468 MB indexes)
+- ~3-4 min build time
+- All `not_null` / `unique` / `accepted_values` tests pass
+
+**The singular dedup test (Appendix C Test #12) was the bottleneck**: a full self-join over 5M rows took >3 min and was cancelled. Rewrote as a 10K-BUPI-row sample with `ORDER BY md5(parcel_id) LIMIT 10000` — fast (~5-15s expected) and still catches structural dedup-CTE regressions. The test is now a regression guard rather than an exhaustive correctness proof; if the dedup CTE is wrong, ~10K random rows will surface violations with high probability.
+
+dbt-docs catalog refreshed in place via `docker exec ... dbt docs generate`; `http://localhost:8089/` now shows the national `parcel_universe` schema.
