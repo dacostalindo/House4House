@@ -762,3 +762,36 @@ Three reframes landed on `silver_parcels.parcel_universe`:
 **The singular dedup test (Appendix C Test #12) was the bottleneck**: a full self-join over 5M rows took >3 min and was cancelled. Rewrote as a 10K-BUPI-row sample with `ORDER BY md5(parcel_id) LIMIT 10000` — fast (~5-15s expected) and still catches structural dedup-CTE regressions. The test is now a regression guard rather than an exhaustive correctness proof; if the dedup CTE is wrong, ~10K random rows will surface violations with high probability.
 
 dbt-docs catalog refreshed in place via `docker exec ... dbt docs generate`; `http://localhost:8089/` now shows the national `parcel_universe` schema.
+
+## [2026-05-13] cos-ogc-catchup | First cos_ogc end-to-end run; silver_geo.land_use rebuilt with Aveiro-bbox OGC data
+
+Sprint-08 Activity 2.4 wired the cos_ogc pipeline but the DAG was never actually triggered. Inspection 2026-05-13 found `bronze_geo.raw_cos_national_ogc` did NOT exist while `stg_cos2023.sql` already pointed at it — next `dbt build --select stg_cos2023+` would have failed at source resolution. (`silver_geo.land_use` had stale 785K rows from the 2026-03-18 build against the legacy `raw_cos2023` bronze.)
+
+Resolved today:
+
+1. Unpaused `cos_ogc_ingestion`, `cos_ogc_bronze_load`, `dbt_cos_build` (they came up paused after the airflow-scheduler recreate from the dbt-docs work — Airflow's default for new DAGs).
+2. Triggered `cos_ogc_ingestion`: 46s wall, fetched the Aveiro bbox slice of `cos2023v1` via OGC API → MinIO.
+3. Trigger chain fired automatically: `cos_ogc_ingestion` → `cos_ogc_bronze_load` (9s) → `dbt_cos_build` (Cosmos per-model tasks rebuilt `stg_cos2023` + downstream `silver_geo.land_use`).
+
+End state:
+
+- `bronze_geo.raw_cos_national_ogc`: **4,504 rows** (Aveiro bbox slice of the national COS 2023)
+- `silver_geo.land_use`: **4,504 rows**, rebuilt 2026-05-13 14:40 (down from 785K national of the legacy GPKG)
+- `bronze_geo.raw_cos2023` (legacy GPKG bronze) still in DB with 708K rows — not dropped per the preserved-historical convention
+
+**Side-find**: the `dbt_*_build` DAGs land paused by default after Airflow scheduler recreate. Anyone who recreates the airflow-scheduler container (e.g. via `docker compose up -d --force-recreate airflow-scheduler`) should `airflow dags unpause` the relevant chain before triggering the upstream ingestion, or those triggers stack up queued.
+
+## [2026-05-13] lidar-coverage-verified | 489 tiles is the canonical Aveiro município catalog; national would be ~25k+
+
+User asked whether the 489-tile LiDAR count is the right scale or silently truncated. Direct DGT STAC query 2026-05-13 confirmed:
+
+- **Configured bbox** (`-8.764,40.528,-8.521,40.728`, ~462 km², ≈ Aveiro município / centro / lagoon): `limit=500` → `returned=489, has_next=False`. **Canonical complete catalog for this bbox** — NOT truncated.
+- **Aveiro distrito bbox** (~2,800 km²): 500+ tiles with `has_next=True` — meaningfully more tiles published.
+- **National PT bbox** (`-9.5,36.9,-6.0,42.2`): paginated to 25,000+ tiles before hitting the 50-page safety cap (real total likely 25-40k). DGT LiDAR coverage is regional rollout — Aveiro is one of the early-published regions; PT is not fully covered yet.
+
+Implications:
+
+- Sprint-08 v1 wedge (Aveiro município target) → 489 tiles is **correct + sufficient**. No bug.
+- Going national: technically supported by the existing `DgtStacAdapter.fetch_to` pagination loop. Cost estimate: **~75 GB MinIO** (50 GB raw tiles × 2 collections + 25 GB slope COGs) + **5-20 hours** wall time + cookie refresh mid-run (cookie lasts ~1 week). v2 work; not blocking sprint-08.
+
+`wiki/sources/lidar.md` updated: `last_verified` 2026-05-13; coverage section now states 489 is canonical-for-configured-bbox with the verification method spelled out + national-rollout cost notes.
