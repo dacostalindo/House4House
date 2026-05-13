@@ -106,13 +106,24 @@ class OgcApiAdapter:
         return info
 
     def fetch_to(self, tmp_dir: str) -> dict:
-        """Stream paginated features to `{tmp_dir}/{source_name}.geojson`."""
+        """Stream paginated features to `{tmp_dir}/{source_name}.geojson`.
+
+        If `cfg.bbox_4326` is set, the OGC API `bbox` query parameter is
+        appended (lon_min,lat_min,lon_max,lat_max in EPSG:4326). The OGC
+        collection's native CRS is assumed to be 4326; if different, the
+        `bbox-crs` parameter would also need to be set (not implemented yet —
+        no current caller needs it).
+        """
         import requests
 
         output_path = os.path.join(tmp_dir, f"{self.cfg.source_name}.geojson")
         total = 0
         pages = 0
         offset = 0
+
+        bbox_clause = ""
+        if self.cfg.bbox_4326 is not None:
+            bbox_clause = f"&bbox={','.join(str(c) for c in self.cfg.bbox_4326)}"
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write('{"type":"FeatureCollection","features":[\n')
@@ -122,9 +133,14 @@ class OgcApiAdapter:
                 url = (
                     f"{self.cfg.endpoint_url}"
                     f"?limit={self.cfg.page_size}&offset={offset}&f=json"
+                    f"{bbox_clause}"
                 )
                 log.info(
-                    "[%s] ogc_api page %d offset=%d", self.cfg.source_name, pages, offset
+                    "[%s] ogc_api page %d offset=%d%s",
+                    self.cfg.source_name,
+                    pages,
+                    offset,
+                    " (bbox-filtered)" if bbox_clause else "",
                 )
 
                 resp = requests.get(url, timeout=self.cfg.request_timeout_seconds)

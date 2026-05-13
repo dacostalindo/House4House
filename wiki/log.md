@@ -641,3 +641,27 @@ Changes:
 **Zero downstream impact**: no existing dbt models reference `stg_srup_ran` yet — the planned consumer is [[sprint-08]] Activity 6 (`silver_geo/parcel_constraints`). The schema redirect happened cleanly; verification will land when Activity 6 runs the first build.
 
 **Bronze table preservation**: `bronze_regulatory.raw_srup_ran` (legacy WFS) NOT dropped from PostgreSQL. To physically drop: `DROP TABLE bronze_regulatory.raw_srup_ran`. The bronze for IC + DPH stays populated by `srup_ingestion_dag` going forward.
+
+## [2026-05-13] sprint-08-activity-2.4 | COS migrated from bulk-GeoPackage to OGC API (Aveiro bbox); legacy cos/ retired
+
+[[sprint-08]] Activity 2.4 done. New `pipelines/gis/cos_ogc/` (4 files: `__init__`, `cos_ogc_config`, `cos_ogc_ingestion_dag`, `cos_ogc_bronze_dag`) reads the DGT OGC API `cos2023v1` collection with an Aveiro distrito bbox filter for the v1 wedge scope. Bronze table: `bronze_geo.raw_cos_national_ogc` (same schema as the legacy `bronze_geo.raw_cos2023`, with new OGC-only columns `municipio` / `nutsii` / `nutsiii`).
+
+`OgcApiAdapter` extended to honor `cfg.bbox_4326` — appends `&bbox=lon_min,lat_min,lon_max,lat_max` to each paginated request when the field is set. Backwards-compatible (existing callers leave `bbox_4326=None` and get unchanged behavior).
+
+Trade-off recorded: bbox-filtered OGC ingestion is ~30s for the ~5-15k polygons that intersect Aveiro distrito, vs ~5 min for the legacy national bulk-GeoPackage download (~700 MB / ~784k polygons). National-scope ingestion remains possible (set `cfg.bbox_4326 = None`); it's slower than the bulk download (~10-15 min for the paginated OGC vs ~5 min for the bulk GPKG) but streaming-friendly and avoids the large local-disk requirement. v1 wedge needs Aveiro only — defer the national-bulk question to v2.
+
+`dbt/models/staging/geo/_staging_geo__sources.yml` — `raw_cos2023` source entry replaced with `raw_cos_national_ogc` (typed columns including the 3 OGC-only ones).
+
+`dbt/models/staging/geo/stg_cos2023.sql` — `source()` redirected from `bronze_geo.raw_cos2023` to `bronze_geo.raw_cos_national_ogc`. Staging model name preserved (downstream `silver_geo.land_use` keeps its `ref('stg_cos2023')` unchanged). Three new columns (`municipio`/`nutsii`/`nutsiii`) added to the staging projection for future filtering use; `land_use.sql` selects explicit columns so adding fields is non-breaking.
+
+`pipelines/gis/cos/` deleted from HEAD. `wiki/sources/cos.md` rewritten as the OGC API source page with a "Retired 2026-05-13" section preserving the legacy GeoPackage spec for historical reference.
+
+`wiki/sprints/sprint-08.md` corrected: the speculative `bronze_landuse.raw_cos_national_ogc` schema name was replaced with the actual `bronze_geo.raw_cos_national_ogc` (which keeps the legacy bronze schema location — no new bronze schema needed).
+
+Verification: `ruff` clean; `py_compile` clean across the 4 new + 1 modified files; `pytest tests/configs/test_config_equivalence.py` green (3 passed — idealista, srup, cadastro; no `cos` parity test exists since COS's legacy config used `GISIngestionConfig`, not Pydantic).
+
+**Bronze preservation**: `bronze_geo.raw_cos2023` (legacy GPKG bronze) NOT dropped from PostgreSQL. To physically drop: `DROP TABLE bronze_geo.raw_cos2023`.
+
+---
+
+**Sprint-08 Activity 2 (cleanup pass) is now complete** — sub-activities 2.1 (MinIO helper) + 2.2 (CRUS/PDM drop) + 2.3 (SRUP slim) + 2.4 (COS OGC migration) all landed. Next up: Activity 4 (build `silver_parcels.parcel_universe` for Aveiro).
