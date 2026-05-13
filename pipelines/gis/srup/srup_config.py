@@ -1,20 +1,26 @@
 """
-SRUP WFS Ingestion Configuration
+SRUP WFS Ingestion Configuration — slimmed to IC + DPH only (post-2026-05-13)
 
 Data source: DGTERRITÓRIO SRUP (Servidões e Restrições de Utilidade Pública)
-Property constraint/restriction data from PDM Condicionantes — ecological reserves,
-agricultural reserves, public water domain, and heritage protection zones.
+Property constraint/restriction data from PDM Condicionantes — the two layers
+DGT does NOT publish via the OGC API: heritage sites (IC) and public water
+domain (DPH).
 
 WFS URL pattern:
   https://servicos.dgterritorio.pt/SDISNITWFS{suffix}/WFService.aspx
 
-Phase 1 categories (national endpoints, full fetch):
+Active categories:
   IC  — Imóveis Classificados (heritage sites)         ~3,676 features
-  RAN — Reserva Agrícola Nacional (agricultural reserve)  ~268 features
   DPH — Domínio Público Hídrico (public water domain)       ~7 features
 
-Phase 2 (not yet implemented):
-  REN — Reserva Ecológica Nacional (regional endpoints, requires BBOX filtering)
+Retired 2026-05-13:
+  RAN — Reserva Agrícola Nacional — now served by the OGC API path
+        (pipelines/gis/srup_ogc/, layer `srup_ran_ogc`). The OGC schema
+        differs (lowercase field names + 4 new fields like `tipologia` /
+        `lei_tipo`); see stg_srup_ran.sql for the migrated projection.
+
+  REN — never implemented here; the OGC API publishes srup_ren_areal
+        and srup_ren_linear, ingested via pipelines/gis/srup_ogc/.
 """
 
 from __future__ import annotations
@@ -90,12 +96,6 @@ SRUP_ENDPOINTS: list[SRUPEndpointConfig] = [
         label="IC Heritage Sites",
     ),
     SRUPEndpointConfig(
-        category="ran",
-        wfs_suffix="SRUP_RAN_PT1",
-        feature_types=("gmgml:RAN",),
-        label="RAN Agricultural Reserve",
-    ),
-    SRUPEndpointConfig(
         category="dph",
         wfs_suffix="SRUP_DPH_PT1",
         feature_types=(
@@ -153,9 +153,6 @@ def normalize_field_name(name: str) -> str:
 # IC — gmgml:Imóveis_Classificados_Localizados (Point):
 #   (same 21 fields as above)
 #
-# RAN — gmgml:RAN (GeometryCollection):
-#   AUTOR, CONCELHO, DATA, DINÂMICA, ID, RIGOR, SERVIDÃO
-#
 # DPH — gmgml:Zona_de_Ocupação_Condicionada (Polygon):
 #   AREA_HA, DESIGNACAO, ESTADO, GEOMETRIA_AUTOR, GEOMETRIA_DATA,
 #   GEOMETRIA_RIGOR, ID, LEI_TIPO, LOCAL, MUNICIPIOS, REGIAO, SERVIDAO,
@@ -178,7 +175,6 @@ MINIO_PREFIX = "srup"
 
 BRONZE_TABLES: dict[str, str] = {
     "ic": "bronze_regulatory.raw_srup_ic",
-    "ran": "bronze_regulatory.raw_srup_ran",
     "dph": "bronze_regulatory.raw_srup_dph",
 }
 
@@ -193,8 +189,8 @@ class SRUPIngestionConfig(BaseModel):
     dag_id: str = "srup_ingestion"
     source_name: str = "srup"
     description: str = (
-        "SRUP WFS ingestion — queries DGTERRITÓRIO for property constraint data "
-        "(IC, RAN, DPH), stores GeoJSON in MinIO."
+        "SRUP WFS ingestion — queries DGTERRITÓRIO for the two property constraint "
+        "categories DGT does not publish via OGC API (IC + DPH), stores GeoJSON in MinIO."
     )
 
     minio_bucket: str = MINIO_BUCKET

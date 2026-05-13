@@ -622,3 +622,22 @@ Downstream redirects:
 **Bronze tables NOT dropped** — the PostgreSQL tables `bronze_regulatory.raw_crus_ordenamento` and any PDM bronze tables remain in place for ad-hoc historical queries. Drop manually if needed: `DROP TABLE bronze_regulatory.raw_crus_ordenamento`.
 
 Verification: `py_compile` clean on all 9 active GIS DAG modules; `ruff` clean; no remaining `from pipelines.gis.crus` / `from pipelines.gis.pdm` imports in the active tree.
+
+## [2026-05-13] sprint-08-activity-2.3 | Slimmed `pipelines/gis/srup/` to IC + DPH only; RAN redirected to OGC
+
+[[sprint-08]] Activity 2.3 done. `pipelines/gis/srup/srup_config.py` now lists only the two SRUP categories the DGT OGC API does NOT publish: `ic` (Imóveis Classificados, heritage) and `dph` (Domínio Público Hídrico, water-domain easement). RAN moved to the OGC variant (`bronze_regulatory.raw_srup_ran_ogc`, populated by `srup_ogc_bronze_dag` with collection `srup_ran`).
+
+Changes:
+
+- `SRUP_ENDPOINTS` and `BRONZE_TABLES` slimmed (entry `category="ran"` removed)
+- Docstring rewritten to explain why IC + DPH stayed on WFS (OGC API doesn't carry them; confirmed by WebFetch on `ogcapi.dgterritorio.gov.pt/collections` 2026-05-12)
+- `SRUPIngestionConfig.description` updated to reflect "(IC + DPH)"; `tests/configs/fixtures/srup.json` description field updated to match (parity test passes)
+- `dbt/models/staging/regulatory/_staging_regulatory__sources.yml` — `raw_srup_ran` legacy entry replaced with `raw_srup_ran_ogc` (omnibus loader schema: `feature_id`, `layer_name`, `properties` JSONB, `geom`, `_source_url`, `_load_timestamp`)
+- `dbt/models/staging/regulatory/stg_srup_ran.sql` rewritten — sources from `raw_srup_ran_ogc`, projects the OGC field names (`municipios`, `servidao`, `designacao`, `tipologia`, `lei_tipo`, `serv_dr`, `serv_data`, `serv_lei`, `serv_hiperligacao`). The legacy WFS fields `DINAMICA`/`RIGOR`/`AUTOR` are dropped (not exposed by OGC); 6 new OGC-only fields are added (designacao/tipologia/lei_tipo/serv_dr/serv_lei/serv_hiperligacao).
+- `wiki/sources/srup.md` rewritten — `status` not formally "retired" since the WFS pipeline still serves IC + DPH; explains the slim rationale and lists what moved to [[srup-ogc]].
+
+**Schema confirmation**: I WebFetched `ogcapi.dgterritorio.gov.pt/collections/srup_ran/schema` to lock the OGC field-name list before writing the staging model. Source of truth for the mapping in the `stg_srup_ran.sql` header comment.
+
+**Zero downstream impact**: no existing dbt models reference `stg_srup_ran` yet — the planned consumer is [[sprint-08]] Activity 6 (`silver_geo/parcel_constraints`). The schema redirect happened cleanly; verification will land when Activity 6 runs the first build.
+
+**Bronze table preservation**: `bronze_regulatory.raw_srup_ran` (legacy WFS) NOT dropped from PostgreSQL. To physically drop: `DROP TABLE bronze_regulatory.raw_srup_ran`. The bronze for IC + DPH stays populated by `srup_ingestion_dag` going forward.

@@ -70,23 +70,23 @@ sources:
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
 
-      - name: raw_srup_ran
+      - name: raw_srup_ran_ogc
         description: >
-          SRUP Reserva Agrícola Nacional (agricultural reserve) from DGTERRITÓRIO WFS.
-          National endpoint — agricultural protection zones. Properties stored as JSONB.
-          CRS: EPSG:3763 (PT-TM06/ETRS89).
-          Source: pipelines/gis/srup/srup_bronze_dag.py
+          SRUP Reserva Agrícola Nacional (agricultural reserve) from the DGTERRITÓRIO
+          OGC API (`ogcapi.dgterritorio.gov.pt/collections/srup_ran`). National coverage.
+          Properties stored as JSONB with lowercase snake_case keys (differs from the
+          retired legacy WFS path which used uppercase PT all-caps).
+          CRS: EPSG:3763 (PT-TM06/ETRS89), transformed on insert from the OGC's 4326.
+          Source: pipelines/gis/srup_ogc/srup_ogc_bronze_dag.py (omnibus loader, layer `srup_ran_ogc`)
         columns:
           - name: feature_id
-            description: "Feature ID from WFS"
-          - name: category
-            description: "SRUP category key: 'ran'"
-          - name: feature_type
-            description: "WFS feature type identifier"
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label (e.g. `srup_ran_ogc`)"
           - name: properties
-            description: "All WFS properties as JSONB (7 fields including CONCELHO, DINAMICA, SERVIDAO, etc.)"
+            description: "OGC properties as JSONB. Known keys: municipios, servidao, designacao, tipologia, lei_tipo, serv_dr, serv_data, serv_lei, serv_hiperligacao."
           - name: geom
-            description: "Geometry in EPSG:3763 (GeometryCollection)"
+            description: "Geometry in EPSG:3763"
           - name: _source_url
             description: "MinIO object path of the source GeoJSON file"
           - name: _load_timestamp
