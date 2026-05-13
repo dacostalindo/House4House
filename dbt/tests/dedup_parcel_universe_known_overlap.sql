@@ -6,22 +6,19 @@
 -- ≥50%) failed to apply.
 --
 -- dbt singular test convention: passes when the SELECT returns zero rows.
+-- Note: dbt wraps singular tests in `... from ( <body> )`, so the body MUST
+-- be a single SELECT (no leading WITH).
 
-WITH overlaps AS (
-    SELECT
-        b.parcel_id AS bupi_parcel_id,
-        c.parcel_id AS cadastro_parcel_id,
-        b.area_m2 AS bupi_area_m2,
-        ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) AS overlap_m2,
-        ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) / NULLIF(b.area_m2, 0) AS overlap_ratio
-    FROM {{ ref('parcel_universe') }} b
-    JOIN {{ ref('parcel_universe') }} c
-      ON ST_Intersects(b.geom_pt, c.geom_pt)
-    WHERE b.source = 'bupi'
-      AND c.source = 'cadastro'
-      AND b.area_m2 > 0
-      AND ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) >= 0.5 * b.area_m2
-)
-
-SELECT *
-FROM overlaps
+SELECT
+    b.parcel_id AS bupi_parcel_id,
+    c.parcel_id AS cadastro_parcel_id,
+    b.area_m2 AS bupi_area_m2,
+    ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) AS overlap_m2,
+    ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) / NULLIF(b.area_m2, 0) AS overlap_ratio
+FROM {{ ref('parcel_universe') }} b
+JOIN {{ ref('parcel_universe') }} c
+  ON ST_Intersects(b.geom_pt, c.geom_pt)
+WHERE b.source = 'bupi'
+  AND c.source = 'cadastro'
+  AND b.area_m2 > 0
+  AND ST_Area(ST_Intersection(b.geom_pt, c.geom_pt)) >= 0.5 * b.area_m2

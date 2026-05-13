@@ -261,6 +261,16 @@ def _create_dag():
         validated = validate_count(loaded)
         cleanup_temp(fetched, validated)
 
+        if cfg.trigger_dbt_dag_id:
+            from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+            trigger_dbt = TriggerDagRunOperator(
+                task_id="trigger_dbt_cos_build",
+                trigger_dag_id=cfg.trigger_dbt_dag_id,
+                wait_for_completion=False,
+            )
+            validated >> trigger_dbt
+
     return cos_ogc_bronze_load()
 
 

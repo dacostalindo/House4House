@@ -111,7 +111,7 @@ class COSOgcIngestionConfig(BaseModel):
     start_date: datetime = Field(default_factory=lambda: datetime(2026, 5, 13))
     max_active_runs: int = 1
 
-    trigger_dbt_dag_id: str | None = None
+    trigger_dbt_dag_id: str | None = "dbt_cos_build"
 
     tags: list[str] = Field(default_factory=lambda: ["cos", "ogc_api", "land-use", "dgt"])
     retries: int = 2

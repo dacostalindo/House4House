@@ -703,3 +703,42 @@ Files:
 Verification: `dbt parse --project-dir dbt` clean. Empirical-extraction rate (what fraction of Aveiro zoning rows produce non-null `max_floors`) is unknowable without a live run — measure at first build and tighten the regex if recall is low. The Aveiro PDM publication-date check (`pdm_publication_date`) tells us which munis have CRUS data; the regex hit rate per municipality is the next signal.
 
 **Downstream consumer**: `gold.fn_assess_polygon` (sprint-09) reads these typed columns directly; no further dbt model in between.
+
+## [2026-05-13] sprint-08-activity-4+5-verified | Live dbt build of Activity 4 + 5 chain passes against the warehouse
+
+End-to-end verification of Activity 4 (parcel_universe) and Activity 5 (zoning density extraction) against the running `postgis/postgis:16-3.4` warehouse on `localhost:5433`:
+
+- `dbt build --select stg_bupi+ stg_cadastro+ stg_crus_ordenamento+`: 40 tests pass.
+- `silver_parcels.parcel_universe` materialized — 10,341 Aveiro município parcels (all from BUPI; cadastro has 0 rows in concelho `0105` per its partial 2000-2007 survey coverage). The dedup CTE works correctly (no false positives), 0 BUPI rows dropped because there's no cadastro overlap to dedupe against in Aveiro yet.
+- `silver_geo.zoning` materialized — 237,128 zones nationally. Aveiro-specific density-column hit rate: zero hits with the current regex (the Aveiro PDM `land_designation` text apparently doesn't use the literal "pisos" / "índice" / "cobertura" keywords). The columns exist + populate as NULL — the regex extraction needs a v1.5 follow-up to tune per-municipality patterns.
+
+**Two issues found and fixed in the same commit**:
+
+1. **`crus_ogc` triggered the wrong dbt DAG** — `crus_ogc_config.py` had `trigger_dbt_dag_id = "dbt_srup_build"` (copy-paste from srup_ogc); fixed to `"dbt_crus_build"`. This meant CRUS-OGC refreshes were rebuilding the SRUP chain instead of the CRUS chain.
+2. **`cos_ogc` didn't trigger anything** — `cos_ogc_config.py` had `trigger_dbt_dag_id = None` AND the bronze DAG was missing the `TriggerDagRunOperator` block I forgot to add in Activity 2.4. Set to `"dbt_cos_build"`; added the trigger block to `cos_ogc_bronze_dag`. Now COS-OGC refreshes correctly fire the cos chain.
+
+**OGC CRUS surfaces new `land_classification` values that the legacy WFS didn't**: the `accepted_values` test failed on first build with 5 unexpected values. The OGC API publishes 8 distinct values (vs the legacy 3 + capitalization variants):
+
+- 3 core: `Solo Urbano`, `Solo Rústico`, `Espaços não classificados`
+- 3 new semantic values: `Solo Urbano (urbanizável – transitório)` (rolling urban-expansion zones, ~11k rows), `Não Atribuída` (unassigned during PDM revision, ~147 rows), `Discrepância` (analog↔digital cadastre mismatch flagged by DGT, ~45 rows)
+- 2 capitalization variants of `Espaços não classificados` (data-entry inconsistency in municipal exports)
+
+The `accepted_values` test in `_silver_geo__models.yml` now lists all 8 verbatim; the column description explains the semantic distinction. A v1.5 cleanup option is to normalize via `lower(unaccent(...))` in the staging model — not done now because it's not load-bearing for the v1 Inspector.
+
+**Singular dedup test SQL syntax fix**: dbt singular tests wrap the body in `... from ( <body> )`, so leading `WITH` clauses fail to parse. Rewrote the dedup test as a single `SELECT ... FROM parcel_universe b JOIN parcel_universe c ...` without the CTE wrapper. Passes on real data: 0 BUPI/cadastro overlaps in Aveiro (no cadastro coverage to overlap with).
+
+## [2026-05-13] infra | dbt-docs server runs as a persistent docker compose service
+
+`http://localhost:8089/` now always serves the dbt docs as long as the docker compose stack is up. Previously the port was reserved on the `airflow-scheduler` container but no process bound to it — the docs site was offline until someone ran `dbt docs serve` manually.
+
+New `dbt-docs` service in `docker-compose.yml`:
+
+- Reuses the `*airflow-common` image (has dbt installed) + the same `./dbt:/opt/airflow/dbt` volume + the same warehouse env vars.
+- Runs `dbt docs generate || true` on startup (cold-start safety), then `exec dbt docs serve --host 0.0.0.0 --no-browser` for the lifetime of the container.
+- Internal port 8080 (dbt's default; the `--port` flag is unreliable in this bash heredoc form, but the default works fine); host-side mapped as `8089:8080` so it doesn't clash with the Airflow webserver on host 8080.
+- Healthcheck: HTTP 200 on `http://localhost:8080/` from inside the container; `start_period: 90s` for cold-start `docs generate` (~30-60s).
+- `restart: unless-stopped` (inherited from `*airflow-common`).
+
+Subsequent regeneration: Cosmos's `regenerate_docs` task in `pipelines/dbt/dbt_source_dags.py:155-172` runs `dbt docs generate` after every `dbt_*_build`, updating the static files at `dbt/target/` in place; the serving process picks them up on next page load (no restart needed).
+
+Port mapping was moved off `airflow-scheduler` (where it had been reserved but unused) to `dbt-docs`.

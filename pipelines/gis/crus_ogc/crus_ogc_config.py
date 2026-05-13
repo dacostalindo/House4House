@@ -68,7 +68,7 @@ class CRUSOGCIngestionConfig(BaseModel):
     schedule: str | None = None
     start_date: datetime = Field(default_factory=lambda: datetime(2026, 5, 1))
     max_active_runs: int = 2
-    trigger_dbt_dag_id: str | None = "dbt_srup_build"
+    trigger_dbt_dag_id: str | None = "dbt_crus_build"
 
     tags: list[str] = Field(default_factory=lambda: ["crus", "ogc_api", "zoning"])
     retries: int = 1

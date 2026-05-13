@@ -291,11 +291,34 @@ models:
         description: "Municipality name (e.g. AVEIRO, LISBOA)"
 
       - name: land_classification
-        description: "PDM land classification: 'Solo Urbano', 'Solo Rústico', or 'Espaços não classificados'"
+        description: >
+          PDM land classification surfaced by the OGC API. Three core values
+          plus four data-quality variants the OGC API exposes (the legacy WFS
+          path only emitted the three core values).
+
+          Core: 'Solo Urbano', 'Solo Rústico', 'Espaços não classificados'.
+          Variants from OGC: 'Solo Urbano (urbanizável – transitório)' (rolling
+          urban-expansion zones), 'Não Atribuída' (unassigned during PDM revision),
+          'Discrepância' (analog↔digital cadastre mismatch flagged by DGT).
+
+          Note: the OGC source includes capitalization variants of
+          'Espaços não classificados' ('Espaços não Classificados',
+          'Espaços Não Classificados') from inconsistent municipal data entry —
+          all three forms are accepted here verbatim. Normalization (e.g. via
+          a `lower(unaccent(...))` projection in the staging model) is a v1.5
+          cleanup option if this becomes load-bearing for the Inspector.
         tests:
           - not_null
           - accepted_values:
-              values: ['Solo Urbano', 'Solo Rústico', 'Espaços não classificados']
+              values:
+                - 'Solo Urbano'
+                - 'Solo Rústico'
+                - 'Espaços não classificados'
+                - 'Solo Urbano (urbanizável – transitório)'
+                - 'Não Atribuída'
+                - 'Discrepância'
+                - 'Espaços não Classificados'
+                - 'Espaços Não Classificados'
 
       - name: land_category
         description: >
