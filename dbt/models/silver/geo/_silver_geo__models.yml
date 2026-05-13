@@ -339,27 +339,12 @@ models:
         tests:
           - not_null
 
-      - name: max_floors
-        description: >
-          Maximum number of floors (pisos) allowed, parsed from the
-          `land_designation` PDM freetext via regex `(\d+)\s*pisos?` (case-insensitive).
-          NULL when the regex doesn't match (most rural zones, and urban zones
-          where the PDM doesn't specify). Added by Sprint-08 Activity 5 for the
-          v1 wedge Inspector's "what can I legally build" answer.
-
-      - name: max_density_index
-        description: >
-          Maximum building density index (índice), parsed from the
-          `land_designation` freetext via regex `índice\s*[:=]?\s*([\d,.]+)` (case-insensitive).
-          Portuguese number format normalized: `1,5` → `1.5` before cast to NUMERIC(6,4).
-          NULL when the regex doesn't match.
-
-      - name: max_coverage_ratio
-        description: >
-          Maximum building coverage ratio (cobertura), parsed from the
-          `land_designation` freetext via regex `cobertura\s*[:=]?\s*([\d,.]+)\s*%` (case-insensitive).
-          Returned as the raw percentage (e.g. `40` for 40%). Portuguese number
-          format normalized before cast to NUMERIC(6,4). NULL when the regex doesn't match.
+      # Density columns (max_floors / max_density_index / max_coverage_ratio)
+      # were planned in Sprint-08 Activity 5 but deferred to sprint-09 after
+      # verification 2026-05-13 showed the CRUS OGC `land_designation` field
+      # doesn't carry density numbers (it's a hierarchical zone-name like
+      # "Solo Urbano - Espaços Habitacionais - Espaço Habitacional Tipo 1").
+      # The density rules live in the PDM Regulamento per município.
 
       - name: area_ha
         description: "Polygon area in hectares as reported by CRUS"

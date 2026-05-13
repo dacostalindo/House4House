@@ -87,18 +87,18 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 
 **DONE WHEN:** `silver_parcels.parcel_universe` has ~50K rows; the dedup test passes; GIST indexes are present.
 
-### 5. Extract density rules from zoning text
+### 5. Extract density rules from zoning text — **DEFERRED to [[sprint-09]] (2026-05-13)**
 
-**Why:** the zoning silver model currently has `land_designation` as freetext. The Inspector's "what can I legally build" answer needs `max_floors`, `max_density_index`, `max_coverage_ratio` as typed columns.
+**Original plan**: extend `silver_geo.zoning` with `max_floors` / `max_density_index` / `max_coverage_ratio` parsed via regex over the CRUS `land_designation` freetext.
 
-- Extend `dbt/models/silver/geo/zoning.sql` with regex extraction over `land_designation`:
-  - `max_floors` from `(\d+)\s*piso`
-  - `max_density_index` from `índice\s*[:=]?\s*([\d,.]+)`
-  - `max_coverage_ratio` from `cobertura\s*[:=]?\s*([\d,.]+)%`
-- Defaults NULL when the regex doesn't match.
-- Document the three new columns in `dbt/models/silver/geo/_silver_geo__models.yml`.
+**Why deferred**: the approach is structurally wrong for the data we have. Verification against live Aveiro data on 2026-05-13 showed `land_designation` is a hierarchical zone classification (e.g. "Solo Urbano - Espaços Habitacionais - Espaço Habitacional Tipo 1"), NOT a freetext spec sheet. None of the keywords `piso` / `índice` / `cobertura` / `densidade` / `altura` / `implementação` appear in any of the 1,148 Aveiro zoning rows. The actual density rules live in the **PDM Regulamento** per município (a separate text document, typically PDF), not in the CRUS OGC spatial feature properties.
 
-**DONE WHEN:** the three columns are populated for Aveiro zoning rows where the source text contains the pattern; NULL otherwise; dbt tests pass.
+**[[sprint-09]] redesign options** (decision when the activity starts):
+- (a) Build a hand-curated zone-category → density lookup table (heuristic; gives the Inspector quantitative answers but the numbers are typical-PT defaults, not Aveiro-specific)
+- (b) PDM Regulamento integration — parse the actual Aveiro Regulamento PDF/text and produce a per-município lookup. Doesn't generalize but is exact for the demo target.
+- (c) Both — heuristic by default, override with PDM data where parsed.
+
+**Carry-forward**: the regex extraction code was landed in commit `b3bfd09` and reverted on 2026-05-13 in the same commit that deferred. Use that commit as a reference for the regex starting point if the sprint-09 redesign retains any of it.
 
 ### 6. Pre-classify constraint severity per parcel
 
