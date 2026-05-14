@@ -830,3 +830,7 @@ Built the 14 SRUP constraint-layer staging models that sprint-09's `gold.fn_asse
 - `wiki/concepts/srup-properties-schema.md` (NEW) — per-key reference for all 16 `raw_srup_*` `properties` JSONB blobs; documents the OGC-lowercase vs WFS-UPPERCASE split and the type-casting policy.
 - Verified: `dbt build --select tag:srup` green (14 views + 98 tests, PASS=119); each staging row count matches its bronze table; all 16 bronze SRUP geom columns already GIST-indexed (no backfill needed).
 - `wiki/sprints/sprint-08.md` Activity 6 rewritten — dropped the per-parcel pre-compute framing for the 2-PR polygon-draw plumbing scope.
+
+## [2026-05-14] decision | cos_ogc + crus_ogc national bronze loaders deferred to sprint-09
+
+User decision: the `cos_ogc_bronze_load` + `crus_ogc_bronze_load` OOM (in-memory `json.load` of the whole national GeoJSON) is moved out of [[sprint-08]] Activity 6 to [[sprint-09]] as the "national OGC bronze-loader fix" deliverable. Verified state at deferral: national `cos_ogc_ingestion` succeeds (~1h48m); both bronze loads fail (SIGKILL/-9); `raw_cos_national_ogc` + `raw_crus_national_ogc` empty; `silver_geo.land_use` still at the ~4.5k Aveiro smoke-test count. Propagated: sprint-09.md (new deliverable + `fn_assess_polygon` drift fix — now references `stg_srup_*` + `dim_constraint_severity`, not the dropped `parcel_constraints`), sprint-08.md status history, cos.md quirk.

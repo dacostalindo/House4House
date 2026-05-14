@@ -55,10 +55,10 @@ Ship the [[UC-3]] v1 wedge differentiator: the data-assembly moat at parcel-grai
 - `CREATE OR REPLACE FUNCTION gold.fn_assess_polygon(input_geom geometry) RETURNS jsonb`:
   - `ST_IsValid(input_geom)` guard → returns `{error: 'invalid polygon'}` on self-intersecting input.
   - `ST_Transform(input_geom, 3763)` — accepts WGS84 from Mapbox/Leaflet, transforms to PT-TM06 internally.
-  - 7 spatial joins inside one function (single round-trip): zoning, parcel_constraints (gates), land_use, terrain stats, nearby SCE developments (`ST_DWithin` 500m), nearby idealista plot listings (`ST_DWithin` 500m), assembled parcels (`ST_Intersects` against parcel_universe), nearby unified_developments.
-  - Returns JSONB per the schema in the [[UC-3]] page.
+  - Spatial joins inside one function (single round-trip): zoning, the 14 `stg_srup_*` constraint layers joined to `dim_constraint_severity` for gates (per-layer `ST_Intersects`; REN-linear / Rede-Viária / Rede-Ferroviária buffered per the `buffer_m` / `buffer_ref` columns — see [[srup-constraint-model]]), land_use, terrain stats, nearby SCE developments (`ST_DWithin` 500m), nearby idealista plot listings (`ST_DWithin` 500m), assembled parcels (`ST_Intersects` against parcel_universe), nearby unified_developments.
+  - Returns JSONB per the constraint-hit schema locked in [[srup-constraint-model]] + the wider shape in the [[UC-3]] page.
   - SQL comment block at function top documents the JSONB output shape.
-- **GIST indexes (load-bearing for perf)**: ensure `parcel_universe.geom`, `silver_sce_buildings.geom`, `silver_plot_listings_enriched.geom`, `silver_unified_developments.geom`, `parcel_constraints.geom`, `silver_geo.zoning.geom`, `silver_geo.land_use.geom` all have GIST indexes BEFORE the function is callable. Confirm via `CREATE INDEX CONCURRENTLY` migrations.
+- **GIST indexes (load-bearing for perf)**: ensure `parcel_universe.geom`, `silver_sce_buildings.geom`, `silver_plot_listings_enriched.geom`, `silver_unified_developments.geom`, `silver_geo.zoning.geom`, `silver_geo.land_use.geom` all have GIST indexes BEFORE the function is callable (the 16 `bronze_regulatory.raw_srup_*` geom columns the `stg_srup_*` views sit on are already GIST-indexed — verified in [[sprint-08]] Activity 6 PR 2). Confirm via `CREATE INDEX CONCURRENTLY` migrations.
 - Tests #2-#6 from Appendix C (pgTAP): happy-path, invalid polygon, ocean/empty result, SRID transform, assembled parcels.
 
 ### Workstream 4 — Atlas Site Inspector (Streamlit-component, ~1 week, NET-NEW)
@@ -75,6 +75,14 @@ Ship the [[UC-3]] v1 wedge differentiator: the data-assembly moat at parcel-grai
 - Frontend calls `SELECT gold.fn_assess_polygon(ST_GeomFromGeoJSON(...))` via psycopg2.
 - **Delete** existing placeholders `apps/pages/4_parcel_explorer.py` + `apps/pages/5_site_analyzer.py` (replaced).
 - Tests #19-#20 from Appendix C (Playwright E2E): happy-path draw-and-assess, invalid polygon error rendering.
+
+### Deferred from Sprint-08 — national OGC bronze-loader fix (~1-2 days, NET-NEW)
+
+`cos_ogc_bronze_load` and `crus_ogc_bronze_load` both **OOM at national scale** — `load_features` does an in-memory `json.load` of the whole GeoJSON (fine for the bbox smoke tests, fatal for the national ~784k-polygon COS and ~236k-polygon CRUS files; SIGKILL/-9). Verified 2026-05-14: national `cos_ogc_ingestion` succeeds (~1h48m) but the bronze load is killed; `crus_ogc_bronze_load` fails the same way. Until fixed, `bronze_geo.raw_cos_national_ogc` and `bronze_regulatory.raw_crus_national_ogc` stay empty and `silver_geo.land_use` reflects only the Aveiro smoke test (~4.5k rows). Deferred from [[sprint-08]] Activity 6 by user decision 2026-05-14.
+
+- Rewrite the `load_features` task in `pipelines/gis/cos_ogc/cos_ogc_bronze_dag.py` + `pipelines/gis/crus_ogc/crus_ogc_bronze_dag.py` to stream/chunk the GeoJSON (e.g. `ijson` feature-streaming or batched `executemany` inserts) instead of `json.load`.
+- Re-run both national bronze loads; verify `raw_cos_national_ogc` ≈ 784k rows and `raw_crus_national_ogc` ≈ 236k rows.
+- Trigger `dbt_cos_build` + `dbt_crus_build`; verify `silver_geo.land_use` rebuilds to national scope.
 
 ### Demo prep + execution (~3-5 days)
 
@@ -114,6 +122,7 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 
 - 2026-04-18: original "Enhancements + Production Hardening" declared in README §12; status `planned`
 - 2026-05-12: restructured to "UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)" per [[2026-05-12-uc3-expanded-scope]]. Existing scope (Imovirtual / RNAL / hedonic v2 / ARU / etc.) deferred to future v1.5+ sprint, gated on wedge validation. Weeks extended from 19-20 → 19-21. Status `planned`.
+- 2026-05-14: added "Deferred from Sprint-08 — national OGC bronze-loader fix" deliverable (`cos_ogc` + `crus_ogc` `load_features` OOM on whole-GeoJSON `json.load`). `fn_assess_polygon` deliverable updated to the as-built constraint model — queries the 14 `stg_srup_*` layers + `dim_constraint_severity` (not the dropped `parcel_constraints` pre-compute). Status `planned`.
 
 ## See also
 
