@@ -115,6 +115,251 @@ sources:
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
 
+      # ── SRUP OGC layers (added 2026-05-14, Sprint-08 Activity 6 PR 2) ──
+      # All share the same bronze shape: feature_id / layer_name / properties
+      # (JSONB, lowercase snake_case keys) / geom (EPSG:3763) / _source_url /
+      # _load_timestamp. Source: pipelines/gis/srup_ogc/ omnibus loader.
+      # Full per-key properties breakdown: wiki/concepts/srup-properties-schema.md
+
+      - name: raw_srup_ren_areal
+        description: >
+          SRUP Reserva Ecológica Nacional — areal zones (MultiPolygon).
+          National coverage. JSONB properties (24 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: area_ha, classifica, codigoobje, concelho, designacao, dinamica, dtcc, fid, fid_1, geom_autor, geom_data, geom_rigor, id, lei_tipo, peca_grafi, regiao, reg_n, serv_data, serv_dr, serv_hiper, servidao, serv_lei, tipologia, tutela"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_ren_linear
+        description: >
+          SRUP Reserva Ecológica Nacional — linear watercourse lines/beds
+          (MultiLineString). National coverage. JSONB properties (20 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: classifica, codigoobje, compriment, concelho, designacao, dinamica, dtcc, estado, fid, geometria_, id, id1, id_servdao, id_servida, lei_tipo, regiao, serv_data, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiLineString in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_zpe
+        description: >
+          SRUP Rede Natura 2000 — Zonas de Proteção Especial (birds).
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_zec
+        description: >
+          SRUP Rede Natura 2000 — Zonas Especiais de Conservação (habitats).
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_areas_protegidas
+        description: >
+          SRUP Áreas Protegidas (Parque/Reserva Natural, Paisagem Protegida, etc.).
+          National coverage. JSONB properties (11 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: codigo, designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_rede_viaria
+        description: >
+          SRUP Rede Viária — road servidão zones (zona da estrada corridor).
+          National coverage. JSONB properties (11 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: codigo, concelho, designacao, fid, lei_tipo, serv_data, serv_dr, serv_hiper, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (road corridor, not the non-aedificandi servidão — see srup-constraint-model.md)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_rede_eletrica
+        description: >
+          SRUP Rede Elétrica — power-line faixa de protecção (AT + MAT).
+          National coverage. JSONB properties (11 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: concelho, designacao, dtcc, fid, lei_tipo, serv_data, serv_dr, serv_hiperlig, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763 (~45 m faixa de protecção)"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_rede_ferroviaria
+        description: >
+          SRUP Rede Ferroviária — railway line servidão (~20 m non-aedificandi zone).
+          National coverage. JSONB properties (11 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: codigo, conselho, designacao, fid, lei_tipo, serv_data, serv_dr, serv_hiper, servidao, serv_lei, tipologia (note `conselho` is a source typo for concelho)"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_rede_ferroviaria_estacoes
+        description: >
+          SRUP Rede Ferroviária — station + halt yard footprints. Same DL 276/2003
+          regime as raw_srup_rede_ferroviaria; UNION'd into stg_srup_rede_ferroviaria.
+          National coverage. JSONB properties (11 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: codigo, designacao, fid, lei_tipo, municipio, serv_data, serv_dr, serv_hiper, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_albufeiras
+        description: >
+          SRUP Albufeiras de Águas Públicas Classificadas — public-reservoir
+          protection zones (protegida / condicionada / livre tiers).
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_defesa_militar
+        description: >
+          SRUP Defesa Militar — military servitude zones. UNION'd with
+          raw_srup_defesa_militar_zonas into stg_srup_defesa_militar.
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_defesa_militar_zonas
+        description: >
+          SRUP Defesa Militar — graduated military servitude zones (Zona 1-4,
+          terreno militar). UNION'd into stg_srup_defesa_militar.
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiper, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
+      - name: raw_srup_aeronautica
+        description: >
+          SRUP Servidões Aeronáuticas — airport / aerodrome / radio-beacon zones
+          (área de desobstrução, servidão, zona protecção edifícios públicos).
+          National coverage. JSONB properties (10 keys). CRS EPSG:3763.
+        columns:
+          - name: feature_id
+            description: "OGC feature id"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "JSONB. Keys: designacao, fid, lei_tipo, municipios, serv_data, serv_dr, serv_hiperligacao, servidao, serv_lei, tipologia"
+          - name: geom
+            description: "MultiPolygon in EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path of the source GeoJSON file"
+          - name: _load_timestamp
+            description: "Timestamp when the row was loaded into PostGIS"
+
       - name: raw_bupi
         description: >
           BUPI simplified cadastral property parcels (RGG) from dados.gov.pt.

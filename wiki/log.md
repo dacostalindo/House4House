@@ -820,3 +820,13 @@ Checked the `cos_ogc_ingestion` → `cos_ogc_bronze_load` → `dbt_cos_build` ch
 - `bronze_geo.raw_cos_national_ogc` = **0 rows**; `silver_geo.land_use` = **4,504 rows** (still the Aveiro smoke test, NOT the ~784k target). Legacy `bronze_geo.raw_cos2023` still holds 783,760 rows.
 
 Committed the pending national-scope config (`cos_ogc_config.py` — `bbox_4326` default `None`) + `wiki/sources/cos.md`, with `cos.md` corrected to the verified reality: national ingestion ~1h48m (not the earlier ~10-15 min estimate) + a "National bronze load OOMs" quirk. Open issue: `cos_ogc_bronze_dag.py` needs a streaming/chunked loader before national bronze load can succeed.
+
+## [2026-05-14] feat | SRUP staging models + full properties unpacking — Sprint-08 Activity 6 PR 2
+
+Built the 14 SRUP constraint-layer staging models that sprint-09's `gold.fn_assess_polygon` queries. PR 3 (full `properties` JSONB unpacking) was merged into PR 2 — the staging models do exhaustive unpacking from the start rather than being rewritten later.
+
+- 14 × `dbt/models/staging/regulatory/stg_srup_*.sql` (NEW/rewritten) — RAN, REN areal, REN linear, IC, DPH, ZPE, ZEC, Áreas Protegidas, Rede Viária, Rede Elétrica, Rede Ferroviária, Albufeiras, Defesa Militar, Aeronáutica. Uniform contract (`constraint_code` + `zone_type` + constraint-relevant fields) + every `properties` key unpacked into a typed column. Rede Ferroviária + Defesa Militar each UNION two bronze tables. `tag:srup` on all 14.
+- `_staging_regulatory__sources.yml` — 13 new bronze source entries. `_staging_regulatory__models.yml` — 14 model entries with `not_null` + `accepted_values` tests on `constraint_code` / `zone_type` (catches CASE-derivation typos).
+- `wiki/concepts/srup-properties-schema.md` (NEW) — per-key reference for all 16 `raw_srup_*` `properties` JSONB blobs; documents the OGC-lowercase vs WFS-UPPERCASE split and the type-casting policy.
+- Verified: `dbt build --select tag:srup` green (14 views + 98 tests, PASS=119); each staging row count matches its bronze table; all 16 bronze SRUP geom columns already GIST-indexed (no backfill needed).
+- `wiki/sprints/sprint-08.md` Activity 6 rewritten — dropped the per-parcel pre-compute framing for the 2-PR polygon-draw plumbing scope.

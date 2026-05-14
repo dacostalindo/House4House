@@ -1,15 +1,17 @@
 {{ config(tags=['srup']) }}
 
--- SRUP Reserva Agrícola Nacional — sourced from the OGC API path
--- (raw_srup_ran_ogc) as of 2026-05-13. One of the 14 SRUP constraint
--- layers; uniform output schema (constraint_code + zone_type + the
--- constraint-relevant servidao/tipologia/lei fields). See
--- wiki/concepts/srup-constraint-model.md. Full properties unpacking is PR 3.
+-- SRUP Rede Elétrica — power-line faixa de protecção. OGC source, 11
+-- properties keys fully unpacked (`fid` duplicates feature_id; `dtcc` is the
+-- extra). zone_type = voltage class (AT vs MAT — carries the E-Redes vs REN
+-- authority split). See wiki/concepts/srup-constraint-model.md + srup-properties-schema.md.
 
 SELECT
     feature_id,
-    'RAN'::TEXT                             AS constraint_code,
-    'reserva_agricola'::TEXT                AS zone_type,
+    'RedeEletrica'::TEXT                    AS constraint_code,
+    CASE
+        WHEN properties->>'tipologia' ILIKE '%Muito Alta%' THEN 'servidao_eletrica_mat'
+        ELSE 'servidao_eletrica_at'
+    END                                     AS zone_type,
     TRIM(properties->>'designacao')         AS designation,
     TRIM(properties->>'servidao')           AS restriction_type,
     TRIM(properties->>'tipologia')          AS typology,
@@ -19,10 +21,11 @@ SELECT
     TRIM(properties->>'serv_data')          AS restriction_date,
     TRIM(COALESCE(properties->>'serv_hiperligacao', properties->>'serv_hiper', properties->>'serv_hiperlig')) AS restriction_url,
     TRIM(COALESCE(properties->>'municipios', properties->>'concelho', properties->>'conselho', properties->>'municipio')) AS municipality,
+    TRIM(properties->>'dtcc')               AS dtcc,
     properties,
     geom,
     ST_Transform(geom, 4326)                AS geom_wgs84,
     _source_url,
     _load_timestamp
-FROM {{ source('bronze_regulatory', 'raw_srup_ran_ogc') }}
+FROM {{ source('bronze_regulatory', 'raw_srup_rede_eletrica') }}
 WHERE geom IS NOT NULL

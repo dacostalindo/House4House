@@ -100,16 +100,22 @@ By week 18, every Aveiro plot has its constraint, zoning, terrain, and SCE pictu
 
 **Carry-forward**: the regex extraction code was landed in commit `b3bfd09` and reverted on 2026-05-13 in the same commit that deferred. Use that commit as a reference for the regex starting point if the sprint-09 redesign retains any of it.
 
-### 6. Pre-classify constraint severity per parcel
+### 6. SRUP constraint plumbing for polygon-draw assessment
 
-**Why:** the Inspector needs to surface gates ("RAN_full", "DPH", "IC", "REN", "defesa militar", etc.) instantly. Computing them live for every query is wasteful — precompute once per parcel.
+**Why:** the v1 wedge primary workflow is **polygon-draw** — a user draws ANY polygon and the Atlas Inspector reports which regulatory constraints intersect it. Pre-computing severity per parcel (the original framing) doesn't fit: drawn polygons are unique → no cache hits, and a polygon over the lagoon / a non-cadastered field / spanning 3 parcels isn't usefully parcel-keyed. Instead, land the typed, GIST-indexed data layer that [[sprint-09]]'s `gold.fn_assess_polygon` queries live via `ST_Intersects` (~5-20 ms/layer; 14 layers well inside the 3 s budget). Shipped in 2 PRs.
 
-- Create `dbt/models/silver/geo/parcel_constraints.sql` — per-parcel `ST_Intersects` against the OGC [[srup-ogc]] layers (`stg_srup_ran_ogc`, `stg_srup_ren_areal`, `stg_srup_ren_linear`, `stg_srup_areas_protegidas`, `stg_srup_defesa_militar`, `stg_srup_zpe`, `stg_srup_zec`, `stg_srup_perigosidade_inc_rural`) plus legacy [[srup]] DPH + IC (the two layers DGT does not publish via OGC API).
-- `severity` column: 0 = none, 1 = soft constraint (ZPE/ZEC/SGIFR/DPH buffer), 2 = moderate gate (RAN partial / defesa militar zona), 3 = hard gate (RAN full / REN / áreas protegidas core / DPH core), 4 = heritage (IC / monumentos).
-- `constraint_codes` array column listing every layer hit per parcel (e.g. `['RAN', 'ZPE']`) for the Inspector readout.
-- `materialized=table` + GIST + B-tree on `(parcel_id, severity)`.
+**PR 1 — constraint model + severity dimension** (done, commit `17b7462`):
+- [[srup-constraint-model]] — deep legal research (direct Decreto-Lei quotes) + live geometry inspection of all 14 in-scope SRUP layers; the locked `(constraint_code, zone_type)` → severity model + the constraint-hit JSONB schema `fn_assess_polygon` returns.
+- `dbt/models/gold/dim_constraint_severity.sql` — 27-row inline-`VALUES` dimension: severity 0-3, category, `buffer_m` / `buffer_ref`, legal_basis, authority + derived flags. Key finding: SRUP layers ARE the legally-drawn restriction zones, so the relationship is a per-feature `zone_type` attribute (from `servidao` / `tipologia` / geometry-type), not a geometric core-vs-buffer computation — `fn_assess_polygon` does ONE `ST_Intersects` per layer.
 
-**DONE WHEN:** every Aveiro parcel has a `parcel_constraints` row (severity 0 if unaffected); a hand-picked known-RAN parcel returns severity ≥ 3; a hand-picked known-IC parcel returns severity 4.
+**PR 2 — staging models + full properties unpacking + GIST plumbing:**
+- 14 `dbt/models/staging/regulatory/stg_srup_*.sql` — one per constraint layer (RAN / REN areal / REN linear / IC / DPH / ZPE / ZEC / Áreas Protegidas / Rede Viária / Rede Elétrica / Rede Ferroviária / Albufeiras / Defesa Militar / Aeronáutica). Uniform contract: `constraint_code` + `zone_type` + the constraint-relevant fields + **every `properties` JSONB key unpacked into a typed column**. Rede Ferroviária UNIONs the line + station-yard tables; Defesa Militar UNIONs the servidão + graduated-zones tables.
+- [[srup-properties-schema]] — per-key reference for all 16 bronze `raw_srup_*` tables' `properties` JSONB (the two key-case conventions, types, fill-rates, meanings).
+- GIST indexes verified on all 16 bronze `raw_srup_*` geom columns (all present — `ST_Intersects` on the staging views pushes the predicate down to them).
+
+**Out of scope (deferred):** `gold.fn_assess_polygon` body + the Atlas Inspector UI → [[sprint-09]]. v1.5 layers: wildfire (`perigosidade_inc_rural` — 1.79M polygons — and `sgifr_*`), aquifers, geodesic marks, classified trees.
+
+**DONE WHEN:** `dbt build --select tag:srup` green (14 views + 98 tests); each `stg_srup_*` row count matches its bronze table; `dim_constraint_severity` builds with 27 rows + 19 tests green; all 16 bronze SRUP geom columns GIST-indexed.
 
 ### 7. Geocode the SCE certificates
 
