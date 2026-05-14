@@ -795,3 +795,18 @@ Implications:
 - Going national: technically supported by the existing `DgtStacAdapter.fetch_to` pagination loop. Cost estimate: **~75 GB MinIO** (50 GB raw tiles × 2 collections + 25 GB slope COGs) + **5-20 hours** wall time + cookie refresh mid-run (cookie lasts ~1 week). v2 work; not blocking sprint-08.
 
 `wiki/sources/lidar.md` updated: `last_verified` 2026-05-13; coverage section now states 489 is canonical-for-configured-bbox with the verification method spelled out + national-rollout cost notes.
+
+## [2026-05-14] query | Portuguese electrical-grid easement regime — faixa de protecção widths by voltage class
+
+Researched RSLEAT (DR 1/92) + DL 43335 against the live `bronze_regulatory.raw_srup_rede_eletrica` table. Key findings: the SRUP rede_eletrica layer carries only **two** `tipologia` values — "Alta Tensão" (1618 rows) and "Muito Alta Tensão" (838 rows); BT/MT are absent (those fall under RSRDEEBT / DR 90/84, not in SRUP). Every row cites `serv_lei = "Decreto-Lei n.º 43335"` with `serv_hiperlig → DL 43335_1960.pdf` (image-only PDF, no text layer). RSLEAT art. 30 confirmed: `D = 3,0 + 0,0075·U` (U kV), min 4 m, to buildings; faixa de serviço 5 m for tree-cutting. A 220 kV REN EIA documents the faixa de protecção / servidão administrativa as 45 m wide (22.5 m each side), construction *condicionada* not prohibited. Updated `wiki/concepts/srup-constraint-model.md` Rede Elétrica entry with the art. 30 citation, the condicionada framing, the ~25 m AT / 45 m MAT widths, and the live two-tipologia data confirmation.
+
+## [2026-05-14] design | SRUP constraint model — Sprint-08 Activity 6 PR 1
+
+Locked the model behind sprint-09's `gold.fn_assess_polygon` (polygon-draw constraint assessment). Deep legal research (direct Decreto-Lei quotes) + live geometry inspection of every in-scope SRUP bronze table.
+
+- **New concept page** `wiki/concepts/srup-constraint-model.md` — 14 in-scope layers, per-layer legal regime + construction effect, geometry semantics, the severity model, the locked constraint-hit JSONB schema.
+- **New gold model** `dbt/models/gold/dim_constraint_severity.sql` — 27-row inline-`VALUES` dimension keyed on `(constraint_code, zone_type)` → severity 0-3, category, `buffer_m`/`buffer_ref`, legal_basis, authority + derived flags/labels/colors. Built + 19 tests passing. Followed the `dim_property_type` / `ref_imi_rates` inline-VALUES pattern (no dbt-seed infra in the repo) instead of the plan's seed CSV.
+- **Key finding**: SRUP layers ARE the legally-drawn restriction zones — `relationship` collapses to a per-feature `zone_type` attribute (from `servidao`/`tipologia`/geometry-type), not a geometric core-vs-buffer computation. `fn_assess_polygon` does ONE `ST_Intersects` per layer.
+- **Scope grew 11 → 14**: added `Albufeiras` / `DefesaMilitar` / `Aeronautica` after a review of all 25 SRUP bronze tables; `rede_ferroviaria_estacoes` folded into `RedeFerroviaria`. Deferred to v1.5: wildfire (`perigosidade_inc_rural` 1.79M polys), aquifers, geodesic marks, classified trees.
+- **Buffer model**: 3 layers take a query-time buffer — REN linear (10 m), Rede Ferroviária (10 m height-rule margin), Rede Viária (50/35/20 m by class, `buffer_ref='axis'` — corridor polygon ≠ servidão, subtract per-feature half-width). Verified by live width measurement; OSM road centerlines evaluated and rejected.
+- Plan updated (`/loop` plan file): PR 3 added — full `properties` JSONB unpacking for the 14 staging models + `srup-properties-schema.md`.
