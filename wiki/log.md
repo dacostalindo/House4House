@@ -810,3 +810,13 @@ Locked the model behind sprint-09's `gold.fn_assess_polygon` (polygon-draw const
 - **Scope grew 11 → 14**: added `Albufeiras` / `DefesaMilitar` / `Aeronautica` after a review of all 25 SRUP bronze tables; `rede_ferroviaria_estacoes` folded into `RedeFerroviaria`. Deferred to v1.5: wildfire (`perigosidade_inc_rural` 1.79M polys), aquifers, geodesic marks, classified trees.
 - **Buffer model**: 3 layers take a query-time buffer — REN linear (10 m), Rede Ferroviária (10 m height-rule margin), Rede Viária (50/35/20 m by class, `buffer_ref='axis'` — corridor polygon ≠ servidão, subtract per-feature half-width). Verified by live width measurement; OSM road centerlines evaluated and rejected.
 - Plan updated (`/loop` plan file): PR 3 added — full `properties` JSONB unpacking for the 14 staging models + `srup-properties-schema.md`.
+
+## [2026-05-14] verify | national cos_ogc chain — ingestion works, bronze load OOMs
+
+Checked the `cos_ogc_ingestion` → `cos_ogc_bronze_load` → `dbt_cos_build` chain for the national-scope run. Snapshot:
+- `cos_ogc_ingestion manual__2026-05-14T07:14:24` → **success** (~1h48m national fetch — the earlier offset-pagination read-timeout did not recur).
+- `cos_ogc_bronze_load manual__2026-05-14T09:02:48` → **failed** — `load_features` SIGKILL/OOM-killed doing an in-memory `json.load` of the 784k-polygon GeoJSON.
+- `dbt_cos_build` → did not run for this attempt (upstream failed). Last success 2026-05-13.
+- `bronze_geo.raw_cos_national_ogc` = **0 rows**; `silver_geo.land_use` = **4,504 rows** (still the Aveiro smoke test, NOT the ~784k target). Legacy `bronze_geo.raw_cos2023` still holds 783,760 rows.
+
+Committed the pending national-scope config (`cos_ogc_config.py` — `bbox_4326` default `None`) + `wiki/sources/cos.md`, with `cos.md` corrected to the verified reality: national ingestion ~1h48m (not the earlier ~10-15 min estimate) + a "National bronze load OOMs" quirk. Open issue: `cos_ogc_bronze_dag.py` needs a streaming/chunked loader before national bronze load can succeed.

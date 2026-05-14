@@ -5,12 +5,16 @@ Replaces the legacy bulk-GeoPackage path (`pipelines/gis/cos/`) with a
 paginated OGC API Features ingestion. The OGC API serves the same COS
 2023 dataset at `ogcapi.dgterritorio.gov.pt/collections/cos2023v1`.
 
-Why the switch (2026-05-13):
-  - National bulk download: ~5 min for the full ~784k polygons (~700 MB)
-  - OGC API with Aveiro bbox filter: ~30s for the ~5-15k polygons that
-    intersect Aveiro distrito — the v1 wedge scope
-  - Streaming-friendly (no large local disk requirement)
+Scope:
+  - **National** (~784k polygons, matching the legacy GPKG count)
+  - Streaming-friendly (no large local disk requirement vs the ~700 MB bulk download)
   - Single shared adapter (OgcApiAdapter) with cadastro/crus_ogc/srup_ogc
+  - Downstream silver consumers filter via `WHERE concelho_code = ...` at query time
+
+The earlier Aveiro-bbox configuration (Activity 2.4 initial) was a v1-wedge
+optimization (~30s ingestion); lifted 2026-05-13 to match parcel_universe's
+national scope. Bbox can be reinstated by setting `bbox_4326` to a non-None
+tuple in `COSOgcIngestionConfig` — the `OgcApiAdapter` honors it when set.
 
 Schema notes:
   - OGC API serves geometries in EPSG:4326; transformed to EPSG:3763
@@ -40,9 +44,10 @@ OGCAPI_BASE = "https://ogcapi.dgterritorio.gov.pt/collections"
 COLLECTION_ID = "cos2023v1"
 OGCAPI_URL = f"{OGCAPI_BASE}/{COLLECTION_ID}/items"
 
-# Aveiro distrito bounding box (WGS84 / EPSG:4326), matching lidar_config.
-# v1 wedge scope is Aveiro município but a slightly wider bbox is fine —
-# downstream silver models filter by concelho_code.
+# Aveiro distrito bbox (kept for reference / quick-scope ingestion runs).
+# Default ingestion is national (`bbox_4326=None` in the config below);
+# to re-scope to Aveiro for a smoke test, set the config's `bbox_4326`
+# field to this tuple.
 AVEIRO_BBOX_4326: tuple[float, float, float, float] = (-8.764, 40.528, -8.521, 40.728)
 
 # ---------------------------------------------------------------------------
@@ -85,9 +90,10 @@ class COSOgcIngestionConfig(BaseModel):
     bronze_dag_id: str = "cos_ogc_bronze_load"
 
     description_ingestion: str = (
-        "COS 2023 OGC API ingestion — fetches land-use/cover polygons for the "
-        "Aveiro distrito bbox via ogcapi.dgterritorio.gov.pt/collections/cos2023v1. "
-        "Replaces the legacy bulk-GeoPackage path."
+        "COS 2023 OGC API ingestion — fetches national land-use/cover polygons "
+        "(~784k features) via ogcapi.dgterritorio.gov.pt/collections/cos2023v1. "
+        "Replaces the legacy bulk-GeoPackage path. Set `bbox_4326` to "
+        "AVEIRO_BBOX_4326 to scope to Aveiro for a fast smoke test."
     )
     description_bronze: str = (
         "COS 2023 OGC bronze loader — loads GeoJSON from MinIO into "
@@ -96,7 +102,9 @@ class COSOgcIngestionConfig(BaseModel):
     )
 
     ogcapi_url: str = OGCAPI_URL
-    bbox_4326: tuple[float, float, float, float] | None = AVEIRO_BBOX_4326
+    # Default scope: national. Set to AVEIRO_BBOX_4326 (or any tuple) for
+    # bbox-scoped ingestion runs.
+    bbox_4326: tuple[float, float, float, float] | None = None
 
     page_size: int = PAGE_SIZE
     request_delay_seconds: float = REQUEST_DELAY_SECONDS
