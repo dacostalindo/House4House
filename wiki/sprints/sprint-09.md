@@ -84,6 +84,18 @@ Ship the [[UC-3]] v1 wedge differentiator: the data-assembly moat at parcel-grai
 - Re-run both national bronze loads; verify `raw_cos_national_ogc` ≈ 784k rows and `raw_crus_national_ogc` ≈ 236k rows.
 - Trigger `dbt_cos_build` + `dbt_crus_build`; verify `silver_geo.land_use` rebuilds to national scope.
 
+### Deferred from Sprint-08 — freguesia-union mapping for SCE geocoding (~0.5-1 day, NET-NEW)
+
+[[sprint-08]] Activity 7 shipped the `sce_geocode` cascade (Nominatim → freguesia-centroid → none) with **100% coverage on Aveiro concelho** but only **83.78% on Aveiro distrito**. The 16.2% gap is a CAOP-vs-SCE data drift: `gold_analytics.dim_geography` (CAOP 2025) carries pre-2013-reform separate freguesias (e.g. `Anta` 010707 + `Guetim` 010708), but the SCE portal uses post-2013-reform **union codes** (e.g. 010706 = "ANTA E GUETIM"). 19 union freguesias across Aveiro distrito → 9,047 SCE doc_numbers land at `geocode_source='none'` despite the bronze data being internally clean. v1 demo target (Aveiro concelho) is unaffected; national rollout needs this fixed.
+
+- Source the official DGT freguesia-union mapping (DGT publishes a `freguesias_pre_pos_reform_2013.csv` or similar with the union→constituent code list).
+- Create `bronze_enrichment.freguesia_union_map(union_dtmnfr, constituent_dtmnfr, constituent_name, weight)` — weight allows centroid-of-centroids when one union spans multiple pre-reform parishes.
+- Extend the `sce_geocode_dag.py` cascade with a tier 2.5: when DTMNFR doesn't directly match `dim_geography`, look up via `freguesia_union_map` → take the average of constituent centroids (or the largest-weight one). `geocode_source='freguesia_union_centroid'`, `geocode_confidence=0.15`.
+- Backfill the 9,047 existing 'none' rows via a targeted re-run (no need to re-call Nominatim — pure DB lookup).
+- Verify distrito-wide coverage ≥95 %. Update [[sce]] coverage table.
+
+Out of scope for this task: backporting the unions into `dim_geography` itself (that's a CAOP-version bump — separate work).
+
 ### Demo prep + execution (~3-5 days)
 
 - 20-parcel spot-check on Aveiro: 5 hard-gate cases, 5 high-slope coastal, 5 urban centro, 5 rural periphery. Manual QGIS verification of `fn_assess_polygon` output per parcel.
@@ -123,6 +135,7 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-04-18: original "Enhancements + Production Hardening" declared in README §12; status `planned`
 - 2026-05-12: restructured to "UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)" per [[2026-05-12-uc3-expanded-scope]]. Existing scope (Imovirtual / RNAL / hedonic v2 / ARU / etc.) deferred to future v1.5+ sprint, gated on wedge validation. Weeks extended from 19-20 → 19-21. Status `planned`.
 - 2026-05-14: added "Deferred from Sprint-08 — national OGC bronze-loader fix" deliverable (`cos_ogc` + `crus_ogc` `load_features` OOM on whole-GeoJSON `json.load`). `fn_assess_polygon` deliverable updated to the as-built constraint model — queries the 14 `stg_srup_*` layers + `dim_constraint_severity` (not the dropped `parcel_constraints` pre-compute). Status `planned`.
+- 2026-05-15: added "Deferred from Sprint-08 — freguesia-union mapping" deliverable. Activity 7's `sce_geocode` cascade hit 83.78 % coverage on Aveiro distrito (vs ≥90 % target) due to pre-2013-reform freguesia codes in CAOP 2025 vs post-2013 union codes in the SCE portal. Aveiro concelho (v1 demo target) is at 100 %; only national rollout is affected. Status `planned`.
 
 ## See also
 

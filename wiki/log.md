@@ -834,3 +834,21 @@ Built the 14 SRUP constraint-layer staging models that sprint-09's `gold.fn_asse
 ## [2026-05-14] decision | cos_ogc + crus_ogc national bronze loaders deferred to sprint-09
 
 User decision: the `cos_ogc_bronze_load` + `crus_ogc_bronze_load` OOM (in-memory `json.load` of the whole national GeoJSON) is moved out of [[sprint-08]] Activity 6 to [[sprint-09]] as the "national OGC bronze-loader fix" deliverable. Verified state at deferral: national `cos_ogc_ingestion` succeeds (~1h48m); both bronze loads fail (SIGKILL/-9); `raw_cos_national_ogc` + `raw_crus_national_ogc` empty; `silver_geo.land_use` still at the ~4.5k Aveiro smoke-test count. Propagated: sprint-09.md (new deliverable + `fn_assess_polygon` drift fix — now references `stg_srup_*` + `dim_constraint_severity`, not the dropped `parcel_constraints`), sprint-08.md status history, cos.md quirk.
+
+## [2026-05-15] feat | SCE geocoding shipped — Sprint-08 Activity 7 + 8 done
+
+Activity 7 (SCE forward-geocoding pipeline) shipped in 5 phases over 5 commits. The new `sce_geocode` DAG sits between `sce_bronze_load` and `dbt_sce_build` and runs the cascade per row: Nominatim forward-geocode → freguesia centroid (DTMNFR-keyed dim_geography lookup) → unresolved. `stg_sce_certificates` now exposes `geom_4326` / `geom_3763` + the Appendix-A `normalized_address` clustering key, ready for sprint-09 Slice B's DBSCAN.
+
+End-to-end run (2026-05-15, 12:58→14:07, 68 min wall):
+- 55,766 distinct doc_numbers processed (Aveiro distrito)
+- **Aveiro concelho (v1 demo target): 100% coverage** (5,718 / 5,718 docs)
+- Aveiro distrito-wide: 83.78% coverage (46,719 with coords) — short of the ≥90% Activity-7 bar
+- 9,047 docs (16.2%) unresolved due to a CAOP-vs-SCE drift: post-2013-reform union-of-freguesias (e.g. "ANTA E GUETIM" = code 010706) exist in the SCE portal but `dim_geography` (CAOP 2025) only has the pre-reform separates (Anta 010707, Guetim 010708). Affects 19 union freguesias across the distrito; Aveiro concelho has no reformed parishes.
+
+Decision: ship Activity 7 at this coverage since the v1 demo (Aveiro concelho) is 100% covered. The freguesia-union gap is **deferred to [[sprint-09]]** as a new "Deferred from Sprint-08 — freguesia-union mapping" deliverable (DGT publishes a freguesia_pre_pos_reform_2013 table; sprint-09 sources it + adds a tier 2.5 to the cascade + backfills the 9,047 'none' rows; targets ≥95% distrito coverage).
+
+Activity 8 (silver_sce_buildings skeleton) also done — commit `6724c2a`. Empty 15-column schema with 4 indexes (2 GIST + 2 btree); sprint-09 Slice B body-fills with ST_ClusterDBSCAN + Levenshtein dedup. `fuzzystrmatch` extension installed via dbt_project.yml on-run-start so Slice B has it ready.
+
+Test #1 row-count regression: PASS. `stg_sce_certificates = 92,763` = `COUNT(DISTINCT doc_number) FROM raw_sce_certificates`. LEFT JOIN preserved row count exactly.
+
+Activity 9 (pgTAP CI runner) remains the last sprint-08 deliverable.
