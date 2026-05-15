@@ -852,3 +852,20 @@ Activity 8 (silver_sce_buildings skeleton) also done — commit `6724c2a`. Empty
 Test #1 row-count regression: PASS. `stg_sce_certificates = 92,763` = `COUNT(DISTINCT doc_number) FROM raw_sce_certificates`. LEFT JOIN preserved row count exactly.
 
 Activity 9 (pgTAP CI runner) remains the last sprint-08 deliverable.
+
+## [2026-05-15] feat | pgTAP CI runner — Sprint-08 Activity 9 done, sprint shipped
+
+Activity 9 lands the CI plumbing for sprint-09's `gold.fn_assess_polygon` pgTAP tests (#2-#6 from `/plan-eng-review` Appendix C). Sprint-09 drops `.sql` files into `tests/sql/` and they auto-run — no CI work in critical-path sprint.
+
+Changes (4 commits, PR [#30](https://github.com/dacostalindo/House4House/pull/30)):
+- `f847f87` — initial: CI service `postgres:16` → `postgis/postgis:16-3.4`; `apt-get install postgresql-16-pgtap` + `CREATE EXTENSION pgtap` via `docker exec`; `apt-get install libtap-parser-sourcehandler-pgtap-perl` for `pg_prove`; `pg_prove tests/sql/*.sql` step with `shopt -s nullglob` green-empty guard; `tests/sql/.gitkeep` created.
+- `520fb84` — CI catch: drop unused `# noqa: BLE001` in `pipelines/common/geocoding.py:77` (rationale moved to inline comment; BLE001 isn't in the project's ruff config).
+- `ce726f7` — CI catch: `ruff format` auto-fixes across 6 files (continuation-style only, no behaviour change).
+- `19ba95a` — CI catch: `pythonpath = ['.']` in `pyproject.toml` `[tool.pytest.ini_options]`. CI's `uv run pytest` doesn't editable-install the workspace (members carry `[tool.uv] package = false` — intentional, matches how Airflow loads `pipelines.*` from the DAGs-folder PYTHONPATH). Declarative replacement for the per-conftest `sys.path.insert` workaround the existing `tests/configs/conftest.py` was using.
+
+PR #30 green at CI run 25939105896 (1m08s). Verified in logs:
+- `CREATE EXTENSION` ✓ (pgTAP installed in the service container)
+- `pg_prove --version` ✓ (runner has the test tool)
+- `"No tests/sql/*.sql files yet — sprint-09 adds them (Activity 9 green-empty state)"` ✓ (the spec's done-when state)
+
+**Sprint-08 ship complete.** All 9 activities done (Activity 5 deferred to sprint-09 by design). Two carry-overs tracked in sprint-09: cos_ogc/crus_ogc national bronze-loader OOM fix + post-2013 freguesia-union mapping.
