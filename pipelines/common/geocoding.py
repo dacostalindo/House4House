@@ -74,7 +74,10 @@ def nominatim_geocode(
         )
         resp.raise_for_status()
         results = resp.json()
-    except Exception as exc:  # noqa: BLE001 — boundary call; bad addresses must not crash batch
+    except Exception as exc:
+        # Boundary call: a bad address or transient Nominatim hiccup must not
+        # crash the whole batch — yield None and let the caller fall through
+        # to the freguesia-centroid tier.
         log.warning("[nominatim] forward-geocode failed for %r: %s", query[:80], exc)
         return None
 
