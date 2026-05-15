@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: silver_sce_buildings
+    description: >
+      Per-building SCE roll-up. One row = one physical building, produced
+      by clustering geocoded SCE certificates (stg_sce_certificates) via
+      ST_ClusterDBSCAN (eps=30m, minpoints=1) and deduplicating within
+      each cluster on normalized_address (Levenshtein-ratio <= 0.15).
+      Sprint-08 Activity 8 lands ONLY the schema + indexes + tests (zero
+      rows); sprint-09 Slice B fills the body. Consumed by sprint-09's
+      gold.fn_assess_polygon via ST_DWithin for the "nearby SCE
+      developments" Atlas Inspector surface.
+    columns:
+      # ── Identity ───────────────────────────────────────────────────────
+      - name: sce_building_id
+        description: "Surrogate BIGINT key. Stable across rebuilds (sprint-09 produces it via ROW_NUMBER over cluster_id ordered by cluster_geom_3763)"
+        tests:
+          - unique
+          - not_null
+      # ── Geometry (dual CRS, both GIST-indexed) ────────────────────────
+      - name: cluster_geom_3763
+        description: "Centroid of the cluster in EPSG:3763 (PT-TM06). Computed as ST_Centroid over member geom_3763. Used for ST_DWithin spatial joins in fn_assess_polygon"
+        tests:
+          - not_null
+      - name: cluster_geom_4326
+        description: "Same centroid in EPSG:4326 (WGS84). For Kepler.gl / Leaflet display in the Inspector"
+        tests:
+          - not_null
+      # ── Administrative ────────────────────────────────────────────────
+      - name: concelho
+        description: "Mode of member SCE rows' municipality (after upper-cased + trimmed). NULL if no member rows or empty mode"
+      - name: parish
+        description: "Mode of member SCE rows' parish (freguesia_detail). NULL when not all members agree"
+      - name: parcel_id
+        description: >
+          Foreign key to silver_parcels.parcel_universe.parcel_id. Picked per
+          Appendix A tiebreak: cluster's spatial-majority parcel; tie → smaller
+          parcel area; still tied → cluster_split=TRUE and row is duplicated
+          across both parcels. NULL when the cluster falls on un-cadastered land.
+      - name: cluster_split
+        description: "TRUE when the cluster centroid was assigned to 2+ cadastral parcels (Appendix A tiebreak). The same sce_building_id appears once per parcel in that case"
+        tests:
+          - not_null
+      # ── Aggregates ────────────────────────────────────────────────────
+      - name: frac_count
+        description: "Count of member SCE rows ≈ number of units (fracções) in the building. Sprint-09 Slice B Test #9 enforces frac_count = sum of dedup'd member rows"
+        tests:
+          - not_null
+      - name: energy_class_dist
+        description: >
+          JSONB histogram across the 7 PT energy classes (A+, A, B, B-, C, D, E, F).
+          Shape: {"A+": N, "A": N, ..., "F": N}. Members with missing/unparseable
+          energy_class are dropped (don't inflate any bucket). Sprint-09 Slice B
+          Test #10 enforces sum(values) == frac_count for non-null members
+      - name: first_emission
+        description: "MIN(member issued_date). Earliest SCE certificate observed for this building. Proxy for build year"
+      - name: last_emission
+        description: "MAX(member issued_date). Latest SCE certificate observed. last_emission - first_emission ≈ unit-issuance window"
+      - name: dominant_state
+        description: "Mode of member status (e.g. 'Válido', 'Revogado'). Tie → alphabetical first. NULL when all members null"
+      - name: cluster_geocode_confidence
+        description: "MIN of member geocode_confidence. Surfaces fuzzy clusters to the UI: a building containing one freguesia-centroid-only member drags the whole building's confidence to 0.2"
+        tests:
+          - not_null
+      # ── Provenance ────────────────────────────────────────────────────
+      - name: member_doc_numbers
+        description: "TEXT[] array of constituent SCE doc_numbers. For tracing 'which certificate fed this building' from the Inspector"
+        tests:
+          - not_null
+      - name: _built_at
+        description: "Timestamp the table was built (NOW() at SELECT time)"
+        tests:
+          - not_null
