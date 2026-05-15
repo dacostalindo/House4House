@@ -11,12 +11,15 @@ jobs:
     timeout-minutes: 10
 
     services:
-      # postgres:16 service container for `dbt parse` step. dbt-postgres
-      # validates the connection even on parse-only mode, so we need a real
-      # database in CI. Minimal: no PostGIS extension needed (parse compiles
-      # refs but doesn't run model SQL).
+      # postgis/postgis:16-3.4 service container for `dbt parse` + the
+      # pgTAP runner. Drop-in replacement for postgres:16: same port, same
+      # ci/ci/ci credentials, same health-check. The PostGIS bump is for
+      # sprint-09's `gold.fn_assess_polygon` pgTAP tests, which exercise
+      # spatial operators (ST_Transform / ST_Intersects / ST_DWithin).
+      # Activity 9 (sprint-08) lands the runner empty — sprint-09 fills
+      # tests/sql/*.sql.
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
@@ -61,6 +64,47 @@ jobs:
           mkdir -p $AIRFLOW_HOME
           echo "::group::pytest"
           uv run pytest -q tests/
+          echo "::endgroup::"
+
+      # ── pgTAP CI plumbing (Sprint-08 Activity 9, 2026-05-15) ──
+      # Three steps: install pgTAP into the postgres service, install
+      # pg_prove on the runner, run any tests/sql/*.sql files (green when
+      # the directory is empty — sprint-09 adds the fn_assess_polygon
+      # tests #2-#6 from /plan-eng-review Appendix C).
+      - name: Install pgTAP into postgres service
+        run: |
+          echo "::group::pgtap-install"
+          docker exec ${{ job.services.postgres.id }} bash -c \
+            "apt-get update -q && apt-get install -y postgresql-16-pgtap"
+          PGPASSWORD=ci psql -h localhost -U ci -d ci \
+            -c "CREATE EXTENSION IF NOT EXISTS pgtap"
+          echo "::endgroup::"
+
+      - name: Install pg_prove (test runner)
+        run: |
+          echo "::group::pg-prove-install"
+          sudo apt-get update -q
+          sudo apt-get install -y libtap-parser-sourcehandler-pgtap-perl
+          pg_prove --version
+          echo "::endgroup::"
+
+      - name: pg_prove
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: ci
+          PGPASSWORD: ci
+          PGDATABASE: ci
+        shell: bash
+        run: |
+          echo "::group::pg-prove"
+          shopt -s nullglob
+          files=(tests/sql/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No tests/sql/*.sql files yet — sprint-09 adds them (Activity 9 green-empty state)"
+          else
+            pg_prove --verbose "${files[@]}"
+          fi
           echo "::endgroup::"
 
       - name: ty check (advisory)
