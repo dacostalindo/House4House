@@ -476,3 +476,36 @@ sources:
             description: "Timestamp when the row was loaded into PostGIS"
           - name: _minio_path
             description: "MinIO object path of the source JSONL file"
+
+  # ── Enrichment-layer bronze (Sprint-08 Activity 7, 2026-05-15) ──
+  # Sidecar bronze schema for enrichment artifacts that are derived from
+  # other bronze sources (vs scraped from external systems).
+  - name: bronze_enrichment
+    database: house4house
+    schema: bronze_enrichment
+    tables:
+      - name: raw_sce_geocoded
+        description: >
+          Forward-geocoded SCE certificates. One row per doc_number,
+          populated by pipelines/enrichment/sce_geocode_dag.py via a
+          Nominatim → freguesia-centroid cascade. LEFT JOIN'd into
+          stg_sce_certificates to expose (lat, lng) + clustering key
+          (normalized_address) for sprint-09 Slice B's
+          ST_ClusterDBSCAN building roll-up.
+        columns:
+          - name: doc_number
+            description: "SCE document number — PK; joins to raw_sce_certificates"
+          - name: address_lat
+            description: "Latitude in EPSG:4326. NULL when both cascade tiers miss."
+          - name: address_lng
+            description: "Longitude in EPSG:4326. NULL when both cascade tiers miss."
+          - name: geocode_source
+            description: "Cascade tier: 'nominatim' / 'freguesia_centroid' / 'none'"
+          - name: geocode_confidence
+            description: "0.0–1.0. Nominatim's `importance` for tier 1, 0.2 fixed for tier 2, 0.0 for tier 3."
+          - name: normalized_address
+            description: "Appendix-A clustering key from sce_address_norm.normalize_address(). Consumed by sprint-09 Levenshtein dedup."
+          - name: nominatim_display
+            description: "Nominatim's display_name for the top hit (debug / Inspector tooltip). NULL for non-nominatim tiers."
+          - name: _geocoded_at
+            description: "Timestamp the row was written to bronze_enrichment"

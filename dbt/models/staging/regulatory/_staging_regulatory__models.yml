@@ -670,3 +670,19 @@ models:
 
       - name: loaded_at
         description: "Timestamp when the row was loaded into the bronze table"
+
+      # ── Geocoding columns (LEFT JOIN bronze_enrichment.raw_sce_geocoded) ──
+      - name: address_lat
+        description: "Latitude (EPSG:4326) from the sce_geocode DAG. NULL when neither Nominatim nor the freguesia centroid resolved the address."
+      - name: address_lng
+        description: "Longitude (EPSG:4326) from the sce_geocode DAG. NULL when both cascade tiers miss."
+      - name: geocode_source
+        description: "Which cascade tier produced the coords: 'nominatim' (street-level) / 'freguesia_centroid' (parish-level fallback) / 'none' (unresolved)."
+      - name: geocode_confidence
+        description: "0.0–1.0. Nominatim's `importance` for tier 1, 0.2 fixed for the freguesia centroid, 0.0 when nothing matched. Surfaced in the Inspector as a 'fuzzy address' indicator."
+      - name: normalized_address
+        description: "Appendix-A clustering key (pipelines/enrichment/sce_address_norm.normalize_address). Consumed by sprint-09 Slice B's Levenshtein-ratio dedup inside each ST_ClusterDBSCAN cluster."
+      - name: geom_4326
+        description: "POINT geometry in EPSG:4326 — NULL when coords are NULL. For map display / Kepler.gl."
+      - name: geom_3763
+        description: "POINT geometry in EPSG:3763 (PT-TM06) — NULL when coords are NULL. For distance/area joins and ST_ClusterDBSCAN in silver_sce_buildings."
