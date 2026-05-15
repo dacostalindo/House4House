@@ -220,7 +220,7 @@ The rule also extends to near-synonyms (`scd2-row-hash.md` and `row-hash-dedup.m
 
 ## No-content-duplication guardrail
 
-Rules and patterns live ONLY in `wiki/concepts/`. The root `CLAUDE.md` is a pure pointer index — it points at `wiki/index.md` §"By area of code" and never duplicates content. This is the single-source-of-truth guarantee. Per-area `CLAUDE.md` files were retired 2026-05-12 (see [[log#2026-05-12-claude-md-consolidation]]); having them outside the wiki meant they drifted invisibly to the wiki linter.
+Rules and patterns live ONLY in `wiki/concepts/`. The root `CLAUDE.md` is a pure pointer index — it points at `wiki/index.md` §"By area of code" and never duplicates content. This is the single-source-of-truth guarantee. Per-area `CLAUDE.md` files were retired 2026-05-12 (see [the 2026-05-12 CLAUDE.md consolidation log entry](log.md#2026-05-12-claude-md-consolidation)); having them outside the wiki meant they drifted invisibly to the wiki linter.
 
 When Claude updates a rule, it updates the wiki page. The root pointer doesn't drift because it points at an indexed location, not at content.
 

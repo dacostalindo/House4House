@@ -572,7 +572,7 @@ Per the consolidation rule that surfaced earlier today ("only one source of trut
 - `PORTAL_FIELD_MAP.md` → [[portal-field-map]] (new wiki page, 160-line cross-portal correspondence matrix)
 - `SCD2_RULES.md` → merged into existing [[scd2-row-hash]] (added worked examples — per-pipeline `*_VERSION_COLUMNS` tuples for [[zome]]/[[remax]]/[[idealista]] — plus the 21-day floor formula)
 
-Each new page carries the standard frontmatter + `## For future Claude` preamble per [[wiki/CLAUDE.md|wiki schema]]; all wikilinks resolve. The wiki/index.md Concepts section grew from 10 to 13 pages; the `## By area of code` `pipelines/` row updated to list the three new portal-* concepts.
+Each new page carries the standard frontmatter + `## For future Claude` preamble per [[CLAUDE.md|wiki schema]]; all wikilinks resolve. The wiki/index.md Concepts section grew from 10 to 13 pages; the `## By area of code` `pipelines/` row updated to list the three new portal-* concepts.
 
 Inbound references redirected across **15 active-tree files**:
 
@@ -869,3 +869,19 @@ PR #30 green at CI run 25939105896 (1m08s). Verified in logs:
 - `"No tests/sql/*.sql files yet — sprint-09 adds them (Activity 9 green-empty state)"` ✓ (the spec's done-when state)
 
 **Sprint-08 ship complete.** All 9 activities done (Activity 5 deferred to sprint-09 by design). Two carry-overs tracked in sprint-09: cos_ogc/crus_ogc national bronze-loader OOM fix + post-2013 freguesia-union mapping.
+
+## [2026-05-15] reconcile | 7 findings, 5 auto-fixed, 2 flagged for user, 0 ADRs created
+
+Post-sprint-08-ship reconcile. 4 parallel scanner agents (schema / wikilinks / reciprocity / freshness); ingest agent skipped (no gstack-driven merges to main since last reconcile — sprint-08 work lives on the still-open PR #30).
+
+5 BLOCKING auto-fixed:
+- `wiki/CLAUDE.md:223` — anchor-style wikilink (`[[log#...]]`) converted to standard markdown link.
+- `wiki/index.md:46` + `wiki/log.md:575` — `[[wiki/CLAUDE.md|...]]` → `[[CLAUDE.md|...]]` (redundant prefix dropped).
+- `wiki/decisions/2026-05-12-uc3-expanded-scope.md:39` — `[[gstack-plan-eng-review]]` → `` `gstack /plan-eng-review` `` (gstack skill, not a wiki page).
+- `wiki/planning/PoCs/agentic-pipeline.md` — frontmatter normalised (title + last_verified + tags added; `last-updated` → `last_verified`, `poc-repo` → `poc_repo`); 2 relative-path wikilinks (`[[../../architecture/...]]`) collapsed to bare basenames.
+
+2 ADVISORY flagged (no fix — intentional design):
+- `wiki/sources/crus.md` — custom retired-source sections instead of canonical four (deliberate; superseded by [[crus-ogc]]).
+- `wiki/concepts/portal-field-map.md` — reference-matrix page (no `## Why`/`## How`; domain-appropriate as a lookup table).
+
+Housekeeping: index.md `Last reconcile run` bumped to 2026-05-15; index preamble updated to reference the active `/wiki-reconcile` skill (the legacy `/wiki-lint` cron + skill were retired 2026-05-12). Full session report at `wiki/lint-reports/2026-05-15T222336.md`.

@@ -2,10 +2,10 @@
 
 ## For future Claude
 
-This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last lint run:` line is the freshness indicator (updated by `/wiki-lint`); a stale date means lint hasn't fired recently and contradiction-detection coverage is degrading.
+This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last reconcile run:` line is the freshness indicator (updated by `/wiki-reconcile`); a stale date means the reconcile skill hasn't fired recently and drift-detection coverage is degrading. (The legacy `/wiki-lint` skill was retired 2026-05-12 in favour of `/wiki-reconcile` which covers both layers; the historical `Last lint run:` date stays here for archaeology.)
 
-Last lint run: 2026-05-08
-Last reconcile run: 2026-05-12 (UC-3 reframe propagation)
+Last lint run: 2026-05-08 (skill retired)
+Last reconcile run: 2026-05-15 (post-sprint-08 ship)
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
@@ -43,7 +43,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 ### `wiki/` (this knowledge base)
 
-- See [[wiki/CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
+- See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
 ## Sources (23 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
