@@ -84,9 +84,7 @@ class OgcApiAdapter:
 
     def __init__(self, cfg: UnifiedIngestionConfig):
         if cfg.protocol != "ogc_api":
-            raise ValueError(
-                f"OgcApiAdapter requires protocol='ogc_api', got '{cfg.protocol}'"
-            )
+            raise ValueError(f"OgcApiAdapter requires protocol='ogc_api', got '{cfg.protocol}'")
         self.cfg = cfg
 
     def probe(self) -> dict:
@@ -208,10 +206,7 @@ class ArcgisRestAdapter:
         """GET {layer}/query?where=1=1&returnCountOnly=true&f=json → {count}."""
         import requests
 
-        url = (
-            f"{self.cfg.endpoint_url}/query"
-            f"?where=1%3D1&returnCountOnly=true&f=json"
-        )
+        url = f"{self.cfg.endpoint_url}/query?where=1%3D1&returnCountOnly=true&f=json"
         resp = requests.get(url, timeout=self.cfg.request_timeout_seconds)
         resp.raise_for_status()
         data = resp.json()
@@ -319,9 +314,7 @@ class DgtStacAdapter:
 
     def __init__(self, cfg: UnifiedIngestionConfig):
         if cfg.protocol != "dgt_stac":
-            raise ValueError(
-                f"DgtStacAdapter requires protocol='dgt_stac', got '{cfg.protocol}'"
-            )
+            raise ValueError(f"DgtStacAdapter requires protocol='dgt_stac', got '{cfg.protocol}'")
         if not cfg.collection_id:
             raise ValueError("DgtStacAdapter requires collection_id (STAC collection)")
         self.cfg = cfg

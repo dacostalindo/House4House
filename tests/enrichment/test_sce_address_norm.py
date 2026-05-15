@@ -25,11 +25,7 @@ from pipelines.enrichment.sce_address_norm import (
     normalize_address,
 )
 
-FIXTURE_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "fixtures"
-    / "sce_addresses_aveiro.jsonl"
-)
+FIXTURE_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "sce_addresses_aveiro.jsonl"
 
 
 # ---------------------------------------------------------------------------
@@ -41,21 +37,24 @@ FIXTURE_PATH = (
 class TestAbbreviationExpansion:
     """Appendix A rule 2 — PT real-estate abbreviation glossary."""
 
-    @pytest.mark.parametrize("prefix,expansion", [
-        ("R.", "rua"),
-        ("R", "rua"),
-        ("Av.", "avenida"),
-        ("AV", "avenida"),
-        ("Tv.", "travessa"),
-        ("TV", "travessa"),
-        ("Lg.", "largo"),
-        ("Est.", "estrada"),
-        ("Edif.", "edificio"),
-        ("URB", "urbanizacao"),
-        ("Dr.", "doutor"),
-        ("Prof.", "professor"),
-        ("Eng.", "engenheiro"),
-    ])
+    @pytest.mark.parametrize(
+        "prefix,expansion",
+        [
+            ("R.", "rua"),
+            ("R", "rua"),
+            ("Av.", "avenida"),
+            ("AV", "avenida"),
+            ("Tv.", "travessa"),
+            ("TV", "travessa"),
+            ("Lg.", "largo"),
+            ("Est.", "estrada"),
+            ("Edif.", "edificio"),
+            ("URB", "urbanizacao"),
+            ("Dr.", "doutor"),
+            ("Prof.", "professor"),
+            ("Eng.", "engenheiro"),
+        ],
+    )
     def test_street_prefix_expansion(self, prefix, expansion):
         out = normalize_address(f"{prefix} Direita 45", concelho="Aveiro")
         assert out.startswith(f"aveiro|{expansion} "), (
@@ -72,9 +71,7 @@ class TestDiacriticFold:
     """Appendix A rule 4 — NFD normalise + strip combining marks."""
 
     def test_basic_diacritics(self):
-        assert normalize_address("Rua São João", concelho="Aveiro") == (
-            "aveiro|rua sao joao"
-        )
+        assert normalize_address("Rua São João", concelho="Aveiro") == ("aveiro|rua sao joao")
 
     def test_circumflex_acute_cedilla(self):
         out = normalize_address("Rua Heróis de Angola", concelho="Aveiro")
@@ -100,14 +97,10 @@ class TestFracaoStripping:
         assert "lt43" not in normalize_address("Rua Direita LT43", concelho="Aveiro")
 
     def test_bloco(self):
-        assert "bloco" not in normalize_address(
-            "Rua Direita Bloco A", concelho="Aveiro"
-        )
+        assert "bloco" not in normalize_address("Rua Direita Bloco A", concelho="Aveiro")
 
     def test_bl_short(self):
-        assert "bl" not in normalize_address(
-            "Rua Direita BL A1 RC", concelho="Aveiro"
-        ).split()
+        assert "bl" not in normalize_address("Rua Direita BL A1 RC", concelho="Aveiro").split()
 
     def test_fracao_keyword(self):
         out = normalize_address("Rua Direita Fração D", concelho="Aveiro")
@@ -115,9 +108,7 @@ class TestFracaoStripping:
         assert "d" not in out.split()[-1:]
 
     def test_s_n(self):
-        assert "s/n" not in normalize_address(
-            "Rua Direita s/n", concelho="Aveiro"
-        )
+        assert "s/n" not in normalize_address("Rua Direita s/n", concelho="Aveiro")
 
 
 class TestFloorAndDirection:
@@ -156,10 +147,22 @@ class TestFloorAndDirection:
 class TestGroundFloorVariants:
     """Appendix A rule 3 — ground-floor markers (rés-do-chão)."""
 
-    @pytest.mark.parametrize("variant", [
-        "Rés-do-chão", "Res-do-chao", "RDC", "RCH", "R/c", "R/ch", "R.c.",
-        "R.ch", "RC", "Rés do Chão", "rés do chão",
-    ])
+    @pytest.mark.parametrize(
+        "variant",
+        [
+            "Rés-do-chão",
+            "Res-do-chao",
+            "RDC",
+            "RCH",
+            "R/c",
+            "R/ch",
+            "R.c.",
+            "R.ch",
+            "RC",
+            "Rés do Chão",
+            "rés do chão",
+        ],
+    )
     def test_variant_stripped(self, variant):
         out = normalize_address(f"Rua Direita {variant}", concelho="Aveiro")
         for token in ("rdc", "rch", "rc", "res-do-chao"):
@@ -215,9 +218,7 @@ class TestParenthetical:
     """Appendix A rule 3 — parenthetical bits removed."""
 
     def test_parenthetical_stripped(self):
-        out = normalize_address(
-            "Rua Direita Bloco B2 (B204)", concelho="Aveiro"
-        )
+        out = normalize_address("Rua Direita Bloco B2 (B204)", concelho="Aveiro")
         assert "b204" not in out
         assert "(" not in out and ")" not in out
 
@@ -228,9 +229,7 @@ class TestNegativeLookahead:
 
     def test_fr_de_preserved(self):
         # Archaic noble title: "AV D FR DE MIGUEL..." — the 'FR' is 'Frei'
-        out = normalize_address(
-            "AV D FR DE Miguel de Bulhões e Sousa 42", concelho="Aveiro"
-        )
+        out = normalize_address("AV D FR DE Miguel de Bulhões e Sousa 42", concelho="Aveiro")
         assert "fr" in out.split(), f"'FR DE' protection failed: {out!r}"
         assert "de" in out.split()
 
@@ -256,18 +255,14 @@ class TestFracaoFieldEndStrip:
     there as a trailing token."""
 
     def test_trailing_fracao_stripped(self):
-        out = normalize_address(
-            "Rua Direita CY", fracao="CY", concelho="Aveiro"
-        )
+        out = normalize_address("Rua Direita CY", fracao="CY", concelho="Aveiro")
         assert " cy" not in out
         assert not out.endswith(" cy")
 
     def test_fracao_with_ordinal(self):
         # fracao field with ordinal indicator must be cleaned (matching the
         # morada which has already had º/ª stripped).
-        out = normalize_address(
-            "Rua Direita 91 1", fracao="1º", concelho="Aveiro"
-        )
+        out = normalize_address("Rua Direita 91 1", fracao="1º", concelho="Aveiro")
         # "1º" → frac_clean="1" → matches trailing " 1" → stripped
         assert not out.endswith(" 1")
 
@@ -276,15 +271,13 @@ class TestClusteringSemantics:
     """Two SCE certificates for the same physical building must collapse."""
 
     def test_abbreviated_vs_full(self):
-        assert (
-            normalize_address("R. Direita 45", concelho="Aveiro")
-            == normalize_address("Rua Direita 45", concelho="Aveiro")
+        assert normalize_address("R. Direita 45", concelho="Aveiro") == normalize_address(
+            "Rua Direita 45", concelho="Aveiro"
         )
 
     def test_case_insensitive(self):
-        assert (
-            normalize_address("RUA DIREITA 45", concelho="Aveiro")
-            == normalize_address("Rua Direita 45", concelho="Aveiro")
+        assert normalize_address("RUA DIREITA 45", concelho="Aveiro") == normalize_address(
+            "Rua Direita 45", concelho="Aveiro"
         )
 
     def test_two_fracoes_same_building(self):
@@ -292,11 +285,13 @@ class TestClusteringSemantics:
         # different fração suffixes B vs C.
         a = normalize_address(
             "R VICENTE DE ALMEIDA DE ECA 64 R/C - B",
-            fracao="B", concelho="AVEIRO",
+            fracao="B",
+            concelho="AVEIRO",
         )
         b = normalize_address(
             "R VICENTE DE ALMEIDA DE ECA 64 R/C - C",
-            fracao="C", concelho="AVEIRO",
+            fracao="C",
+            concelho="AVEIRO",
         )
         assert a == b, f"Same building must collapse: {a!r} vs {b!r}"
 
@@ -368,19 +363,20 @@ _FIXTURE_ROWS = _load_fixture()
 @pytest.mark.parametrize(
     "row",
     _FIXTURE_ROWS,
-    ids=[
-        f"{r['bucket']}:{r['morada'][:30]}".replace(" ", "_")
-        for r in _FIXTURE_ROWS
-    ],
+    ids=[f"{r['bucket']}:{r['morada'][:30]}".replace(" ", "_") for r in _FIXTURE_ROWS],
 )
 def test_fixture_snapshot(row):
     """Snapshot regression on 38 diverse real Aveiro SCE rows across 24 buckets."""
     actual_normalize = normalize_address(
-        row["morada"], row.get("fracao"),
-        row.get("localidade"), row.get("concelho"),
+        row["morada"],
+        row.get("fracao"),
+        row.get("localidade"),
+        row.get("concelho"),
     )
     actual_geocode = geocode_query(
-        row["morada"], row.get("freguesia_detail"), row.get("concelho"),
+        row["morada"],
+        row.get("freguesia_detail"),
+        row.get("concelho"),
     )
     assert actual_normalize == row["expected_normalize_address"]
     assert actual_geocode == row["expected_geocode_query"]

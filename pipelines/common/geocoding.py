@@ -147,7 +147,9 @@ def nominatim_geocode_batch(
         if progress_every and processed % progress_every == 0:
             log.info(
                 "[nominatim] progress: %d / %d processed, %d hits",
-                processed, total, hits,
+                processed,
+                total,
+                hits,
             )
             if progress_callback is not None:
                 progress_callback(processed, hits)
@@ -156,5 +158,7 @@ def nominatim_geocode_batch(
 
     log.info(
         "[nominatim] batch complete: %d processed, %d hits (%.1f%% hit rate)",
-        processed, hits, 100.0 * hits / max(processed, 1),
+        processed,
+        hits,
+        100.0 * hits / max(processed, 1),
     )

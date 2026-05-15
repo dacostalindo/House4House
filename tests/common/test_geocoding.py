@@ -105,10 +105,12 @@ class TestNominatimGeocodeBatch:
                 _mock_response([SAMPLE_HIT]),
             ]
             with patch("pipelines.common.geocoding.time.sleep"):  # skip sleep
-                pairs = list(nominatim_geocode_batch(
-                    [("k1", "Aveiro"), ("k2", "zzz"), ("k3", "Porto")],
-                    url="http://nominatim:8080",
-                ))
+                pairs = list(
+                    nominatim_geocode_batch(
+                        [("k1", "Aveiro"), ("k2", "zzz"), ("k3", "Porto")],
+                        url="http://nominatim:8080",
+                    )
+                )
 
         assert [k for k, _ in pairs] == ["k1", "k2", "k3"]
         assert isinstance(pairs[0][1], GeocodeResult)
@@ -116,29 +118,37 @@ class TestNominatimGeocodeBatch:
         assert isinstance(pairs[2][1], GeocodeResult)
 
     def test_rate_limit_sleep_called_per_request(self):
-        with patch("pipelines.common.geocoding.requests.get") as mock_get, \
-             patch("pipelines.common.geocoding.time.sleep") as mock_sleep:
+        with (
+            patch("pipelines.common.geocoding.requests.get") as mock_get,
+            patch("pipelines.common.geocoding.time.sleep") as mock_sleep,
+        ):
             mock_get.return_value = _mock_response([SAMPLE_HIT])
-            list(nominatim_geocode_batch(
-                [("k1", "a"), ("k2", "b"), ("k3", "c")],
-                url="http://nominatim:8080",
-                rate_limit_seconds=0.05,
-            ))
+            list(
+                nominatim_geocode_batch(
+                    [("k1", "a"), ("k2", "b"), ("k3", "c")],
+                    url="http://nominatim:8080",
+                    rate_limit_seconds=0.05,
+                )
+            )
 
         assert mock_sleep.call_count == 3
         assert all(call.args[0] == 0.05 for call in mock_sleep.call_args_list)
 
     def test_progress_callback(self):
         calls: list[tuple[int, int]] = []
-        with patch("pipelines.common.geocoding.requests.get") as mock_get, \
-             patch("pipelines.common.geocoding.time.sleep"):
+        with (
+            patch("pipelines.common.geocoding.requests.get") as mock_get,
+            patch("pipelines.common.geocoding.time.sleep"),
+        ):
             mock_get.return_value = _mock_response([SAMPLE_HIT])
-            list(nominatim_geocode_batch(
-                [("k", "a")] * 5,
-                url="http://nominatim:8080",
-                progress_every=2,
-                progress_callback=lambda p, h: calls.append((p, h)),
-            ))
+            list(
+                nominatim_geocode_batch(
+                    [("k", "a")] * 5,
+                    url="http://nominatim:8080",
+                    progress_every=2,
+                    progress_callback=lambda p, h: calls.append((p, h)),
+                )
+            )
 
         # Callback fired at processed=2, 4 (every 2)
         assert calls == [(2, 2), (4, 4)]
@@ -150,17 +160,21 @@ class TestNominatimGeocodeBatch:
         mock_get.assert_not_called()
 
     def test_one_failure_does_not_stop_batch(self):
-        with patch("pipelines.common.geocoding.requests.get") as mock_get, \
-             patch("pipelines.common.geocoding.time.sleep"):
+        with (
+            patch("pipelines.common.geocoding.requests.get") as mock_get,
+            patch("pipelines.common.geocoding.time.sleep"),
+        ):
             mock_get.side_effect = [
                 _mock_response([SAMPLE_HIT]),
                 ConnectionError("boom"),
                 _mock_response([SAMPLE_HIT]),
             ]
-            results = list(nominatim_geocode_batch(
-                [("a", "x"), ("b", "y"), ("c", "z")],
-                url="http://nominatim:8080",
-            ))
+            results = list(
+                nominatim_geocode_batch(
+                    [("a", "x"), ("b", "y"), ("c", "z")],
+                    url="http://nominatim:8080",
+                )
+            )
 
         assert [k for k, _ in results] == ["a", "b", "c"]
         assert results[0][1] is not None

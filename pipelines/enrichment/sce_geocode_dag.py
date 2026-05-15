@@ -154,8 +154,7 @@ def sce_geocode_dag():
             log.info("[sce_geocode] %d pending SCE rows to geocode", len(pending))
 
             if not pending:
-                return {"pending": 0, "nominatim_hits": 0,
-                        "freguesia_fallbacks": 0, "no_hits": 0}
+                return {"pending": 0, "nominatim_hits": 0, "freguesia_fallbacks": 0, "no_hits": 0}
 
             # Build (doc_number, query) pairs + a lookup for fallback inputs
             queries = []
@@ -163,9 +162,14 @@ def sce_geocode_dag():
             for doc, morada, fracao, localidade, freguesia, concelho, qd, qc, qf in pending:
                 queries.append((doc, geocode_query(morada, freguesia, concelho)))
                 row_by_doc[doc] = {
-                    "morada": morada, "fracao": fracao, "localidade": localidade,
-                    "freguesia_detail": freguesia, "concelho": concelho,
-                    "query_distrito": qd, "query_concelho": qc, "query_freguesia": qf,
+                    "morada": morada,
+                    "fracao": fracao,
+                    "localidade": localidade,
+                    "freguesia_detail": freguesia,
+                    "concelho": concelho,
+                    "query_distrito": qd,
+                    "query_concelho": qc,
+                    "query_freguesia": qf,
                 }
 
             # Nominatim primary pass
@@ -183,15 +187,25 @@ def sce_geocode_dag():
             for doc, result in nominatim_geocode_batch(queries, url=nominatim_url):
                 row = row_by_doc[doc]
                 norm_addr = normalize_address(
-                    row["morada"], row["fracao"], row["localidade"], row["concelho"],
+                    row["morada"],
+                    row["fracao"],
+                    row["localidade"],
+                    row["concelho"],
                 )
 
                 if result is not None:
-                    cur.execute(insert_sql, (
-                        doc, result.lat, result.lon,
-                        "nominatim", result.importance,
-                        norm_addr, result.display_name,
-                    ))
+                    cur.execute(
+                        insert_sql,
+                        (
+                            doc,
+                            result.lat,
+                            result.lon,
+                            "nominatim",
+                            result.importance,
+                            norm_addr,
+                            result.display_name,
+                        ),
+                    )
                     nominatim_hits += 1
                 else:
                     need_fallback.append(doc)
@@ -206,13 +220,20 @@ def sce_geocode_dag():
             for doc in need_fallback:
                 row = row_by_doc[doc]
                 dtmnfr = (
-                    f"{int(row['query_distrito']):02d}"
-                    f"{int(row['query_concelho']):02d}"
-                    f"{int(row['query_freguesia']):02d}"
-                ) if all(row[k] for k in ("query_distrito", "query_concelho", "query_freguesia")) else None
+                    (
+                        f"{int(row['query_distrito']):02d}"
+                        f"{int(row['query_concelho']):02d}"
+                        f"{int(row['query_freguesia']):02d}"
+                    )
+                    if all(row[k] for k in ("query_distrito", "query_concelho", "query_freguesia"))
+                    else None
+                )
 
                 norm_addr = normalize_address(
-                    row["morada"], row["fracao"], row["localidade"], row["concelho"],
+                    row["morada"],
+                    row["fracao"],
+                    row["localidade"],
+                    row["concelho"],
                 )
 
                 if dtmnfr:
@@ -226,18 +247,32 @@ def sce_geocode_dag():
                     hit = None
 
                 if hit and hit[0] is not None:
-                    cur.execute(insert_sql, (
-                        doc, hit[0], hit[1],
-                        "freguesia_centroid", FREGUESIA_CENTROID_CONFIDENCE,
-                        norm_addr, None,
-                    ))
+                    cur.execute(
+                        insert_sql,
+                        (
+                            doc,
+                            hit[0],
+                            hit[1],
+                            "freguesia_centroid",
+                            FREGUESIA_CENTROID_CONFIDENCE,
+                            norm_addr,
+                            None,
+                        ),
+                    )
                     freguesia_fallbacks += 1
                 else:
-                    cur.execute(insert_sql, (
-                        doc, None, None,
-                        "none", 0.0,
-                        norm_addr, None,
-                    ))
+                    cur.execute(
+                        insert_sql,
+                        (
+                            doc,
+                            None,
+                            None,
+                            "none",
+                            0.0,
+                            norm_addr,
+                            None,
+                        ),
+                    )
                     no_hits += 1
 
             conn.commit()
@@ -298,6 +333,7 @@ def sce_geocode_dag():
 
     # ── trigger dbt rebuild only after geocoding done ──
     from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dbt_sce_build",
         trigger_dag_id="dbt_sce_build",

@@ -59,10 +59,7 @@ _ABBREVIATIONS: list[tuple[str, str]] = [
 
 # Direction / position words (Appendix A rule 3). All abbreviations included:
 # esq=esquerdo, dto/drt/dir=direito, frt/fr=frente, cto=centro, tr/tre=trás.
-_DIR_WORDS = (
-    "andar|esq|dto|drt|esquerdo|direito|frente|centro|tras"
-    "|dir|frt|fr|cto|tr|tre"
-)
+_DIR_WORDS = "andar|esq|dto|drt|esquerdo|direito|frente|centro|tras|dir|frt|fr|cto|tr|tre"
 
 # ---------------------------------------------------------------------------
 # Clustering-key strip patterns. Order matters — applied top-to-bottom.
@@ -146,9 +143,7 @@ def _strip_ordinals(s: str) -> str:
 
 def _diacritic_fold(s: str) -> str:
     """NFD-normalise + drop combining marks (São João → Sao Joao)."""
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
 
 
 def _normalize_concelho(concelho: str | None) -> str:
