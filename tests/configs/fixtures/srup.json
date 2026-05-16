@@ -1,6 +1,6 @@
 {
   "dag_id": "srup_ingestion",
-  "description": "SRUP WFS ingestion \u2014 queries DGTERRIT\u00d3RIO for property constraint data (IC, RAN, DPH), stores GeoJSON in MinIO.",
+  "description": "SRUP WFS ingestion \u2014 queries DGTERRIT\u00d3RIO for the two property constraint categories DGT does not publish via OGC API (IC + DPH), stores GeoJSON in MinIO.",
   "max_active_runs": 1,
   "max_active_tasks": 2,
   "minio_bucket": "raw",

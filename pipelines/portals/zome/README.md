@@ -6,7 +6,7 @@
 > Legacy DAGs and `raw_zome_*` tables are gone. The single `zome_dlt` DAG runs on
 > a weekly cron and writes SCD2 bronze tables (`zome_developments`, `zome_listings`,
 > `zome_plots`) plus heartbeat sidecars. See [CUTOVER.md](CUTOVER.md) for the
-> dlt migration history; see [../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md)
+> dlt migration history; see [../../wiki/concepts/portal-plot-conventions.md](../../wiki/concepts/portal-plot-conventions.md)
 > for the cross-pipeline plot conventions.
 
 ---

@@ -194,6 +194,86 @@ models:
         tests:
           - not_null
 
+  - name: dim_constraint_severity
+    description: >
+      SRUP constraint severity dimension — maps (constraint_code, zone_type)
+      to a 0-3 construction severity, the managing authority, the legal basis,
+      and the spatial buffer to apply. 27 rows across 14 SRUP constraint layers.
+      Materialized as a SQL VALUES clause. Queried by gold.fn_assess_polygon
+      (sprint-09) after each per-layer ST_Intersects. See
+      wiki/concepts/srup-constraint-model.md for the full model.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - constraint_code
+            - zone_type
+    columns:
+      - name: constraint_severity_key
+        description: "Surrogate integer key via ROW_NUMBER ordered by (constraint_code, zone_type). Deterministic across rebuilds"
+        tests:
+          - unique
+          - not_null
+      - name: constraint_code
+        description: "SRUP layer code: RAN, REN_areal, REN_linear, IC, DPH, ZPE, ZEC, AreasProtegidas, RedeViaria, RedeEletrica, RedeFerroviaria, Albufeiras, DefesaMilitar, Aeronautica"
+        tests:
+          - not_null
+      - name: zone_type
+        description: "Per-feature relationship attribute (e.g. non_aedificandi, zona_protecao, servidao_rodoviaria_ip). Derived by each stg_srup_* model from servidao/tipologia/geometry type"
+        tests:
+          - not_null
+      - name: severity
+        description: "Construction severity: 3=hard gate (prohibited as a rule), 2=conditioned (needs prior opinion), 1=advisory, 0=no constraint"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3]
+      - name: category
+        description: "Constraint family: agricultural, ecological, heritage, water_domain, conservation, infrastructure, military, aviation"
+        tests:
+          - not_null
+      - name: buffer_m
+        description: "Metres to ST_Buffer the layer geom before intersection. 0 where the polygon already IS the servidão; 10 for REN_linear + active/station RedeFerroviaria; 50/35/20 for RedeViaria by class"
+        tests:
+          - not_null
+      - name: buffer_ref
+        description: "'geom' = buffer the stored geometry directly; 'axis' = buffer_m is from the road axis, fn_assess_polygon subtracts the per-feature half-width first (RedeViaria only)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['geom', 'axis']
+      - name: legal_basis
+        description: "Governing Decreto-Lei + article range (e.g. 'DL 73/2009 art. 21-23')"
+        tests:
+          - not_null
+      - name: requires_prior_opinion
+        description: "TRUE if a legal exception path via an authority opinion/authorization exists"
+        tests:
+          - not_null
+      - name: authority
+        description: "Entity that issues the opinion/authorization (e.g. APA, ICNF, Infraestruturas de Portugal). 'n/a' for severity-0 rows"
+        tests:
+          - not_null
+      - name: is_hard_gate
+        description: "severity >= 3"
+        tests:
+          - not_null
+      - name: is_conditioned
+        description: "severity = 2"
+        tests:
+          - not_null
+      - name: is_advisory
+        description: "severity = 1"
+        tests:
+          - not_null
+      - name: severity_label
+        description: "Human-readable severity: 'Hard gate' / 'Conditioned' / 'Advisory' / 'No constraint'"
+        tests:
+          - not_null
+      - name: display_color
+        description: "Hex color for the Atlas Inspector by severity (3 #d32f2f, 2 #f57c00, 1 #fbc02d, 0 #9e9e9e)"
+        tests:
+          - not_null
+
   - name: property_location_scores
     description: >
       Transport proximity scores per listing. For each mode (rail, bus, tram, air, ferry),

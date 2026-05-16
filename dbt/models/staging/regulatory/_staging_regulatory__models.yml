@@ -60,89 +60,453 @@ models:
       - name: _load_timestamp
         description: "Timestamp when the row was loaded into the bronze table"
 
-  - name: stg_srup_ic
-    description: >
-      Staging view over SRUP Imóveis Classificados (heritage sites) from bronze_regulatory.raw_srup_ic.
-      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
-      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
-    columns:
-      - name: feature_id
-        description: "Feature ID from WFS"
-        tests:
-          - not_null
-
-      - name: classification
-        description: "Heritage classification (e.g. Monumento Nacional, Imóvel de Interesse Público)"
-
-      - name: designation
-        description: "Heritage site name/designation"
-
-      - name: municipalities
-        description: "Municipality name(s) where the heritage site is located"
-
-      - name: restriction_type
-        description: "Type of restriction/easement (servidão)"
-
-      - name: geom
-        description: "Geometry in EPSG:3763 (GeometryCollection for zones, Point for locations)"
-        tests:
-          - not_null
-
-      - name: geom_wgs84
-        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+  # ── SRUP constraint layers (14 models, Sprint-08 Activity 6 PR 2) ──
+  # Uniform contract: feature_id, constraint_code, zone_type, designation,
+  # restriction_type, typology, law_type, restriction_law, dr_reference,
+  # restriction_date, restriction_url, municipality, geom, geom_wgs84,
+  # _source_url, _load_timestamp — plus per-layer extras from full properties
+  # unpacking. constraint_code + zone_type are the FK into dim_constraint_severity.
+  # Full per-key breakdown: wiki/concepts/srup-properties-schema.md.
 
   - name: stg_srup_ran
     description: >
-      Staging view over SRUP Reserva Agrícola Nacional from bronze_regulatory.raw_srup_ran.
-      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
-      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+      SRUP Reserva Agrícola Nacional (raw_srup_ran_ogc). 10 properties keys
+      fully unpacked. One zone_type (reserva_agricola).
+    columns:
+      - name: feature_id
+        description: "OGC feature id (from the bronze feature_id column)"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'RAN' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['RAN']
+      - name: zone_type
+        description: "Constant 'reserva_agricola'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['reserva_agricola']
+      - name: designation
+        description: "Feature designation (properties.designacao)"
+      - name: restriction_type
+        description: "Servidão label (properties.servidao)"
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_ren_areal
+    description: >
+      SRUP Reserva Ecológica Nacional — areal zones (raw_srup_ren_areal).
+      24 properties keys fully unpacked. zone_type: reserva_ecologica (the
+      constraint) vs exclusao (land excluded from REN — severity 0).
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'REN_areal' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['REN_areal']
+      - name: zone_type
+        description: "Derived from tipologia: 'exclusao' (ILIKE %exclus%) else 'reserva_ecologica'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['reserva_ecologica', 'exclusao']
+      - name: area_ha
+        description: "Zone area in hectares (properties.area_ha, cast to double)"
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_ren_linear
+    description: >
+      SRUP Reserva Ecológica Nacional — linear watercourse lines/beds
+      (raw_srup_ren_linear). 20 properties keys fully unpacked. One zone_type
+      (linha_de_agua); fn_assess_polygon buffers this 10 m at query time.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'REN_linear' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['REN_linear']
+      - name: zone_type
+        description: "Constant 'linha_de_agua'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['linha_de_agua']
+      - name: compriment
+        description: "Watercourse length in metres (properties.compriment, cast to double)"
+      - name: geom
+        description: "MultiLineString in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_ic
+    description: >
+      SRUP Imóveis Classificados / Património Cultural (raw_srup_ic — legacy
+      WFS, UPPERCASE keys). 21 properties keys fully unpacked. zone_type:
+      monumento (Point geometry) vs zona_protecao (Polygon/GeometryCollection).
     columns:
       - name: feature_id
         description: "Feature ID from WFS"
         tests:
           - not_null
-
-      - name: municipality
-        description: "Municipality name (CONCELHO)"
-
-      - name: restriction_type
-        description: "Type of restriction/easement (servidão)"
-
-      - name: geom
-        description: "Geometry in EPSG:3763 (GeometryCollection)"
+      - name: constraint_code
+        description: "Constant 'IC' — FK into dim_constraint_severity"
         tests:
           - not_null
-
+          - accepted_values:
+              values: ['IC']
+      - name: zone_type
+        description: "Derived from geometry type: 'monumento' (ST_Point) else 'zona_protecao'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['monumento', 'zona_protecao']
+      - name: typology
+        description: "Heritage class (properties.CLASSIFICACAO — MN/IIP/ZEP/etc.)"
+      - name: geom
+        description: "Geometry in EPSG:3763 (Point for monuments, Polygon/GeometryCollection for zones)"
+        tests:
+          - not_null
       - name: geom_wgs84
         description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
 
   - name: stg_srup_dph
     description: >
-      Staging view over SRUP Domínio Público Hídrico from bronze_regulatory.raw_srup_dph.
-      Extracts fields from JSONB properties, renames to English, adds WGS84 projection.
-      Source: DGTERRITÓRIO SRUP WFS (national endpoint).
+      SRUP Domínio Público Hídrico (raw_srup_dph — legacy WFS, UPPERCASE keys).
+      18 properties keys fully unpacked (no CLASSIFICACAO → typology is NULL).
+      zone_type from SERVIDAO: non_aedificandi vs ocupacao_condicionada.
     columns:
       - name: feature_id
         description: "Feature ID from WFS"
         tests:
           - not_null
-
-      - name: designation
-        description: "Water domain zone designation"
-
-      - name: municipalities
-        description: "Municipality name(s)"
-
-      - name: restriction_type
-        description: "Type of restriction/easement (servidão)"
-
+      - name: constraint_code
+        description: "Constant 'DPH' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['DPH']
+      - name: zone_type
+        description: "Derived from SERVIDAO: 'non_aedificandi' (ILIKE %NON AEDIFICANDI%) else 'ocupacao_condicionada'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['non_aedificandi', 'ocupacao_condicionada']
       - name: geom
         description: "Geometry in EPSG:3763 (Polygon or GeometryCollection)"
         tests:
           - not_null
-
       - name: geom_wgs84
         description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_zpe
+    description: >
+      SRUP Rede Natura 2000 — Zonas de Proteção Especial / birds
+      (raw_srup_zpe). 10 properties keys fully unpacked. One zone_type.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'ZPE' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ZPE']
+      - name: zone_type
+        description: "Constant 'rede_natura'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['rede_natura']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_zec
+    description: >
+      SRUP Rede Natura 2000 — Zonas Especiais de Conservação / habitats
+      (raw_srup_zec). 10 properties keys fully unpacked. One zone_type.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'ZEC' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ZEC']
+      - name: zone_type
+        description: "Constant 'rede_natura'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['rede_natura']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_areas_protegidas
+    description: >
+      SRUP Áreas Protegidas (raw_srup_areas_protegidas). 11 properties keys
+      fully unpacked (codigo is the layer-specific extra). One zone_type.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'AreasProtegidas' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['AreasProtegidas']
+      - name: zone_type
+        description: "Constant 'area_protegida'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['area_protegida']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_rede_viaria
+    description: >
+      SRUP Rede Viária — road servidão corridors (raw_srup_rede_viaria).
+      11 properties keys fully unpacked. zone_type = road class
+      (ip / ic / local); buffered from the axis at query time.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'RedeViaria' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['RedeViaria']
+      - name: zone_type
+        description: "Road class from tipologia: servidao_rodoviaria_ip / _ic / _local"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['servidao_rodoviaria_ip', 'servidao_rodoviaria_ic', 'servidao_rodoviaria_local']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763 — road corridor (not the non-aedificandi servidão)"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_rede_eletrica
+    description: >
+      SRUP Rede Elétrica — power-line faixa de protecção (raw_srup_rede_eletrica).
+      11 properties keys fully unpacked (dtcc is the extra). zone_type = voltage
+      class (AT vs MAT).
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'RedeEletrica' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['RedeEletrica']
+      - name: zone_type
+        description: "Voltage class from tipologia: servidao_eletrica_mat (Muito Alta) else servidao_eletrica_at"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['servidao_eletrica_at', 'servidao_eletrica_mat']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763 (~45 m faixa de protecção)"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_rede_ferroviaria
+    description: >
+      SRUP Rede Ferroviária — UNION of raw_srup_rede_ferroviaria (line servidão)
+      and raw_srup_rede_ferroviaria_estacoes (station yards). 11 properties keys
+      each, fully unpacked. zone_type: active / inactive line vs station.
+      Note: feature_id is NOT unique post-union (only not_null tested).
+    columns:
+      - name: feature_id
+        description: "OGC feature id (not unique post-union)"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'RedeFerroviaria' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['RedeFerroviaria']
+      - name: zone_type
+        description: "servidao_ferroviaria_ativa / _inativa (line, from tipologia) or _estacao (station yards)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['servidao_ferroviaria_ativa', 'servidao_ferroviaria_inativa', 'servidao_ferroviaria_estacao']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_albufeiras
+    description: >
+      SRUP Albufeiras de Águas Públicas Classificadas (raw_srup_albufeiras).
+      10 properties keys fully unpacked. zone_type: protegida / condicionada / livre.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'Albufeiras' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Albufeiras']
+      - name: zone_type
+        description: "Reservoir tier from tipologia: protegida / condicionada / livre"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['protegida', 'condicionada', 'livre']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_defesa_militar
+    description: >
+      SRUP Defesa Militar — UNION of raw_srup_defesa_militar and
+      raw_srup_defesa_militar_zonas. 10 properties keys each, fully unpacked.
+      zone_type: nucleo (terreno militar / Zona 1 / servidão) vs zona_protecao.
+      Note: feature_id is NOT unique post-union (only not_null tested).
+    columns:
+      - name: feature_id
+        description: "OGC feature id (not unique post-union)"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'DefesaMilitar' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['DefesaMilitar']
+      - name: zone_type
+        description: "Derived from tipologia: nucleo (terreno militar / Zona 1 / servidão) else zona_protecao"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['nucleo', 'zona_protecao']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
+
+  - name: stg_srup_aeronautica
+    description: >
+      SRUP Servidões Aeronáuticas (raw_srup_aeronautica). 10 properties keys
+      fully unpacked. zone_type: area_desobstrucao / servidao / zona_protecao.
+    columns:
+      - name: feature_id
+        description: "OGC feature id"
+        tests:
+          - not_null
+      - name: constraint_code
+        description: "Constant 'Aeronautica' — FK into dim_constraint_severity"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Aeronautica']
+      - name: zone_type
+        description: "Derived from tipologia: area_desobstrucao / servidao / zona_protecao"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['area_desobstrucao', 'servidao', 'zona_protecao']
+      - name: geom
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+      - name: geom_wgs84
+        description: "Geometry reprojected to EPSG:4326 (WGS84)"
+        tests:
+          - not_null
 
   - name: stg_bupi
     description: >
@@ -306,3 +670,19 @@ models:
 
       - name: loaded_at
         description: "Timestamp when the row was loaded into the bronze table"
+
+      # ── Geocoding columns (LEFT JOIN bronze_enrichment.raw_sce_geocoded) ──
+      - name: address_lat
+        description: "Latitude (EPSG:4326) from the sce_geocode DAG. NULL when neither Nominatim nor the freguesia centroid resolved the address."
+      - name: address_lng
+        description: "Longitude (EPSG:4326) from the sce_geocode DAG. NULL when both cascade tiers miss."
+      - name: geocode_source
+        description: "Which cascade tier produced the coords: 'nominatim' (street-level) / 'freguesia_centroid' (parish-level fallback) / 'none' (unresolved)."
+      - name: geocode_confidence
+        description: "0.0–1.0. Nominatim's `importance` for tier 1, 0.2 fixed for the freguesia centroid, 0.0 when nothing matched. Surfaced in the Inspector as a 'fuzzy address' indicator."
+      - name: normalized_address
+        description: "Appendix-A clustering key (pipelines/enrichment/sce_address_norm.normalize_address). Consumed by sprint-09 Slice B's Levenshtein-ratio dedup inside each ST_ClusterDBSCAN cluster."
+      - name: geom_4326
+        description: "POINT geometry in EPSG:4326 — NULL when coords are NULL. For map display / Kepler.gl."
+      - name: geom_3763
+        description: "POINT geometry in EPSG:3763 (PT-TM06) — NULL when coords are NULL. For distance/area joins and ST_ClusterDBSCAN in silver_sce_buildings."

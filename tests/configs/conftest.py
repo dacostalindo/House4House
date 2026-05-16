@@ -17,15 +17,13 @@ config's defaults, regenerate the fixture and review the diff.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "tests" / "configs" / "fixtures"
 
-# Make `pipelines.*` importable without an editable install.
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+# `pipelines.*` is made importable via [tool.pytest.ini_options] pythonpath
+# in the root pyproject.toml — no per-conftest sys.path manipulation needed.
 
 
 def load_fixture(name: str) -> dict:

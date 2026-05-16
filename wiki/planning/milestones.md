@@ -46,21 +46,25 @@ Three MVP milestones, each with a hard-fail / soft-fail criteria table. A use ca
 
 **Critical path for M2:** Sprint 4.5 development-portal cross-reference (Flow F) → Sprint 7 pricing premiums + absorption + serving. Gates UC-1 production hardening: M2 shipping means daily-DAG operational stability validated for 2 weeks.
 
-## Milestone 3 — UC-3 MVP (Week 19, end of Sprint 8)
+## Milestone 3 — UC-3 v1 wedge LIVE (Week 21, end of Sprint 9)
+
+**Reframed 2026-05-12 per [[2026-05-12-uc3-expanded-scope]].** Original M3 was "UC-3 MVP Land Development Opportunities" at Week 18 with three serving surfaces (Metabase Land Dashboard, Kepler.gl Parcel Explorer, Streamlit Site Analyzer). UC-3 reframed into a 7-stage end-to-end plot economic-value pipeline; v1 wedge ships only **Atlas Site Inspector** in v1; Land Dashboard + Site Analyzer (three-surface model) defer to v2+. M3 milestone now lands at Week 21 (end of [[sprint-09]]), not Week 18.
 
 | Criteria | Target | Hard Fail? | Status |
 |---|---|---|---|
-| [[bupi]] parcels loaded | ≥ 3M parcels | Yes | Pending Sprint 9 ([[bupi]] is P1 + currently P1 priority) |
-| [[crus]] / [[crus-ogc]] zoning loaded | ≥ 5 municipalities (legacy) OR national OGC | Yes | Partially shipped: legacy WFS in Sprint 1+2; OGC API in flight per [[crus-ogc]] |
-| Building footprints loaded | ≥ 4M footprints for Portugal | Yes | Pending Sprint 9 (per [[risks|R13]]) |
-| Opportunity sites identified | Sites in ≥ 4 of 5 CRUS municipalities | Yes | Pending Sprint 8 |
-| Spatial-join coverage | 100% of BUPI parcels within CRUS extents processed | Yes | Pending Sprint 8 (per [[risks|R12]] performance mitigation) |
-| `parcel_buildability` materialization | Refreshes in < 30 minutes | No | Soft-fail; performance optimization |
-| Metabase **Land Dashboard** | Accessible with working filters | Yes | Pending Sprint 8 |
-| **Parcel Explorer** (Kepler.gl) | BUPI parcels rendered with buildability coloring + constraint toggles | Yes | Pending Sprint 8 |
-| **Site Analyzer** (Streamlit) | Click-to-analyze workflow returns parcel assembly + zoning + economics | No | Soft-fail; can ship Sprint 9 |
+| Aveiro [[bupi]] + [[cadastro]] union → `parcel_universe` | ~50K rows for Aveiro município | Yes | Pending [[sprint-08]] |
+| [[crus]] / [[crus-ogc]] zoning density extraction | `max_floors`, `max_density_index`, `max_coverage_ratio` parsed from `land_designation` for Aveiro | Yes | Pending [[sprint-08]] |
+| LiDAR Aveiro coverage | DGT DTM 2m tiles ingested + slope p90 per parcel via zonal stats | Yes | Pending [[sprint-08]] (or Copernicus EEA-10 fallback if DGT tiles unavailable) |
+| [[sce]] aggregation to developments | `silver_sce_buildings` materialized for Aveiro distrito | Yes | Pending [[sprint-08]]+[[sprint-09]] |
+| LLM extraction on [[idealista]] plot listings | Per-field accuracy ≥ thresholds in Appendix B (85% on `construction_area_m2_allowed`) | Yes | Pending [[sprint-09]] |
+| Development dedup | `silver_unified_developments` collapses SCE + idealista by spatial proximity ≤ 50m + name similarity | Yes | Pending [[sprint-09]] |
+| `gold.fn_assess_polygon` Postgres function | Single backend entry point; P95 < 3s for typical Aveiro polygons | Yes | Pending [[sprint-09]] |
+| **Atlas Site Inspector** (Streamlit-component) | Draw polygon → Analisar → 8-section readout per variant B-prime | Yes | Pending [[sprint-09]]. **Replaces** the original M3 three-surface model (Land Dashboard / Parcel Explorer / Site Analyzer). |
+| 3 PT developer interviews completed + kill-criteria applied | Per [[2026-05-12-uc3-expanded-scope]] kill criteria | Yes | **The actual gate** — wedge validated / killed / resized post-demo |
+| 22 critical tests passing in CI | Per /plan-eng-review test plan Appendix C | Yes | Pending [[sprint-08]]+[[sprint-09]] (CI extended with pgTAP + Playwright) |
+| Building footprints (MS S42) | ≥ 4M footprints loaded | No | **Deferred from v1 wedge** to v2 with Stages 5-6 economics |
 
-**Critical path for M3:** Sprint 3 GIS foundation → Sprint 9 BUPI ingest → Sprint 8 spatial composition (Flow E in [[ingest-flows]]). Hardest gate: spatial-join performance at scale (R12) per [[2026-05-10-postgis-as-warehouse]] + 128 GB RAM design.
+**Critical path for M3:** [[sprint-03]] GIS foundation → [[sprint-08]] (WS1 templates + WS3 LiDAR + Slice B start + SCE geocoding) → [[sprint-09]] (Slice B/C/B-prime completion + `fn_assess_polygon` + Atlas Inspector + demo). Hardest gate: NOT spatial-join performance at scale (R12 mitigates via Aveiro-only scope + GIST indexes + draw-polygon UX), but **developer-interview reachability** — if 3 PT land developers cannot be reached in 2-3 weeks via APEMIP/AICCOPN/LinkedIn warm, the wedge is unvalidated regardless of engineering completion.
 
 ## MVP hedonic-model feature coverage
 

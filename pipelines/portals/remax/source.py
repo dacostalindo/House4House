@@ -150,7 +150,7 @@ LISTINGS_JSON_COLUMNS = ("gallery", "listing_rooms", "listing_pictures", "raw_js
 # names mirror the Next.js detail payload directly (camelCase → snake_case
 # canonical, same convention as _normalize_listing for housing).
 #
-# Excluded from version_cols by design (per pipelines/common/SCD2_RULES.md):
+# Excluded from version_cols by design (per wiki/concepts/scd2-row-hash.md):
 #   - market_days, previous_price, last_price_reduction_date — snapshot-derived
 #   - JSONB arrays (listing_pictures, listing_attributes_ids, near_regions, raw_json)
 #   - Display-only (description_tags), immutable (latitude, longitude, address)
@@ -185,7 +185,7 @@ PLOTS_JSON_COLUMNS = (
 # version_cols fails loudly instead of being str()-stringified.
 #
 # Kept in sync with zome/idealista intentionally — see
-# pipelines/common/SCD2_RULES.md for the conventions; the helpers below are
+# wiki/concepts/scd2-row-hash.md for the conventions; the helpers below are
 # duplicated across pipelines by design (small surface, zero shared deps
 # preferred over an abstraction with one consumer migrated and others lagging).
 # ---------------------------------------------------------------------------

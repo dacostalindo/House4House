@@ -2,16 +2,48 @@
 
 ## For future Claude
 
-This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last lint run:` line is the freshness indicator (updated by `/wiki-lint`); a stale date means lint hasn't fired recently and contradiction-detection coverage is degrading.
+This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last reconcile run:` line is the freshness indicator (updated by `/wiki-reconcile`); a stale date means the reconcile skill hasn't fired recently and drift-detection coverage is degrading. (The legacy `/wiki-lint` skill was retired 2026-05-12 in favour of `/wiki-reconcile` which covers both layers; the historical `Last lint run:` date stays here for archaeology.)
 
-Last lint run: 2026-05-08
-Last reconcile run: 2026-05-12
+Last lint run: 2026-05-08 (skill retired)
+Last reconcile run: 2026-05-15 (post-sprint-08 ship)
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
 ## Overview
 
 - [[overview]] — 1-page synthesis of the project from the root README's 16 sections; entry-point for orientation queries.
+
+## By area of code
+
+When editing files in a specific area of the repo, read the wiki pages listed for that area first. Each area links to the concepts, sources, decisions, architecture, and sprints that govern it. The wiki is the source of truth; root `CLAUDE.md` only points here.
+
+### `pipelines/` (DAGs, dlt resources, scrapers, configs)
+
+- **Concepts**: [[pydantic-not-in-dlt]] (configs Pydantic, dlt resources not) · [[bronze-permissive]] (bronze accepts whatever the source returns) · [[scd2-row-hash]] (curated version-column policy) · [[heartbeat-sidecar]] (UPSERT-only "still-alive" companion) · [[portal-naming-conventions]] (structural uniformity vs source-faithful leaf names) · [[portal-plot-conventions]] (plots in separate `*_plots` tables) · [[portal-field-map]] (cross-portal column correspondence matrix) · [[zenrows-universal-vs-re-api]] (mixed scrape strategy) · [[payload-cache-lifecycle]] (`_payload_cache` reuse) · [[airflow-home-isolation]] (`~/airflow/airflow.cfg` bleed gotcha) · [[ingest-flows]] (six-flow taxonomy + decision tree) · [[spatial-strategy]] (CRS, GIST, H3 for GIS pipelines)
+- **Sources**: choose the relevant page under [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
+- **Decisions**: [[2026-05-10-airflow-2-not-3]] (orchestrator pin) · [[2026-05-05-cosmos-pin]] (dbt-DAG generator pin) · [[2026-05-10-minio-not-s3]] (raw landing) · [[2026-05-10-nominatim-osrm-self-hosted]] (geocoding/routing) · [[2026-05-08-idealista-enrichment-architecture]] (three coexisting streams) · [[2026-05-08-sqla-1.4-concession]] (SQLA pin from Airflow)
+- **Architecture**: [[orchestration]] (DAG taxonomy + schedule map) · [[infra]] (Compose service map) · [[data-quality]] (Great Expectations + `metadata.pipeline_runs` audit)
+- **Sprints (currently relevant)**: [[sprint-04]] (Image Classification + Location Scores, `in_progress`) · [[sprint-04.5]] (Listings + Developments Cross-Portal Dedup) · [[sprint-08]] (UC-3 v1 wedge Part 1, GIS + SCE foundations)
+
+### `dbt/` (models, macros, source YAMLs)
+
+- **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models)
+- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
+- **Decisions**: [[2026-05-10-postgis-as-warehouse]] (PostgreSQL 16 + PostGIS 3.4 chosen over Snowflake/BigQuery/RDS) · [[2026-05-10-dbt-not-sqlmodel]] (dbt Core for transformations) · [[2026-05-10-dual-crs-storage]] (`geom` 4326 + `geom_pt` 3763 invariant for spatial tables)
+- **Architecture**: [[data-quality]] (dbt tests + Great Expectations layering) · [[infra]] (PostgreSQL schema organization: `bronze_*`, `silver_*`, `gold_*`, `metadata`)
+- **Sprints (currently relevant)**: [[sprint-03]] (Silver Layer + UC-3 GIS Foundation, `mostly_done`) · [[sprint-05]] (Hedonic Model & Valuation) · [[sprint-08]] / [[sprint-09]] (UC-3 v1 wedge silver + gold)
+
+### `apps/` (Streamlit pages, Kepler.gl maps)
+
+- **Concepts**: [[spatial-strategy]] (which CRS to read into geopandas + display vs join trade-off)
+- **Sources**: only the source page for whatever the page reads (typically silver or gold tables — see [[medallion-layering]] for where to point your queries).
+- **Decisions**: [[2026-05-10-metabase-streamlit-not-superset]] (Metabase for BI + Streamlit + Kepler.gl for custom apps; Superset rejected) · [[2026-05-08-sqla-1.4-concession]] (apps/ accepts workspace SQLA 1.4) · [[2026-05-10-dual-crs-storage]] (read `geom` for Kepler.gl 4326, `geom_pt` for distance/area)
+- **Architecture**: [[tech-stack]] (Streamlit + Kepler.gl + geopandas selection rationale) · [[infra]] (apps container in Compose)
+- **Sprints (currently relevant)**: [[sprint-06]] (UC-1 MVP Investment Opportunities, 🏁 M1) · [[sprint-07]] (UC-2 MVP Pricing Strategy, 🏁 M2) · [[sprint-09]] (UC-3 Atlas Site Inspector page, 🏁 M3)
+
+### `wiki/` (this knowledge base)
+
+- See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
 ## Sources (23 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
@@ -52,17 +84,22 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[osm]] — OpenStreetMap PT via Geofabrik; 18 layers, ~4.5M features; companion OSRM + Nominatim services.
 - [[aveiro-pmot]] — Aveiro municipal WebGIS bulk WMS-GFI extractor; one-off, not a recurring DAG; ~1,669 feature types.
 
-## Concepts (10 pages)
+## Concepts (15 pages)
 
 - [[bronze-permissive]] — bronze accepts whatever the source returns; validation lives in dbt staging; never-delete invariant.
 - [[pydantic-not-in-dlt]] — Pydantic in configs YES, in dlt resources NO; the strict guardrail protecting [[bronze-permissive]].
 - [[scd2-row-hash]] — curated `*_VERSION_COLUMNS` policy for SCD2 row versioning; include real business events, exclude noisy proxies.
 - [[heartbeat-sidecar]] — UPSERT-only companion table answering "is this entity still in the source?"; the 21-day silver-layer floor.
+- [[portal-naming-conventions]] — cross-pipeline naming policy for dlt portal pipelines; structural uniformity vs source-faithful leaf names.
+- [[portal-plot-conventions]] — how plots/terrenos are modelled across the three portals (separate `*_plots` tables, plot-specific SCD2 cols).
+- [[portal-field-map]] — cross-portal correspondence matrix (development / unit / plot grain) for [[remax]] + [[idealista]] + [[zome]].
 - [[zenrows-universal-vs-re-api]] — [[idealista]]'s mixed-API scrape strategy; ~5× cheaper RE API + Universal Scraper for HTML pages.
 - [[payload-cache-lifecycle]] — module-level `_payload_cache` shared across [[idealista]]'s four resources; saves ~85% of ZenRows spend per run.
 - [[medallion-layering]] — bronze/silver/gold + per-source-bronze-schema architecture; transformation-placement rules.
 - [[ingest-flows]] — six-flow taxonomy (A REST / B scraping / C GIS / D derived / E spatial composition / F portal cross-reference) with decision tree for new sources.
 - [[spatial-strategy]] — CRS dual-storage convention (4326 + 3763), GIST + H3 indexing, common spatial query templates, location-score computation.
+- [[srup-constraint-model]] — how the 14 SRUP regulatory layers gate construction on a drawn polygon; the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + sprint-09's `fn_assess_polygon`.
+- [[srup-properties-schema]] — per-key breakdown of the 16 `raw_srup_*` `properties` JSONB blobs (OGC lowercase vs WFS UPPERCASE conventions) → typed `stg_srup_*` columns.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
 ## Architecture (4 pages — PR 6 seed)
@@ -83,7 +120,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 
-## Decisions (16 ADRs)
+## Decisions (17 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -113,7 +150,11 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
 - [[2026-05-12-phase-6-ty-advisory]] — Astral's `ty` (beta) ships as advisory CI check via Phase 4 annotation-grouping pattern; 3 concrete graduation triggers to BLOCKING.
 
-## Sprints (12 pages — PR 3 seed)
+**Use cases** (UC-3 reframe — gstack /office-hours + /plan-eng-review surfaced):
+
+- [[2026-05-12-uc3-expanded-scope]] — UC-3 reframed from national spatial-overlay into end-to-end 7-stage plot economic-value pipeline; v1 wedge = Aveiro Stages 1-4 + SCE + idealista LLM + dev dedup; `confidence: speculation`, gated on 3 PT developer interviews.
+
+## Sprints (13 pages — PR 3 seed)
 
 Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driven Phase 1-7 roadmap). See [[sprints/README|sprints orientation]] for the schema, status semantics, and living-roadmap mechanic.
 
@@ -128,8 +169,9 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 - [[sprint-05]] — Hedonic Model & Valuation (Weeks 10-11) — `planned`
 - [[sprint-06]] — UC-1 MVP Investment Opportunities (Weeks 12-13) — `planned` 🏁 M1
 - [[sprint-07]] — UC-2 MVP Pricing Strategy (Weeks 14-15) — `planned` 🏁 M2
-- [[sprint-08]] — UC-3 MVP Land Development Opportunities (Weeks 16-18) — `planned` 🏁 M3
-- [[sprint-09]] — Enhancements + Production Hardening (Weeks 19-20) — `planned`
+- [[sprint-08]] — UC-3 v1 wedge Part 1 (Foundations + Aveiro Vertical Slice) (Weeks 16-18) — `planned` 🏁 M3 Part 1
+- [[sprint-09]] — UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo) (Weeks 19-21) — `planned` 🏁 M3
+- [[sprint-10]] — Production Hardening + Portal Expansion + UC-3 v2 Readiness (Weeks 22-24) — `planned`
 
 ### Dev-tooling sprint (parallel track)
 
@@ -141,7 +183,7 @@ Each UC combines product narrative + conceptual data model + serving layer in on
 
 - [[UC-1]] — Undervalued Property Identification (investors / promoters / fund managers / flippers) — MVP at [[sprint-06]] 🏁 M1
 - [[UC-2]] — New Housing Unit Pricing Strategy (developers / commercial directors / project managers) — MVP at [[sprint-07]] 🏁 M2; depends on UC-1 hedonic
-- [[UC-3]] — Land Development Opportunity Detection (land developers / promoters / funds / municipal offices) — MVP at [[sprint-08]] 🏁 M3; depends on UC-1 hedonic for development economics
+- [[UC-3]] — End-to-End Plot Economic-Value Pipeline (7-stage funnel: Scout → Inspect → Assemble → Build out → Value → Profit → Competitive Intel; land developers / promoters / funds) — v1 wedge = Aveiro Stages 1-4 + SCE unit aggregation + idealista LLM plot extraction + dev dedup, ships across [[sprint-08]]+[[sprint-09]] 🏁 M3 Week 21. Stages 5-6 (Value/Profit, depends on UC-1 hedonic) + full Stage 7 (national rollout + promoter dedup) defer to v2/v3. Gated on 3 PT developer interviews per [[2026-05-12-uc3-expanded-scope]] kill criteria.
 
 ## Forthcoming (PR 5-8)
 

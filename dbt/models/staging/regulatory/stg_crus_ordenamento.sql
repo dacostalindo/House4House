@@ -1,3 +1,6 @@
+-- Sourced from the national OGC API path (raw_crus_national_ogc) as of 2026-05-13.
+-- The legacy per-município WFS path (raw_crus_ordenamento) was retired in the same commit
+-- after the OGC API was confirmed to cover the same data nationally; see wiki/log.md.
 SELECT
     feature_id,
     municipality_code,
@@ -12,5 +15,5 @@ SELECT
     ST_Transform(geom, 4326) AS geom_wgs84,
     _source_url,
     _load_timestamp
-FROM {{ source('bronze_regulatory', 'raw_crus_ordenamento') }}
+FROM {{ source('bronze_regulatory', 'raw_crus_national_ogc') }}
 WHERE geom IS NOT NULL

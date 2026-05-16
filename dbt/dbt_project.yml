@@ -19,7 +19,10 @@ on-run-start:
   - "CREATE SCHEMA IF NOT EXISTS silver_properties"
   - "CREATE SCHEMA IF NOT EXISTS silver_geo"
   - "CREATE SCHEMA IF NOT EXISTS silver_location"
+  - "CREATE SCHEMA IF NOT EXISTS silver_parcels"
+  - "CREATE SCHEMA IF NOT EXISTS silver_regulatory"
   - "CREATE SCHEMA IF NOT EXISTS gold_analytics"
+  - "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"
 
 models:
   house4house:
@@ -36,6 +39,10 @@ models:
         +schema: silver_geo
       location:
         +schema: silver_location
+      parcels:
+        +schema: silver_parcels
+      regulatory:
+        +schema: silver_regulatory
     gold:
       +materialized: table
       +schema: gold_analytics

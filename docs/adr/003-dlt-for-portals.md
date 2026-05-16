@@ -31,6 +31,6 @@ We use dlt for portal ingestion. Specifically: dlt's resource pattern + SCD2 mer
 ## References to dig into when filling
 
 - `pipelines/portals/{remax,idealista,zome}/source.py` — dlt resource definitions.
-- `pipelines/common/SCD2_RULES.md` — version-column policy.
+- `wiki/concepts/scd2-row-hash.md` — version-column policy.
 - `archive/portal_dlt_cutover_2026/` — original cutover plans (path refs are pre-rename).
 - Compare with `pipelines/api/{bpstat,ecb,eurostat,ine}/` (non-dlt pattern).

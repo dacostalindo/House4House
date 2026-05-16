@@ -100,7 +100,7 @@ remax_developments    remax_listings    (all 47k listings) (all 12k plots)
   `_normalize_listing_from_sitemap`, parallel resources).
 - New table `remax_listings_sitemap` + heartbeat sidecar.
 - ~80 lines in DAG validation.
-- Updates to `CUTOVER.md` + `PLOTS_RULES.md` + new `SITEMAP_RULES.md`.
+- Updates to `CUTOVER.md` + [[portal-plot-conventions]] + new `SITEMAP_RULES.md`.
 - 4-week shadow-run phase before any deprecation.
 
 ## Decision required

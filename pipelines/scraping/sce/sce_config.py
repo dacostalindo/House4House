@@ -208,6 +208,9 @@ SCE_BRONZE_CONFIG = BronzeTableConfig(
     flatten_fn=_flatten_sce_records,
     file_format="jsonl",
     delete_before_insert=False,
-    trigger_dag_id="dbt_sce_build",
+    # Chain (2026-05-15, Sprint-08 Activity 7): sce_bronze_load → sce_geocode →
+    # dbt_sce_build. The geocode DAG triggers dbt_sce_build itself, so this
+    # bronze loader now hands off to geocode instead of dbt directly.
+    trigger_dag_id="sce_geocode",
     tags=["sce", "bronze", "energy-certificates"],
 )

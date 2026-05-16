@@ -30,7 +30,7 @@ infeasible to reproduce server-side without a real browser. Plot inventory in
 PT is already captured by the idealista/remax/zome pipelines.
 
 SCD2 row versioning is driven by an explicit `row_hash` over a curated column
-subset. See pipelines/common/SCD2_RULES.md for the cross-pipeline policy.
+subset. See wiki/concepts/scd2-row-hash.md for the cross-pipeline policy.
 
 Heartbeat sidecars distinguish "stable unchanged" from "delisted".
 Silver-layer queries should treat as active when:
@@ -226,7 +226,7 @@ def _snake_case_keys(d: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Hashing — canonicalize numerics so int↔float drift does not create
 # spurious SCD2 versions. Kept in sync with zome/remax/idealista by design.
-# See pipelines/common/SCD2_RULES.md.
+# See wiki/concepts/scd2-row-hash.md.
 # ---------------------------------------------------------------------------
 _HASH_SCALAR_TYPES = (int, float, str, bool, type(None))
 

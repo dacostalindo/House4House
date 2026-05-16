@@ -1,7 +1,7 @@
 ---
 title: DGT LiDAR Aveiro (2m DTM & DSM)
 type: source
-last_verified: 2026-05-08
+last_verified: 2026-05-13
 tags: [gis, regulatory, government, terrain, raster, stac]
 priority: P1
 ---
@@ -18,7 +18,7 @@ This is a source page about DGT's LiDAR-derived 2m elevation rasters (DTM bare-e
 - **Base endpoint**: `https://cdd.dgterritorio.gov.pt/dgt-be` (STAC root)
 - **License**: open data (cookie-gated)
 - **Schedule**: manual trigger
-- **Coverage**: currently Aveiro region only (489 tiles per collection, 2 collections = 978 tiles total)
+- **Coverage**: currently Aveiro município / centro / lagoon only (489 tiles per collection × 2 collections = 978 tiles total). The 489-tile figure is the CANONICAL count for the configured bbox (`-8.764, 40.528, -8.521, 40.728` ≈ 462 km²), verified 2026-05-13 by direct DGT STAC query (`limit=500` → `returned=489, has_next=False`). To expand to Aveiro distrito (~2,800 km², ≥600 tiles available per STAC), widen `AVEIRO_BBOX_4326` in [pipelines/gis/lidar/lidar_config.py](../../pipelines/gis/lidar/lidar_config.py) and confirm pagination works (current `page_size=500` + the recovered `DgtStacAdapter.fetch_to` loop handles `next` links).
 
 ## Schema
 

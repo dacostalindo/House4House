@@ -54,12 +54,13 @@ Column-level descriptions, source-path mappings, and gotchas live in `dbt/models
 
 ### 3. `pipelines/common/tools/` is the new home for cross-pipeline Python utilities
 
-Up to Sprint 4.4, `pipelines/common/` was deliberately doc-only (`NAMING_CONVENTIONS.md`, `SCD2_RULES.md`, `PLOTS_RULES.md`, `README_DLT_TEMPLATE.md`) — convention reference, not importable code.
+Up to Sprint 4.4, `pipelines/common/` was deliberately doc-only — convention-reference markdowns (`NAMING_CONVENTIONS.md`, `SCD2_RULES.md`, `PLOTS_RULES.md`, `README_DLT_TEMPLATE.md`), not importable code. Those convention docs were migrated to `wiki/concepts/{portal-naming-conventions,scd2-row-hash,portal-plot-conventions,portal-field-map}.md` in 2026-05-12 so the wiki is the single source of truth.
 
 Workstream C (column-dictionary generator) introduced the first cross-pipeline Python utility. The convention now is:
 
-- `pipelines/common/*.md` — conventions, design docs, templates (no behavior change).
+- `wiki/concepts/*.md` — conventions, design docs, cross-pipeline rules (single source of truth).
 - `pipelines/common/tools/` — reusable Python utilities for cross-pipeline use. Importable as `pipelines.common.tools.X`.
+- `pipelines/common/*.py` — cross-pipeline Python helpers (e.g. `minio_upload.py`).
 - `scripts/` (repo root) — one-off operational tooling, scratch analysis, throwaway scripts.
 
 **Rejected alternative:** put the generator in `scripts/` (repo root). Scripts there have a "throwaway tooling" vibe (look at the contents: `am48_scrape_results.json`, `analyze_survey.py`, etc.). A reusable utility called from multiple pipelines deserves a proper home in the package layout.
@@ -124,7 +125,7 @@ This was a deliberate trade-off: iteration speed and test reproducibility weighe
 ## References
 
 - Sprint 4.4 plan: see `## Sprint 4.4` section in repo-root [README.md](../../README.md).
-- Cross-portal field map: [`pipelines/common/PORTAL_FIELD_MAP.md`](../../pipelines/common/PORTAL_FIELD_MAP.md).
+- Cross-portal field map: [`wiki/concepts/portal-field-map.md`](../../wiki/concepts/portal-field-map.md).
 - Column-dictionary generator: [`pipelines/common/tools/generate_column_dictionary.py`](../../pipelines/common/tools/generate_column_dictionary.py).
 - Portal source declarations: [`dbt/models/staging/listings/_staging_listings__sources.yml`](../../dbt/models/staging/listings/_staging_listings__sources.yml).
 - Archive of pre-rename migration docs: [`archive/portal_dlt_cutover_2026/README.md`](../../archive/portal_dlt_cutover_2026/README.md).

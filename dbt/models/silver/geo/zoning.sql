@@ -37,6 +37,17 @@ SELECT
         WHEN o.land_classification = 'Solo Rústico' THEN 'rural_other'
         ELSE 'other'
     END AS zone_category,
+
+    -- Density rule extraction (max_floors / max_density_index / max_coverage_ratio)
+    -- was attempted in Sprint-08 Activity 5 (commit b3bfd09) via regex on
+    -- land_designation, but verification 2026-05-13 against live Aveiro data
+    -- showed the field is a hierarchical zone-classification name (e.g.
+    -- "Solo Urbano - Espaços Habitacionais - Espaço Habitacional Tipo 1"),
+    -- NOT a freetext spec sheet — 0 of 1,148 Aveiro rows contain any of the
+    -- density keywords. The actual density rules live in the PDM Regulamento
+    -- (a separate text document per município). Deferred to sprint-09 with a
+    -- different approach (PDM Regulamento parsing OR a zone-category lookup).
+
     o.area_ha,
     o.geom,
     o.geom_wgs84,

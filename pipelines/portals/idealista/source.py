@@ -48,7 +48,7 @@ uses RE API with tld=.pt — required to scope to PT listings (without it,
 the endpoint resolves to .es and returns deactivated stubs).
 
 SCD2 row versioning is driven by an explicit `row_hash` over a curated column
-subset. See pipelines/common/SCD2_RULES.md for the cross-pipeline policy.
+subset. See wiki/concepts/scd2-row-hash.md for the cross-pipeline policy.
 
 Heartbeat sidecars distinguish "stable unchanged dev/unit" from "delisted".
 Silver-layer queries should treat as active when:
@@ -159,7 +159,7 @@ SCHEMA_CONTRACT = {"data_type": "freeze", "columns": "evolve"}
 
 
 # ---------------------------------------------------------------------------
-# Version-relevant columns for SCD2 row_hash. See pipelines/common/SCD2_RULES.md
+# Version-relevant columns for SCD2 row_hash. See wiki/concepts/scd2-row-hash.md
 # for the cross-pipeline include/exclude policy.
 # ---------------------------------------------------------------------------
 DEVELOPMENTS_VERSION_COLUMNS: tuple[str, ...] = (
@@ -244,7 +244,7 @@ UNITS_JSON_COLUMNS = (
 # SCD2 versions. Whitelist scalar types so a non-scalar slipping into
 # version_cols fails loudly instead of being str()-stringified.
 #
-# Kept in sync with zome/remax intentionally — see pipelines/common/SCD2_RULES.md
+# Kept in sync with zome/remax intentionally — see wiki/concepts/scd2-row-hash.md
 # for the conventions; the helpers below are duplicated across pipelines by
 # design (small surface, zero shared deps preferred over an abstraction with
 # one consumer migrated and others lagging).

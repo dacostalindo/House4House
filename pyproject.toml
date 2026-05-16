@@ -82,3 +82,8 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-q"
+# Put the repo root on sys.path so tests can `from pipelines.* import ...`
+# without installing the workspace as an editable package. Replaces the
+# per-subdir `sys.path.insert` pattern the existing tests/configs/conftest.py
+# uses (still valid; this just makes it global for tests/common, tests/enrichment, ...).
+pythonpath = ["."]

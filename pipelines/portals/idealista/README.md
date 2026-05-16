@@ -15,9 +15,9 @@ DAG (id `idealista_developments_dlt`); the legacy resale pipeline lives in
 **`idealista_bronze_dag.py`** (id `idealista_bronze_load`).
 
 > **Cross-pipeline conventions** are documented in
-> [../../common/SCD2_RULES.md](../../common/SCD2_RULES.md),
-> [../../common/NAMING_CONVENTIONS.md](../../common/NAMING_CONVENTIONS.md), and
-> [../../common/PLOTS_RULES.md](../../common/PLOTS_RULES.md). Field names in the
+> [../../wiki/concepts/scd2-row-hash.md](../../wiki/concepts/scd2-row-hash.md),
+> [../../wiki/concepts/portal-naming-conventions.md](../../wiki/concepts/portal-naming-conventions.md), and
+> [../../wiki/concepts/portal-plot-conventions.md](../../wiki/concepts/portal-plot-conventions.md). Field names in the
 > three new dlt tables match RE API verbatim — same column names as `raw_idealista`
 > for migration-friendly drop-in replacement when the legacy table is decommissioned.
 
@@ -105,7 +105,7 @@ features) has cut over.
 - Sprint 4.5 plan in repo-root [README.md](../../../README.md) — silver
   models that consume the replacement.
 - ADR 003 — dlt for portals (architectural rationale).
-- [`../../common/PLOTS_RULES.md`](../../common/PLOTS_RULES.md) —
+- [`../../wiki/concepts/portal-plot-conventions.md`](../../wiki/concepts/portal-plot-conventions.md) —
   "Decommission paths" section.
 
 See [idealista_config.py](idealista_config.py) for the full distrito/operation
