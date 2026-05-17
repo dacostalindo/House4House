@@ -160,3 +160,56 @@ jobs:
                       print(f'::error file=dbt::[dbt-parse] {line.rstrip()}')
           "
           exit $dbt_exit
+
+      # ── Tier-1 dbt build (Sprint-09 Slice B, 2026-05-17) ──
+      # Structural validation: catches SQL/type/JOIN errors that `dbt parse`
+      # misses. Bootstraps empty bronze tables from tests/ci_bootstrap/*.sql
+      # (one file per source family; see directory README), then runs
+      # `dbt build` on the v1-wedge silver path. Schema tests run against
+      # empty tables — trivially pass; they fire meaningfully when
+      # Tier-2 (sprint-10, seed-based data) lands. Per-PR additive: each
+      # sprint-09 PR contributes the bronze stubs + model selectors it needs.
+      - name: Bootstrap bronze schemas
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: ci
+          PGPASSWORD: ci
+          PGDATABASE: ci
+        shell: bash
+        run: |
+          echo "::group::bronze-bootstrap"
+          shopt -s nullglob
+          files=(tests/ci_bootstrap/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No tests/ci_bootstrap/*.sql files — skipping bronze bootstrap"
+          else
+            for f in "${files[@]}"; do
+              echo "→ $f"
+              psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f "$f"
+            done
+          fi
+          echo "::endgroup::"
+
+      - name: dbt build (structural)
+        env:
+          AIRFLOW_HOME: ${{ github.workspace }}/.airflow-home
+          DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+          DBT_HOST: localhost
+          DBT_PORT: 5432
+          DBT_USER: ci
+          DBT_PASSWORD: ci
+          DBT_DB: ci
+        shell: bash
+        run: |
+          set -o pipefail
+          echo "::group::dbt-build-slice-b"
+          # Slice B path: silver_sce_buildings + its staging deps.
+          # The `+` prefix includes upstream models (stg_sce_certificates).
+          # Bronze tables are empty (Tier-1 — Tier-2 in sprint-10 seeds fixtures).
+          uv run dbt build \
+            --project-dir dbt \
+            --target ci \
+            --select +silver_sce_buildings \
+            --no-partial-parse
+          echo "::endgroup::"
