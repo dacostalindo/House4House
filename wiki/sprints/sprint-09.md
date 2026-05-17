@@ -48,85 +48,13 @@ Shipped: `dbt/models/silver/regulatory/silver_sce_buildings.sql` body-filled per
 - **LLM eval-set CI gate**: any field below threshold blocks the prompt change. Runs on every Pydantic-AI prompt revision + model version pin bump.
 - **Cost**: ~$40 one-time backfill for ~10K listings, ~$0.004 per new listing thereafter. With idealista-only scope, closer to ~$10-20 for ~2-3K plot listings.
 
-### Workstream 4 Slice B-prime — Cross-portal Development Dedup (~7-9 days, EXPANDED 2026-05-17)
+### Workstream 4 Slice B-prime — Development Dedup (~1 day, NET-NEW)
 
-**Originally scoped at 1 day** (SCE buildings ↔ idealista plots only). **Expanded 2026-05-17** to 4-portal cross-portal dedup at the development grain per user decision. Replaces the previous narrow Slice B-prime in full. Load delta: +6-8 days net-new on sprint-09; see Status update history.
-
-**Goal**: produce one canonical row per real-world development across the 4 listing portals + SCE buildings, so that `fn_assess_polygon` and the Atlas Inspector show consolidated counts ("this neighbourhood has 5 distinct developments, listed across 12 portal pages") rather than raw portal-page lists.
-
-**Empirical inputs** (audited 2026-05-17 via warehouse):
-
-| Portal | Total devs | Aveiro devs | Project-name field | Geocoord at dev level |
-|---|---|---|---|---|
-| [[idealista]] | 2,005 | ~13 | ❌ `name` = address itself | ❌ derive via JOIN to units |
-| [[jll]] | 215 | **0** (Lisboa/Porto/Faro/Setúbal only) | ✓ `name` + `title` | ✓ `gps_lat`, `gps_lon` |
-| [[remax]] | 1,289 | ~10 | ✓ `name` (project names like "Barroka", "Domus Ria") | ✓ `latitude`, `longitude` |
-| [[zome]] | 352 | 3 | ✓ `nome` | ⚠️ `geocoordinateslat` (varchar — cast in staging) |
-
-Scale: ~26 developments in Aveiro across the 4 portals. **Probabilistic record linkage (Splink) is huge overkill at this scale** — simple spatial-DBSCAN + fuzzystrmatch.levenshtein on normalized project name suffices. Splink stays parked for v1.5+ if national rollout exposes the deterministic limits.
-
-**Sub-deliverable 1 — Extend [[portal-field-map]] to include JLL (~0.5 day)**
-
-[[portal-field-map]] currently documents idealista + remax + zome at field grain. JLL is missing. Sub-deliverable: extend the correspondence matrix to include JLL's 62 columns at development + listing grain. Flag JLL's Lisboa/Porto/Faro/Setúbal-only geographic coverage explicitly — relevant for sprint-10 portal expansion but zero v1-wedge demo value. Output: 4-portal field correspondence matrix instead of 3-portal.
-
-**Sub-deliverable 2 — Canonical per-portal staging models (~1-1.5 days × 4 = 4-6 days)**
-
-Four new `dbt/models/staging/portals/stg_portal_developments_<portal>.sql` models with consistent schema across portals:
-
-```
-portal              text           -- 'idealista' | 'jll' | 'remax' | 'zome'
-portal_dev_id       text           -- cast to varchar; idealista is already varchar
-canonical_name      text           -- project name where exposed; fallback to address_text
-address_text        text           -- raw address string for downstream fuzzy match
-city                text           -- mode'd to UPPER+TRIM concelho
-parish              text           -- freguesia
-postal_code         text           -- NNNN-NNN PT format
-geom_3763           geometry       -- for spatial joins
-geom_4326           geometry       -- for display
-total_units         integer        -- where exposed
-listing_url         text           -- for human-link from Inspector
-raw_meta            jsonb          -- escape hatch for fields not in the canonical schema
-_loaded_at          timestamptz
-```
-
-Portal-specific concerns surfaced in audit:
-- **idealista** has no dev-level geom. Derive via `(SELECT AVG(lat), AVG(lng) FROM idealista_development_units WHERE development_id = ...)`. Where no units geocoded, set to NULL.
-- **idealista** `name` IS the address — sets `canonical_name = NULL` and lets sub-deliverable 3 fall back to spatial-only matching for idealista.
-- **zome** stores geocoords as varchar — `::numeric` cast in staging.
-- **JLL** carries dev-level geom directly but every Aveiro row will be empty (no JLL Aveiro coverage). The staging model SHOULD work; it just won't contribute to Aveiro silver_unified_developments rows.
-
-**Sub-deliverable 3 — silver_unified_developments (~1-2 days)**
-
-`dbt/models/silver/regulatory/silver_unified_developments.sql`. Reads from the 4 canonical staging models + `silver_sce_buildings`. Pipeline:
-
-1. UNION ALL the 4 portal staging models + cast silver_sce_buildings rows into the same shape (`portal='sce'`, `portal_dev_id=sce_building_id::text`, `canonical_name=parish || ' ' || normalized_address`, `geom_3763=cluster_geom_3763`, ...).
-2. `ST_ClusterDBSCAN(geom_3763, eps := 50, minpoints := 1) OVER ()` — eps wider than Slice B's 30m because portal listings + SCE points can disagree by 30-50m on the same building.
-3. Within each cluster, secondary match via fuzzystrmatch.levenshtein on `canonical_name` where both sides have it. Idealista rows with NULL canonical_name match purely on spatial proximity.
-4. Output one row per cluster with `portal_refs` JSONB: `{"idealista": [...ids], "jll": [...], "remax": [...], "zome": [...], "sce": [...sce_building_ids]}`. Plus `member_count`, `unified_geom_3763` (cluster centroid), and `match_confidence` (1.0 if name-matched, 0.5 if spatial-only).
-5. `materialized='table'` + GIST index on `unified_geom_3763` (for fn_assess_polygon's `ST_DWithin` query).
-
-**Sub-deliverable 4 — Tests + concept page + wiki updates (~0.5-1 day)**
-
-- 4 pgTAP tests at `tests/sql/silver_unified_developments_*.sql`:
-  - DBSCAN(50m) collapses 2 portal-listings 30m apart with similar names → one unified row.
-  - DBSCAN spread: a single development with 5 portal-listings + 1 SCE building all within 50m → one unified row, `portal_refs` contains all 6.
-  - Name dissimilarity within a cluster keeps developments separate (e.g. two adjacent buildings with distinct project names).
-  - JLL row in Lisboa doesn't merge with Aveiro rows (sanity check on the spatial filter).
-- New concept page `wiki/concepts/cross-portal-dev-dedup.md` documenting design decisions (4-portal scope, 50m eps, name + spatial hybrid, Splink deferred to v1.5).
-- Extend [[portal-field-map]] with the 4-portal extension (sub-deliverable 1).
-- Update [[idealista]], [[jll]], [[remax]], [[zome]] source pages with cross-link to the new concept page.
-- `tests/ci_bootstrap/bronze_portals.sql` — empty stubs for the 4 portal bronze tables (continues the per-source-family pattern from sprint-09 Slice B).
-
-**Verification**:
-
-- `dbt build --select +silver_unified_developments` against the warehouse — green, row count between 26 (perfect dedup of Aveiro) and ~30 (some over-fragmentation acceptable).
-- Manual spot-check: known cross-portal development pairs (e.g. "Domus Ria" on RE/MAX + the same building on idealista if listed) end up in the SAME row.
-- `portal_refs` JSONB integrity: every row has at least 1 portal contributor; `member_count` matches the JSONB array sum.
-
-**Out of scope** (defer to sprint-10 or later):
-- Splink / probabilistic linkage — overkill at Aveiro scale; revisit when national rollout exposes deterministic limits.
-- LISTING-level cross-portal dedup (the `hash(address + area + typology)` pattern in sprint-10 Track A). This Slice B-prime is DEVELOPMENT-level; listing-level is a different problem.
-- Cross-portal listing↔SCE-fração linkage (one portal listing maps to multiple SCE certificates within one building). v1.5 work.
+- `dbt/models/silver/regulatory/silver_unified_developments.sql` — joins `silver_sce_buildings` + `silver_plot_listings_enriched` via:
+  - Spatial proximity: `ST_DWithin(sce.geom, idealista.geom, 50)`
+  - Optional Levenshtein-ratio ≤ 0.20 on normalized building name vs. listing title (where both populated)
+- Each row = one canonical development with `provenance` JSONB: `{sce_building_ids: [...], idealista_listing_ids: [...]}` for traceability.
+- Tests #21-#22 from Appendix C: proximity-only match collapses correctly; name-ambiguous case doesn't over-collapse.
 
 ### Workstream 4 — `gold.fn_assess_polygon` Postgres function (~3-5 days, NET-NEW, the keystone)
 
@@ -231,7 +159,6 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-05-14: added "Deferred from Sprint-08 — national OGC bronze-loader fix" deliverable (`cos_ogc` + `crus_ogc` `load_features` OOM on whole-GeoJSON `json.load`). `fn_assess_polygon` deliverable updated to the as-built constraint model — queries the 14 `stg_srup_*` layers + `dim_constraint_severity` (not the dropped `parcel_constraints` pre-compute). Status `planned`.
 - 2026-05-15: added "Deferred from Sprint-08 — freguesia-union mapping" deliverable. Activity 7's `sce_geocode` cascade hit 83.78 % coverage on Aveiro distrito (vs ≥90 % target) due to pre-2013-reform freguesia codes in CAOP 2025 vs post-2013 union codes in the SCE portal. Aveiro concelho (v1 demo target) is at 100 %; only national rollout is affected. Status `planned`.
 - 2026-05-17: Slice B SHIPPED. `silver_sce_buildings` body-fill landed with 12,634 buildings (1,166 Aveiro concelho), 4 pgTAP tests pass. Material design deltas vs original spec: no Levenshtein (Decision 2 — 0% empirical leakage), no parcel_id/cluster_split (Option B — 97.7% Nominatim-vs-cadastre semantics gap), no Splink (Decision 4). Tier-1 CI bootstrap landed alongside; Tier-2 deferred to [[sprint-10]]. New concept page [[sce-buildings-clustering]]. Two follow-ups surfaced by the Slice B audit: (a) clamp `geocode_confidence` to [0,1] in the Activity-7 geocoder; (b) standalone deliverable "SCE bronze refactor — replace-not-append" (~1 day) added to this sprint. Sprint status `planned` → `in_progress`.
-- 2026-05-17: Slice B-prime EXPANDED from 1 day (SCE↔idealista plots) → 7-9 days (4-portal cross-portal dev dedup, includes idealista + JLL + RE/MAX + Zome + SCE). User decision after warehouse audit surfaced that the field-level mapping ([[portal-field-map]]) exists for 3 of 4 portals but the runnable canonical staging models don't. JLL has 0 Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) but is included for future-proofing. **Load impact**: sprint-09 was already running ~4-5 weeks of work in 3 weeks; this adds +6-8 days. Mitigations: either move JLL staging to sprint-10 (still get 3-portal dedup in v1), defer Slice C (LLM extraction) to sprint-10, or accept a sprint-09 slip to ~4 weeks. Decision deferred to mid-sprint check.
 
 ## See also
 
