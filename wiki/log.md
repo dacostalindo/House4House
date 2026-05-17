@@ -885,3 +885,24 @@ Post-sprint-08-ship reconcile. 4 parallel scanner agents (schema / wikilinks / r
 - `wiki/concepts/portal-field-map.md` — reference-matrix page (no `## Why`/`## How`; domain-appropriate as a lookup table).
 
 Housekeeping: index.md `Last reconcile run` bumped to 2026-05-15; index preamble updated to reference the active `/wiki-reconcile` skill (the legacy `/wiki-lint` cron + skill were retired 2026-05-12). Full session report at `wiki/lint-reports/2026-05-15T222336.md`.
+
+## [2026-05-17] feat | [[sprint-09]] Slice B SHIPPED — silver_sce_buildings body-fill + Tier-1 CI bootstrap
+
+Sprint-09 Workstream 4 Slice B (SCE Unit Aggregation completion) shipped. `dbt/models/silver/regulatory/silver_sce_buildings.sql` body-filled with the DBSCAN(eps=30m) + GROUP BY (cluster_id, normalized_address) pipeline. 12,634 buildings produced (1,166 in Aveiro concelho), build time 5.11s. Test #9 invariant verified: SUM(frac_count) over DISTINCT sce_building_id = COUNT of nominatim input rows (20,996 = 20,996).
+
+4 pgTAP tests added at `tests/sql/sce_buildings_*.sql` (DBSCAN clustering, address dedup, frac_count conservation, energy_class_dist completeness). All 8 dbt schema tests + all 10 pgTAP assertions pass locally.
+
+**Material design deltas vs original spec** (full reasoning in new [[sce-buildings-clustering]] concept page):
+- Levenshtein deferred to v1.5 (Decision 2): 0% empirical leakage at 6k rows from the deterministic normalizer makes fuzzy matching gilding-the-lily AND O(n²) per cluster.
+- `parcel_id` + `cluster_split` columns REMOVED (Decision 3, "Option B"): 97.7% of Nominatim-geocoded SCE points fall on street centerlines outside cadastral parcels — the "tiebreak when cluster spans 2+ parcels" branch was unreachable. Atlas Inspector can join `parcel_universe` at query time. Test #11 retired.
+- Splink / probabilistic record linkage NOT used (Decision 4): spatial DBSCAN(30m) + deterministic normalizer >> probabilistic matching for same-source within-30m. Re-evaluate Splink for cross-source `silver_unified_developments` (Slice B-prime).
+
+**Tier-1 CI bootstrap also added** (Sprint-09 first PR contribution to per-PR-additive CI dbt-build pattern):
+- New directory `tests/ci_bootstrap/` with README documenting "one .sql file per source family" convention.
+- `tests/ci_bootstrap/bronze_sce.sql` creates the empty `bronze_regulatory.raw_sce_certificates` + `bronze_enrichment.raw_sce_geocoded` schemas that Slice B's dbt-build chain consumes.
+- `.github/workflows/ci.yml` adds "Bootstrap bronze schemas" + "dbt build (structural)" steps after `dbt parse`. CI now catches SQL/type/JOIN errors that `dbt parse` missed.
+- Tier-2 (seed-based dbt build with fixture data, enables data-invariant tests) deferred to [[sprint-10]] — gated on dev-interview validation per the wedge kill-criteria.
+
+**Pages touched**: [[silver_sce_buildings]] body (via dbt model), [[sce-buildings-clustering]] NEW, [[sprint-09]] (Slice B section + status-history entry + Slice B follow-ups subsection + status `planned` → `in_progress`), [[sprint-10]] (Tier-2 task added — separate entry), [[sce]] (`last_verified` bump + cross-link to new concept page), [[index.md|index]] (Concepts section + By-area-of-code routing).
+
+One follow-up flagged: `cluster_geocode_confidence > 1.0` bug in [[sprint-08]] Activity 7's geocoder (Nominatim's `importance` sometimes exceeds 1.0; we propagate raw). Fix tracked in [[sprint-09]] Slice B follow-ups.

@@ -1,12 +1,12 @@
 ---
 title: Sprint 9 — UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)
 type: plan
-last_verified: 2026-05-12
+last_verified: 2026-05-17
 tags: [sprint, plan, uc-3, wedge, completion, llm-extraction, dev-dedup, atlas-inspector, demo, weeks-19-21]
-status: planned
+status: in_progress
 sprint_number: "9"
 weeks: "19-21"
-last_status_update: 2026-05-12
+last_status_update: 2026-05-17
 ---
 
 ## For future Claude
@@ -21,14 +21,21 @@ Ship the [[UC-3]] v1 wedge differentiator: the data-assembly moat at parcel-grai
 
 ## Deliverables
 
-### Workstream 4 Slice B — SCE Unit Aggregation completion (~1 week, NET-NEW, started in [[sprint-08]])
+### Workstream 4 Slice B — SCE Unit Aggregation completion (~1 week, NET-NEW, DONE 2026-05-17)
 
-- Complete `dbt/models/silver/regulatory/silver_sce_buildings.sql`:
-  - `ST_ClusterDBSCAN(eps=30m, minpoints=1)` on geocoded SCE centroids.
-  - Within each cluster, group rows with **Levenshtein-ratio ≤ 0.15** on `normalized_address` (per Appendix A of the design doc).
-  - Tiebreak when a cluster spans 2+ cadastral parcels: pick parcel with most rows; if tied, pick smaller area; if still tied, assign to BOTH parcels with `cluster_split: true` flag.
-  - Aggregates: `frac_count` (≈ units), `energy_class_dist` (JSONB histogram across all 7 PT energy classes), `first_emission`, `last_emission`, `dominant_state`, `cluster_geocode_confidence` (min of inputs).
-- Tests #7-#11 from Appendix C: DBSCAN clustering correctness, Levenshtein dedup, `frac_count` sum-match, `energy_class_dist` completeness, `cluster_split` tiebreak.
+Shipped: `dbt/models/silver/regulatory/silver_sce_buildings.sql` body-filled per [[sce-buildings-clustering]]. 12,634 buildings produced (1,166 in Aveiro concelho), build time 5.11s. 4 pgTAP tests landed at `tests/sql/sce_buildings_*.sql` — DBSCAN, address dedup, frac_count conservation, energy_class_dist completeness. All 8 dbt schema tests + all 10 pgTAP assertions pass.
+
+**Design deltas vs original spec** (see [[sce-buildings-clustering]] for the full reasoning):
+- **No Levenshtein** (Decision 2): exact-match on `normalized_address` within each DBSCAN cluster. 0% empirical leakage at 6k rows from the Appendix A normalizer makes fuzzy matching gilding-the-lily. v1.5 path documented if dev interviews surface false-splits.
+- **No parcel_id / cluster_split** (Decision 3, "Option B"): empirically 97.7% of Nominatim-geocoded SCE points fall on street centerlines outside cadastral parcels (50-200m typical gap). The "tiebreak when cluster spans 2+ parcels" branch was unreachable; columns dropped. Atlas Inspector can join `parcel_universe` at query time when it wants per-parcel context. Test #11 retired.
+- **No Splink / probabilistic linkage** (Decision 4): spatial DBSCAN(30m) + deterministic normalizer beats probabilistic matching for same-source within-30m. Deferred to `silver_unified_developments` if needed there.
+- **DBSCAN + GROUP BY normalized_address** (Decision 5): chose adjacent-buildings-split-correctly over multi-frontage-buildings-merge-correctly. Suburban Aveiro adjacent buildings >> multi-frontage edges; revisit if interviews surface false-splits.
+
+**Tier 1 CI added** ([tests/ci_bootstrap/bronze_sce.sql](tests/ci_bootstrap/bronze_sce.sql) + `dbt build --select +silver_sce_buildings` in [.github/workflows/ci.yml](.github/workflows/ci.yml)): structural validation against empty bronze tables. Catches type/JOIN/typo bugs that `dbt parse` misses. Per-PR additive convention — future Slice C/D PRs add their own `bronze_<source>.sql` bootstrap files. Tier-2 (seed-based dbt build with fixture data) deferred to [[sprint-10]] — gated on dev-interview validation.
+
+#### Slice B follow-ups (small, NET-NEW)
+
+- **`cluster_geocode_confidence > 1.0` bug**: Slice B verification surfaced one silver row with `cluster_geocode_confidence = 1.583` (out of the 0-1 range). Root cause is upstream in [[sprint-08]] Activity 7's geocoder — Nominatim's `importance` score sometimes exceeds 1.0 and we propagate it raw. Slice B just MINs whatever comes in. Fix: clamp `geocode_confidence` to `[0, 1]` in `pipelines/enrichment/sce_geocode_dag.py` and backfill `bronze_enrichment.raw_sce_geocoded`. ~30 min of work.
 
 ### Workstream 4 Slice C — LLM Construction-Area Extraction (idealista only, ~1-1.5 weeks, NET-NEW)
 
@@ -96,6 +103,21 @@ Ship the [[UC-3]] v1 wedge differentiator: the data-assembly moat at parcel-grai
 
 Out of scope for this task: backporting the unions into `dim_geography` itself (that's a CAOP-version bump — separate work).
 
+### SCE bronze refactor — replace-not-append (~1 day, NET-NEW 2026-05-17)
+
+Slice B's verification audit surfaced that `bronze_regulatory.raw_sce_certificates` keeps full scrape history (current `(doc_number, _batch_id)` UNIQUE), producing ~3× row inflation (279k bronze rows for ~55-60k distinct certificates). The SCE portal preserves state transitions itself — our scrape-history is redundant. Refactor bronze to UPSERT-by-doc_number so bronze always reflects "current portal state."
+
+- Schema: drop `(doc_number, _batch_id)` UNIQUE; add `PRIMARY KEY (doc_number)` and `_last_seen_at TIMESTAMPTZ` ([[heartbeat-sidecar]] pattern, inlined). `_batch_id` stays as a trace column (last-writer), not part of the PK.
+- One-off SQL migration: dedup existing rows down to one-per-`doc_number` (latest `_scrape_date`); ~279k → ~55-60k. Backup to `bronze_regulatory.raw_sce_certificates_pre_2026_05_dedup` before applying.
+- Loader: rewrite [pipelines/scraping/sce/sce_bronze_load_dag.py](pipelines/scraping/sce/sce_bronze_load_dag.py) INSERT → `INSERT ... ON CONFLICT (doc_number) DO UPDATE SET ..., _last_seen_at = NOW()`. Tombstone behavior for certificates that disappear from the portal: do nothing — `_last_seen_at` going stale is the signal. Silver/Gold can filter on `_last_seen_at > NOW() - INTERVAL '90 days'` if "still in registry" matters (revisit when interviews surface the need).
+- Drop the `DISTINCT ON (doc_number)` dedup in [dbt/models/staging/regulatory/stg_sce_certificates.sql](dbt/models/staging/regulatory/stg_sce_certificates.sql) — bronze now guarantees uniqueness.
+- Wiki: update [[sce]] Schema + Quirks sections ("every run re-scrapes the full active-certificate set within scope. Dedup happens on the UNIQUE constraint at insert time" → "Bronze upserts by doc_number; latest scrape wins. `_last_seen_at` tracks freshness.") Cross-link [[bronze-permissive]] (SCE bronze becomes a documented exception to the never-delete invariant: we *update* rows, never historical-version them).
+- Verification: re-scrape Aveiro distrito post-deploy. Confirm bronze row count ~= distinct `doc_number` count. Confirm `_last_seen_at` populated. Re-build `silver_sce_buildings` — `frac_count` totals unchanged (the staging dedup was already doing this work).
+
+Side-benefit: silver_sce_buildings rebuild gets faster (no DISTINCT ON in staging), ad-hoc debug/audit queries against bronze stop needing to dedup. The pattern generalizes — once validated on SCE, the same refactor applies to other re-scrape bronze sources ([[idealista]], [[jll]], [[remax]], [[zome]], [[bupi]]) in a future sprint.
+
+Out of scope: changing CDC capture (the SCE portal doesn't expose deltas; we'd still do full-scope re-scrapes — just landing them as UPSERTs).
+
 ### Demo prep + execution (~3-5 days)
 
 - 20-parcel spot-check on Aveiro: 5 hard-gate cases, 5 high-slope coastal, 5 urban centro, 5 rural periphery. Manual QGIS verification of `fn_assess_polygon` output per parcel.
@@ -136,6 +158,7 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-05-12: restructured to "UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)" per [[2026-05-12-uc3-expanded-scope]]. Existing scope (Imovirtual / RNAL / hedonic v2 / ARU / etc.) deferred to future v1.5+ sprint, gated on wedge validation. Weeks extended from 19-20 → 19-21. Status `planned`.
 - 2026-05-14: added "Deferred from Sprint-08 — national OGC bronze-loader fix" deliverable (`cos_ogc` + `crus_ogc` `load_features` OOM on whole-GeoJSON `json.load`). `fn_assess_polygon` deliverable updated to the as-built constraint model — queries the 14 `stg_srup_*` layers + `dim_constraint_severity` (not the dropped `parcel_constraints` pre-compute). Status `planned`.
 - 2026-05-15: added "Deferred from Sprint-08 — freguesia-union mapping" deliverable. Activity 7's `sce_geocode` cascade hit 83.78 % coverage on Aveiro distrito (vs ≥90 % target) due to pre-2013-reform freguesia codes in CAOP 2025 vs post-2013 union codes in the SCE portal. Aveiro concelho (v1 demo target) is at 100 %; only national rollout is affected. Status `planned`.
+- 2026-05-17: Slice B SHIPPED. `silver_sce_buildings` body-fill landed with 12,634 buildings (1,166 Aveiro concelho), 4 pgTAP tests pass. Material design deltas vs original spec: no Levenshtein (Decision 2 — 0% empirical leakage), no parcel_id/cluster_split (Option B — 97.7% Nominatim-vs-cadastre semantics gap), no Splink (Decision 4). Tier-1 CI bootstrap landed alongside; Tier-2 deferred to [[sprint-10]]. New concept page [[sce-buildings-clustering]]. Two follow-ups surfaced by the Slice B audit: (a) clamp `geocode_confidence` to [0,1] in the Activity-7 geocoder; (b) standalone deliverable "SCE bronze refactor — replace-not-append" (~1 day) added to this sprint. Sprint status `planned` → `in_progress`.
 
 ## See also
 
