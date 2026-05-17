@@ -1,8 +1,8 @@
 ---
 title: SCE — Sistema de Certificação Energética
 type: source
-last_verified: 2026-05-15
-tags: [scraper, regulatory, government, energy, nodriver, geocoding]
+last_verified: 2026-05-17
+tags: [scraper, regulatory, government, energy, nodriver, geocoding, buildings-clustering]
 priority: P1
 ---
 
@@ -55,7 +55,7 @@ sce_ingestion → sce_bronze_load → sce_geocode → dbt_sce_build
 
 The result lands in `bronze_enrichment.raw_sce_geocoded(doc_number PK, address_lat, address_lng, geocode_source, geocode_confidence, normalized_address, nominatim_display, _geocoded_at)`. `dbt_sce_build` then LEFT-JOINs this into [`stg_sce_certificates`](../../dbt/models/staging/regulatory/stg_sce_certificates.sql), adding `geom_4326` / `geom_3763` derived columns for sprint-09 Slice B's `silver_sce_buildings` clustering.
 
-The `normalized_address` column is the clustering key from [pipelines/enrichment/sce_address_norm.py](../../pipelines/enrichment/sce_address_norm.py) — the Appendix-A normalization rules (PT real-estate abbreviation expansion + fração-marker stripping + diacritic-fold + concelho disambiguator), validated against 6,000 rows at 0% leakage and a 44.2% function-attributable collapse rate. Sprint-09 Slice B feeds it to `levenshtein()` (fuzzystrmatch extension, installed via `dbt_project.yml on-run-start`) for within-cluster dedup.
+The `normalized_address` column is the clustering key from [pipelines/enrichment/sce_address_norm.py](../../pipelines/enrichment/sce_address_norm.py) — the Appendix-A normalization rules (PT real-estate abbreviation expansion + fração-marker stripping + diacritic-fold + concelho disambiguator), validated against 6,000 rows at 0% leakage and a 44.2% function-attributable collapse rate. Sprint-09 Slice B consumes it for the within-cluster dedup step of `silver_sce_buildings` — see [[sce-buildings-clustering]] for the locked design (DBSCAN(30m) + exact-match GROUP BY; Levenshtein deferred to v1.5).
 
 **Coverage (2026-05-15 first run on Aveiro distrito, 55,766 distinct doc_numbers):**
 
@@ -73,4 +73,4 @@ The `normalized_address` column is the clustering key from [pipelines/enrichment
 
 ## Last verified
 
-2026-05-15 (Sprint-08 Activity 7 — geocoding pipeline shipped; Aveiro concelho 100% covered, distrito 83.78% with documented union-freguesia gap).
+2026-05-17 (Sprint-09 Slice B — `silver_sce_buildings` body-fill consumed `normalized_address` for the clustering surface, validating end-to-end. See [[sce-buildings-clustering]] for the locked clustering design. Sprint-09 also queues an SCE-bronze refactor: replace-not-append via UPSERT-by-doc_number; the current `(doc_number, _batch_id)` UNIQUE will become `PRIMARY KEY (doc_number)` with `_last_seen_at` heartbeat. Scrape-history dedup will move from staging DISTINCT ON to bronze-level.)

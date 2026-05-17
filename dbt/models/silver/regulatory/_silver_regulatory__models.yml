@@ -5,16 +5,20 @@ models:
     description: >
       Per-building SCE roll-up. One row = one physical building, produced
       by clustering geocoded SCE certificates (stg_sce_certificates) via
-      ST_ClusterDBSCAN (eps=30m, minpoints=1) and deduplicating within
-      each cluster on normalized_address (Levenshtein-ratio <= 0.15).
-      Sprint-08 Activity 8 lands ONLY the schema + indexes + tests (zero
-      rows); sprint-09 Slice B fills the body. Consumed by sprint-09's
+      ST_ClusterDBSCAN (eps=30m, minpoints=1) and grouping within each
+      cluster by normalized_address. v1 input filtered to
+      geocode_source='nominatim' (freguesia-centroid rows are bulk-
+      imprecise and would collapse a whole parish into one cluster).
+      No parcel_id: empirically 97.7% of Nominatim-geocoded SCE points
+      fall on street centerlines outside cadastral parcels (typical
+      50-200m gap). Atlas Inspector joins parcel_universe at query time
+      when it needs per-parcel context. Consumed by sprint-09's
       gold.fn_assess_polygon via ST_DWithin for the "nearby SCE
       developments" Atlas Inspector surface.
     columns:
       # ── Identity ───────────────────────────────────────────────────────
       - name: sce_building_id
-        description: "Surrogate BIGINT key. Stable across rebuilds (sprint-09 produces it via ROW_NUMBER over cluster_id ordered by cluster_geom_3763)"
+        description: "Surrogate BIGINT key produced by ROW_NUMBER over (cluster_id, normalized_address). Stable within a build, not across rebuilds (cluster_id is DBSCAN row-order-dependent)."
         tests:
           - unique
           - not_null
@@ -32,19 +36,9 @@ models:
         description: "Mode of member SCE rows' municipality (after upper-cased + trimmed). NULL if no member rows or empty mode"
       - name: parish
         description: "Mode of member SCE rows' parish (freguesia_detail). NULL when not all members agree"
-      - name: parcel_id
-        description: >
-          Foreign key to silver_parcels.parcel_universe.parcel_id. Picked per
-          Appendix A tiebreak: cluster's spatial-majority parcel; tie → smaller
-          parcel area; still tied → cluster_split=TRUE and row is duplicated
-          across both parcels. NULL when the cluster falls on un-cadastered land.
-      - name: cluster_split
-        description: "TRUE when the cluster centroid was assigned to 2+ cadastral parcels (Appendix A tiebreak). The same sce_building_id appears once per parcel in that case"
-        tests:
-          - not_null
       # ── Aggregates ────────────────────────────────────────────────────
       - name: frac_count
-        description: "Count of member SCE rows ≈ number of units (fracções) in the building. Sprint-09 Slice B Test #9 enforces frac_count = sum of dedup'd member rows"
+        description: "Count of member SCE rows ≈ number of units (fracções) in the building. Sprint-09 Slice B Test #9 enforces SUM(frac_count) = COUNT(stg_sce_certificates WHERE geocode_source='nominatim')"
         tests:
           - not_null
       - name: energy_class_dist
@@ -52,7 +46,7 @@ models:
           JSONB histogram across the 7 PT energy classes (A+, A, B, B-, C, D, E, F).
           Shape: {"A+": N, "A": N, ..., "F": N}. Members with missing/unparseable
           energy_class are dropped (don't inflate any bucket). Sprint-09 Slice B
-          Test #10 enforces sum(values) == frac_count for non-null members
+          Test #10 enforces sum(values) == frac_count for non-null-energy members
       - name: first_emission
         description: "MIN(member issued_date). Earliest SCE certificate observed for this building. Proxy for build year"
       - name: last_emission
