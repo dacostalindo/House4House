@@ -13,17 +13,20 @@ jobs:
     services:
       # postgis/postgis:16-3.4 service container for `dbt parse` + the
       # pgTAP runner. Drop-in replacement for postgres:16: same port, same
-      # ci/ci/ci credentials, same health-check. The PostGIS bump is for
+      # ci/ci credentials, same health-check. The PostGIS bump is for
       # sprint-09's `gold.fn_assess_polygon` pgTAP tests, which exercise
       # spatial operators (ST_Transform / ST_Intersects / ST_DWithin).
       # Activity 9 (sprint-08) lands the runner empty — sprint-09 fills
       # tests/sql/*.sql.
+      # DB name is `house4house` (not `ci`) to match the hardcoded
+      # `database: house4house` in dbt source YAMLs — PostgreSQL doesn't
+      # support cross-database refs, so `dbt build` would fail otherwise.
       postgres:
         image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
+          POSTGRES_DB: house4house
         ports:
           - 5432:5432
         options: >-
@@ -76,7 +79,7 @@ jobs:
           echo "::group::pgtap-install"
           docker exec ${{ job.services.postgres.id }} bash -c \
             "apt-get update -q && apt-get install -y postgresql-16-pgtap"
-          PGPASSWORD=ci psql -h localhost -U ci -d ci \
+          PGPASSWORD=ci psql -h localhost -U ci -d house4house \
             -c "CREATE EXTENSION IF NOT EXISTS pgtap"
           echo "::endgroup::"
 
@@ -94,7 +97,7 @@ jobs:
           PGPORT: 5432
           PGUSER: ci
           PGPASSWORD: ci
-          PGDATABASE: ci
+          PGDATABASE: house4house
         shell: bash
         run: |
           echo "::group::pg-prove"
@@ -127,7 +130,7 @@ jobs:
           DBT_PORT: 5432
           DBT_USER: ci
           DBT_PASSWORD: ci
-          DBT_DB: ci
+          DBT_DB: house4house
         shell: bash
         run: |
           # set -o pipefail preserves dbt's exit code through the `tee`
@@ -175,7 +178,7 @@ jobs:
           PGPORT: 5432
           PGUSER: ci
           PGPASSWORD: ci
-          PGDATABASE: ci
+          PGDATABASE: house4house
         shell: bash
         run: |
           echo "::group::bronze-bootstrap"
@@ -199,7 +202,7 @@ jobs:
           DBT_PORT: 5432
           DBT_USER: ci
           DBT_PASSWORD: ci
-          DBT_DB: ci
+          DBT_DB: house4house
         shell: bash
         run: |
           set -o pipefail
