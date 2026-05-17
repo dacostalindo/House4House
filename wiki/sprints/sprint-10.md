@@ -1,12 +1,12 @@
 ---
 title: Sprint 10 — Production Hardening + Portal Expansion + UC-3 v2 Readiness
 type: plan
-last_verified: 2026-05-12
-tags: [sprint, plan, hardening, portal-expansion, imovirtual, rnal, hedonic-v2, aru, uc-3-v2, weeks-22-24]
+last_verified: 2026-05-17
+tags: [sprint, plan, hardening, portal-expansion, imovirtual, rnal, hedonic-v2, aru, uc-3-v2, ci-cd-hardening, ci-tier-2, weeks-22-24]
 status: planned
 sprint_number: "10"
 weeks: "22-24"
-last_status_update: 2026-05-12
+last_status_update: 2026-05-17
 ---
 
 ## For future Claude
@@ -32,6 +32,21 @@ Two parallel tracks:
 - **CI data integration (if license obtained, S02)**: transaction prices from authoritative source → validate hedonic predictions, calibrate gap percentage. Licensee-gated; if commercial license fails, stays as a "deferred indefinitely" gap.
 - **Data quality monitoring**: dbt tests + source freshness alerts + row count anomaly detection on every model. Already partial coverage from Phase 4 CI scaffolding (commit `fda6d6c`); Sprint 10 extends to all sources + all silver/gold models.
 - **Documentation**: data dictionary + user guide + lineage diagrams. Auto-generated where possible (dbt docs); hand-written for the lineage narrative.
+- **Tier-2 CI: seed-based `dbt build`** (~2-3 days, NET-NEW from [[sprint-09]] Slice B). [[sprint-09]] shipped Tier-1 — empty bronze tables in CI + `dbt build` structural validation. Tier-2 adds `dbt seed`-able CSV fixtures (~10-100 rows per bronze table along the v1-wedge path: SCE + cadastro + BUPI + SRUP + idealista). With fixtures in place, dbt's schema tests + singular tests fire meaningfully in CI, and the existing pgTAP tests at `tests/sql/sce_buildings_*.sql` can be refactored to query the live silver tables instead of inline-replicating the pipeline (~halving their length). Fixture maintenance becomes a real cost — keep fixtures small + targeted per source family. Gated on [[sprint-09]] wedge validation: if interviews kill the wedge, Tier-2 is sunk-cost CI infra; if validated, the v1.5+ workstreams ride on it.
+
+#### CI/CD hardening workstream (~3-4 days, NET-NEW 2026-05-17)
+
+Bundles CI/CD improvements surfaced across sprint-08 + sprint-09. Track A scope — value is independent of wedge outcome. Items ordered by priority within the workstream.
+
+- **(P0) Source-YAML database templating** — all 7 `_staging_*__sources.yml` files hardcode `database: house4house`. CI works around this by naming its postgres DB `house4house` (sprint-09 commit `7d7d879`), but the workaround couples test infra to the prod DB name and breaks if a dev runs `dbt parse` against a differently-named local DB. Proper fix: change `database: house4house` → `database: "{{ target.database }}"` across all sources, then revert CI's `POSTGRES_DB` back to `ci`. ~1 hour. Touches `dbt/models/staging/{geo,ine,regulatory,listings,location,macro,...}/_*__sources.yml`.
+- **(P1) ty graduates from advisory to BLOCKING** — currently `uv run ty check --exit-zero` (advisory). Per the existing TODOS.md "Graduate ty" entry, three triggers can flip this: ty 1.0 release, `[tool.ty]` config in pyproject.toml, or a Phase 6.5 sweep PR cleaning up findings first. Pick one trigger, do the cleanup sweep, drop `--exit-zero`. ~0.5-1 day depending on finding count.
+- **(P1) Concurrency cancel-in-progress** — multiple PR pushes stack CI runs. Add `concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }` to `.github/workflows/ci.yml` jobs. Saves runner time + green-light latency on rapid iterations. ~15 min.
+- **(P1) `make verify` ↔ CI parity** — `make verify` currently runs `ruff check`, `ty check`, `pytest`. CI adds `ruff format --check`, `dbt parse`, `dbt build`, `pg_prove`. Either expose the CI-only steps via `make verify-ci` (or extend `make verify` to include them) so devs can pre-flight locally. ~0.5 day.
+- **(P2) PR template** — `.github/pull_request_template.md` with the Summary / Test plan structure the project uses informally. Auto-fills the `gh pr create` body. ~30 min.
+- **(P2) CI artifact retention** — upload `dbt-parse.log` + `dbt-build.log` + `pg_prove` TAP output as artifacts on failure (`actions/upload-artifact@v4 if: failure()`). Saves the "log got truncated in `gh run watch` tail" friction. ~30 min.
+- **(P2) Cache-restore-400 noise** — `actions/cache` sporadically warns "Cache service responded with 400". Benign but pollutes logs. Pin the cache version or migrate to `actions/cache/save` + `actions/cache/restore` (the split API) to make failure modes explicit. ~30 min investigation.
+
+Out of scope here: portal-level CI (only API/dlt portals would benefit from a different pattern than the GIS pipelines; revisit when the portal-load taxonomy stabilises post-Imovirtual).
 
 ### Track B — UC-3 v2 readiness (GATED on [[sprint-09]] wedge validation)
 
@@ -72,6 +87,7 @@ If [[sprint-09]] post-demo kill-criteria check returns **killed** or **resized**
 ## Status update history
 
 - 2026-05-12: created to absorb scope displaced from old [[sprint-09]] when [[sprint-09]] was restructured to UC-3 v1 wedge Part 2 per [[2026-05-12-uc3-expanded-scope]]. Status `planned`. Track B gated on [[sprint-09]] wedge-validation outcome.
+- 2026-05-17: added 2 Track A items surfaced by sprint-09 Slice B work. (a) "Tier-2 CI: seed-based dbt build" (~2-3 days) — Tier-1 (empty bronze + structural `dbt build`) shipped in [[sprint-09]]; Tier-2 (seed-fixture-based with meaningful schema-test firing + simpler pgTAP tests) deferred here. (b) "CI/CD hardening workstream" (~3-4 days, 7 P0-P2 items): source-YAML database templating (proper fix for the sprint-09 CI DB rename workaround), ty graduation to BLOCKING, concurrency cancel-in-progress, `make verify` ↔ CI parity, PR template, CI artifact retention, cache-restore-400 noise. Both bundled into Track A (always ships) — value is CI infrastructure independent of UC-3 wedge outcome.
 
 ## See also
 
