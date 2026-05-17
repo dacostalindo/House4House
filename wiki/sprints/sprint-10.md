@@ -1,12 +1,12 @@
 ---
 title: Sprint 10 — Production Hardening + Portal Expansion + UC-3 v2 Readiness
 type: plan
-last_verified: 2026-05-17
-tags: [sprint, plan, hardening, portal-expansion, imovirtual, rnal, hedonic-v2, aru, uc-3-v2, ci-tier-2, weeks-22-24]
+last_verified: 2026-05-12
+tags: [sprint, plan, hardening, portal-expansion, imovirtual, rnal, hedonic-v2, aru, uc-3-v2, weeks-22-24]
 status: planned
 sprint_number: "10"
 weeks: "22-24"
-last_status_update: 2026-05-17
+last_status_update: 2026-05-12
 ---
 
 ## For future Claude
@@ -32,7 +32,6 @@ Two parallel tracks:
 - **CI data integration (if license obtained, S02)**: transaction prices from authoritative source → validate hedonic predictions, calibrate gap percentage. Licensee-gated; if commercial license fails, stays as a "deferred indefinitely" gap.
 - **Data quality monitoring**: dbt tests + source freshness alerts + row count anomaly detection on every model. Already partial coverage from Phase 4 CI scaffolding (commit `fda6d6c`); Sprint 10 extends to all sources + all silver/gold models.
 - **Documentation**: data dictionary + user guide + lineage diagrams. Auto-generated where possible (dbt docs); hand-written for the lineage narrative.
-- **Tier-2 CI: seed-based `dbt build`** (~2-3 days, NET-NEW from [[sprint-09]] Slice B). [[sprint-09]] shipped Tier-1 — empty bronze tables in CI + `dbt build` structural validation. Tier-2 adds `dbt seed`-able CSV fixtures (~10-100 rows per bronze table along the v1-wedge path: SCE + cadastro + BUPI + SRUP + idealista). With fixtures in place, dbt's schema tests + singular tests fire meaningfully in CI, and the existing pgTAP tests at `tests/sql/sce_buildings_*.sql` can be refactored to query the live silver tables instead of inline-replicating the pipeline (~halving their length). Fixture maintenance becomes a real cost — keep fixtures small + targeted per source family. Gated on [[sprint-09]] wedge validation: if interviews kill the wedge, Tier-2 is sunk-cost CI infra; if validated, the v1.5+ workstreams ride on it.
 
 ### Track B — UC-3 v2 readiness (GATED on [[sprint-09]] wedge validation)
 
@@ -73,7 +72,6 @@ If [[sprint-09]] post-demo kill-criteria check returns **killed** or **resized**
 ## Status update history
 
 - 2026-05-12: created to absorb scope displaced from old [[sprint-09]] when [[sprint-09]] was restructured to UC-3 v1 wedge Part 2 per [[2026-05-12-uc3-expanded-scope]]. Status `planned`. Track B gated on [[sprint-09]] wedge-validation outcome.
-- 2026-05-17: added Track A item "Tier-2 CI: seed-based dbt build" (~2-3 days). Originates from sprint-09 Slice B where Tier-1 (empty bronze tables + structural `dbt build`) shipped — Tier-2 (seed-fixture-based `dbt build` enabling data-invariant tests + simpler pgTAP tests) deferred here per Slice B pushback on sprint-09 overload. Bundled into Track A (always ships) because the value is CI infrastructure independent of UC-3 wedge outcome — only the v1.5+ pay-off is wedge-gated.
 
 ## See also
 
