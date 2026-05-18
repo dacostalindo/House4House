@@ -1,12 +1,12 @@
 ---
 title: Sprint 9 — UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)
 type: plan
-last_verified: 2026-05-17
+last_verified: 2026-05-18
 tags: [sprint, plan, uc-3, wedge, completion, llm-extraction, dev-dedup, cross-portal, atlas-inspector, demo, weeks-19-21]
 status: in_progress
 sprint_number: "9"
 weeks: "19-21"
-last_status_update: 2026-05-17
+last_status_update: 2026-05-18
 ---
 
 ## For future Claude
@@ -123,6 +123,59 @@ Portal-specific concerns surfaced in audit:
 - Manual spot-check: known cross-portal development pairs (e.g. "Domus Ria" on RE/MAX + the same building on idealista if listed) end up in the SAME row.
 - `portal_refs` JSONB integrity: every row has at least 1 portal contributor; `member_count` matches the JSONB array sum.
 
+**Implementation split — 3 PRs** (locked 2026-05-18):
+
+The 4 sub-deliverables map to 3 PRs landed in sequence. Each PR is independently reviewable and mergeable; PR-A has no code dependencies, PR-B + PR-C share a per-portal staging dependency.
+
+**PR-A — Foundation: extend [[portal-field-map]] with JLL** (~0.5d, wiki-only)
+
+Scope: sub-deliverable 1. The [[portal-field-map]] concept page currently documents idealista + RE/MAX + Zome at field grain. Add JLL's 62 columns (development + listing grain) to the correspondence matrix. Flag JLL's Lisboa/Porto/Faro/Setúbal-only geographic coverage explicitly.
+
+Files: `wiki/concepts/portal-field-map.md` (extend matrix). Bump `last_verified`. Update [[index]] concept entry summary.
+
+Test plan: wiki-only PR — CI green; [[wikilinks]] resolve.
+
+**PR-B — Canonical per-portal staging models + CI bronze stubs** (~4-6d)
+
+Scope: sub-deliverable 2. Build the 4 `stg_portal_developments_<portal>.sql` models that expose the canonical 13-column schema. Add dbt sources for RE/MAX, Zome, JLL (idealista already has a source). Add CI bronze stubs so `dbt build` validates structurally.
+
+Files NEW:
+- `dbt/models/staging/portals/stg_portal_developments_idealista.sql` (regexp_match on `title` for canonical_name; AVG(lat,lng) over units for geom)
+- `dbt/models/staging/portals/stg_portal_developments_remax.sql` (template — RE/MAX has cleanest fields; document parish-centroid coord caveat in YAML)
+- `dbt/models/staging/portals/stg_portal_developments_zome.sql` (`::numeric` cast on varchar coords)
+- `dbt/models/staging/portals/stg_portal_developments_jll.sql` (greenfield — also adds JLL dbt source first)
+- `dbt/models/staging/portals/_staging_portals__sources.yml` (4 portal bronze sources, idealista already exists in `staging/listings/` and stays there)
+- `dbt/models/staging/portals/_staging_portals__models.yml` (column docs + `not_null` / `accepted_values` tests + cross-reference to [[portal-field-map]])
+- `tests/ci_bootstrap/bronze_portals.sql` (empty stubs for 4 portal bronze tables, continues per-source-family pattern from sprint-09 Slice B PR #31)
+
+Test plan: per-portal `dbt parse` green; `dbt build --select stg_portal_developments_*` against the local warehouse — row counts match bronze; spot-check on idealista title-regex extraction (expect 100% on Aveiro); spot-check on Zome varchar→numeric cast; verify RE/MAX 51% NULL coord rate (documented expected).
+
+Recommended landing order within PR-B (split into 2 commits if reviewer prefers): RE/MAX template first, then Zome + Idealista + JLL in one batch.
+
+**PR-C — silver_unified_developments + tests + concept page + final wiki** (~1.5-3d)
+
+Scope: sub-deliverables 3 + 4. Build the silver model, the 4 pgTAP tests, the new concept page, and broaden CI dbt build selector.
+
+Files NEW:
+- `dbt/models/silver/regulatory/silver_unified_developments.sql` (DBSCAN + name-similarity connected-components + portal_refs JSONB)
+- `tests/sql/silver_unified_developments_cluster_collapse.sql` (Test #21)
+- `tests/sql/silver_unified_developments_multi_portal_match.sql` (Test #22)
+- `tests/sql/silver_unified_developments_name_split.sql` (Test #23 — RE/MAX 4-distinct-devs-at-same-coord scenario)
+- `tests/sql/silver_unified_developments_spatial_filter.sql` (Test #24)
+- `wiki/concepts/cross-portal-dev-dedup.md` (locks Decisions 1-8: dev-grain, DBSCAN+Levenshtein, 4-portal scope, 50m eps, idealista title-regex, portal_refs JSONB, sub-deliverable order, name_similarity v1 load-bearing)
+
+Files MODIFIED:
+- `dbt/models/silver/regulatory/_silver_regulatory__models.yml` (append silver_unified_developments entry)
+- `wiki/sources/idealista.md`, `wiki/sources/jll.md`, `wiki/sources/remax.md`, `wiki/sources/zome.md` (cross-link to new concept; bump `last_verified`)
+- `wiki/sprints/sprint-09.md` (flip Slice B-prime status DONE; add 2026-05-18 status-history entry)
+- `wiki/index.md` (register new concept under Concepts + dbt/ area-of-code routing)
+- `wiki/log.md` (append ship entry)
+- `.github/workflows/ci.yml` (broaden dbt build selector: `+silver_sce_buildings` → `+silver_unified_developments` since the new model transitively builds Slice B too)
+
+Test plan: `dbt build --select +silver_unified_developments` green (Aveiro: 26-30 rows); 4 pgTAP green locally + in CI; concrete cross-portal pair "Alpha View" (idealista) ↔ "ALPHA VIEW" (Zome) merges into one unified row; RE/MAX 4-distinct-devs-at-shared-coord scenario produces 4 unified rows (not 1) via the name_similarity split.
+
+**Dependencies**: PR-A is independent. PR-B can ship after or alongside PR-A (no code dependency on the wiki update). PR-C depends on PR-B (the silver model imports the 4 staging models). Recommended merge order: A → B → C.
+
 **Out of scope** (defer to sprint-10 or later):
 - Splink / probabilistic linkage — overkill at Aveiro scale; revisit when national rollout exposes deterministic limits.
 - LISTING-level cross-portal dedup (the `hash(address + area + typology)` pattern in sprint-10 Track A). This Slice B-prime is DEVELOPMENT-level; listing-level is a different problem.
@@ -232,6 +285,7 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-05-15: added "Deferred from Sprint-08 — freguesia-union mapping" deliverable. Activity 7's `sce_geocode` cascade hit 83.78 % coverage on Aveiro distrito (vs ≥90 % target) due to pre-2013-reform freguesia codes in CAOP 2025 vs post-2013 union codes in the SCE portal. Aveiro concelho (v1 demo target) is at 100 %; only national rollout is affected. Status `planned`.
 - 2026-05-17: Slice B SHIPPED. `silver_sce_buildings` body-fill landed with 12,634 buildings (1,166 Aveiro concelho), 4 pgTAP tests pass. Material design deltas vs original spec: no Levenshtein (Decision 2 — 0% empirical leakage), no parcel_id/cluster_split (Option B — 97.7% Nominatim-vs-cadastre semantics gap), no Splink (Decision 4). Tier-1 CI bootstrap landed alongside; Tier-2 deferred. New concept page [[sce-buildings-clustering]]. Slice B audit surfaced one immediate follow-up (clamp `geocode_confidence` to [0,1] in the Activity-7 geocoder) and triggered separate planning PRs for sprint-09 backlog (SCE bronze refactor + Slice B-prime expansion) and sprint-10 backlog (Tier-2 CI + CI/CD hardening workstream). Sprint status `planned` → `in_progress`.
 - 2026-05-17: Slice B-prime EXPANDED from 1 day (SCE↔idealista plots) → 7-9 days (4-portal cross-portal dev dedup, includes idealista + JLL + RE/MAX + Zome + SCE). User decision after warehouse audit surfaced that the field-level mapping ([[portal-field-map]]) exists for 3 of 4 portals but the runnable canonical staging models don't. JLL has 0 Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) but is included for future-proofing. **Load impact**: sprint-09 was already running ~4-5 weeks of work in 3 weeks; this adds +6-8 days. Mitigations: either move JLL staging to sprint-10 (still get 3-portal dedup in v1), defer Slice C (LLM extraction) to sprint-10, or accept a sprint-09 slip to ~4 weeks. Decision deferred to mid-sprint check. **Also added** "SCE bronze refactor — replace-not-append" (~1 day) — Slice B audit found bronze keeps 3× scrape history; SCE portal preserves state transitions itself so our scrape-history is redundant. Refactor to UPSERT-by-doc_number with `_last_seen_at` heartbeat.
+- 2026-05-18: Slice B-prime detailed plan landed (`~/.claude/plans/wobbly-kindling-hopcroft.md`). Two material design corrections via warehouse audit: (a) idealista DOES have project names — in `title` column via `regexp_match('^Empreendimento (.+?) anuncia ')` pattern with 100% Aveiro extraction rate; Decision 5 reversed from "spatial-only" to "title-extracted name". (b) RE/MAX coords are parish-centroid-level (4 distinct Coimbra devs share one lat/lng); the `name_similarity` Levenshtein CTE — originally scoped as v1.5 dead-code — is promoted to v1 LOAD-BEARING via connected-components recursive CTE. New Decision 8 documents this. Slice B-prime split into **3 PRs** for landing: PR-A = portal-field-map JLL extension (wiki-only, 0.5d); PR-B = 4 canonical per-portal staging models + dbt sources + CI bronze stubs (4-6d); PR-C = silver_unified_developments + 4 pgTAP tests + new concept page + final wiki (1.5-3d). Merge order A → B → C; PR-A is independent, PR-C depends on PR-B's staging models.
 
 ## See also
 
