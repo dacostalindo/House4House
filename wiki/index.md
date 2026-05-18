@@ -92,7 +92,7 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[heartbeat-sidecar]] — UPSERT-only companion table answering "is this entity still in the source?"; the 21-day silver-layer floor.
 - [[portal-naming-conventions]] — cross-pipeline naming policy for dlt portal pipelines; structural uniformity vs source-faithful leaf names.
 - [[portal-plot-conventions]] — how plots/terrenos are modelled across the three portals (separate `*_plots` tables, plot-specific SCD2 cols).
-- [[portal-field-map]] — cross-portal correspondence matrix (development / unit / plot grain) for [[remax]] + [[idealista]] + [[zome]].
+- [[portal-field-map]] — cross-portal correspondence matrix (development / unit / plot grain) for [[remax]] + [[idealista]] + [[jll]] + [[zome]] (JLL plots out of scope per [[jll]] Quirks).
 - [[zenrows-universal-vs-re-api]] — [[idealista]]'s mixed-API scrape strategy; ~5× cheaper RE API + Universal Scraper for HTML pages.
 - [[payload-cache-lifecycle]] — module-level `_payload_cache` shared across [[idealista]]'s four resources; saves ~85% of ZenRows spend per run.
 - [[medallion-layering]] — bronze/silver/gold + per-source-bronze-schema architecture; transformation-placement rules.
