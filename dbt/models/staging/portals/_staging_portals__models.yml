@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_portal_developments_remax
+    description: >
+      Canonical RE/MAX development staging — normalizes
+      `bronze_listings.remax_developments` to the 13-column cross-portal schema
+      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Coords are
+      parish-centroid-precision (per [[portal-field-map]] audit 2026-05-18):
+      ~51% of nationwide rows have NULL coords; the rest often share lat/lng
+      across distinct developments in the same parish. Downstream PR-C
+      (`silver_unified_developments`) compensates via Levenshtein
+      name-similarity disambiguation. RE/MAX `_dlt_valid_to IS NULL` filter
+      excludes superseded SCD2 versions.
+    columns:
+      - name: portal
+        description: "Literal 'remax'."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['remax']
+      - name: portal_dev_id
+        description: "RE/MAX `development_id` cast to TEXT — stable across runs; PK on this view."
+        tests:
+          - unique
+          - not_null
+      - name: canonical_name
+        description: "RE/MAX project name (e.g. 'Domus Ria', 'Barroka', 'Edifício Aleluia')."
+      - name: address_text
+        description: "Composite address: `region_name3 + ', ' + region_name2` (parish + concelho). NULL when both region names are absent."
+      - name: concelho
+        description: "Concelho (region_name2), UPPER+TRIM normalised."
+      - name: parish
+        description: "Freguesia (region_name3)."
+      - name: postal_code
+        description: "Portuguese postal code (NNNN-NNN format). ~49% populated."
+      - name: geom_3763
+        description: "Development centroid in EPSG:3763 (PT-TM06). Parish-centroid precision — see model description."
+      - name: geom_4326
+        description: "Same in EPSG:4326 (WGS84). For Kepler.gl / Leaflet display."
+      - name: total_units
+        description: "Unit count from `listings_count`."
+        tests:
+          - not_null
+      - name: listing_url
+        description: "RE/MAX detail URL derived from slug."
+      - name: raw_meta
+        description: "JSONB escape hatch: region_name1, minimum_price, agent_name, office_name, publish_date."
+      - name: _loaded_at
+        description: "`NOW()` at staging-view evaluation."
+        tests:
+          - not_null
