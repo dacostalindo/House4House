@@ -48,6 +48,13 @@ Bundles CI/CD improvements surfaced across sprint-08 + sprint-09. Track A scope 
 
 Out of scope here: portal-level CI (only API/dlt portals would benefit from a different pattern than the GIS pipelines; revisit when the portal-load taxonomy stabilises post-Imovirtual).
 
+#### Portal data-quality workstream (~1-2 days, NET-NEW 2026-05-18)
+
+Bundles 2 portal-pipeline data-quality findings surfaced during sprint-09 Slice B-prime planning. Track A scope — improvements work regardless of UC-3 wedge outcome.
+
+- **(P1) Idealista Pass-3 retry-on-stub** (~1d) — the RE API occasionally returns stub responses (≤6 fields) for units that have rich data on the portal HTML pages. Empirically, 19.8% of bronze unit rows are stubs (2,498 of 12,586); 23.4% of devs (466 of 1,989) have ALL units as stubs. Concentrated in out-of-scope distritos that fall under SCD2 closure before the next scrape can retry — Aveiro (in scope) is clean (0 of 79 all-stub devs). Fix: when a unit row has `_has_detail=false` AND the parent dev is still in `ACTIVE_DISTRITOS` scope OR is being re-scraped, retry Pass-3 (RE API) for that unit. Bypass the in-scope filter for retries explicitly. See [[idealista]] Quirks (entry dated 2026-05-18) for the empirical evidence + live verification confirming RE API works for the previously-stubbed unit_ids today.
+- **(P2) De-couple scrape scope from SCD2 closure** (~1d) — currently, when a dev falls outside `ACTIVE_DISTRITOS`, SCD2 closes the row on the next scrape (since the discovery pass doesn't see it). This conflates "out of our crawl window" with "deactivated/sold on portal". Add an `_scope_excluded` flag so silver/gold can distinguish the two. Or: refresh out-of-scope rows with a less-frequent cadence rather than auto-closing them. Pattern generalizes beyond idealista — the same problem will hit RE/MAX, Zome, JLL when their scrape scopes narrow.
+
 ### Track B — UC-3 v2 readiness (GATED on [[sprint-09]] wedge validation)
 
 If [[sprint-09]] post-demo kill-criteria check returns **validated**:
@@ -88,6 +95,7 @@ If [[sprint-09]] post-demo kill-criteria check returns **killed** or **resized**
 
 - 2026-05-12: created to absorb scope displaced from old [[sprint-09]] when [[sprint-09]] was restructured to UC-3 v1 wedge Part 2 per [[2026-05-12-uc3-expanded-scope]]. Status `planned`. Track B gated on [[sprint-09]] wedge-validation outcome.
 - 2026-05-17: added 2 Track A items surfaced by sprint-09 Slice B work. (a) "Tier-2 CI: seed-based dbt build" (~2-3 days) — Tier-1 (empty bronze + structural `dbt build`) shipped in [[sprint-09]]; Tier-2 (seed-fixture-based with meaningful schema-test firing + simpler pgTAP tests) deferred here. (b) "CI/CD hardening workstream" (~3-4 days, 7 P0-P2 items): source-YAML database templating (proper fix for the sprint-09 CI DB rename workaround), ty graduation to BLOCKING, concurrency cancel-in-progress, `make verify` ↔ CI parity, PR template, CI artifact retention, cache-restore-400 noise. Both bundled into Track A (always ships) — value is CI infrastructure independent of UC-3 wedge outcome.
+- 2026-05-18: added Track A "Portal data-quality workstream" (~1-2 days, 2 items) surfaced by user investigation of empty idealista rows during sprint-09 Slice B-prime planning. **(P1) Idealista Pass-3 retry-on-stub** addresses the 19.8% stub rate in bronze (2,498 of 12,586 unit rows); 23.4% of devs (466 of 1,989) have all units as stubs. Concentrated in out-of-scope distritos — Aveiro v1 wedge unaffected (0 of 79 all-stub devs). **(P2) De-couple scrape scope from SCD2 closure** addresses the underlying confusion of "out of our crawl window" vs "deactivated on portal" that compounds the stub problem.
 
 ## See also
 

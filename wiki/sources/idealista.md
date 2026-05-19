@@ -1,8 +1,8 @@
 ---
 title: Idealista
 type: source
-last_verified: 2026-05-08
-tags: [portal, real-estate, scraper, zenrows]
+last_verified: 2026-05-18
+tags: [portal, real-estate, scraper, zenrows, scd2, re-api-stub]
 priority: P0
 ---
 
@@ -44,7 +44,8 @@ Bronze table: `bronze_listings.raw_idealista` — discovery + detail merged per 
 - **Rate limits**: 2.0s discovery delay, 1.5s detail delay; 60s request timeout; max 90 discovery pages per segment (hard cap to prevent runaway loops).
 - **Crawl-level switch**: at runtime, the source reads `config.crawl_level` and dispatches either distrito-level or concelho-level segments. Currently locked to `concelho` (finer-grained, more parallelizable, fewer auto-splits). Switching back is one-line revert if needed.
 - **Description language**: predominantly Portuguese; downstream Phase 5 enrichment (Pydantic AI) will parse for structured fields like construction year, bedrooms, energy certificate references.
+- **Pass-3 transient-stub pattern + out-of-scope SCD2 closure** (documented 2026-05-18, sprint-09): the RE API occasionally returns stub responses (≤6 fields, or missing all of price/address/features) for units that genuinely exist on the portal. Most commonly hits freshly-listed units that haven't propagated to the RE API namespace yet (~few days lag). The parser at [source.py:638-644](../../pipelines/portals/idealista/source.py#L638-L644) flags these as `_re_api_stub` and persists rows with all substantive columns NULL. **Empirical rates (2026-05-18 audit)**: 19.8% of all unit rows in bronze are stubs (2,498 of 12,586). 23.4% of devs (466 of 1,989) have ALL units as stubs. The pattern is concentrated in out-of-scope distritos — Aveiro (in scope) has 0 all-stub devs out of 79. Compounding issue: when a dev falls out of `ACTIVE_DISTRITOS` scope, SCD2 closes the row on the next scrape — so transient stubs become permanent because there's no retry. Live verification on dev 33049153 (Porto) confirmed all 5 of its stub units return rich RE API data today (27-29 keys each, prices 252,500€-375,000€). Fix scoped to sprint-10 Track A: "Pass-3 retry-on-stub mechanism" (~1d) — when a unit row has `_has_detail=false`, retry on the next scrape; bypass the in-scope filter for retries.
 
 ## Last verified
 
-2026-05-08 (Phase 3 PR 2 seed pass — config + DAG re-read against current code).
+2026-05-18 (sprint-09 Slice B-prime audit surfaced the Pass-3 transient-stub pattern; sprint-10 follow-up logged. Two-pass validation gates + cost band + crawl-level switch unchanged from Phase 3.)
