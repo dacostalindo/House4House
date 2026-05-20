@@ -100,3 +100,56 @@ models:
         description: "`NOW()` at staging-view evaluation."
         tests:
           - not_null
+
+  - name: stg_portal_developments_idealista
+    description: >
+      Canonical Idealista development staging — normalizes
+      `bronze_listings.idealista_developments` to the 13-column cross-portal
+      schema consumed by sprint-09 Slice B-prime's `silver_unified_developments`.
+      View. Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Idealista
+      exposes coords AND admin geography only at unit grain — the unit_agg CTE
+      rolls `idealista_development_units` up per development: `geom_*` is the
+      AVG of geocoded unit points; `concelho`/`parish` come from the units'
+      `location_hierarchy` ([distrito, concelho, freguesia] ordered array),
+      which is reliable where the dev-level `address_text` is not.
+      `canonical_name` is regex-extracted from `title` (`name` is the street
+      address). 100% title-extraction on the 2026-05-18 Aveiro-distrito
+      re-scrape (85/85).
+    columns:
+      - name: portal
+        description: "Literal 'idealista'."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['idealista']
+      - name: portal_dev_id
+        description: "Idealista `development_id` (alphanumeric varchar) cast to TEXT — PK on this view."
+        tests:
+          - unique
+          - not_null
+      - name: canonical_name
+        description: "Project name regex-extracted from `title` (`^Empreendimento (.+?) anuncia `). NULL if a row lacks a Pass-2 title."
+      - name: address_text
+        description: "Street-level address from bronze `name` (e.g. 'Rua de São Martinho s/n, Anta') — the richest idealista address field."
+      - name: concelho
+        description: "Concelho from the units' `location_hierarchy[1]` ([distrito, concelho, freguesia] array), UPPER+TRIM. Reliable where the dev-level address text only carries a freguesia."
+      - name: parish
+        description: "Freguesia from the units' `location_hierarchy[2]`. NULL when the hierarchy has no freguesia element (2-element [distrito, concelho] form)."
+      - name: postal_code
+        description: "Always NULL — idealista doesn't expose a postal code at development grain."
+      - name: geom_3763
+        description: "Development centroid in EPSG:3763 (PT-TM06) — AVG of geocoded units. NULL when no unit is geocoded."
+      - name: geom_4326
+        description: "Same in EPSG:4326 (WGS84)."
+      - name: total_units
+        description: "Unit count from `units_count`."
+        tests:
+          - not_null
+      - name: listing_url
+        description: "Idealista development detail URL (`development_url`)."
+      - name: raw_meta
+        description: "JSONB escape hatch: title_raw, location_hierarchy, area_slug, min_price, typology_summary, is_completed, promoter_name, n_geocoded_units."
+      - name: _loaded_at
+        description: "`NOW()` at staging-view evaluation."
+        tests:
+          - not_null

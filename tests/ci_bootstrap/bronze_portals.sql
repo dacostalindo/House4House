@@ -52,3 +52,34 @@ CREATE TABLE IF NOT EXISTS bronze_listings.zome_developments (
     _dlt_valid_to       TIMESTAMPTZ,
     row_hash            VARCHAR
 );
+
+-- ── Idealista (PR-B3) ────────────────────────────────────────────────────
+-- stg_portal_developments_idealista joins developments × development_units
+-- (dev geom is the AVG of geocoded units), so both bronze tables are stubbed.
+CREATE TABLE IF NOT EXISTS bronze_listings.idealista_developments (
+    development_id    VARCHAR,
+    development_url   VARCHAR,
+    name              VARCHAR,
+    title             VARCHAR,
+    address_text      VARCHAR,
+    area_slug         VARCHAR,
+    typology_summary  VARCHAR,
+    promoter_name     VARCHAR,
+    min_price         NUMERIC,
+    units_count       BIGINT,
+    is_completed      BOOLEAN,
+    _dlt_valid_from   TIMESTAMPTZ,
+    _dlt_valid_to     TIMESTAMPTZ,
+    row_hash          VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS bronze_listings.idealista_development_units (
+    unit_id             VARCHAR,
+    development_id       VARCHAR,
+    latitude            NUMERIC,
+    longitude           NUMERIC,
+    location_hierarchy  JSONB,
+    _dlt_valid_from     TIMESTAMPTZ,
+    _dlt_valid_to       TIMESTAMPTZ,
+    row_hash            VARCHAR
+);
