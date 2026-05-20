@@ -30,3 +30,25 @@ CREATE TABLE IF NOT EXISTS bronze_listings.remax_developments (
     _dlt_valid_to    TIMESTAMPTZ,
     row_hash         TEXT
 );
+
+-- ── Zome (PR-B2) ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS bronze_listings.zome_developments (
+    venture_id          BIGINT,
+    nome                VARCHAR,
+    emid                VARCHAR,
+    deschub             VARCHAR,
+    localizacaolevel2   VARCHAR,
+    localizacaolevel3   VARCHAR,
+    geocoordinateslat   VARCHAR,
+    geocoordinateslong  VARCHAR,
+    imoveisdisponiveis  BIGINT,
+    imoveisreservados   BIGINT,
+    imoveisvendidos     BIGINT,
+    idestado            BIGINT,
+    tipologiagrupos     VARCHAR,
+    precosemformatacao  BIGINT,
+    url_user_link       VARCHAR,
+    _dlt_valid_from     TIMESTAMPTZ,
+    _dlt_valid_to       TIMESTAMPTZ,
+    row_hash            VARCHAR
+);
