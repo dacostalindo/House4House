@@ -614,6 +614,20 @@ def _normalize_development(dev: dict) -> dict:
     }
 
 
+def _listing_rank(unit: dict) -> tuple[int, int]:
+    """Dedup tiebreak rank for a Pass-1 listing — higher wins.
+
+    RE/MAX cross-lists the same unit under multiple developments' `listings[]`
+    arrays. When a `listing_id` collides, keep the richest version: prefer an
+    online listing (carries Pass-2 detail + a live price), then one with a
+    non-NULL price. See the `listings()` resource for the dedup.
+    """
+    return (
+        1 if unit.get("isOnline") else 0,
+        1 if unit.get("listingPrice") else 0,
+    )
+
+
 def _normalize_listing(unit: dict, dev_id: int, detail: dict) -> dict:
     """Combine Pass 1 unit fields with Pass 2 enrichment (when available)."""
     return {
@@ -778,16 +792,29 @@ def developments_state() -> Iterable[dict]:
 )
 def listings() -> Iterable[dict]:
     devs, pass2 = _ensure_payload()
+    # `_fetch_all_developments` dedups developments by dev_id, but a single
+    # unit can appear under MULTIPLE developments' `listings[]` arrays (RE/MAX
+    # cross-lists). Without a listing_id dedup here, the SCD2 resource gets the
+    # same primary key twice in one load — sometimes identical (pure dup),
+    # sometimes in different states (online vs offline) — and persists both as
+    # active versions. Dedup by unit_id, keeping the richest row per
+    # `_listing_rank` (prefer online, then non-NULL price).
+    best: dict[int, tuple[dict, int]] = {}
     for dev in devs:
         dev_id = dev.get("id")
         for unit in dev.get("listings") or []:
             unit_id = unit.get("id")
             if unit_id is None:
                 continue
-            detail = pass2.get(unit_id, {})
-            rec = _normalize_listing(unit, dev_id, detail)
-            rec["row_hash"] = _stable_hash(rec, LISTINGS_VERSION_COLUMNS)
-            yield rec
+            existing = best.get(unit_id)
+            if existing is None or _listing_rank(unit) > _listing_rank(existing[0]):
+                best[unit_id] = (unit, dev_id)
+
+    for unit_id, (unit, dev_id) in best.items():
+        detail = pass2.get(unit_id, {})
+        rec = _normalize_listing(unit, dev_id, detail)
+        rec["row_hash"] = _stable_hash(rec, LISTINGS_VERSION_COLUMNS)
+        yield rec
 
 
 @dlt.resource(
@@ -798,11 +825,15 @@ def listings() -> Iterable[dict]:
 def listings_state() -> Iterable[dict]:
     devs, _pass2 = _ensure_payload()
     today = date.today()
+    # Dedup cross-listed unit_ids (see `listings()` above). UPSERT makes a
+    # repeated yield idempotent, but deduping avoids redundant writes.
+    seen: set[int] = set()
     for dev in devs:
         for unit in dev.get("listings") or []:
             unit_id = unit.get("id")
-            if unit_id is None:
+            if unit_id is None or unit_id in seen:
                 continue
+            seen.add(unit_id)
             yield {
                 "listing_id": unit_id,
                 "last_seen_date": today,
