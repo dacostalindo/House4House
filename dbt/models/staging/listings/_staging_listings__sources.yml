@@ -1185,3 +1185,67 @@ sources:
         description: >
           Zome business type lookup (REPLACE). Decodes idtiponegocio
           (Sale / Rent / Other categories).
+
+      # ────────────────────────────────────────────────────────────────────
+      # JLL portal — loaded by jll_dlt DAG. Typed REST API (no multi-pass).
+      # 0 Aveiro coverage as of 2026-05-20 — JLL operates only in
+      # Lisboa/Porto/Faro/Setúbal. Declared for sprint-09 Slice B-prime's
+      # stg_portal_developments_jll (future-proofs the silver UNION).
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: jll_developments
+        description: >
+          JLL SCD2 development facts (~169 rows nationwide, 0 in Aveiro).
+          One row per (development_id, version) — `_dlt_valid_to IS NULL`
+          selects current state. Cleanest schema of the 4 portals: typed
+          `municipality`/`parish`/`district` columns, double-precision
+          `gps_lat`/`gps_lon`, and a `has_gps_location` boolean reliability
+          flag. Plots are out of scope per [[jll]] Quirks (vui-protected
+          endpoint). Documented in [[portal-field-map]].
+        columns:
+          - name: development_id
+            description: "JLL development primary key (bigint). Stable across runs. Equals `id`."
+          - name: uid
+            description: "External display UID (GUID varchar). Stable."
+          - name: name
+            description: "Project name (short form)."
+          - name: title
+            description: "Project name (descriptive form). Identical to `name` in practice; preferred for canonical_name."
+          - name: address
+            description: "Full street address (typed varchar)."
+          - name: district
+            description: "Distrito name (typed). Restricted to Lisboa/Porto/Faro/Setúbal."
+          - name: municipality
+            description: "Concelho name (typed varchar)."
+          - name: parish
+            description: "Freguesia name (typed varchar)."
+          - name: zip_code
+            description: "Portuguese postal code."
+          - name: gps_lat
+            description: "Latitude (double). Reliable only when has_gps_location = TRUE."
+          - name: gps_lon
+            description: "Longitude (double). Reliable only when has_gps_location = TRUE."
+          - name: has_gps_location
+            description: "Boolean reliability flag for gps_lat/gps_lon. JLL-unique."
+          - name: total_fractions
+            description: "Total unit count (bigint)."
+          - name: total_available_fractions
+            description: "Currently-available unit count (bigint)."
+          - name: status
+            description: "Lifecycle status (typed varchar)."
+          - name: availability
+            description: "Inventory availability (typed varchar)."
+          - name: condition
+            description: "Development condition (typed varchar)."
+          - name: year
+            description: "Construction year (bigint)."
+          - name: min_property_formatted_price
+            description: "Cheapest unit price, pre-formatted display string."
+          - name: max_property_formatted_price
+            description: "Priciest unit price, pre-formatted display string."
+          - name: row_hash
+            description: "SHA256 over the version columns. Drives SCD2 diff. dlt-managed."
+          - name: _dlt_valid_from
+            description: "SCD2 active-from timestamp. dlt-managed."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to timestamp. NULL = currently-active version."

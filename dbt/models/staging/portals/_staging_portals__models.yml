@@ -153,3 +153,56 @@ models:
         description: "`NOW()` at staging-view evaluation."
         tests:
           - not_null
+
+  - name: stg_portal_developments_jll
+    description: >
+      Canonical JLL development staging — normalizes
+      `bronze_listings.jll_developments` to the 13-column cross-portal schema
+      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). JLL is the
+      cleanest of the 4 portals: typed `municipality`/`parish`/`district` +
+      double-precision `gps_lat`/`gps_lon` (no casts). `has_gps_location` is an
+      explicit reliability flag — geom is dropped when it is FALSE.
+      `listing_url` is always NULL (JLL exposes no public URL). 0 Aveiro
+      coverage as of the 2026-05-20 audit — JLL operates only in
+      Lisboa/Porto/Faro/Setúbal, so this model contributes 0 rows to the v1
+      Aveiro-scoped silver; it future-proofs the silver UNION for sprint-10
+      portal expansion.
+    columns:
+      - name: portal
+        description: "Literal 'jll'."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['jll']
+      - name: portal_dev_id
+        description: "JLL `development_id` cast to TEXT — PK on this view."
+        tests:
+          - unique
+          - not_null
+      - name: canonical_name
+        description: "JLL project name — `COALESCE(title, name)` (the two are identical in practice)."
+      - name: address_text
+        description: "JLL `address` — full street address (typed varchar)."
+      - name: concelho
+        description: "Concelho (`municipality`), UPPER+TRIM normalised."
+      - name: parish
+        description: "Freguesia (`parish`, typed varchar)."
+      - name: postal_code
+        description: "Portuguese postal code (`zip_code`)."
+      - name: geom_3763
+        description: "Development centroid in EPSG:3763 (PT-TM06). NULL when `has_gps_location` is FALSE."
+      - name: geom_4326
+        description: "Same in EPSG:4326 (WGS84)."
+      - name: total_units
+        description: "Unit count from `total_fractions`."
+        tests:
+          - not_null
+      - name: listing_url
+        description: "Always NULL — JLL's API exposes no public listing URL."
+      - name: raw_meta
+        description: "JSONB escape hatch: uid, district, status, availability, condition, year, total_available_fractions, min/max formatted price."
+      - name: _loaded_at
+        description: "`NOW()` at staging-view evaluation."
+        tests:
+          - not_null

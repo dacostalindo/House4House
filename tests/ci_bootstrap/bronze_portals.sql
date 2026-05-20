@@ -83,3 +83,30 @@ CREATE TABLE IF NOT EXISTS bronze_listings.idealista_development_units (
     _dlt_valid_to       TIMESTAMPTZ,
     row_hash            VARCHAR
 );
+
+-- ── JLL (PR-B4) ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS bronze_listings.jll_developments (
+    development_id              BIGINT,
+    uid                         VARCHAR,
+    title                       VARCHAR,
+    name                        VARCHAR,
+    address                     VARCHAR,
+    district                    VARCHAR,
+    municipality                VARCHAR,
+    parish                      VARCHAR,
+    zip_code                    VARCHAR,
+    gps_lat                     DOUBLE PRECISION,
+    gps_lon                     DOUBLE PRECISION,
+    has_gps_location            BOOLEAN,
+    total_fractions             BIGINT,
+    total_available_fractions   BIGINT,
+    status                      VARCHAR,
+    availability                VARCHAR,
+    condition                   VARCHAR,
+    year                        BIGINT,
+    min_property_formatted_price VARCHAR,
+    max_property_formatted_price VARCHAR,
+    _dlt_valid_from             TIMESTAMPTZ,
+    _dlt_valid_to               TIMESTAMPTZ,
+    row_hash                    VARCHAR
+);
