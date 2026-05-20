@@ -243,6 +243,33 @@ Side-benefit: silver_sce_buildings rebuild gets faster (no DISTINCT ON in stagin
 
 Out of scope: changing CDC capture (the SCE portal doesn't expose deltas; we'd still do full-scope re-scrapes — just landing them as UPSERTs).
 
+### Clean re-scrape of JLL + RE/MAX + Zome portals (~1 day, NET-NEW 2026-05-19)
+
+PR-B1 audit surfaced a **dlt SCD2 close-row miss** across multiple portal bronze tables — small percentages of PKs end up with 2 "active" SCD2 versions (`_dlt_valid_to IS NULL` set twice). Empirical rates measured 2026-05-19:
+
+| Bronze table | Dupe PKs / total active | Rate |
+|---|---|---|
+| `remax_listings` | 55 / 8,266 | 0.67% |
+| `remax_developments` | 2 / 603 | 0.33% |
+| `remax_plots` | 6 / 12,440 | 0.05% |
+| `jll_listings` | 15 / 7,502 | 0.20% |
+| `zome_listings` | 2 / 9,143 | 0.02% |
+
+The dlt SCD2 config is correct (`strategy=scd2`, `primary_key=<pk>`); the bug is dlt 1.x's close-row UPDATE occasionally missing on the previous version's row_hash when a new version is inserted. **Fresh re-scrapes after TRUNCATE produce zero dupes** — verified on idealista 2026-05-18 (0 of 85 dev rows; 0 of 444 unit rows; 0 of 1,000 plot rows).
+
+Tactical fix: TRUNCATE + clean re-scrape for the affected portals, following the same pattern used for idealista 2026-05-18.
+
+- TRUNCATE the 6 SCD2 facts tables: `bronze_listings.{jll_developments,jll_listings,remax_developments,remax_developments_state,remax_listings,remax_listings_state,remax_plots,remax_plots__listing_rooms,zome_developments,zome_developments_state,zome_listings,zome_listings_state,zome_plots,zome_plots_state}`. Plus their `_dlt_pipeline_state` rows for `jll_facts`, `remax_facts`, `zome_facts`.
+- Trigger 3 Airflow DAGs: `jll_developments_dlt`, `remax_developments_dlt`, `zome_developments_dlt` (verify the actual DAG IDs against `airflow dags list`).
+- Each scope-narrowed if practical (e.g. `target_areas_override` Param for the dlt DAGs, following the idealista precedent). For JLL: full-scope (~215 devs) since no Aveiro-only narrowing useful. For RE/MAX + Zome: consider Aveiro-only via the Param if the DAG supports it.
+- Verify post-scrape: re-run the dupe-PK SQL audit, expect 0 dupes per table.
+
+Estimated cost: minimal — these are dlt-driven REST/JSON pipelines (not ZenRows-heavy like idealista). Each portal scrape is a few minutes against the respective upstream APIs.
+
+Side-benefit: PR-C's `silver_unified_developments` gets clean inputs across all 4 portals; the defensive `DISTINCT ON (development_id)` guards in PR-B1/2/3/4 staging models still work but become belt-and-suspenders rather than load-bearing.
+
+Out of scope: investigating the dlt SCD2 close-row bug at the framework level (deeper dlt internals work; better as a sprint-10 portal data-quality investigation, OR upgrading dlt to a version that fixes this). The clean re-scrape is the v1 unblock.
+
 ### Demo prep + execution (~3-5 days)
 
 - 20-parcel spot-check on Aveiro: 5 hard-gate cases, 5 high-slope coastal, 5 urban centro, 5 rural periphery. Manual QGIS verification of `fn_assess_polygon` output per parcel.
@@ -286,6 +313,7 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-05-17: Slice B SHIPPED. `silver_sce_buildings` body-fill landed with 12,634 buildings (1,166 Aveiro concelho), 4 pgTAP tests pass. Material design deltas vs original spec: no Levenshtein (Decision 2 — 0% empirical leakage), no parcel_id/cluster_split (Option B — 97.7% Nominatim-vs-cadastre semantics gap), no Splink (Decision 4). Tier-1 CI bootstrap landed alongside; Tier-2 deferred. New concept page [[sce-buildings-clustering]]. Slice B audit surfaced one immediate follow-up (clamp `geocode_confidence` to [0,1] in the Activity-7 geocoder) and triggered separate planning PRs for sprint-09 backlog (SCE bronze refactor + Slice B-prime expansion) and sprint-10 backlog (Tier-2 CI + CI/CD hardening workstream). Sprint status `planned` → `in_progress`.
 - 2026-05-17: Slice B-prime EXPANDED from 1 day (SCE↔idealista plots) → 7-9 days (4-portal cross-portal dev dedup, includes idealista + JLL + RE/MAX + Zome + SCE). User decision after warehouse audit surfaced that the field-level mapping ([[portal-field-map]]) exists for 3 of 4 portals but the runnable canonical staging models don't. JLL has 0 Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) but is included for future-proofing. **Load impact**: sprint-09 was already running ~4-5 weeks of work in 3 weeks; this adds +6-8 days. Mitigations: either move JLL staging to sprint-10 (still get 3-portal dedup in v1), defer Slice C (LLM extraction) to sprint-10, or accept a sprint-09 slip to ~4 weeks. Decision deferred to mid-sprint check. **Also added** "SCE bronze refactor — replace-not-append" (~1 day) — Slice B audit found bronze keeps 3× scrape history; SCE portal preserves state transitions itself so our scrape-history is redundant. Refactor to UPSERT-by-doc_number with `_last_seen_at` heartbeat.
 - 2026-05-18: Slice B-prime detailed plan landed (`~/.claude/plans/wobbly-kindling-hopcroft.md`). Two material design corrections via warehouse audit: (a) idealista DOES have project names — in `title` column via `regexp_match('^Empreendimento (.+?) anuncia ')` pattern with 100% Aveiro extraction rate; Decision 5 reversed from "spatial-only" to "title-extracted name". (b) RE/MAX coords are parish-centroid-level (4 distinct Coimbra devs share one lat/lng); the `name_similarity` Levenshtein CTE — originally scoped as v1.5 dead-code — is promoted to v1 LOAD-BEARING via connected-components recursive CTE. New Decision 8 documents this. Slice B-prime split into **3 PRs** for landing: PR-A = portal-field-map JLL extension (wiki-only, 0.5d); PR-B = 4 canonical per-portal staging models + dbt sources + CI bronze stubs (4-6d); PR-C = silver_unified_developments + 4 pgTAP tests + new concept page + final wiki (1.5-3d). Merge order A → B → C; PR-A is independent, PR-C depends on PR-B's staging models.
+- 2026-05-19: PR-B (4 portal staging models) **further split into 4 sequential PRs** (PR-B1 through PR-B4), one per portal. PR-B1 (RE/MAX template) is the foundation: creates `dbt/models/staging/portals/` folder + `_staging_portals__models.yml` skeleton + `tests/ci_bootstrap/bronze_portals.sql` skeleton + the RE/MAX staging model. PR-B2/B3/B4 each append their portal (Zome / Idealista / JLL). PR-B1 audit also surfaced a **dlt SCD2 close-row miss** affecting multiple portal bronze tables at 0.02-0.67% rates (55 dupe PKs in remax_listings, 15 in jll_listings, etc.); new sprint-09 deliverable "Clean re-scrape of JLL + RE/MAX + Zome portals" (~1 day) tracks the tactical TRUNCATE+re-scrape fix. Verified clean on idealista 2026-05-18 (0 dupes post-truncate); same pattern applies. Staging models include defensive `DISTINCT ON` guards in the meantime.
 
 ## See also
 
