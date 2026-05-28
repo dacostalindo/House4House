@@ -207,12 +207,18 @@ jobs:
         run: |
           set -o pipefail
           echo "::group::dbt-build-slice-b"
-          # Slice B path: silver_sce_buildings + its staging deps.
-          # The `+` prefix includes upstream models (stg_sce_certificates).
+          # Slice B + B-prime path: silver_sce_buildings + silver_unified_developments
+          # and everything upstream (stg_sce_certificates, the 4 stg_portal_developments_*,
+          # dim_geography → stg_caop_freguesias + stg_bgri_freguesia_agg).
           # Bronze tables are empty (Tier-1 — Tier-2 in sprint-10 seeds fixtures).
+          # --indirect-selection cautious: only run tests whose parents are ALL in the
+          # selection. Without it, building dim_geography would pull in the
+          # unified_listings→dim_geography relationships test, which queries an
+          # unbuilt unified_listings and fails.
           uv run dbt build \
             --project-dir dbt \
             --target ci \
-            --select +silver_sce_buildings \
+            --select +silver_sce_buildings +silver_unified_developments \
+            --indirect-selection cautious \
             --no-partial-parse
           echo "::endgroup::"
