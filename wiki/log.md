@@ -923,3 +923,17 @@ Sprint-09 Slice B-prime ([[cross-portal-dev-dedup]]) shipped. `silver_unified_de
 **Follow-up logged in [[sprint-09]]**: [[remax]] `PaginatedSearch` coverage gap — sold-out developments like "Edifício Elsa" (`remax.pt/en/empreendimento/edificio-elsa/7481`) have detail pages but are missing from `bronze_listings.remax_developments`. Investigate whether `PaginatedSearch` is the sole discovery path.
 
 **Pages touched**: [[cross-portal-dev-dedup]] NEW concept page, [[silver_unified_developments]] via dbt model + YAML, [[silver_sce_buildings]] (frac_count semantics correction in model + YAML), [[sprint-09]] (Slice B-prime status update + new follow-up), [[index.md|index]] (Concepts count 16 → 17 + dbt area routing).
+
+## [2026-05-22] reconcile | 6 findings, 4 auto-fixed, 2 known-deviation logged, 0 ADRs created
+
+4 sprint-08.md status-history lines auto-fixed: the `2026-05-12 (am):` / `(pm):` / `(evening):` / `(late):` suffixes broke the `^- \d{4}[-Q]\S*:\s+\S.*` regex. Moved the time-of-day parenthetical inside the content so the date prefix is bare (`- 2026-05-12: (am) restructured…`). No semantic change.
+
+2 known-deviation findings re-surfaced (already accepted at the 2026-05-15 reconcile, no action): [[concepts/portal-field-map]] lacks `## Why` / `## How` (reference-matrix layout, domain-appropriate); [[sources/crus]] lacks `## Source` / `## Schema` / `## Quirks` (retired-source historical layout, superseded by [[crus-ogc]]). Flagged here for archaeology; both pages stay as-is.
+
+Wikilinks: all foundational links resolve; the 22 "unresolved" detections are dbt-model references (`dim_geography`, `silver_sce_buildings`, `silver_unified_developments`, `parcel-universe`) and intentional structural self-references — not wiki pages by design. No action.
+
+Freshness: 0 stale pages. Oldest `last_verified` is 2026-05-05; all typed pages carry the field.
+
+Reciprocity: all 17 ADRs pass — no supersession relationships declared (acyclic decision graph).
+
+Full session report: [`wiki/lint-reports/2026-05-22T180000.md`](lint-reports/2026-05-22T180000.md).

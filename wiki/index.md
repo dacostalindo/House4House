@@ -5,7 +5,7 @@
 This is the **catalog** of every wiki page — read it FIRST when answering any factual question or before any ingest. It has every page grouped by type (Overview / Sources / Concepts / Decisions / Plan) with a 1-line summary so Claude can grep + select the relevant pages without reading the whole wiki on every query. The `Last reconcile run:` line is the freshness indicator (updated by `/wiki-reconcile`); a stale date means the reconcile skill hasn't fired recently and drift-detection coverage is degrading. (The legacy `/wiki-lint` skill was retired 2026-05-12 in favour of `/wiki-reconcile` which covers both layers; the historical `Last lint run:` date stays here for archaeology.)
 
 Last lint run: 2026-05-08 (skill retired)
-Last reconcile run: 2026-05-15 (post-sprint-08 ship)
+Last reconcile run: 2026-05-22 (post-sprint-09 Slice B-prime ship)
 
 This is the catalog of every wiki page. Each entry has a 1-line summary. Updated on every ingest and on every weekly lint run.
 
