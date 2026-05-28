@@ -906,3 +906,20 @@ Sprint-09 Workstream 4 Slice B (SCE Unit Aggregation completion) shipped. `dbt/m
 **Pages touched**: [[silver_sce_buildings]] body (via dbt model), [[sce-buildings-clustering]] NEW, [[sprint-09]] (Slice B section + status-history entry + Slice B follow-ups subsection + status `planned` → `in_progress`), [[sprint-10]] (Tier-2 task added — separate entry), [[sce]] (`last_verified` bump + cross-link to new concept page), [[index.md|index]] (Concepts section + By-area-of-code routing).
 
 One follow-up flagged: `cluster_geocode_confidence > 1.0` bug in [[sprint-08]] Activity 7's geocoder (Nominatim's `importance` sometimes exceeds 1.0; we propagate raw). Fix tracked in [[sprint-09]] Slice B follow-ups.
+
+## [2026-05-22] feat | [[sprint-09]] Slice B-prime SHIPPED — silver_unified_developments (portal-only)
+
+Sprint-09 Slice B-prime ([[cross-portal-dev-dedup]]) shipped. `silver_unified_developments` de-duplicates the 4 listing portals into one row per marketed development via **name-driven word-set Jaccard matching** (≥0.6 within concelho, 1km distance ceiling, geometry hierarchy JLL > Zome > RE/MAX > idealista). 1,050 rows nationwide, 28 in Aveiro; 4 schema tests + 1 multi-assertion pgTAP test for Phase 1 invariants. Tier-1 CI extended to build `+silver_unified_developments` alongside `+silver_sce_buildings`, with new `tests/ci_bootstrap/bronze_geography.sql` stubbing the CAOP + INE BGRI bronze sources for the `dim_geography` chain.
+
+**Material design deltas vs original Slice B-prime spec**:
+- **Phase 2 (SCE match-or-promote) removed.** Empirical exploration showed SCE buildings and portal developments are different concepts that resist clean merging — no shared identifier, no shared geocoding precision. Best Aveiro result after stacking constraints (≥5 frações, ≤2.5y certs, no-idealista) was 4 of 11 portal-anchored devs matched, with the table dominated by promoted SCE-only rows that aren't "developments". `fn_assess_polygon` will query `silver_unified_developments` and [[silver_sce_buildings]] side-by-side.
+- **Decision 9 retired.** `total_units_authoritative` dropped; `portal_unit_counts` JSONB exposes per-portal counts with no laundered "authoritative" pick. Portals report counts with heterogeneous semantics — 2026-05-22 facade audit confirmed idealista's `units_count` is a listed-subset (e.g., "The Unique" listed as 3 units; facade shows ~50+).
+- **Levenshtein replaced by word-set Jaccard.** Distortions in the wild are whole boilerplate words (`empreendimento`, `edifício`, `the`, typology codes like `T1+1`, trailing concelho names), not character typos. Token-based matching plus normalization handles them cleanly.
+- **DBSCAN-first architecture replaced by name-driven graph.** Portal coordinates routinely disagree by 200-300m+ for the same development; proximity can't be the grouping key. Name match is gated by *same concelho* + 1km ceiling instead.
+- **Geometry hierarchy** chosen by user: JLL > Zome > RE/MAX > idealista.
+
+**Companion fix to [[silver_sce_buildings]]**: post-cluster fração-grain collapse (key `COALESCE(NULLIF(TRIM(fraction),''), doc_number)`, keep latest cert per fração). Aveiro `frac_count` 2,650 → 2,573 (−2.5%; building 11996 "Rua Carlos Aleluia" 50 → 44). Test #9 invariant updated from "SUM = input cert rows" to "frac_count = distinct frações".
+
+**Follow-up logged in [[sprint-09]]**: [[remax]] `PaginatedSearch` coverage gap — sold-out developments like "Edifício Elsa" (`remax.pt/en/empreendimento/edificio-elsa/7481`) have detail pages but are missing from `bronze_listings.remax_developments`. Investigate whether `PaginatedSearch` is the sole discovery path.
+
+**Pages touched**: [[cross-portal-dev-dedup]] NEW concept page, [[silver_unified_developments]] via dbt model + YAML, [[silver_sce_buildings]] (frac_count semantics correction in model + YAML), [[sprint-09]] (Slice B-prime status update + new follow-up), [[index.md|index]] (Concepts count 16 → 17 + dbt area routing).

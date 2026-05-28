@@ -19,13 +19,20 @@
 --      rows share a single parish coordinate, which would collapse the entire parish
 --      into one DBSCAN cluster).
 --   2. ST_ClusterDBSCAN(eps=30m, minpoints=1) on geom_3763 → spatial cluster_id.
---   3. Building grain: GROUP BY (cluster_id, normalized_address). The Appendix A
+--   3. Fração grain: one physical unit can hold several certificates over time —
+--      energy certificates expire (~10y) and are re-issued, also on sale. Collapse
+--      to one row per fração, keyed by `fraction`, falling back to `doc_number` for
+--      the ~52% of certs with no fração label (single houses) so they are never
+--      wrongly merged. Keep the most recent certificate per fração.
+--   4. Building grain: GROUP BY (cluster_id, normalized_address). The Appendix A
 --      normalizer's 0% empirical leakage at 6k rows makes within-cluster GROUP BY
 --      sufficient — Levenshtein-ratio fuzzy matching is deferred to v1.5 if dev
 --      interviews surface false-splits.
---   4. Aggregates: frac_count (units), energy_class_dist (JSONB histogram),
---      first/last_emission, dominant_state, cluster_geocode_confidence (MIN —
---      a fuzzy member drags the building's confidence down honestly).
+--   5. Aggregates: frac_count (distinct frações), energy_class_dist (JSONB histogram
+--      over each fração's latest cert), last_emission / dominant_state from the
+--      latest cert per fração, first_emission over ALL certs (true history),
+--      cluster_geocode_confidence (MIN — a fuzzy member drags the building's
+--      confidence down honestly).
 --
 -- No parcel_id/cluster_split: empirical 97.7% NULL rate from ST_Within against
 -- parcel_universe.geom_pt — Nominatim returns street-centerline points, cadastral
@@ -41,6 +48,7 @@ WITH
 nominatim_hits AS (
     SELECT
         doc_number,
+        fraction,
         normalized_address,
         energy_class,
         issued_date,
@@ -62,13 +70,32 @@ clustered AS (
     FROM nominatim_hits
 ),
 
+-- One row per fração: collapse a unit's renewal/re-issue certificates to its
+-- most recent. Unlabelled certs (empty `fraction`) fall back to `doc_number`,
+-- so each counts once and is never merged with another unlabelled unit.
+fracao_grain AS (
+    SELECT DISTINCT ON (
+        cluster_id,
+        normalized_address,
+        COALESCE(NULLIF(TRIM(fraction), ''), doc_number)
+    )
+        *
+    FROM clustered
+    ORDER BY
+        cluster_id,
+        normalized_address,
+        COALESCE(NULLIF(TRIM(fraction), ''), doc_number),
+        issued_date DESC,
+        doc_number DESC
+),
+
 energy_class_per_building AS (
     SELECT
         cluster_id,
         normalized_address,
         energy_class,
         COUNT(*)::int AS class_count
-    FROM clustered
+    FROM fracao_grain
     WHERE energy_class IS NOT NULL
     GROUP BY 1, 2, 3
 ),
@@ -82,12 +109,23 @@ energy_class_dist_per_building AS (
     GROUP BY 1, 2
 ),
 
+-- first_emission spans ALL certificates (a fração's superseded original cert is
+-- still real history); every other aggregate uses the latest cert per fração.
+emissions_per_building AS (
+    SELECT
+        cluster_id,
+        normalized_address,
+        MIN(issued_date) AS first_emission
+    FROM clustered
+    GROUP BY 1, 2
+),
+
 buildings AS (
     SELECT
         c.cluster_id,
         c.normalized_address,
         COUNT(*)::int                                                  AS frac_count,
-        MIN(c.issued_date)                                             AS first_emission,
+        em.first_emission                                              AS first_emission,
         MAX(c.issued_date)                                             AS last_emission,
         MODE() WITHIN GROUP (ORDER BY c.status)                        AS dominant_state,
         MIN(c.geocode_confidence)::numeric(4, 3)                       AS cluster_geocode_confidence,
@@ -95,8 +133,11 @@ buildings AS (
         ST_Centroid(ST_Collect(c.geom_3763))                           AS cluster_geom_3763,
         MODE() WITHIN GROUP (ORDER BY c.municipality)                  AS concelho,
         MODE() WITHIN GROUP (ORDER BY c.parish)                        AS parish
-    FROM clustered c
-    GROUP BY c.cluster_id, c.normalized_address
+    FROM fracao_grain c
+    JOIN emissions_per_building em
+        ON  em.cluster_id         = c.cluster_id
+        AND em.normalized_address = c.normalized_address
+    GROUP BY c.cluster_id, c.normalized_address, em.first_emission
 )
 
 SELECT

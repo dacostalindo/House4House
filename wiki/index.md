@@ -27,7 +27,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 ### `dbt/` (models, macros, source YAMLs)
 
-- **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`)
+- **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`) · [[cross-portal-dev-dedup]] (name-driven Jaccard dedup of the 4 portals into `silver_unified_developments`; SCE deliberately not merged)
 - **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
 - **Decisions**: [[2026-05-10-postgis-as-warehouse]] (PostgreSQL 16 + PostGIS 3.4 chosen over Snowflake/BigQuery/RDS) · [[2026-05-10-dbt-not-sqlmodel]] (dbt Core for transformations) · [[2026-05-10-dual-crs-storage]] (`geom` 4326 + `geom_pt` 3763 invariant for spatial tables)
 - **Architecture**: [[data-quality]] (dbt tests + Great Expectations layering) · [[infra]] (PostgreSQL schema organization: `bronze_*`, `silver_*`, `gold_*`, `metadata`)
@@ -84,7 +84,7 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[osm]] — OpenStreetMap PT via Geofabrik; 18 layers, ~4.5M features; companion OSRM + Nominatim services.
 - [[aveiro-pmot]] — Aveiro municipal WebGIS bulk WMS-GFI extractor; one-off, not a recurring DAG; ~1,669 feature types.
 
-## Concepts (16 pages)
+## Concepts (17 pages)
 
 - [[bronze-permissive]] — bronze accepts whatever the source returns; validation lives in dbt staging; never-delete invariant.
 - [[pydantic-not-in-dlt]] — Pydantic in configs YES, in dlt resources NO; the strict guardrail protecting [[bronze-permissive]].
@@ -101,6 +101,7 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[srup-constraint-model]] — how the 14 SRUP regulatory layers gate construction on a drawn polygon; the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + sprint-09's `fn_assess_polygon`.
 - [[srup-properties-schema]] — per-key breakdown of the 16 `raw_srup_*` `properties` JSONB blobs (OGC lowercase vs WFS UPPERCASE conventions) → typed `stg_srup_*` columns.
 - [[sce-buildings-clustering]] — DBSCAN(30m) + GROUP BY normalized_address roll-up of geocoded [[sce]] certificates into `silver_sce_buildings` rows; documents Decisions 1-5 (Nominatim-only filter, exact-match over Levenshtein, no parcel_id, no Splink, address-grouping vs coord-only).
+- [[cross-portal-dev-dedup]] — name-driven word-set Jaccard dedup of the 4 listing portals into `silver_unified_developments`; documents why proximity-first failed, the normalization pipeline (typology + boilerplate + trailing-concelho strip), the geo hierarchy (JLL > Zome > RE/MAX > idealista), and why SCE is *not* merged here.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
 ## Architecture (4 pages — PR 6 seed)
