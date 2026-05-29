@@ -14,7 +14,7 @@ Field-axis split:
     construction_area_m2_above_ground    — ABC Sol
     construction_area_m2_total           — ABC T  (headline / demo metric)
     num_dwellings_allowed                — # de Fogos
-    max_height_m
+    max_floors_allowed                   — Nº pisos / andares (R/C counts as 1)
 
   Categorical (text-extracted, two orthogonal axes):
     permit_status   — progression: project > pip > without_pip
@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 PermitStatus = Literal["project", "pip", "without_pip"]
@@ -46,6 +46,8 @@ PermitStatus = Literal["project", "pip", "without_pip"]
 
 class PlotListingExtraction(BaseModel):
     """LLM-coerced shape for a single idealista plot listing."""
+
+    model_config = ConfigDict(extra="forbid")
 
     parcel_area_m2: float | None = Field(
         default=None,
@@ -67,9 +69,17 @@ class PlotListingExtraction(BaseModel):
         default=None,
         description="# de Fogos — count of dwellings allowed by the planning instrument.",
     )
-    max_height_m: float | None = Field(
+    max_floors_allowed: int | None = Field(
         default=None,
-        description="Maximum building height in metres.",
+        description=(
+            "Maximum allowed number of floors / 'pisos' / 'andares' the parcel "
+            "permits. R/C ('rés-do-chão', ground floor) counts as 1. "
+            "Examples: 'R/C + 2 andares' = 3; 'até 4 pisos' = 4; "
+            "'máximo 5 andares' = 5; 'cércea de 9m' → infer from typical PT "
+            "convention (3m per floor) only if no explicit floor count is given. "
+            "Floors (not height in metres) is the planning signal PT developers "
+            "actually use for valuation."
+        ),
     )
 
     permit_status: PermitStatus | None = Field(
