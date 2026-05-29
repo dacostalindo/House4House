@@ -215,12 +215,13 @@ def top_priced_selection(
 
 
 EXPECTED_SHELL: dict[str, None] = {
-    "parcel_area_m2": None,
     "implantation_area_m2": None,
     "construction_area_m2_above_ground": None,
     "construction_area_m2_total": None,
+    "area_loteamento_m2": None,
     "num_dwellings_allowed": None,
     "max_floors_allowed": None,
+    "num_caves": None,
     "permit_status": None,
     "is_loteamento": None,
 }
