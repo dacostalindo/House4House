@@ -63,7 +63,12 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-PermitStatus = Literal["pip", "project_drafted", "project_approved"]
+PermitStatus = Literal[
+    "pip_pending",
+    "pip_approved",
+    "project_drafted",
+    "project_approved",
+]
 
 
 class PlotListingExtraction(BaseModel):
@@ -132,15 +137,17 @@ class PlotListingExtraction(BaseModel):
         description=(
             "Permit progression for the parcel. Most-advanced state wins when "
             "the description mentions multiple: "
-            "  project_approved > project_drafted > pip > null.\n"
+            "  project_approved > project_drafted > pip_approved > pip_pending > null.\n"
             "Values:\n"
             "  - 'project_approved' = 'projeto aprovado' / 'alvará' / explicitly "
             "    approved by the câmara municipal.\n"
             "  - 'project_drafted'  = 'tem projeto' / 'projeto de arquitetura "
-            "    não submetido' / project drawn up but not approved.\n"
-            "  - 'pip'              = PIP (pedido de informação prévia) "
-            "    submitted, in approval, or approved. Includes 'PIP em fase "
-            "    final de aprovação'.\n"
+            "    não submetido' / project drawn up but not yet approved.\n"
+            "  - 'pip_approved'     = PIP (pedido de informação prévia) explicitly "
+            "    approved ('PIP aprovado', 'PIP favorável', 'parecer favorável').\n"
+            "  - 'pip_pending'      = PIP submitted, in approval, or being "
+            "    processed. Includes 'PIP em fase final de aprovação', "
+            "    'aguarda PIP', 'com PIP em análise'.\n"
             "  - null               = description does not mention any permit "
             "    state. The absence of mention is null; do not infer "
             "    'without_pip' as a separate state."
