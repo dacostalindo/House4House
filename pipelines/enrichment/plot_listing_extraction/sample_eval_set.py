@@ -2,17 +2,24 @@
 Sample a stratified 50-listing eval set for Slice C LLM plot extraction.
 
 Reads from `staging_dbt.stg_plot_listings` (Aveiro + Coimbra concelhos,
-~403 active rows), buckets each listing by extraction difficulty, samples
-deterministically (seed=42), and writes a JSONL skeleton to
-`tests/fixtures/plot_listings_eval.jsonl` for hand-labeling.
+~403 active rows), buckets each listing by extraction difficulty, picks
+the top-priced rows within each bucket (the business focus is high-value
+deals), and writes a JSONL skeleton to `tests/fixtures/plot_listings_eval.jsonl`
+for hand-labeling.
 
-Stratification (per concelho, 25 each → 50 total):
+Selection strategy (per concelho, 25 each → 50 total):
   - 12 "has_numeric"  — m² mention or "área de construção" hit. Tests
-    happy path of numeric extraction.
+    happy path of numeric extraction. Top-12 by property_price.
   -  8 "fluff"        — no m² mention at all. Tests null-handling
-    (all numeric fields should resolve to null).
+    (all numeric fields should resolve to null). Top-8 by property_price.
   -  5 "edge_case"    — ranges ("200 a 300 m²"), multi-lot ("lotes 1, 2 e 3"),
     or per-floor breakdowns ("100m² por piso"). Stress-tests parsing.
+    Top-5 by property_price.
+
+Rationale: the demo audience is mid-/upper-market developers in Aveiro
++ Coimbra. Eval set focuses on the listings where extraction quality
+matters most for valuation conversations. Lower-priced listings stay in
+the v1 backfill silver but skip the per-prompt CI gate.
 
 Output JSONL row shape:
     {
@@ -41,15 +48,11 @@ from __future__ import annotations
 
 import json
 import os
-import random
 import re
 import sys
 from pathlib import Path
 
 import psycopg2
-
-# Deterministic sample — re-running the script reproduces the same 50 rows.
-SAMPLE_SEED = 42
 
 # Per-concelho stratification targets. Sum per concelho = 25; total 50.
 PER_CONCELHO_TARGETS: dict[str, int] = {
@@ -128,7 +131,8 @@ def _connect():
 def fetch_listings() -> list[dict]:
     """Pull all stg_plot_listings rows. Returns dicts keyed by column name."""
     query = """
-        SELECT listing_id, concelho_slug, description, listing_url, lot_size
+        SELECT listing_id, concelho_slug, description, listing_url,
+               lot_size, property_price
         FROM staging_dbt.stg_plot_listings
         ORDER BY listing_id
     """
@@ -139,24 +143,33 @@ def fetch_listings() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Stratified sampling
+# Top-priced selection
 # ---------------------------------------------------------------------------
 
 
-def stratified_sample(
+def _price_sort_key(row: dict) -> float:
+    """Sort key — DESC by price, with null prices sorting last."""
+    price = row.get("property_price")
+    return -float(price) if price is not None else float("inf")
+
+
+def top_priced_selection(
     rows: list[dict],
     targets: dict[str, int],
     concelhos: tuple[str, ...],
-    seed: int,
 ) -> list[dict]:
-    """Sample N per (concelho, bucket). Falls back to oversampling other
-    buckets within the same concelho if the target bucket is short."""
-    rng = random.Random(seed)
+    """Pick the top-N rows by property_price within each (concelho, bucket).
+    Backfills from other buckets within the same concelho if any bucket is
+    short of its target."""
     by_key: dict[tuple[str, str], list[dict]] = {}
     for row in rows:
         bucket = categorize(row["description"])
         row["_bucket"] = bucket
         by_key.setdefault((row["concelho_slug"], bucket), []).append(row)
+
+    # Pre-sort every pool DESC by price so head-slicing picks the top.
+    for pool in by_key.values():
+        pool.sort(key=_price_sort_key)
 
     selected: list[dict] = []
     for concelho in concelhos:
@@ -168,30 +181,30 @@ def stratified_sample(
                     f"target {n_target} — using all available.",
                     file=sys.stderr,
                 )
-            n = min(n_target, len(pool))
-            sample = rng.sample(pool, n) if n > 0 else []
-            selected.extend(sample)
+            selected.extend(pool[: n_target])
 
-        # Backfill the concelho to 25 if any bucket was short.
+        # Backfill the concelho to 25 if any bucket was short — from the
+        # next-most-expensive rows in that concelho across any bucket.
         target_per_concelho = sum(targets.values())
         already_selected_ids = {r["listing_id"] for r in selected}
         already_this_concelho = sum(1 for r in selected if r["concelho_slug"] == concelho)
         gap = target_per_concelho - already_this_concelho
         if gap > 0:
-            backfill_pool = [
-                r
-                for r in rows
-                if r["concelho_slug"] == concelho
-                and r["listing_id"] not in already_selected_ids
-            ]
-            if backfill_pool:
-                n_backfill = min(gap, len(backfill_pool))
-                selected.extend(rng.sample(backfill_pool, n_backfill))
-                print(
-                    f"INFO: backfilled {n_backfill} extra {concelho} rows "
-                    f"to hit the 25-per-concelho target.",
-                    file=sys.stderr,
-                )
+            backfill_pool = sorted(
+                [
+                    r
+                    for r in rows
+                    if r["concelho_slug"] == concelho
+                    and r["listing_id"] not in already_selected_ids
+                ],
+                key=_price_sort_key,
+            )
+            selected.extend(backfill_pool[:gap])
+            print(
+                f"INFO: backfilled {min(gap, len(backfill_pool))} extra "
+                f"{concelho} rows (top-priced) to hit the 25-per-concelho target.",
+                file=sys.stderr,
+            )
 
     return selected
 
@@ -207,7 +220,7 @@ EXPECTED_SHELL: dict[str, None] = {
     "construction_area_m2_above_ground": None,
     "construction_area_m2_total": None,
     "num_dwellings_allowed": None,
-    "max_height_m": None,
+    "max_floors_allowed": None,
     "permit_status": None,
     "is_loteamento": None,
 }
@@ -220,6 +233,7 @@ def to_jsonl_entry(row: dict) -> dict:
         "description": row["description"],
         "listing_url": row["listing_url"],
         "bronze_lot_size": float(row["lot_size"]) if row["lot_size"] is not None else None,
+        "property_price": float(row["property_price"]) if row["property_price"] is not None else None,
         "expected": EXPECTED_SHELL.copy(),
         "candidates": {"m2_mentions": extract_m2_candidates(row["description"])},
         "_bucket": row.get("_bucket"),
@@ -237,16 +251,27 @@ def main() -> int:
     rows = fetch_listings()
     print(f"Fetched {len(rows)} rows from staging_dbt.stg_plot_listings.", file=sys.stderr)
 
-    sampled = stratified_sample(rows, PER_CONCELHO_TARGETS, CONCELHOS, SAMPLE_SEED)
+    sampled = top_priced_selection(rows, PER_CONCELHO_TARGETS, CONCELHOS)
     print(
-        f"Sampled {len(sampled)} rows "
+        f"Selected {len(sampled)} rows by top-price "
         f"({sum(1 for r in sampled if r['concelho_slug']=='aveiro')} Aveiro / "
         f"{sum(1 for r in sampled if r['concelho_slug']=='coimbra')} Coimbra).",
         file=sys.stderr,
     )
 
-    # Stable order across re-runs: by concelho then listing_id.
-    sampled.sort(key=lambda r: (r["concelho_slug"], r["listing_id"]))
+    # Per-concelho price summary for the operator.
+    for concelho in CONCELHOS:
+        prices = [r["property_price"] for r in sampled if r["concelho_slug"] == concelho and r["property_price"] is not None]
+        if prices:
+            print(
+                f"  {concelho}: top price €{max(prices):,.0f} / "
+                f"min selected price €{min(prices):,.0f} / "
+                f"median €{sorted(prices)[len(prices)//2]:,.0f}",
+                file=sys.stderr,
+            )
+
+    # Stable order: concelho then price DESC (highest at top of the file).
+    sampled.sort(key=lambda r: (r["concelho_slug"], _price_sort_key(r)))
     entries = [to_jsonl_entry(r) for r in sampled]
 
     write_jsonl(entries, OUT_PATH)
