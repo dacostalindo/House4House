@@ -206,3 +206,50 @@ models:
         description: "`NOW()` at staging-view evaluation."
         tests:
           - not_null
+
+  - name: stg_plot_listings
+    description: >
+      Typed staging view over `bronze_listings.idealista_plots`, scoped to the
+      Aveiro + Coimbra concelhos for sprint-09 Slice C (LLM plot extraction
+      v1). 403 active rows at plan time (81 Aveiro + 322 Coimbra,
+      2026-05-28). Filters: SCD2 active (`_dlt_valid_to IS NULL`),
+      `property_description IS NOT NULL`, and `location_name` in the
+      concelho-freguesia set. Derives `concelho_slug` ∈ {aveiro, coimbra}
+      for downstream stratification. Feeds the Pydantic-AI extraction DAG
+      and the `silver_plot_listings_enriched` join.
+    columns:
+      - name: listing_id
+        description: "`bronze_listings.idealista_plots.external_listing_id` — stable across runs. PK on this view."
+        tests:
+          - unique
+          - not_null
+      - name: concelho_slug
+        description: "Derived concelho tag, lowercase ASCII slug. Used for eval-set stratification + per-concelho QA."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['aveiro', 'coimbra']
+      - name: description
+        description: "`property_description` — Portuguese real-estate prose. LLM extracts numerics + permit + loteamento from this."
+        tests:
+          - not_null
+      - name: listing_url
+        description: "Idealista canonical URL for the listing — used together with `description` as the idempotency-hash input in the extraction DAG."
+        tests:
+          - not_null
+      - name: property_subtype
+        description: "Plot subtype (urban / rural / etc.) from bronze."
+      - name: lot_size
+        description: "Bronze structured lot size in m². Cross-validated against the LLM-extracted `parcel_area_m2` via `dq_total_vs_lot_size` in silver."
+      - name: property_price
+        description: "Listing price in EUR (bronze numeric)."
+      - name: location_name
+        description: "Bronze location string used by the concelho filter (e.g., 'Aveiro', 'Cacia, Aveiro', 'Coimbra')."
+      - name: geom_3763
+        description: "Listing point in EPSG:3763 (PT-TM06). NULL when bronze latitude/longitude are null. GIST-indexed downstream in silver."
+      - name: geom_4326
+        description: "Same in EPSG:4326 (WGS84)."
+      - name: _loaded_at
+        description: "`NOW()` at staging-view evaluation."
+        tests:
+          - not_null
