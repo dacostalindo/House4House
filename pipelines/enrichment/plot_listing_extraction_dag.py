@@ -126,16 +126,24 @@ NUMERIC FIELDS (m²) — extract literal text values only
     referenced elsewhere belongs to num_caves, not the m² figures).
 
   - construction_area_m2_total (ABC T): TOTAL gross built area, including basement.
-    Populate ONLY when the description explicitly states it's total. Triggering language:
-      • "ABC T" / "área bruta total" / "área total de construção";
-      • "inclui cave" / "com cave" / "incluindo subsolo" attached to a number;
-      • a breakdown where the figure explicitly sums BOTH above-ground floors AND
-        basement m² values (e.g. "1500 m² = 200 cave + 1300 above").
-    If the description just says "área de construção 4010 m²" or "superfície edificável
-    14700 m²" with no total qualifier, that figure goes to above_ground, NOT total.
-    Leave total NULL unless the explicit trigger is present.
+    Populate when ANY of these triggers is present:
+      (a) Explicit "ABC T" / "área bruta total" / "área total de construção" /
+          "área total construída" wording attached to a number.
+      (b) "inclui cave" / "com cave" / "incluindo subsolo" attached to a number.
+      (c) A breakdown where the figure explicitly sums BOTH above-ground floors AND
+          basement m² values (e.g. "1500 m² = 200 cave + 1300 above").
+      (d) A SINGLE BARE m² figure (no per-piso breakdown) appears together with
+          a cave/subsolo/"pisos abaixo" mention in the SAME context (same paragraph
+          or characteristics block). Example: "superfície edificável de 14 700 m²"
+          appearing in a paragraph that also says "2 caves + R/C e 5 andares" →
+          the 14 700 INCLUDES the caves → put it in total.
+    If the description just says "área de construção 4010 m²" with a per-piso
+    breakdown that lists ONLY above-ground floors → that goes to above_ground.
+    If the description gives a single bare m² figure with NO cave/subsolo mention
+    anywhere → that also goes to above_ground (default).
+    Leave total NULL when none of the triggers fires AND no cave context exists.
 
-  - area_loteamento_m2: total area of the subdivision (only when is_loteamento=true).
+  - area_loteamento_m2: total area of the subdivision (only when needs_loteamento=true).
     Sources: "áreas dos lotes", "área de loteamento", "Área total do loteamento".
 
 DO NOT extract parcel area / "Terreno" / "área total do terreno" — that field is
@@ -183,13 +191,35 @@ CATEGORICAL — permit_status (4-value Literal; most-advanced wins; null when ab
 Tiebreak: project_approved > project_drafted > pip_approved > pip_pending.
 
 ═══════════════════════════════════════════════════════════════
-CATEGORICAL — is_loteamento (bool, independent of permit_status)
+CATEGORICAL — needs_loteamento + loteamento_complete (two bools, both orthogonal to permit_status)
 ═══════════════════════════════════════════════════════════════
 
-  - true  = description mentions "loteamento" / "alvará de loteamento" /
-            "licença de urbanização" / explicit lots within an approved subdivision.
-  - false = description explicitly rules out subdivision.
-  - null  = not mentioned.
+`needs_loteamento` — does the planned development require this parcel to be
+split into multiple legal lots?
+  - true  = description implies MULTIPLE distinct buildings / moradias / blocos on
+            the same parcel, OR explicitly mentions an existing loteamento /
+            "licença de urbanização" covering multiple lots.
+  - false = single-building plan with no subdivision implied (e.g. "moradia unifamiliar"
+            with no additional construction).
+  - null  = description does not address this dimension.
+
+`loteamento_complete` — has the loteamento process / infrastructure already
+been completed for this parcel?
+  - true  = "alvará de loteamento (emitido / a pagamento)", "loteamento aprovado
+            com infraestruturas", "licença de urbanização emitida", or lots that
+            are already delimited and serviced.
+  - false = description says loteamento is still pending / "precisa de loteamento"
+            / "falta urbanização" / project-stage subdivision study not yet
+            executed.
+  - null  = needs_loteamento is false/null, OR the description does not address
+            whether the subdivision work is done.
+
+Examples:
+  • "Single moradia, projeto aprovado" → needs=false, complete=null.
+  • "Plot for 14 moradias, com alvará de loteamento" → needs=true, complete=true.
+  • "Plot for 8 moradias, PIP em fase final" → needs=true, complete=false.
+  • "Conjunto de 26 lotes destinados a habitação" → needs=true, complete=true (the
+    26 lots already exist — the subdivision is done).
 
 ═══════════════════════════════════════════════════════════════
 SOURCE_SPANS
@@ -267,7 +297,8 @@ def plot_listing_extraction_dag():
                     num_caves                         INTEGER,
                     -- LLM extracted: categorical
                     permit_status                     TEXT,
-                    is_loteamento                     BOOLEAN,
+                    needs_loteamento                  BOOLEAN,
+                    loteamento_complete               BOOLEAN,
                     -- Provenance
                     source_spans                      JSONB NOT NULL DEFAULT '{}'::jsonb,
                     -- DAG metadata
@@ -430,7 +461,7 @@ def plot_listing_extraction_dag():
                     implantation_area_m2, construction_area_m2_above_ground,
                     construction_area_m2_total, area_loteamento_m2,
                     num_dwellings_allowed, max_floors_allowed, num_caves,
-                    permit_status, is_loteamento,
+                    permit_status, needs_loteamento, loteamento_complete,
                     source_spans,
                     extraction_confidence, extraction_status,
                     error_message, raw_response,
@@ -440,7 +471,7 @@ def plot_listing_extraction_dag():
                     %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s,
-                    %s, %s,
+                    %s, %s, %s,
                     %s,
                     %s, %s,
                     %s, %s,
@@ -520,7 +551,8 @@ def plot_listing_extraction_dag():
                     result["fields"].get("max_floors_allowed"),
                     result["fields"].get("num_caves"),
                     result["fields"].get("permit_status"),
-                    result["fields"].get("is_loteamento"),
+                    result["fields"].get("needs_loteamento"),
+                    result["fields"].get("loteamento_complete"),
                     Json(result["fields"].get("source_spans") or {}),
                     result["confidence"],
                     result["status"],
@@ -782,7 +814,8 @@ def _failed_result(
             "max_floors_allowed": None,
             "num_caves": None,
             "permit_status": None,
-            "is_loteamento": None,
+            "needs_loteamento": None,
+            "loteamento_complete": None,
             "source_spans": {},
         },
         "confidence": None,

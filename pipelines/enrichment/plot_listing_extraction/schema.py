@@ -19,9 +19,10 @@ Field-axis split:
     max_floors_allowed                   — Nº pisos / andares (R/C counts as 1)
     num_caves                            — Number of basement / cave levels
 
-  Categorical (text-extracted, two orthogonal axes):
-    permit_status   — progression: project_approved > project_drafted > pip
-    is_loteamento   — subdivision flag, independent of permit_status
+  Categorical (text-extracted, three orthogonal axes):
+    permit_status        — progression: project_approved > project_drafted > pip
+    needs_loteamento     — does the planned development require subdivision into lots?
+    loteamento_complete  — is the loteamento process / alvará already done?
 
   Provenance:
     source_spans    — field_name → exact sentence(s) backing the value
@@ -153,17 +154,35 @@ class PlotListingExtraction(BaseModel):
             "    'without_pip' as a separate state."
         ),
     )
-    is_loteamento: bool | None = Field(
+    needs_loteamento: bool | None = Field(
         default=None,
         strict=True,
         description=(
-            "Whether the parcel is part of a loteamento (subdivision). "
-            "True = description mentions 'loteamento' / 'alvará de loteamento' / "
-            "'licença de urbanização' / explicit lots within an approved "
-            "subdivision; "
-            "False = description explicitly rules out subdivision; "
-            "null = description does not mention. "
-            "Orthogonal to permit_status — both fields populated independently."
+            "Does the plot need to be split into sub-lots (loteamento process) "
+            "for the planned development? "
+            "True = description implies multiple distinct buildings / moradias / "
+            "blocos on the same parcel that would each require a separate legal "
+            "lot. Also true when description explicitly mentions an existing "
+            "loteamento or 'licença de urbanização' covering multiple lots. "
+            "False = single-building plan with no subdivision implied. "
+            "Null = description does not address this dimension. "
+            "Orthogonal to permit_status and to loteamento_complete."
+        ),
+    )
+    loteamento_complete: bool | None = Field(
+        default=None,
+        strict=True,
+        description=(
+            "Has the loteamento process / infrastructure already been completed "
+            "for this parcel? "
+            "True = description mentions 'alvará de loteamento (a pagamento or "
+            "issued)', 'loteamento aprovado com infraestruturas', 'licença de "
+            "urbanização emitida', or lots that are already delimited and "
+            "serviced. "
+            "False = description says loteamento is still pending / 'precisa de "
+            "loteamento' / 'falta urbanização' / project-stage subdivision study. "
+            "Null = needs_loteamento is false/null, OR the description does not "
+            "address whether the subdivision work is done."
         ),
     )
 

@@ -60,8 +60,10 @@ sources:
                   values: [pip_pending, pip_approved, project_drafted, project_approved]
                   config:
                     where: "permit_status IS NOT NULL"
-          - name: is_loteamento
-            description: "Subdivision flag, orthogonal to permit_status."
+          - name: needs_loteamento
+            description: "True when the planned development requires the parcel to be split into multiple legal lots (multiple buildings on one parcel, or explicit loteamento)."
+          - name: loteamento_complete
+            description: "True when the loteamento infrastructure / alvará is already in place (the buyer doesn't need to do the subdivision process). Null when needs_loteamento is false/null."
           - name: source_spans
             description: "JSONB map: populated-field-name → exact source sentence."
           - name: extraction_confidence
