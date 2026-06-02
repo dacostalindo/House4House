@@ -7,11 +7,17 @@
 --   #28b ST_SRID correctness on both layers
 --   #29  silver aquifers count == bronze aquifers count (geom NOT NULL)
 --   #29b silver geology count == bronze geology count (geom NOT NULL)
---   #30  geological_era_code = LEFT(lithology_code, 1) on every geology row
+--
+-- Note: Test #30 (geological_era_code derivation invariant) retired 2026-06-02
+-- after the LNEG geology silver was rewritten to use the actual JSONB keys
+-- (Código, Eratema, Sistema, ...) instead of the misattributed Idade_Litologia.
+-- not_null tests on lithology_code already cover the FK-shape invariant via
+-- dbt YAML; era + geological_period are only 80% / 74% populated in bronze
+-- (verified 2026-06-02), so no hard pgTAP invariant fits cleanly.
 
 BEGIN;
 
-SELECT plan(5);
+SELECT plan(4);
 
 -- #28 — ST_IsValid on both layers combined
 SELECT is(
@@ -53,14 +59,6 @@ SELECT is(
     (SELECT COUNT(*)::int FROM bronze_geology.raw_lneg_geology_500k
      WHERE geom IS NOT NULL),
     'Test #29b — silver geology count equals bronze non-NULL-geom count'
-);
-
--- #30 — geological_era_code derivation invariant
-SELECT is(
-    (SELECT COUNT(*)::int FROM silver_geo.geology
-     WHERE geological_era_code <> LEFT(lithology_code, 1)),
-    0,
-    'Test #30 — geological_era_code equals LEFT(lithology_code, 1) on every row'
 );
 
 SELECT * FROM finish();

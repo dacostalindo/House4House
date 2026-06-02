@@ -39,15 +39,18 @@ sources:
 
       - name: raw_lneg_aquiferos
         description: >
-          LNEG Sistemas Aquíferos — national aquifer-system polygons (63 polygons,
-          e.g. O1 Quaternário de Aveiro, O2 Cretácico de Aveiro). Generic JSONB
-          properties pattern. Loaded by lneg_bronze_load DAG. See [[lneg]] wiki page.
+          LNEG Sistemas Aquíferos — national aquifer-system polygons (~63 rows).
+          Generic JSONB properties pattern. Loaded by lneg_bronze_load DAG.
+          See [[lneg]] for upstream-authority context (endpoint, license, coverage).
+          Per [[silver-dq-baseline]] Rule 0, JSONB key descriptions live on the
+          typed staging outputs, not here — see stg_lneg_aquiferos.sql header
+          comment for the current key list (discovered 2026-06-02).
         columns:
           - name: feature_id
             description: ArcGIS OBJECTID
           - name: layer_name
             description: Constant 'lneg_aquiferos' for this table
           - name: properties
-            description: JSONB blob with CodigoInag, NomeCompleto, SistemaAquifero, Idade, IDUnidadeHidrogeologica
+            description: "JSONB — see stg_lneg_aquiferos.sql header comment for current key list (discovered 2026-06-02). Authority: live ArcGIS REST endpoint, not the wiki."
           - name: geom
             description: Polygon geometry in EPSG:3763 (server-reprojected)

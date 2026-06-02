@@ -41,6 +41,26 @@ Two silvers consume INE bronze with different scopes:
 - [`silver_geo.census_demographics`](../../dbt/models/silver/geo/census_demographics.sql) (pre-existing) — wide table joining 12 Census 2021 INE indicators to BGRI demographics at freguesia grain. Different shape; serves the hedonic feature-engineering use case.
 - See [[silver-dq-baseline]] §"Statistical-source silver topology" for which silver answers which question and why INE is kept separate from [`silver_market.macro_timeseries`](../../dbt/models/silver/market/macro_timeseries.sql) (BPStat+ECB+Eurostat).
 
+## Two endpoints: pindica.jsp + pindicaMeta.jsp
+
+INE exposes two endpoints per indicator:
+
+- **`pindica.jsp`** — DATA. Returns observations as flattened `Dados` blocks. Used by [`pipelines/api/ine/ine_bronze_dag.py`](../../pipelines/api/ine/ine_bronze_dag.py).
+- **`pindicaMeta.jsp?varcd=<code>`** — METADATA. Returns the indicator's dimension definitions: for each dim, the list of categories with codes + labels + descriptions. NOT currently fetched in v1.
+
+Example: for indicator `0008273` (Resident population), [`pindicaMeta.jsp`](https://www.ine.pt/ine/json_indicador/pindicaMeta.jsp?varcd=0008273&lang=EN) reveals Dim3 (Sex) has 3 categories — `T → MF → 'Both sexes combined'`, `1 → M → 'Males'`, `2 → F → 'Females'` — where the first column is the code in observations, the second is the displayable label, and the third is the full description. We currently store the first two; the third requires the metadata endpoint.
+
+## `dim_X` vs `dim_X_t` semantics (locked 2026-06-02)
+
+In `pindica.jsp` observations:
+
+- **`dim_X`** = INE category **CODE** within the dimension. Stable convention: `'T'` always = total across this dimension. Other values are indicator-specific (e.g. for Sex: `'1'`/`'2'`; for HPI housing category: `'H1'`/`'H11'`/`'H12'`).
+- **`dim_X_t`** = INE **displayable label** (the `t` suffix is INE convention — likely *título* / *texto*). Inconsistently shaped — sometimes a short code (`'M'`, `'F'`), sometimes a full label (`'5 - 9 years'`).
+
+Renamed to `dim_X_label` in [`stg_ine_indicators.sql`](../../dbt/models/staging/ine/stg_ine_indicators.sql) (NOT `_name` — the value is not always a human-readable name). Full descriptions (`'Males'` not `'M'`) require the `pindicaMeta.jsp` endpoint.
+
+**v2 path** (NOT v1): build a `silver_market.ine_dimensions` table populated by a periodic `pindicaMeta` fetch, exposing `(indicator_code, dim_n, code, label, description)`. Lets downstream consumers JOIN to get full descriptions without re-fetching.
+
 ## Quirks
 
 - **JSON-stat 1.0 format** (NOT JSON-stat 2.0; [[bpstat]] and [[eurostat]] use 2.0): payload structure is hierarchical with `Dim1` / `value` / `status` blocks. Bronze stores raw; staging unpacks per-indicator into long-format facts.

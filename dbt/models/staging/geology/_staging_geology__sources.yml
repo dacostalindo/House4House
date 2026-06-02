@@ -14,15 +14,19 @@ sources:
       - name: raw_lneg_geology_500k
         description: >
           LNEG CGP500k Geologia do Continente — ~282 polygons national.
-          Generic JSONB pattern. Key field is Idade_Litologia (e.g. 'C3' =
-          Aveiro Argilas de Aveiro Cretaceous, 'Q' = Quaternary).
-          Loaded by lneg_bronze_load DAG.
+          Generic JSONB pattern. Loaded by lneg_bronze_load DAG.
+          See [[lneg]] for upstream-authority context (endpoint, license, coverage).
+          Per [[silver-dq-baseline]] Rule 0, JSONB key descriptions live on the
+          typed staging outputs, not here — see stg_lneg_geology.sql header
+          comment for the current key list (discovered 2026-06-02; the
+          previously-claimed `Idade_Litologia` does NOT exist in this layer —
+          the lithology code lives under `Código`).
         columns:
           - name: feature_id
             description: ArcGIS OBJECTID
           - name: layer_name
             description: Constant 'lneg_geology_500k'
           - name: properties
-            description: JSONB blob — Idade_Litologia is the key field
+            description: "JSONB — see stg_lneg_geology.sql header comment for current key list (discovered 2026-06-02). Authority: live ArcGIS REST endpoint, not the wiki."
           - name: geom
             description: Polygon geometry in EPSG:3763 (server-reprojected)

@@ -150,11 +150,39 @@ models:
           9-char freguesia → SUBSTRING(4, 4). Else NULL. Use `WHERE concelho_code IS NOT NULL`
           to filter to concelho-or-finer rows.
       - name: dim_3
-      - name: dim_3_name
+        description: >
+          INE category CODE within Dim3 (indicator-specific dimension — varies
+          per indicator: Sex / Housing category / Activity type / etc.).
+          Stable convention across indicators: 'T' = total across this dimension.
+          Other values are indicator-specific (e.g. for Sex: '1'=Males, '2'=Females;
+          for HPI Housing category: 'H1'=Total, 'H11'=New, 'H12'=Existing).
+          Filter on this column to slice/aggregate.
+      - name: dim_3_label
+        description: >
+          INE 'displayable' label for the dim_3 category. Inconsistent shape
+          across indicators — sometimes a short code ('M', 'F', 'MF'), sometimes
+          a full label ('5 - 9 years'). NOT always human-readable. Full
+          descriptions ('Males', 'Females', 'Both sexes combined') live in the
+          separate pindicaMeta.jsp endpoint (not fetched in v1; deferred to a
+          future silver_market.ine_dimensions enrichment).
       - name: dim_4
-      - name: dim_4_name
+        description: >
+          INE category CODE within Dim4 (indicator-specific dimension — varies
+          per indicator: Age group / Tax-residence / Financing purpose / etc.).
+          Same 'T' = total convention as dim_3.
+      - name: dim_4_label
+        description: >
+          INE 'displayable' label for the dim_4 category. Same inconsistency
+          caveat as dim_3_label.
       - name: dim_5
-      - name: dim_5_name
+        description: >
+          INE category CODE within Dim5 (indicator-specific dimension — varies
+          per indicator: Institutional sector / Project purpose / etc.). Same
+          'T' = total convention as dim_3.
+      - name: dim_5_label
+        description: >
+          INE 'displayable' label for the dim_5 category. Same inconsistency
+          caveat as dim_3_label.
       - name: value
         description: "Numeric value (already typed in bronze via _parse_valor)"
       - name: ind_string

@@ -289,30 +289,24 @@ models:
       - name: aquifer_age
       - name: hydrogeo_unit_id
       - name: geom
-        description: "MultiPolygon in EPSG:4326"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom) = 4326"
+        description: "MultiPolygon in EPSG:4326. SRID + ST_IsValid via pgTAP."
+        tests: [not_null]
       - name: geom_pt
-        description: "MultiPolygon in EPSG:3763"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom_pt) = 3763"
+        description: "MultiPolygon in EPSG:3763. SRID via pgTAP."
+        tests: [not_null]
       - name: _loaded_at
       - name: _updated_at
 
   - name: geology
     description: >
       LNEG CGP500k national geology polygons (~282 rows). Contextual layer —
-      fn_assess_polygon exposes lithology_code + geological_era_code in its
-      JSONB readout but does NOT treat geology as a hard constraint. v1 only
-      decodes the first character of Idade_Litologia as era_code; era_label +
-      foundation_difficulty deferred to v2 per locked decisions 14+17 (1:500k
-      too coarse for Eurocode 7 Geotechnical Categories; era prefix isn't the
-      actual difficulty signal — formation-specific clay mineralogy is, per
-      Galhano & Rocha for the Argilas de Aveiro counterexample).
+      fn_assess_polygon exposes lithology_code + lithology_description + era +
+      geological_period in its JSONB readout but does NOT treat geology as a
+      hard constraint. v1 exposes raw bronze fields only; foundation_difficulty
+      deferred to v2 per locked decisions 14+17 (1:500k too coarse for
+      Eurocode 7 Geotechnical Categories; era is not the actual difficulty
+      signal — formation-specific clay mineralogy is, per Galhano & Rocha for
+      the Aveiro counterexample).
       See [[lneg]] + [[silver-dq-baseline]].
     columns:
       - name: geology_key
@@ -320,23 +314,30 @@ models:
         tests: [unique, not_null]
       - name: feature_id
       - name: lithology_code
-        description: "Full Idade_Litologia code (e.g. 'C3', 'Q', 'g')"
+        description: "From bronze JSONB Código (e.g. 'gama', 'PEU', 'a', 'J3A'). Heterogeneous; no meaningful single-char prefix — use `era` for grouping."
         tests: [not_null]
-      - name: geological_era_code
-        description: "First character of lithology_code — descriptive parse only, no difficulty claim"
-        tests: [not_null]
+      - name: lithology_description
+        description: "From bronze JSONB Descrição — rich PT-language label (e.g. 'Aluviões')"
+      - name: lithology_description_extra
+        description: "From bronze JSONB Descrição1 — secondary classification"
+      - name: eon
+        description: "From bronze JSONB Eonotema"
+      - name: era
+        description: "From bronze JSONB Eratema (e.g. 'Cenozóico', 'Mesozóico', 'Paleozóico', 'Pré-câmbrico') — the proper era grouping field"
+      - name: geological_period
+        description: "From bronze JSONB Sistema (e.g. 'Quaternário', 'Cretácico', 'Jurássico')"
+      - name: epoch
+        description: "From bronze JSONB Série (e.g. 'Holocénico')"
+      - name: chrono_zone
+        description: "From bronze JSONB Zona — broader chrono-structural grouping (e.g. 'Cobertura Cenozóica'). Not strictly chronostratigraphic per the International Chronostratigraphic Chart hierarchy."
+      - name: plutonic_intrusions
+        description: "From bronze JSONB Intrusões_plutónicas"
       - name: geom
-        description: "MultiPolygon in EPSG:4326"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom) = 4326"
+        description: "MultiPolygon in EPSG:4326. SRID + ST_IsValid via pgTAP."
+        tests: [not_null]
       - name: geom_pt
-        description: "MultiPolygon in EPSG:3763"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom_pt) = 3763"
+        description: "MultiPolygon in EPSG:3763. SRID via pgTAP."
+        tests: [not_null]
       - name: _loaded_at
       - name: _updated_at
 
@@ -383,17 +384,11 @@ models:
         description: "Denormalized from dim_constraint_severity. Always 0 — the polygon IS the legal flood envelope"
         tests: [not_null]
       - name: geom
-        description: "MultiPolygon in EPSG:4326 (per [[2026-05-10-dual-crs-storage]] canonical)"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom) = 4326"
+        description: "MultiPolygon in EPSG:4326 (per [[2026-05-10-dual-crs-storage]] canonical). SRID + ST_IsValid via pgTAP."
+        tests: [not_null]
       - name: geom_pt
-        description: "MultiPolygon in EPSG:3763 (PT-TM06)"
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom_pt) = 3763"
+        description: "MultiPolygon in EPSG:3763 (PT-TM06). SRID via pgTAP."
+        tests: [not_null]
       - name: _loaded_at
         description: "Bronze load timestamp"
       - name: _updated_at

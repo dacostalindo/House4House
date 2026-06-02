@@ -27,17 +27,11 @@ models:
       - name: designation
       - name: publication_date
       - name: geom
-        description: Polygon geometry in EPSG:4326 (display, ST_Within)
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom) = 4326"
+        description: "Polygon geometry in EPSG:4326 (display, ST_Within). SRID + ST_IsValid invariants enforced via pgTAP (see tests/sql/silver_*_invariants.sql)."
+        tests: [not_null]
       - name: geom_pt
-        description: Polygon geometry in EPSG:3763 (distance/area in metres)
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom_pt) = 3763"
+        description: "Polygon geometry in EPSG:3763 (distance/area in metres). SRID invariant enforced via pgTAP."
+        tests: [not_null]
       - name: _loaded_at
 
   - name: stg_lneg_aquiferos
@@ -62,15 +56,9 @@ models:
       - name: hydrogeo_unit_id
         description: Hydrogeological unit reference
       - name: geom
-        description: Polygon geometry in EPSG:4326
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom) = 4326"
+        description: "Polygon geometry in EPSG:4326. SRID + ST_IsValid invariants enforced via pgTAP."
+        tests: [not_null]
       - name: geom_pt
-        description: Polygon geometry in EPSG:3763
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              expression: "ST_SRID(geom_pt) = 3763"
+        description: "Polygon geometry in EPSG:3763. SRID invariant enforced via pgTAP."
+        tests: [not_null]
       - name: _loaded_at

@@ -21,12 +21,19 @@ This is a source page about LNEG (Laboratório Nacional de Energia e Geologia), 
 
 ## Schema
 
-Two bronze tables:
+Two bronze tables (both follow the generic-JSONB pattern: `feature_id INTEGER, layer_name VARCHAR, properties JSONB, geom GEOMETRY(GEOMETRY, 3763), _source_url TEXT, _load_timestamp TIMESTAMPTZ`):
 
-- `bronze_geology.raw_lneg_geology_500k` — Geologia 1:500k, 282 polygons national, hierarchical lithology classes (e.g., `C3` = Arenitos e argilas de Aveiro = Aveiro sandstones and clays)
-- `bronze_hydrology.raw_lneg_aquiferos` — Aquíferos (aquifer systems), 63 polygons national. Fields: CodigoInag, NomeCompleto, SistemaAquifero, Idade
+- `bronze_geology.raw_lneg_geology_500k` — Geologia 1:500k, ~282 polygons national.
+- `bronze_hydrology.raw_lneg_aquiferos` — Aquíferos (aquifer systems), ~63 polygons national.
 
 Both: geometry = Polygon, EPSG:3763 (PT-TM06, server-reprojected).
+
+**JSONB key authority** lives in the staging SQL files, not here ([[silver-dq-baseline]] Rule 0). LNEG publishes no machine-readable attribute spec — the live ArcGIS REST endpoint is the only ground truth. See:
+
+- [`stg_lneg_geology.sql`](../../dbt/models/staging/geology/stg_lneg_geology.sql) — dated discovery comment + extractions for the CGP500k layer (current keys as of 2026-06-02: `Código`, `Descrição`, `Descrição1`, `Eonotema`, `Eratema`, `Sistema`, `Série`, `Zona`, `Intrusões_plutónicas`, `Intrusões_plutónicas1`, `OBJECTID`).
+- [`stg_lneg_aquiferos.sql`](../../dbt/models/staging/hydrology/stg_lneg_aquiferos.sql) — dated discovery comment + extractions for the aquifers layer (current keys as of 2026-06-02: `CodigoInag`, `NomeCompleto`, `SistemaAquifero`, `Idade`, `IDUnidadeHidrogeologica`, `OBJECTID`).
+
+**Important historical note (lesson learned 2026-06-02):** an earlier version of this page claimed `Idade_Litologia` as the geology key field. That was **never present** in the live ArcGIS data — the actual lithology code lives under `Código`, and chronostratigraphic context spreads across `Eonotema` / `Eratema` / `Sistema` / `Série` / `Zona` separately. The drift was caught when [silver_geo.geology](../../dbt/models/silver/geo/geology.sql) was first built against live bronze and the not_null test on `lithology_code` failed for 100% of rows. This is exactly the failure mode [[silver-dq-baseline]] Rule 0 (Schema discovery precedes derivation) exists to prevent.
 
 ## Silver layer
 

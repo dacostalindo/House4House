@@ -19,6 +19,50 @@ Before sprint-09 WS4, silver-layer tests were ad-hoc per model (see [[silver_sce
 
 ## How
 
+### Rule 0 — Schema discovery precedes derivation (added 2026-06-02)
+
+**Before writing any CASE / regex / JSONB unpack / FK-derivation in a staging or silver model, verify the input schema against live bronze data.** Wiki claims and DDL declarations are not authoritative for value distributions or JSONB key sets — only the warehouse is.
+
+**Discovery queries** (cheap, run once per source, paste result + date into the staging SQL header comment):
+
+```sql
+-- For typed bronze columns: value distribution
+SELECT col, COUNT(*) FROM bronze.<table> GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
+
+-- For JSONB bronze: actual key set
+SELECT DISTINCT jsonb_object_keys(properties) FROM bronze.<table>;
+
+-- For derived-column inputs: input-space cardinality
+SELECT LENGTH(col), col ~ '^\d+$', COUNT(*) FROM bronze.<table> GROUP BY 1,2;
+```
+
+**Where the discovery result lives** (single source of truth — no duplication):
+
+| Layer | Owns | Does NOT own |
+|---|---|---|
+| Staging SQL file (header comment) | The dated discovery query + its result + the extraction list | — |
+| Staging model YAML (`_*__models.yml`) | Per-column semantic descriptions on the typed outputs | JSONB key re-enumeration |
+| Bronze source YAML (`_*__sources.yml`) | Bronze surface (`feature_id`, `properties JSONB`, `geom`) + a pointer to staging SQL | JSONB key listing |
+| Silver model YAML (`_*__models.yml`) | Consumer semantics + `"From bronze JSONB X"` provenance hints | Full JSONB key listing |
+| Wiki source page | Endpoint, license, coverage, upstream-context caveats | JSONB key claims (they drift; the wiki is the wrong layer) |
+
+**When in doubt, the warehouse wins.** LNEG's ISO 19115 metadata catalog describes the dataset abstractly; the FeatureServer endpoint is what the bronze loader actually hits. If they disagree, the live response is authority.
+
+**Mechanical drift check** — add a dbt singular test that asserts the JSONB key set hasn't drifted. Pattern in [`dbt/tests/assert_lneg_geology_bronze_jsonb_keys.sql`](../../dbt/tests/assert_lneg_geology_bronze_jsonb_keys.sql):
+
+```sql
+SELECT 1 AS jsonb_key_drift
+WHERE (
+    SELECT array_agg(DISTINCT k ORDER BY k)
+    FROM {{ source('bronze_geology', 'raw_lneg_geology_500k') }},
+         jsonb_object_keys(properties) k
+) IS DISTINCT FROM ARRAY['Código', 'Descrição', ...]
+```
+
+The test fails when upstream adds/removes a key. That's the signal to re-run discovery + update the staging SQL header comment + the extraction list. Without this test, drift is invisible until a downstream silver mysteriously starts returning NULL.
+
+**Why this rule exists** — 2026-06-02 incident: `wiki/sources/lneg.md` documented `Idade_Litologia` as the LNEG geology key field. The bronze layer never had that key — actual lithology lives under `Código`. The wiki was probably right at *some* point but drifted. The first build of `silver_geo.geology` against live bronze returned NULL for `lithology_code` on 100% of rows; the `not_null` test caught it immediately. The fix took 30 seconds; the time wasted writing/reviewing code based on stale wiki claims was hours. Rule 0 prevents the same failure mode going forward.
+
 ### Rule 1 — Spatial dual-CRS invariant
 
 Every spatial silver materializes BOTH columns per [[2026-05-10-dual-crs-storage]]:

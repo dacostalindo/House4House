@@ -12,12 +12,17 @@ sources:
             description: "6-digit freguesia code for joining with CAOP"
 
       - name: raw_indicators
-        description: "INE statistical indicators. Loaded by ine_bronze_dag."
+        description: >
+          INE statistical indicators flattened from pindica.jsp JSON-stat. One
+          row per (indicator × time_period × geography × dim_3 × dim_4 × dim_5)
+          tuple. Loaded by ine_bronze_dag. See [[ine]] for upstream-authority
+          context (endpoint URL, license, indicator catalog).
         columns:
           - name: indicator_code
+            description: "INE indicator code (e.g. '0009201' for Housing Price Index). Stable across pindica.jsp + pindicaMeta.jsp."
             tests: [not_null]
-          - name: time_period
-            tests: [not_null]
+          - name: indicator_name
+            description: "Indicator long name from INE (e.g. 'Housing price index (Base - 2015) by Category of housing unit; Quarterly')."
           - name: indicator_category
             description: >
               Pre-computed at bronze load time from INE_INDICATORS[code].category
@@ -25,3 +30,39 @@ sources:
               dual-maintenance: bronze loader is the only place that knows the
               33-indicator catalog; silver passes through. Added in sprint-09 WS4
               quick-wins batch (locked decision 13).
+          - name: time_period
+            description: "INE Dim1 period string. Heterogeneous formats: 'YYYY' (annual), 'Nst Quarter YYYY' (quarterly), '<Month> YYYY' (monthly)."
+            tests: [not_null]
+          - name: geocod
+            description: "INE Dim2 geography code. Two coding schemes coexist — see stg_ine_indicators.sql + ine_indicators_long.sql for derivation."
+          - name: geodsg
+            description: "INE Dim2 geography display name (e.g. 'Aveiro', 'Corvo')."
+          - name: dim_3
+            description: >
+              INE Dim3 category CODE within the dimension. Stable convention across
+              all indicators: 'T' = total across this dimension. Other values are
+              indicator-specific. For indicator 0008273 (Sex): '1'=Males, '2'=Females.
+              Look up full meanings via pindicaMeta.jsp?varcd=<code>.
+          - name: dim_3_t
+            description: >
+              INE Dim3 displayable LABEL (the 't' suffix is INE convention for
+              'título' / 'texto'). Inconsistently shaped: sometimes a short code
+              ('M', 'F'), sometimes a full label ('5 - 9 years'). Renamed to
+              `dim_3_label` in staging — NOT renamed to `_name` because the value
+              is not always a human-readable name.
+          - name: dim_4
+            description: "INE Dim4 category CODE within the dimension (indicator-specific). Same 'T' = total convention as dim_3."
+          - name: dim_4_t
+            description: "INE Dim4 displayable LABEL. Same shape caveat as dim_3_t."
+          - name: dim_5
+            description: "INE Dim5 category CODE within the dimension (indicator-specific). Same 'T' = total convention as dim_3."
+          - name: dim_5_t
+            description: "INE Dim5 displayable LABEL. Same shape caveat as dim_3_t."
+          - name: valor
+            description: "Numeric value, typed at bronze load by _parse_valor (returns NULL for INE missing-value codes 'x', 'X', '..', '…', '||', '-')."
+          - name: sinal_conv
+            description: "INE convention code marking missing/special values: 'x'=not available, '..'=null/not applicable, '…'=confidential, etc."
+          - name: sinal_conv_desc
+            description: "Human-readable description of sinal_conv (e.g. 'Not available', 'Confidential data')."
+          - name: last_updated
+            description: "INE's DataUltimoAtualizacao field — when INE last refreshed this indicator."
