@@ -1,6 +1,7 @@
 SELECT
     indicator_code,
     indicator_name,
+    indicator_category,
     last_updated,
     time_period,
     geocod                          AS geographic_code,

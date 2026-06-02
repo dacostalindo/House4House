@@ -937,3 +937,39 @@ Freshness: 0 stale pages. Oldest `last_verified` is 2026-05-05; all typed pages 
 Reciprocity: all 17 ADRs pass — no supersession relationships declared (acyclic decision graph).
 
 Full session report: [`wiki/lint-reports/2026-05-22T180000.md`](lint-reports/2026-05-22T180000.md).
+
+## [2026-05-29] seed | UC-4 folder added — qualitative signal layer (agentic news / project actors / regulatory)
+
+New use case for the warehouse's qualitative-signal layer. UC-4 is the first multi-document UC: lives as `wiki/use-cases/UC-4/` containing [[UC-4|README]] + [[UC-4/problem-statement]] + [[UC-4/project-plan]] + [[UC-4/sprint-plan]]. Decision output: per-entity qualitative signal (developer, press mentions, regulatory events). Absorbs [[planning/PoCs/agentic-pipeline]] (project-actors strategy already validated PoC). Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type — extends [[ingest-flows]] in PR 1. Schema additions: `bronze_news` + `agentic_cache` (correction to PoC's `news_bronze` recommendation; H4H convention is `bronze_<domain>`).
+
+Strategy delivery order: Articles (PR 1) → Project Actors (PR 2) → Regulatory (PR 4). Rationale: Articles is greenfield, stress-tests the Strategy ABC, and lets prompt-iteration happen on the easier signal before the lifted-from-PoC code locks the shape. Full 6-PR roster in [[UC-4/sprint-plan]].
+
+**Pages touched**: [[UC-4|README]] NEW, [[UC-4/problem-statement]] NEW, [[UC-4/project-plan]] NEW, [[UC-4/sprint-plan]] NEW, [[use-cases/README]] (roster table + filename convention note + preamble update), [[index.md|index]] (Use-cases section heading + UC-4 entry).
+
+Discarded prior parallel UC-4 work: previous `wiki/use-cases/UC-4.md` (single-file design dated 2026-05-15, news-driven RE intelligence analyst concept) and `wiki/sprints/sprint-11.md` (its companion sprint) removed per user decision 2026-05-29. Backups at `/tmp/uc4-discarded-2026-05-29/`. Reason: this folder-shaped UC-4 reflects current direction (ETL-shaped qualitative signal layer); the discarded design pursued a conversational-analyst path with a property-graph silver layer + Pydantic-AI agent + 60-question eval set.
+
+Open questions deferred to UC-4 PRs: sprint slot for PR 1 (recommend `sprint-04.7`); DRE API stability; cache schema location; silver_market vs new silver_news domain; UC-4 status flip timing.
+
+## [2026-06-02] plan | [[sprint-09]] adds Workstream 5 — Portal bronze column trim (4-portal × 3-grain audit)
+
+NET-NEW deliverable added to [[sprint-09]]: per-portal audit + bronze DDL trim across [[idealista]], [[jll]], [[remax]], [[zome]] at developments / listings / plots grain. Estimated 6-10 days. Locks a revision of [[bronze-permissive]]: bronze keeps an explicit kept-column set + one `raw_payload` JSONB sidecar (not "every column raw" as the original policy stated). Sub-deliverable 1 of the stream creates `wiki/decisions/2026-06-02-bronze-trim-revises-bronze-permissive.md` to record the policy change formally — the ADR isn't written yet, the stream sequences its creation as the first PR.
+
+Triggered by recurring sprint-09 verification work surfacing unused-but-load-bearing bronze columns. Concrete catalyst: idealista plot 34632291's `property_features` JSONB carries "Superfície edificável 82.592 m²" but the LLM-extraction labeling fixture at `pipelines/enrichment/plot_listing_extraction/sample_eval_set.py:134-135` SELECTs only `description, lot_size, property_price` — the structured field never reaches the labeler, the colleague survey, or the LLM prompt.
+
+Labelled **Workstream 5** to mark it visually orthogonal to the Workstream 4 v1-wedge stack. Demo critical path (`fn_assess_polygon` + Atlas Inspector) is unaffected; this stream may slip past Week 21 and finish in [[sprint-10]] — accepted at planning time. Implementation order: ADR + concept rewrite first, then Zome (small + Aveiro-present, exercises the silver_unified_developments verification path on the first trim), JLL (no-Aveiro sanity check), RE/MAX, idealista (biggest blast radius + ZenRows cost) last.
+
+**Pages touched**: [[sprint-09]] (new deliverable section + status-update-history entry). No new wiki pages created today — the ADR + [[bronze-permissive]] rewrite ship as the stream's first PR.
+
+## [2026-06-02] ship | WS4 quick-wins batch — APA + LNEG + INE silvers + dim_constraint_severity APA extension + silver-dq-baseline concept + bronze_ine.indicator_category migration
+
+Sprint-09 WS4 quick-wins batch shipped in one PR. Three new silvers for `gold.fn_assess_polygon` inputs:
+
+- **APA**: [silver_geo.floodplains](../dbt/models/silver/geo/floodplains.sql) (~188 rows) — 15th constraint layer alongside the 14 SRUP siblings. `dim_constraint_severity` extended with `ARPSI_Floodplain` (T100=3 hard, T1000=2 conditioned, new `flood_risk` category, buffer_m=0). [stg_apa_arpsi](../dbt/models/staging/hydrology/stg_apa_arpsi.sql) derives constraint_code+zone_type.
+- **LNEG**: [silver_geo.aquifers](../dbt/models/silver/geo/aquifers.sql) (~63 rows) + [silver_geo.geology](../dbt/models/silver/geo/geology.sql) (~282 rows). Raw bronze fields only — derived `aquifer_vulnerability` + `foundation_difficulty` dropped after web-research found DRASTIC requires inputs not in bronze, Eurocode 7 requires site-specific testing, and the Aveiro Cretaceous Argilas de Aveiro formation contradicts the obvious era-prefix CASE (per Galhano & Rocha). `geological_era_label` also dropped — v2 adds after discovery query on actual prefix distribution.
+- **INE**: [silver_market.ine_indicators_long](../dbt/models/silver/market/ine_indicators_long.sql) (~1.17M rows) at parish/concelho/NUTS granularity. Distinct from existing `silver_market.macro_timeseries` (national rates/HPI from BPStat+ECB+Eurostat) — see [[silver-dq-baseline]] §"Statistical-source silver topology" for the boundary. Bronze schema migration: added `indicator_category` column written by [ine_bronze_dag.py](../pipelines/api/ine/ine_bronze_dag.py) from `INE_INDICATORS[code].category` — single source of truth in `ine_config.py`, no dual-maintenance in silver.
+
+**New concept page** [[silver-dq-baseline]] codifies 4 universal silver-layer invariants (dual-CRS, surrogate PK, bronze→silver row-count parity, FK denorm integrity), deliberately excludes `accepted_values` on categorical columns (rationale: upstream-drift churn + silent-suppression incentive), and adds a "Statistical-source silver topology" section mapping which silver answers which question.
+
+**Pages touched** (per propagation rule): [[apa]], [[lneg]], [[ine]] (Silver layer sections + last_verified bump); [[srup-constraint-model]] (15th layer added + last_verified bump); [[index]] (new concept + count update 17→18); [[sprint-09]] (3 bullets flipped DONE + status-update-history entry + last_verified bump); [[log]] (this entry). New wiki page: [[silver-dq-baseline]].
+
+**Out of scope (deferred)**: LiDAR terrain → silver (~1.5d, bronze empty); Aveiro PMOT → bronze + silver (~2-3d, extractor not yet run); LNEG 1:50k JPGw raster ingest as Atlas Inspector WMS layer (sprint-10+); SRUP+COS dual-CRS naming migration to canonical (sprint-10 cleanup).

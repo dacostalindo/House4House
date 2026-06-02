@@ -1,7 +1,7 @@
 ---
 title: APA ARPSI — Floodplain (EU Floods Directive)
 type: source
-last_verified: 2026-05-08
+last_verified: 2026-06-02
 tags: [gis, regulatory, government, hydrology, arcgis-rest]
 priority: P2
 ---
@@ -29,6 +29,14 @@ Bronze table: `bronze_hydrology.raw_apa_arpsi_floodplain`.
 - **TRetorno** — RETURN PERIOD (T100 = 100-year flood, T1000 = 1000-year flood). KEY field for flood_class downstream classification per [[medallion-layering]].
 - **GEOCOD** — geocode reference
 - **geometry** — Polygon, EPSG:3763 (PT-TM06) — server returns reprojected, no client-side transform needed
+
+## Silver layer
+
+Shipped 2026-06-02 (sprint-09 WS4 quick-wins batch). The 15th constraint layer alongside the 14 [[srup-constraint-model|SRUP siblings]] — `gold.fn_assess_polygon` queries it via `ST_Intersects` and reads the denormalized `severity` column.
+
+- Staging: [dbt/models/staging/hydrology/stg_apa_arpsi.sql](../../dbt/models/staging/hydrology/stg_apa_arpsi.sql) — derives `constraint_code='ARPSI_Floodplain'` + `zone_type ∈ {'T100','T1000'}` so downstream joins to [[srup-constraint-model|dim_constraint_severity]] work on the same compound key.
+- Silver: [dbt/models/silver/geo/floodplains.sql](../../dbt/models/silver/geo/floodplains.sql) — materialized table with dual-CRS canonical naming (`geom`=4326, `geom_pt`=3763 per [[2026-05-10-dual-crs-storage]]), GIST indexes, and denormalized `severity` + `buffer_m` from the LEFT JOIN to `dim_constraint_severity`. Tests per [[silver-dq-baseline]].
+- Severity in dim_constraint_severity: **T100=3** (hard gate, DL 115/2010 non-aedificandi default), **T1000=2** (conditioned, buildable with mitigation per PT planning practice). Category `flood_risk`. buffer_m=0 (polygon IS the legal envelope).
 
 ## Quirks
 

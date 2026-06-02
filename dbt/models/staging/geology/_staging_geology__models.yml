@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_lneg_geology
+    description: >
+      Staging view over bronze_geology.raw_lneg_geology_500k. Unpacks
+      Idade_Litologia from JSONB; derives geological_era_code as the first
+      character (e.g. 'C3' → 'C'). NO geological_era_label or
+      foundation_difficulty in v1 — locked decisions 14+17 defer those to v2
+      after discovery query on actual prefix distribution + per-formation
+      lookup with citations. Dual-CRS canonical. See [[lneg]] +
+      [[silver-dq-baseline]].
+    columns:
+      - name: feature_id
+      - name: lithology_code
+        description: "Full Idade_Litologia code (e.g. 'C3', 'Q', 'g')"
+        tests: [not_null]
+      - name: geological_era_code
+        description: "First character of lithology_code — descriptive parse only, no difficulty claim"
+        tests: [not_null]
+      - name: geom
+        description: "Polygon geometry in EPSG:4326"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: "Polygon geometry in EPSG:3763"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at

@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: stg_apa_arpsi
+    description: >
+      Staging view over bronze_hydrology.raw_apa_arpsi_floodplain. Derives
+      constraint_code='ARPSI_Floodplain' + zone_type ('T100' | 'T1000') so
+      gold.fn_assess_polygon joins to dim_constraint_severity on the same
+      compound key the 14 SRUP layers use. Dual-CRS canonical: geom=4326,
+      geom_pt=3763. See [[apa]] + [[silver-dq-baseline]].
+    columns:
+      - name: feature_id
+        description: ArcGIS OBJECTID from bronze
+        tests: [not_null]
+      - name: constraint_code
+        description: Constant 'ARPSI_Floodplain' — FK to dim_constraint_severity
+        tests: [not_null]
+      - name: zone_type
+        description: "'T100' (severity 3) or 'T1000' (severity 2) per dim_constraint_severity"
+        tests: [not_null]
+      - name: return_period_years
+        description: 100 or 1000 (bronze pass-through)
+        tests: [not_null]
+      - name: hydrographic_region
+        description: RHidro (e.g. 'PTRH4A' Vouga sub-basin)
+      - name: location
+      - name: designation
+      - name: publication_date
+      - name: geom
+        description: Polygon geometry in EPSG:4326 (display, ST_Within)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: Polygon geometry in EPSG:3763 (distance/area in metres)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at
+
+  - name: stg_lneg_aquiferos
+    description: >
+      Staging view over bronze_hydrology.raw_lneg_aquiferos. Unpacks JSONB
+      properties (CodigoInag, NomeCompleto, SistemaAquifero, Idade,
+      IDUnidadeHidrogeologica) into typed columns. NO derived vulnerability
+      indicator (locked decision 17 — DRASTIC inputs missing in bronze).
+      Dual-CRS canonical. See [[lneg]] + [[silver-dq-baseline]].
+    columns:
+      - name: feature_id
+        description: ArcGIS OBJECTID
+      - name: codigo_inag
+        description: INAG aquifer code (e.g. 'O1', 'O2') — natural key
+        tests: [not_null]
+      - name: aquifer_name
+        description: Human-readable aquifer name (e.g. 'Quaternário de Aveiro')
+      - name: aquifer_system
+        description: Aquifer system grouping
+      - name: aquifer_age
+        description: Geological age (e.g. 'Quaternário', 'Cretácico')
+      - name: hydrogeo_unit_id
+        description: Hydrogeological unit reference
+      - name: geom
+        description: Polygon geometry in EPSG:4326
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: Polygon geometry in EPSG:3763
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at

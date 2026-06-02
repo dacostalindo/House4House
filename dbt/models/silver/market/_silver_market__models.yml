@@ -103,3 +103,63 @@ models:
       # ── Audit ───────────────────────────────────────────────────────────────
       - name: _updated_at
         description: "Timestamp of last dbt build run (NOW())"
+
+  - name: ine_indicators_long
+    description: >
+      Long-form INE indicator timeseries at parish/concelho/NUTS granularity.
+      Distinct from macro_timeseries (national/EU rates+prices+credit) — see
+      [[silver-dq-baseline]] "Statistical-source silver topology" for which
+      silver answers which question. HPI overlap with macro_timeseries (via
+      Eurostat) is intentional: INE 0009201 is PT-native quarterly, Eurostat
+      PRC_HPI_Q is EU-aligned. No silver-side filter on indicator_code — bronze
+      loader is gated by INE_INDICATORS in ine_config.py.
+    columns:
+      - name: indicator_long_key
+        description: "Surrogate key (ROW_NUMBER)"
+        tests: [unique, not_null]
+      - name: indicator_code
+        description: "INE indicator code (e.g. '0009201' for HPI)"
+        tests: [not_null]
+      - name: indicator_name
+      - name: indicator_category
+        description: >
+          Pre-computed at bronze load time from INE_INDICATORS[code].category.
+          NOT NULL test catches backfill miss after bronze schema migration
+          (sprint-09 WS4 locked decision 13).
+        tests: [not_null]
+      - name: time_period_raw
+        description: "Original INE period string (e.g. '2024', '1st Quarter 2009', 'April 2007')"
+      - name: time_period_date
+        description: >
+          Best-effort parse to DATE. Supported formats: YYYY, 'Nst Quarter YYYY',
+          '<Month> YYYY'. Other formats (semesters, custom periods) → NULL.
+      - name: geographic_code
+        description: "INE geocod (TRIM'd from bronze)"
+        tests: [not_null]
+      - name: geographic_name
+      - name: freguesia_code
+        description: >
+          CAOP-compatible 6-char DTMNFR (can contain letters for freguesia-unions).
+          6-char input → pass-through; 9-char input → RIGHT 6 chars (drops NUTS3 prefix);
+          else NULL. FK-ready to dim_geography. Use `WHERE freguesia_code IS NOT NULL` to
+          filter to freguesia-level rows.
+      - name: concelho_code
+        description: >
+          CAOP-compatible 4-char DTCC, scheme-aware:
+          4-char concelho input → as-is; 7-char concelho → RIGHT 4; 6-char freguesia → LEFT 4;
+          9-char freguesia → SUBSTRING(4, 4). Else NULL. Use `WHERE concelho_code IS NOT NULL`
+          to filter to concelho-or-finer rows.
+      - name: dim_3
+      - name: dim_3_name
+      - name: dim_4
+      - name: dim_4_name
+      - name: dim_5
+      - name: dim_5_name
+      - name: value
+        description: "Numeric value (already typed in bronze via _parse_valor)"
+      - name: ind_string
+      - name: sinal_conv
+      - name: sinal_conv_desc
+      - name: last_updated
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"

@@ -64,7 +64,12 @@ WITH base AS (
         ('DefesaMilitar',   'zona_protecao',                2, 'military',       0,  'geom', 'Lei 2078/1955 + DL 45986/1964',              TRUE,  'Ministerio da Defesa Nacional'),
         ('Aeronautica',     'area_desobstrucao',            3, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
         ('Aeronautica',     'servidao',                     2, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
-        ('Aeronautica',     'zona_protecao',                2, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea')
+        ('Aeronautica',     'zona_protecao',                2, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
+        -- ARPSI EU Floods Directive scope (sprint-09 WS4 quick-wins batch). T100=hard
+        -- (PT non-aedificandi default per DL 115/2010); T1000=conditioned (catastrophe
+        -- band, buildable with APA mitigation per PT planning practice).
+        ('ARPSI_Floodplain', 'T100',                        3, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
+        ('ARPSI_Floodplain', 'T1000',                       2, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH')
     ) AS t(
         constraint_code,
         zone_type,

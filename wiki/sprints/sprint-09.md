@@ -1,12 +1,12 @@
 ---
 title: Sprint 9 — UC-3 v1 wedge Part 2 (Wedge Completion + Atlas Inspector + Demo)
 type: plan
-last_verified: 2026-05-18
+last_verified: 2026-06-02
 tags: [sprint, plan, uc-3, wedge, completion, llm-extraction, dev-dedup, cross-portal, atlas-inspector, demo, weeks-19-21]
 status: in_progress
 sprint_number: "9"
 weeks: "19-21"
-last_status_update: 2026-05-18
+last_status_update: 2026-06-02
 ---
 
 ## For future Claude
@@ -183,6 +183,18 @@ Test plan: `dbt build --select +silver_unified_developments` green (Aveiro: 26-3
 - LISTING-level cross-portal dedup (the `hash(address + area + typology)` pattern in sprint-10 Track A). This Slice B-prime is DEVELOPMENT-level; listing-level is a different problem.
 - Cross-portal listing↔SCE-fração linkage (one portal listing maps to multiple SCE certificates within one building). v1.5 work.
 
+### Workstream 4 — `fn_assess_polygon` input data gaps (~5-6 days total, NET-NEW, audited 2026-05-22; quick-wins batch SHIPPED 2026-06-02)
+
+Construction-suitability inputs the `fn_assess_polygon` function depends on but which lack silver models today. The 2026-05-22 audit found bronze freshness is *not* the problem — most static-reference bronze (CAOP, OSM, BGRI, BUPI, Cadastro, COS, legacy SRUP) is correctly loaded once and refreshed on annual cycles. The gaps are downstream of those: staging/silver models not yet built, plus two stalled OGC migrations and one empty pipeline scaffold. Build order is by construction-suitability impact, not by effort.
+
+- **APA floods → silver** ✅ **DONE 2026-06-02 (quick-wins batch)**: `bronze_hydrology.raw_apa_arpsi_floodplain` loaded (188 rows). Shipped as sibling `silver_geo.floodplains` (NOT folded into zoning) + extended `dim_constraint_severity` with `ARPSI_Floodplain` (T100=3 hard, T1000=2 conditioned, new `flood_risk` category). 15th regulatory layer alongside the 14 SRUP siblings — see [[srup-constraint-model]]. Tests per [[silver-dq-baseline]].
+- **LiDAR terrain → silver** (~1.5d, NOT DONE): `bronze_terrain.*` (4 tables) scaffolded but **empty** — pipeline never run. Two-step: (a) execute the LiDAR DAG to populate bronze manifests; (b) build staging + silver for slope / aspect / elevation rasters. Slope = buildability cost; many sites are unbuildable due to slope. See [[lidar]].
+- **LNEG aquifers + geology → silver** ✅ **DONE 2026-06-02 (quick-wins batch)**: two siblings — `silver_geo.aquifers` (63 rows) + `silver_geo.geology` (282 rows). Raw bronze fields exposed only — `aquifer_vulnerability` and `foundation_difficulty` derived columns DROPPED from v1 after web-research pass on PT regulations (DRASTIC requires inputs not in bronze; Eurocode 7 requires site-specific testing; Aveiro Cretaceous "Argilas de Aveiro" formation contradicted the proposed era-prefix CASE per Galhano & Rocha). See [[lneg]].
+- **Aveiro PMOT → bronze + silver** (~2-3d, NOT DONE): no bronze visible — the [[aveiro-pmot]] WMS-GFI extractor is described as one-off (~1,669 feature types). Run the extractor, land in bronze, then staging + silver. Local PMOT plans matter for the Aveiro v1 wedge — they're the municipal layer below SRUP/CRUS.
+- **INE indicators → silver** ✅ **DONE 2026-06-02 (quick-wins batch)**: `silver_market.ine_indicators_long` exposes 33 active indicators at parish/concelho/NUTS granularity. Distinct from `silver_market.macro_timeseries` (national rates/HPI) — see [[silver-dq-baseline]] §"Statistical-source silver topology". Bronze schema migration: added `indicator_category` column written by bronze loader from `INE_INDICATORS[code].category` (single source of truth in `ine_config.py`). See [[ine]].
+
+**Also surfaced by the 2026-05-22 audit** — two empty OGC-migration bronze tables not powering anything: `bronze_geo.raw_cos_national_ogc` and `bronze_regulatory.raw_crus_national_ogc`. Legacy COS / CRUS are powering silver correctly, so the migrations aren't urgent. Decide per source: finish migrating (re-run loaders) or drop the empty shells to stop the noise.
+
 ### Workstream 4 — `gold.fn_assess_polygon` Postgres function (~3-5 days, NET-NEW, the keystone)
 
 - `dbt/models/gold/fn_assess_polygon.sql` (or migration file) — defines the SQL function as a single backend entry point.
@@ -272,6 +284,60 @@ Side-benefit: PR-C's `silver_unified_developments` gets clean inputs across all 
 
 Out of scope: investigating the dlt SCD2 close-row bug at the framework level (deeper dlt internals work; better as a sprint-10 portal data-quality investigation, OR upgrading dlt to a version that fixes this). The clean re-scrape is the v1 unblock.
 
+### Workstream 5 — Portal bronze column trim (4-portal × 3-grain audit, ~6-10 days, NET-NEW 2026-06-02)
+
+Sprint-09 verification work has repeatedly surfaced bronze columns that aren't consumed anywhere downstream while genuinely useful structured fields stay buried (e.g. [[idealista]]'s `property_features` JSONB carries "Superfície edificável 82.592 m²" for plot 34632291 but the LLM-extraction labeling fixture at [`pipelines/enrichment/plot_listing_extraction/sample_eval_set.py:134-135`](../../pipelines/enrichment/plot_listing_extraction/sample_eval_set.py#L134-L135) reads only `description`, `lot_size`, `property_price` — the field never reaches the labeler or the LLM prompt). The "every column, raw" posture from [[bronze-permissive]] is leaking complexity into staging, eval fixtures, the LLM-extraction prompt, the colleague-review tooling, and the Atlas Inspector readouts. **Decision** (locked in sub-deliverable 1 below): revise [[bronze-permissive]] from *"keep every column the source returns"* to *"keep an explicit, audited kept-set + one `raw_payload` JSONB sidecar that preserves the unparsed source row."* Per-portal audit picks the kept set; dropped columns leave the bronze DDL + dlt resource. Audit trail moves into `raw_payload`, so the three reasons the original policy cites (upstream regression capture, decoupling from moving targets, "what did the source say on date X?") are all still satisfied.
+
+This stream is **orthogonal to the v1-wedge demo critical path** (`fn_assess_polygon` + Atlas Inspector). It's labelled Workstream 5 to signal that — load impact is real (sprint-09 was already running ~4-5 weeks of work in 3 weeks per the 2026-05-17 status-history entry; +6-10 days on top likely slips past Week 21). May land partially in sprint-09 and finish in sprint-10; that's accepted at planning time.
+
+**Sub-deliverable 1 — Policy ADR + [[bronze-permissive]] rewrite (~0.5 day)**
+
+New `wiki/decisions/2026-06-02-bronze-trim-revises-bronze-permissive.md`. Locks the revised rule:
+- Bronze keeps an explicit kept-column set + one `raw_payload` JSONB column carrying the unparsed dlt source row, for upstream-regression audit and field-recovery without re-scrape.
+- Schema contract stays `data_type=freeze, columns=evolve` for the kept columns; `raw_payload` absorbs everything else (so new upstream fields still land, just inside the JSONB).
+- The never-delete-from-bronze invariant remains for SCD2 row-versions; the column SCHEMA can be tightened in subsequent migrations as long as the prior payload survives in `raw_payload` or the dropped column was provably empty across all SCD2 versions.
+
+Rewrite [[bronze-permissive]] to point at the ADR + state the revised rule. Cross-link [[scd2-row-hash]] (row-hash inputs change when bronze schema tightens — every per-portal PR rebuilds row_hash and thus closes all current SCD2 versions; document the migration shape). Cross-link [[pydantic-not-in-dlt]] (still no Pydantic on incoming rows; the kept-set is enforced via the dlt resource's column list, not a model).
+
+**Sub-deliverables 2-5 — Per-portal bronze trim (~1.5-2 days × 4 = 6-8 days; one PR per portal)**
+
+Each PR walks the same 6-step ritual:
+1. Inventory current bronze columns at each grain (developments / listings / plots — skip the grain if the portal doesn't have it).
+2. Cross-check against actual downstream consumers: `dbt/models/staging/portals/stg_portal_*.sql`, `dbt/models/silver/**/*.sql`, the LLM extraction fixture, the `fn_assess_polygon` SELECT list, the Atlas Inspector readouts, the Streamlit pages.
+3. Pick the kept set + the dropped set. A dropped column needs evidence: zero downstream consumers AND (provably empty across SCD2 history OR the value lives in `raw_payload` post-trim).
+4. Update the dlt resource ([`pipelines/portals/<portal>/source.py`](../../pipelines/portals/)) to emit only the kept columns + `raw_payload`. Update the bronze DDL (`<portal>_bronze_dag.py` or the SCD2 dlt config) to drop the columns. Recompute the row_hash input set.
+5. SCD2 migration: backup `bronze_<schema>.<table>` → `<table>_pre_trim_2026_06`; recreate; replay from `raw_payload` where possible, OR clean re-scrape (cheap for dlt-driven JSON portals, expensive for ZenRows-heavy [[idealista]] — decide per portal).
+6. Per-PR wiki updates: flip dropped columns to "(trimmed YYYY-MM-DD)" in [[portal-field-map]]; update the source page Schema section; bump `last_verified`.
+
+| Portal | Grains | Bronze tables affected | Re-scrape cost |
+|---|---|---|---|
+| [[idealista]] | devs + units + plots | `bronze_listings.idealista_{developments,units,plots}` + state tables | ZenRows-heavy — prefer `raw_payload` replay; full re-scrape ~$5-15 per scope |
+| [[jll]] | devs + listings (no plots) | `bronze_listings.jll_{developments,listings}` + state tables | Cheap (REST/JSON) — clean re-scrape, follows the 2026-05-19 precedent |
+| [[remax]] | devs + listings + plots | `bronze_listings.remax_{developments,listings,plots}` + state tables | Cheap (REST/JSON) — clean re-scrape |
+| [[zome]] | devs + listings + plots | `bronze_listings.zome_{developments,listings,plots}` + state tables | Cheap (REST/JSON) — clean re-scrape |
+
+**Sub-deliverable 6 — Cross-cutting wiki updates (~0.5 day, lands with the last per-portal PR)**
+
+- Rewrite [[portal-field-map]] header + matrix to reflect the trimmed canonical set across all 4 portals.
+- Bump [[bronze-permissive]] `last_verified` and confirm the rewrite from sub-deliverable 1 still matches the as-implemented behaviour.
+- Update [[index]] entries for [[bronze-permissive]] + every trimmed source page summary if the prior summary said "every column raw."
+- Append per-portal ship lines to [`wiki/log.md`](../log.md).
+
+**Verification (per portal PR)**
+- `dbt build --select +stg_portal_developments_<portal> +stg_portal_listings_<portal> +stg_portal_plots_<portal>` green.
+- Spot-check: a representative bronze row's `raw_payload` JSONB contains the dropped fields exactly as upstream emitted them.
+- Re-run downstream consumers ([[cross-portal-dev-dedup|silver_unified_developments]], the LLM eval-set generator, Atlas Inspector spot-render) — outputs unchanged at the cell level (or, where they ARE expected to change because a previously-buried column is now surfaced, the diff is intentional and captured in the PR description).
+- pgTAP per portal: assert `raw_payload IS NOT NULL` AND `raw_payload ? '<sample-dropped-field>'` (the canary that audit trail survived).
+- The 34632291 canary: after the idealista trim, the LLM eval fixture surfaces "Superfície edificável 82.592 m²" to the labeler (whether via a new `property_features` kept column or via JSONB unpack in staging — decided at PR time).
+
+**Implementation order**: Sub-deliverable 1 (ADR + concept rewrite) blocks 2-5. Within 2-5, **start with [[zome]]** — small footprint, cheap re-scrape, Aveiro coverage present (3 devs) so the silver_unified_developments verification path is exercised on the first trim. Then [[jll]] (zero Aveiro coverage — useful sanity check that the trim doesn't break a "no-overlap" portal), [[remax]], and [[idealista]] last (biggest blast radius, ZenRows cost, and the most-consumed bronze in the codebase).
+
+**Out of scope (defer to [[sprint-10]] or later)**
+- GIS bronze tables (`bronze_geo.*`, `bronze_hydrology.*`, `bronze_geology.*`, `bronze_regulatory.raw_srup_*`, `bronze_terrain.*`, etc.) — same pattern applies but is a separate ~5-8 sources × 1-2 days workstream. Track under [[sprint-10]] Production Hardening.
+- [[sce]] bronze — already getting a refactor under "SCE bronze refactor — replace-not-append" in this sprint; the column-trim audit lands as a follow-up to that PR, not as a sub-deliverable here.
+- Re-running enrichment DAGs (LLM extraction, sce_geocode, etc.) — they re-run when their inputs change; nothing in this stream changes the *content* of bronze, only its column shape.
+- Listing-level cross-portal dedup that would benefit from a leaner schema — still v1.5+ scope per the existing sprint-09 Key decisions section.
+
 ### Demo prep + execution (~3-5 days)
 
 - 20-parcel spot-check on Aveiro: 5 hard-gate cases, 5 high-slope coastal, 5 urban centro, 5 rural periphery. Manual QGIS verification of `fn_assess_polygon` output per parcel.
@@ -316,7 +382,9 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - 2026-05-17: Slice B-prime EXPANDED from 1 day (SCE↔idealista plots) → 7-9 days (4-portal cross-portal dev dedup, includes idealista + JLL + RE/MAX + Zome + SCE). User decision after warehouse audit surfaced that the field-level mapping ([[portal-field-map]]) exists for 3 of 4 portals but the runnable canonical staging models don't. JLL has 0 Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) but is included for future-proofing. **Load impact**: sprint-09 was already running ~4-5 weeks of work in 3 weeks; this adds +6-8 days. Mitigations: either move JLL staging to sprint-10 (still get 3-portal dedup in v1), defer Slice C (LLM extraction) to sprint-10, or accept a sprint-09 slip to ~4 weeks. Decision deferred to mid-sprint check. **Also added** "SCE bronze refactor — replace-not-append" (~1 day) — Slice B audit found bronze keeps 3× scrape history; SCE portal preserves state transitions itself so our scrape-history is redundant. Refactor to UPSERT-by-doc_number with `_last_seen_at` heartbeat.
 - 2026-05-18: Slice B-prime detailed plan landed (`~/.claude/plans/wobbly-kindling-hopcroft.md`). Two material design corrections via warehouse audit: (a) idealista DOES have project names — in `title` column via `regexp_match('^Empreendimento (.+?) anuncia ')` pattern with 100% Aveiro extraction rate; Decision 5 reversed from "spatial-only" to "title-extracted name". (b) RE/MAX coords are parish-centroid-level (4 distinct Coimbra devs share one lat/lng); the `name_similarity` Levenshtein CTE — originally scoped as v1.5 dead-code — is promoted to v1 LOAD-BEARING via connected-components recursive CTE. New Decision 8 documents this. Slice B-prime split into **3 PRs** for landing: PR-A = portal-field-map JLL extension (wiki-only, 0.5d); PR-B = 4 canonical per-portal staging models + dbt sources + CI bronze stubs (4-6d); PR-C = silver_unified_developments + 4 pgTAP tests + new concept page + final wiki (1.5-3d). Merge order A → B → C; PR-A is independent, PR-C depends on PR-B's staging models.
 - 2026-05-19: PR-B (4 portal staging models) **further split into 4 sequential PRs** (PR-B1 through PR-B4), one per portal. PR-B1 (RE/MAX template) is the foundation: creates `dbt/models/staging/portals/` folder + `_staging_portals__models.yml` skeleton + `tests/ci_bootstrap/bronze_portals.sql` skeleton + the RE/MAX staging model. PR-B2/B3/B4 each append their portal (Zome / Idealista / JLL). PR-B1 audit also surfaced a **dlt SCD2 close-row miss** affecting multiple portal bronze tables at 0.02-0.67% rates (55 dupe PKs in remax_listings, 15 in jll_listings, etc.); new sprint-09 deliverable "Clean re-scrape of JLL + RE/MAX + Zome portals" (~1 day) tracks the tactical TRUNCATE+re-scrape fix. Verified clean on idealista 2026-05-18 (0 dupes post-truncate); same pattern applies. Staging models include defensive `DISTINCT ON` guards in the meantime.
+- 2026-06-02: NET-NEW deliverable added — "Workstream 5 — Portal bronze column trim" (~6-10 days). Per-portal audit + bronze DDL trim across [[idealista]], [[jll]], [[remax]], [[zome]] at devs/listings/plots grain. Locks a revision of [[bronze-permissive]]: bronze keeps an explicit kept-column set + `raw_payload` JSONB sidecar (not "every column raw"). Triggered by recurring sprint-09 verification work that surfaced unused-but-load-bearing bronze columns — concretely, idealista's `property_features` carries "Superfície edificável 82.592 m²" for plot 34632291 that the LLM-extraction labeling fixture never reads. Load impact: +6-10 days on top of an already-overloaded sprint-09; user accepted the tradeoff vs. parking to sprint-10 (Production Hardening). Will likely slip past Week 21 demo; that's OK — demo is gated on `fn_assess_polygon` + Atlas Inspector, not on this trim. Labelled Workstream 5 to keep it visually orthogonal to the Workstream 4 v1-wedge stack.
 - 2026-05-22: Slice B-prime **SHIPPED** as PR-C — `silver_unified_developments` de-duplicates the 4 portals into 1,050 marketed-development rows via name-driven word-set Jaccard matching (≥0.6 within concelho, 1km distance ceiling), with the geometry hierarchy JLL > Zome > RE/MAX > idealista. New concept page [[cross-portal-dev-dedup]]; 1 multi-assertion pgTAP test for Phase 1 invariants; Tier-1 CI extended with `bronze_geography.sql` stubs for CAOP + INE BGRI. **Major design deltas vs the original 9-decision plan**: (a) Phase 2 (SCE match-or-promote) removed — empirical exploration showed SCE buildings and portal developments resist clean merging; `fn_assess_polygon` queries `silver_unified_developments` and [[silver_sce_buildings]] side-by-side. (b) Decision 9 (`total_units_authoritative`) retired with no SCE anchor; `portal_unit_counts` JSONB exposes per-portal counts without picking. (c) Levenshtein replaced by word-set Jaccard — the distortions in the wild are whole boilerplate words (`empreendimento`, `edifício`, `the`, typology `T1+1`, trailing concelho), not character typos. (d) DBSCAN-first replaced by name-driven graph — portal coords routinely disagree by 200-300m+. **Companion fix to [[silver_sce_buildings]]**: post-cluster fração-grain collapse (renewals counted as separate units; Aveiro `frac_count` 2,650 → 2,573); Test #9 invariant updated. **One follow-up logged**: [[remax]] `PaginatedSearch` coverage gap (sold-out developments like Edifício Elsa have detail pages but aren't in bronze).
+- 2026-06-02: **WS4 quick-wins batch SHIPPED** (~1.5d) — 3 of 5 fn_assess_polygon input-data-gap sub-tasks landed in one PR: APA ARPSI floodplains (188 rows → `silver_geo.floodplains` as 15th constraint layer alongside the 14 SRUP siblings, T100=3/T1000=2 in extended `dim_constraint_severity` with new `flood_risk` category, buffer_m=0); LNEG aquifers + geology (63 + 282 rows → `silver_geo.aquifers` + `silver_geo.geology` raw-fields-only); INE indicators (1.17M rows → `silver_market.ine_indicators_long` at parish/concelho/NUTS granularity, distinct from `macro_timeseries`). **Bronze schema migration**: `bronze_ine.raw_indicators` gained `indicator_category` column written by loader from `INE_INDICATORS[code].category` — single source of truth in `ine_config.py`. **New concept page** [[silver-dq-baseline]] codifies 4 universal silver-layer invariants (dual-CRS, surrogate PK, bronze→silver row-count parity, FK denorm integrity), deliberate exclusion of `accepted_values`, and statistical-source silver topology. **Key non-obvious decisions during planning**: (a) LNEG derived `aquifer_vulnerability` + `foundation_difficulty` columns DROPPED from v1 after PT-regulation web-research found DRASTIC requires inputs not in bronze + Eurocode 7 requires site-specific testing + Aveiro Cretaceous Argilas de Aveiro formation contradicted the proposed era-prefix CASE (Galhano & Rocha). (b) `geological_era_label` DROPPED from v1 — would have required pre-verification of actual prefix distribution; v2 adds via discovery query. (c) Canonical dual-CRS naming (`geom`=4326, `geom_pt`=3763 per [[2026-05-10-dual-crs-storage]]) applied to new silvers; SRUP+COS sibling drift logged as sprint-10 cleanup. (d) INE kept SEPARATE from `macro_timeseries` — merging would force LCD schema dropping freguesia/concelho granularity. **Out of scope** (still pending): LiDAR terrain → silver (~1.5d, bronze empty), Aveiro PMOT → bronze + silver (~2-3d, extractor not yet run), 1:50k JPGw raster ingest as Atlas Inspector WMS layer (sprint-10+).
 
 ## See also
 

@@ -18,3 +18,10 @@ sources:
             tests: [not_null]
           - name: time_period
             tests: [not_null]
+          - name: indicator_category
+            description: >
+              Pre-computed at bronze load time from INE_INDICATORS[code].category
+              (single source of truth in pipelines/api/ine/ine_config.py). Avoids
+              dual-maintenance: bronze loader is the only place that knows the
+              33-indicator catalog; silver passes through. Added in sprint-09 WS4
+              quick-wins batch (locked decision 13).

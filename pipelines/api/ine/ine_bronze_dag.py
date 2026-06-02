@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 from pipelines.api.ine.ine_config import INE_INDICATORS
 
 INDICATOR_CODES = [ind.code for ind in INE_INDICATORS]
+INDICATOR_CATEGORY = {ind.code: ind.category for ind in INE_INDICATORS}
 
 
 def _parse_valor(raw: str | None) -> float | None:
@@ -56,8 +57,13 @@ def _parse_timestamp(ts_str: str | None) -> str | None:
         return None
 
 
-def _flatten_indicator(raw_json: dict, batch_id: str) -> list[tuple]:
-    """Flatten a single INE indicator JSON into rows for INSERT."""
+def _flatten_indicator(raw_json: dict, batch_id: str, category: str | None = None) -> list[tuple]:
+    """Flatten a single INE indicator JSON into rows for INSERT.
+
+    `category` is the canonical category from INE_INDICATORS (single source of
+    truth in ine_config.py). Written to bronze so silver/downstream consumers
+    don't need to re-derive — see sprint-09 WS4 locked decision 13.
+    """
     indicator_code = raw_json.get("IndicadorCod", "")
     indicator_name = raw_json.get("IndicadorDsg")
     last_updated = _parse_date(raw_json.get("DataUltimoAtualizacao"))
@@ -76,6 +82,7 @@ def _flatten_indicator(raw_json: dict, batch_id: str) -> list[tuple]:
                 (
                     indicator_code,
                     indicator_name,
+                    category,
                     last_updated,
                     period,
                     obs.get("geocod"),
@@ -171,6 +178,7 @@ def _create_dag():
                     id                   BIGSERIAL PRIMARY KEY,
                     indicator_code       VARCHAR(20) NOT NULL,
                     indicator_name       TEXT,
+                    indicator_category   VARCHAR(20),
                     last_updated         DATE,
                     time_period          VARCHAR(50) NOT NULL,
                     geocod               VARCHAR(20),
@@ -190,6 +198,14 @@ def _create_dag():
                     _batch_id            VARCHAR(50),
                     _api_extraction_ts   TIMESTAMPTZ
                 )
+            """)
+            # In-place migration for warehouses created before sprint-09 WS4:
+            # add indicator_category if missing, then backfill is handled by a
+            # full re-run of the loader (existing DELETE WHERE indicator_code=%s
+            # below ensures each indicator's rows get re-inserted with category).
+            cur.execute("""
+                ALTER TABLE bronze_ine.raw_indicators
+                ADD COLUMN IF NOT EXISTS indicator_category VARCHAR(20)
             """)
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_ine_ind_code
@@ -235,13 +251,13 @@ def _create_dag():
             batch_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
             insert_sql = """
                 INSERT INTO bronze_ine.raw_indicators (
-                    indicator_code, indicator_name, last_updated,
+                    indicator_code, indicator_name, indicator_category, last_updated,
                     time_period, geocod, geodsg,
                     dim_3, dim_3_t, dim_4, dim_4_t, dim_5, dim_5_t,
                     valor, ind_string, sinal_conv, sinal_conv_desc,
                     _batch_id, _api_extraction_ts
                 ) VALUES (
-                    %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
@@ -272,7 +288,7 @@ def _create_dag():
                 )
 
                 indicator_batch_id = f"{code}_{batch_id}"
-                rows = _flatten_indicator(root, indicator_batch_id)
+                rows = _flatten_indicator(root, indicator_batch_id, INDICATOR_CATEGORY.get(code))
 
                 if not rows:
                     log.warning("[ine] %s: no observations to load", code)

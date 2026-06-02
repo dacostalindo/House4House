@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: bronze_geology
+    database: house4house
+    schema: bronze_geology
+    description: >
+      Geology bronze tables: LNEG CGP500k 1:500k national geology layer.
+      Higher-resolution layers (CGP200k, CGP50k INSPIRE vector) have gaps
+      covering Aveiro per [[lneg]] wiki page. 1:50k JPGw rasters exist for
+      Aveiro but are out-of-scope for spatial joins (sprint-10 UI layer
+      candidate).
+    tables:
+      - name: raw_lneg_geology_500k
+        description: >
+          LNEG CGP500k Geologia do Continente — ~282 polygons national.
+          Generic JSONB pattern. Key field is Idade_Litologia (e.g. 'C3' =
+          Aveiro Argilas de Aveiro Cretaceous, 'Q' = Quaternary).
+          Loaded by lneg_bronze_load DAG.
+        columns:
+          - name: feature_id
+            description: ArcGIS OBJECTID
+          - name: layer_name
+            description: Constant 'lneg_geology_500k'
+          - name: properties
+            description: JSONB blob — Idade_Litologia is the key field
+          - name: geom
+            description: Polygon geometry in EPSG:3763 (server-reprojected)

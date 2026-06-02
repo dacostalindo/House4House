@@ -1,7 +1,7 @@
 ---
 title: INE — Instituto Nacional de Estatística
 type: source
-last_verified: 2026-05-08
+last_verified: 2026-06-02
 tags: [api, statistics, government, json-stat]
 priority: P0
 ---
@@ -21,7 +21,7 @@ This is a source page about INE (Statistics Portugal), the National Statistics I
 
 ## Schema
 
-Bronze table: `bronze_statistics.raw_ine` — one fetch per indicator, raw JSON-stat payload preserved as-is per [[bronze-permissive]].
+Bronze table: `bronze_ine.raw_indicators` — one fetch per indicator, raw JSON-stat payload flattened per (period × geography × dimensions) tuple at load time. `bronze_ine` schema (NOT `bronze_statistics` — earlier docs had this wrong). As of sprint-09 WS4 (2026-06-02), the bronze loader also writes `indicator_category` per row, sourced from `INE_INDICATORS[code].category` in [`ine_config.py`](../../pipelines/api/ine/ine_config.py) — single source of truth, no dual maintenance in silver.
 
 - **Indicator coverage** (47 total per the README; 33 represent the actively-fetched subset encoded in `INE_INDICATORS` — the remaining 14 are documented but commented out, ready to enable):
   - **Housing**: prices (HPI, transaction medians), transactions (volume, value), rental, construction, mortgage flows
@@ -32,6 +32,14 @@ Bronze table: `bronze_statistics.raw_ine` — one fetch per indicator, raw JSON-
   - **Innovation**: small set of regional innovation indicators
 - **Dimensions** (vary per indicator): `Dim1` = time period (`T` = all), `Dim2` = geography (`T` = all, `lvl@1`–`lvl@3` for NUTS levels), `Dim3+` = indicator-specific
 - **Refresh cadence per indicator**: encoded as enum (`monthly`, `quarterly`, `annual`, `decennial` for Census)
+
+## Silver layer
+
+Two silvers consume INE bronze with different scopes:
+
+- [`silver_market.ine_indicators_long`](../../dbt/models/silver/market/ine_indicators_long.sql) (sprint-09 WS4, shipped 2026-06-02) — long-form table at parish/concelho/NUTS granularity. One row per `(indicator_code, geographic_code, time_period, dim_3-5)`. Handles INE's two coding schemes: (A) CAOP-flat (`'PT'`, 1-2-3 char NUTS, 4-char DTCC concelho, 6-char DTMNFR freguesia incl. letter unions e.g. `0302FD`); (B) NUTS3-prefixed (7-char concelho = NUTS3+DTCC e.g. `11A1312` Porto, 9-char freguesia = NUTS3+DTMNFR e.g. `11A131727` Mafamude). Exposes CAOP-compatible `freguesia_code` (6 chars) + `concelho_code` (4 chars) derived from either scheme, so downstream JOINs to `dim_geography` work uniformly. Best-effort parses `time_period` to `time_period_date`. Passes `indicator_category` through from bronze. Tests per [[silver-dq-baseline]].
+- [`silver_geo.census_demographics`](../../dbt/models/silver/geo/census_demographics.sql) (pre-existing) — wide table joining 12 Census 2021 INE indicators to BGRI demographics at freguesia grain. Different shape; serves the hedonic feature-engineering use case.
+- See [[silver-dq-baseline]] §"Statistical-source silver topology" for which silver answers which question and why INE is kept separate from [`silver_market.macro_timeseries`](../../dbt/models/silver/market/macro_timeseries.sql) (BPStat+ECB+Eurostat).
 
 ## Quirks
 

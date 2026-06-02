@@ -267,6 +267,138 @@ models:
       - name: _updated_at
         description: "Timestamp of last dbt build run (NOW())"
 
+  - name: aquifers
+    description: >
+      LNEG Sistemas Aquíferos — national aquifer-system polygons (~63 rows,
+      e.g. O1 Quaternário de Aveiro, O2 Cretácico de Aveiro). Contextual layer
+      — fn_assess_polygon exposes aquifer_name + aquifer_age in its JSONB
+      readout but does NOT treat aquifer presence as a regulatory constraint
+      (DL 382/99 captação protection zones are a separate, narrower layer).
+      No derived aquifer_vulnerability in v1 (DRASTIC inputs missing in bronze).
+      See [[lneg]] + [[silver-dq-baseline]].
+    columns:
+      - name: aquifer_key
+        description: "Surrogate key — ROW_NUMBER OVER (ORDER BY codigo_inag, feature_id)"
+        tests: [unique, not_null]
+      - name: feature_id
+      - name: codigo_inag
+        description: "INAG aquifer code (e.g. 'O1', 'O2') — natural key"
+        tests: [not_null]
+      - name: aquifer_name
+      - name: aquifer_system
+      - name: aquifer_age
+      - name: hydrogeo_unit_id
+      - name: geom
+        description: "MultiPolygon in EPSG:4326"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at
+      - name: _updated_at
+
+  - name: geology
+    description: >
+      LNEG CGP500k national geology polygons (~282 rows). Contextual layer —
+      fn_assess_polygon exposes lithology_code + geological_era_code in its
+      JSONB readout but does NOT treat geology as a hard constraint. v1 only
+      decodes the first character of Idade_Litologia as era_code; era_label +
+      foundation_difficulty deferred to v2 per locked decisions 14+17 (1:500k
+      too coarse for Eurocode 7 Geotechnical Categories; era prefix isn't the
+      actual difficulty signal — formation-specific clay mineralogy is, per
+      Galhano & Rocha for the Argilas de Aveiro counterexample).
+      See [[lneg]] + [[silver-dq-baseline]].
+    columns:
+      - name: geology_key
+        description: "Surrogate key — ROW_NUMBER OVER (ORDER BY feature_id)"
+        tests: [unique, not_null]
+      - name: feature_id
+      - name: lithology_code
+        description: "Full Idade_Litologia code (e.g. 'C3', 'Q', 'g')"
+        tests: [not_null]
+      - name: geological_era_code
+        description: "First character of lithology_code — descriptive parse only, no difficulty claim"
+        tests: [not_null]
+      - name: geom
+        description: "MultiPolygon in EPSG:4326"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: "MultiPolygon in EPSG:3763"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at
+      - name: _updated_at
+
+  - name: floodplains
+    description: >
+      APA ARPSI floodplain polygons (~188 national, ~18 in Aveiro município)
+      from the EU Floods Directive scope (DL 115/2010). 15th constraint layer
+      alongside the 14 stg_srup_* siblings — fn_assess_polygon spatial-joins
+      this directly and reads the denormalized severity column.
+      T100 (1% annual) = severity 3 hard gate; T1000 (0.1% annual) = severity 2
+      conditioned. Coverage caveat: ARPSI is EU-priority flood polygons only,
+      NOT all flood-prone areas in PT. See [[apa]] + [[silver-dq-baseline]].
+    columns:
+      - name: floodplain_id
+        description: "Surrogate key — ROW_NUMBER OVER (ORDER BY feature_id)"
+        tests: [unique, not_null]
+      - name: feature_id
+        description: "Bronze ArcGIS OBJECTID"
+        tests: [not_null]
+      - name: constraint_code
+        description: "Constant 'ARPSI_Floodplain' — FK into dim_constraint_severity"
+        tests: [not_null]
+      - name: zone_type
+        description: "'T100' or 'T1000' — second half of the dim_constraint_severity compound key"
+        tests: [not_null]
+      - name: return_period_years
+        description: "100 or 1000 (bronze pass-through)"
+        tests: [not_null]
+      - name: hydrographic_region
+        description: "RHidro from bronze (e.g. 'PTRH4A' Vouga sub-basin)"
+      - name: location
+        description: "Local field from bronze"
+      - name: designation
+        description: "Designa field from bronze"
+      - name: publication_date
+        description: "Data field from bronze, cast to DATE"
+      - name: severity
+        description: >
+          Denormalized from dim_constraint_severity. 3 (hard gate) for T100,
+          2 (conditioned) for T1000. NOT NULL test catches FK miss after the
+          LEFT JOIN (silver-dq-baseline Rule 4).
+        tests: [not_null]
+      - name: buffer_m
+        description: "Denormalized from dim_constraint_severity. Always 0 — the polygon IS the legal flood envelope"
+        tests: [not_null]
+      - name: geom
+        description: "MultiPolygon in EPSG:4326 (per [[2026-05-10-dual-crs-storage]] canonical)"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom) = 4326"
+      - name: geom_pt
+        description: "MultiPolygon in EPSG:3763 (PT-TM06)"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "ST_SRID(geom_pt) = 3763"
+      - name: _loaded_at
+        description: "Bronze load timestamp"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"
+
   - name: zoning
     description: >
       PDM land-use zoning polygons from CRUS (Carta do Regime de Uso do Solo),

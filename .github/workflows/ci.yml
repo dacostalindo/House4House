@@ -207,9 +207,11 @@ jobs:
         run: |
           set -o pipefail
           echo "::group::dbt-build-slice-b"
-          # Slice B + B-prime path: silver_sce_buildings + silver_unified_developments
+          # Slice B + B-prime path + sprint-09 WS4 quick-wins:
+          #   silver_sce_buildings, silver_unified_developments,
+          #   floodplains (APA), aquifers + geology (LNEG), ine_indicators_long
           # and everything upstream (stg_sce_certificates, the 4 stg_portal_developments_*,
-          # dim_geography → stg_caop_freguesias + stg_bgri_freguesia_agg).
+          # dim_geography, dim_constraint_severity, stg_apa_arpsi, stg_lneg_*, stg_ine_indicators).
           # Bronze tables are empty (Tier-1 — Tier-2 in sprint-10 seeds fixtures).
           # --indirect-selection cautious: only run tests whose parents are ALL in the
           # selection. Without it, building dim_geography would pull in the
@@ -218,7 +220,7 @@ jobs:
           uv run dbt build \
             --project-dir dbt \
             --target ci \
-            --select +silver_sce_buildings +silver_unified_developments \
+            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long \
             --indirect-selection cautious \
             --no-partial-parse
           echo "::endgroup::"
