@@ -139,7 +139,7 @@ def fetch_listings() -> list[dict]:
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(query)
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        return [dict(zip(cols, row, strict=False)) for row in cur.fetchall()]
 
 
 # ---------------------------------------------------------------------------

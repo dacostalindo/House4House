@@ -337,9 +337,6 @@ def plot_listing_extraction_dag():
         row each. Aborts cleanly if cumulative cost passes max_cost_usd.
         """
         import hashlib
-        import json
-        import logging
-        import time
         import unicodedata
 
         import anthropic
