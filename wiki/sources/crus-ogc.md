@@ -1,7 +1,7 @@
 ---
 title: CRUS National OGC API
 type: source
-last_verified: 2026-05-08
+last_verified: 2026-06-03
 tags: [gis, regulatory, government, landuse, ogc-api]
 priority: P1
 ---
@@ -33,7 +33,8 @@ Bronze table: `bronze_regulatory.raw_crus_national_ogc`.
 
 ## Quirks
 
-- **~236,920 national features**: PAGE_SIZE=200 (~1185 pages); rate_limit 0.5s, request_timeout 300s. Full fetch takes ~10-15 minutes.
+- **236,920 national features** (verified 2026-06-03 post-streaming-fix; parity with the legacy WFS 5-muni subset confirmed at 0% delta). PAGE_SIZE=200 (~1185 pages); rate_limit 0.5s, request_timeout 300s. Full ingestion fetch takes ~10-15 minutes; bronze load takes ~3 minutes with `ijson` streaming.
+- **Streaming bronze loader (fixed 2026-06-03, [[sprint-09]] WS4 PR B)**: `crus_ogc_bronze_load.load_features` previously did an in-memory `json.load` of the whole GeoJSON and was SIGKILL/OOM-killed at national scale. Now uses `ijson.items(f, "features.item", use_float=True)` to stream one feature at a time. Sibling fix to the COS one; see [[cos]] for context.
 - **National coverage** vs. [[crus]]'s 5-municipality scope: this is the strategic upgrade — once parity validates, listing-feature engineering can join CRUS for any concelho instead of just Aveiro/Lisboa/Porto/Coimbra/Leiria.
 - **Dual-run parity validation**: a dbt macro at `dbt/macros/gis_dual_run_count_parity.sql` compares the 5-municipality OGC subset against the legacy WFS bronze. Equality on feature counts + bounding-box centroids = parity confirmed.
 - **Richer schema than WFS**: typed columns directly on features. No `dbt-postgres unpack JSONB → cast → rename` toil per [[medallion-layering]] silver layer.
@@ -42,4 +43,4 @@ Bronze table: `bronze_regulatory.raw_crus_national_ogc`.
 
 ## Last verified
 
-2026-05-08 (Phase 3 PR 2 seed pass — config re-read; new pipeline post-PR 1 work).
+2026-05-08 (Phase 3 PR 2 seed pass — config re-read; new pipeline post-PR 1 work). **2026-06-03: streaming bronze loader shipped ([[sprint-09]] WS4 PR B). National bronze fully populated at 236,920 rows; silver_geo.zoning rebuilt to 236,920 rows; legacy `bronze_regulatory.raw_crus_ordenamento` dropped (parity confirmed 0% delta vs OGC for the 5 legacy municipalities).**

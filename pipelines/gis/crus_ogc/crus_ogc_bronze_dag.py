@@ -27,6 +27,8 @@ import shutil
 import tempfile
 from datetime import timedelta
 
+import ijson
+
 from pipelines.gis.crus_ogc.crus_ogc_config import (
     BRONZE_SCHEMA_TABLE,
     CRUS_OGC_CONFIG,
@@ -189,54 +191,63 @@ def _create_dag():
             batch: list[tuple] = []
             total = 0
 
-            with open(local_path, encoding="utf-8") as f:
-                data = json.load(f)
+            # ijson.items() streams the GeoJSON FeatureCollection one feature at
+            # a time, keeping RAM flat regardless of input size. Previous
+            # `json.load(f)` OOM'd the Airflow worker on national CRUS (~2.1 GB,
+            # 236k features). Sprint-09 WS4 PR B. `features.item` is the
+            # canonical jsonpath for FeatureCollection elements; binary mode
+            # (rb) for ijson's performance path.
+            # use_float=True: avoid Decimal returns that break json.dumps(geom).
+            with open(local_path, "rb") as f:
+                for feat in ijson.items(f, "features.item", use_float=True):
+                    if feat.get("type") != "Feature":
+                        continue
+                    props = feat.get("properties", {})
+                    geom = feat.get("geometry")
+                    if not geom:
+                        continue
 
-            for feat in data.get("features", []):
-                if feat.get("type") != "Feature":
-                    continue
-                props = feat.get("properties", {})
-                geom = feat.get("geometry")
-                if not geom:
-                    continue
+                    dtcc_raw = props.get("dtcc", "")
+                    try:
+                        muni_code = str(dtcc_raw).zfill(4) if dtcc_raw else None
+                    except (TypeError, ValueError):
+                        muni_code = None
+                    fid = props.get("fid")
+                    try:
+                        area = (
+                            float(props.get("area_ha"))
+                            if props.get("area_ha") is not None
+                            else None
+                        )
+                    except (TypeError, ValueError):
+                        area = None
 
-                dtcc_raw = props.get("dtcc", "")
-                try:
-                    muni_code = str(dtcc_raw).zfill(4) if dtcc_raw else None
-                except (TypeError, ValueError):
-                    muni_code = None
-                fid = props.get("fid")
-                try:
-                    area = float(props.get("area_ha")) if props.get("area_ha") is not None else None
-                except (TypeError, ValueError):
-                    area = None
-
-                batch.append(
-                    (
-                        fid,
-                        muni_code,
-                        props.get("municipio", ""),
-                        props.get("classe_2021", ""),
-                        props.get("categoria_2021", ""),
-                        props.get("classificacao_e_qualificacao", ""),
-                        area,
-                        props.get("escala_origem", ""),
-                        props.get("data_pub_origem"),
-                        props.get("fonte", ""),
-                        props.get("autor", ""),
-                        props.get("situacao_pdm", ""),
-                        props.get("registo_ou_deposito", ""),
-                        json.dumps(geom),
-                        source_url,
+                    batch.append(
+                        (
+                            fid,
+                            muni_code,
+                            props.get("municipio", ""),
+                            props.get("classe_2021", ""),
+                            props.get("categoria_2021", ""),
+                            props.get("classificacao_e_qualificacao", ""),
+                            area,
+                            props.get("escala_origem", ""),
+                            props.get("data_pub_origem"),
+                            props.get("fonte", ""),
+                            props.get("autor", ""),
+                            props.get("situacao_pdm", ""),
+                            props.get("registo_ou_deposito", ""),
+                            json.dumps(geom),
+                            source_url,
+                        )
                     )
-                )
 
-                if len(batch) >= BATCH_SIZE:
-                    psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)
-                    total += len(batch)
-                    if total % 5000 == 0:
-                        log.info("[crus_ogc] inserted %d rows", total)
-                    batch.clear()
+                    if len(batch) >= BATCH_SIZE:
+                        psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)
+                        total += len(batch)
+                        if total % 5000 == 0:
+                            log.info("[crus_ogc] inserted %d rows", total)
+                        batch.clear()
 
             if batch:
                 psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)

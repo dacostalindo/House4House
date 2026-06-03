@@ -3,10 +3,10 @@ version: 2
 models:
   - name: stg_crus_ordenamento
     description: >
-      Staging view over CRUS land-use polygons from bronze_regulatory.raw_crus_ordenamento.
+      Staging view over CRUS land-use polygons from bronze_regulatory.raw_crus_national_ogc.
       Renames Portuguese field names to English, trims whitespace from text columns,
       and adds WGS84 geometry projection for spatial joins with listings.
-      Source: DGTERRITÓRIO CRUS WFS endpoints for 5 municipalities.
+      Source: DGTERRITÓRIO OGC API (national coverage, all municipalities).
     columns:
       - name: feature_id
         description: "CRUS feature ID (global integer from DGTERRITÓRIO)"
