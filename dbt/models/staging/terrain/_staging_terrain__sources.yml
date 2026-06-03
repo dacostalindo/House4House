@@ -1,0 +1,83 @@
+version: 2
+
+sources:
+  - name: bronze_terrain
+    database: house4house
+    schema: bronze_terrain
+    description: >
+      LiDAR terrain bronze tables from DGT 2m DTM/DSM. Per [[silver-dq-baseline]]
+      Rule 0, the staging SQL header comments document the discovery date +
+      column shape; this source YAML enumerates the typed bronze surface.
+      See [[lidar]] wiki page for upstream-authority context.
+
+      Sprint-09 WS4 PR A (2026-06-03) restructured this schema:
+      - Dropped `derived_lidar_slope_2m_manifest` (redundant with the new raster table)
+      - Dropped `parcel_terrain_stats` (replaced by inline ST_Clip/ST_SummaryStatsAgg path)
+      - Added `raster_lidar_slope_2m` — in-DB postgis_raster registry
+    tables:
+      - name: raw_lidar_mdt_2m_manifest
+        description: >
+          DGT MDT-2m (Modelo Digital de Terreno, bare-earth DTM) tile manifest.
+          ~489 rows covering Aveiro município bbox. Each row points at one
+          GeoTIFF in MinIO at lidar/MDT-2m/{date}/tiles/{tile_id}.tif. Tiles
+          themselves stay in MinIO; this table tracks WHERE they are + their
+          footprint geometry.
+        columns:
+          - name: tile_id
+            description: "STAC item identifier (e.g. 'MDT-2m-163417-04-2024')"
+            tests: [not_null]
+          - name: collection_id
+            description: "Constant 'MDT-2m'"
+          - name: geom
+            description: "Tile footprint polygon in EPSG:3763 (PT-TM06)"
+          - name: minio_object
+            description: "MinIO object path (e.g. 'lidar/MDT-2m/20260505/tiles/MDT-2m-163417-04-2024.tif')"
+            tests: [not_null]
+          - name: acquisition_date
+            description: "STAC item acquisition timestamp"
+          - name: version
+            description: "STAC item version"
+          - name: file_size_bytes
+            description: "Tile file size in bytes (~1 MB typical at 2m resolution)"
+          - name: pixel_type
+            description: "GDAL pixel type label (typically 'Float32')"
+          - name: nodata_value
+            description: "Sentinel value for nodata pixels (typically -999)"
+
+      - name: raw_lidar_mds_2m_manifest
+        description: >
+          DGT MDS-2m (Modelo Digital de Superfície, first-return DSM including
+          buildings + vegetation) tile manifest. Same shape + count as MDT.
+          DSM - DTM = canopy/building height (potential v2 derivation).
+        columns:
+          - name: tile_id
+            tests: [not_null]
+          - name: collection_id
+            description: "Constant 'MDS-2m'"
+          - name: geom
+            description: "Tile footprint polygon in EPSG:3763"
+          - name: minio_object
+            tests: [not_null]
+
+      - name: raster_lidar_slope_2m
+        description: >
+          In-DB postgis_raster registry for the 489 slope rasters derived from
+          MDT-2m via gdaldem (Horn algorithm, degrees). One row per source tile;
+          the `rast` column holds the actual pixel data, queryable via
+          ST_Clip + ST_SummaryStatsAgg. Populated by `lidar_derive_terrain` DAG.
+
+          fn_assess_polygon (sprint-09 keystone) queries this via the
+          [[silver-geo-terrain-slope-raster]] silver view for exact-per-polygon
+          slope statistics without parcel-proxy approximation.
+        columns:
+          - name: rid
+            description: "Surrogate PK assigned at INSERT time"
+            tests: [unique, not_null]
+          - name: rast
+            description: "PostGIS raster bytes (Float32 single-band slope in degrees, EPSG:3763)"
+            tests: [not_null]
+          - name: filename
+            description: "Source COG filename (e.g. 'MDT-2m-163417-04-2024_slope.tif') — used for idempotent skip-if-exists check during DAG re-run"
+            tests: [not_null, unique]
+          - name: _load_timestamp
+            description: "INSERT timestamp"

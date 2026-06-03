@@ -489,3 +489,36 @@ models:
 
       - name: _updated_at
         description: "Timestamp of last dbt build run (NOW())"
+
+  - name: terrain_slope_raster
+    description: >
+      Thin view over the 489-tile postgis_raster registry holding DGT 2m
+      slope rasters (derived from MDT-2m via gdaldem Horn). Sprint-09 WS4
+      PR A (2026-06-03). Replaces the previous parcel-proxy approach
+      (`parcel_terrain_stats`, dropped) with on-the-fly ST_Clip queries that
+      return exact stats for any drawn polygon.
+
+      Consumed by gold.fn_assess_polygon (sprint-09 keystone) via the pattern:
+        ST_SummaryStatsAgg(ST_Clip(r.rast, $drawn_polygon, TRUE), 1, TRUE)
+      pre-filtered by ST_Intersects(footprint_pt, $drawn_polygon).
+
+      See [[lidar]] + [[silver-dq-baseline]].
+    columns:
+      - name: rid
+        description: "Surrogate PK from bronze (raster2pgsql/INSERT assignment)"
+        tests: [unique, not_null]
+      - name: rast
+        description: "PostGIS raster (Float32 single-band slope in degrees, EPSG:3763, ~700×700 pixels per tile, ~1 MB compressed)"
+        tests: [not_null]
+      - name: filename
+        description: "Source slope COG filename (e.g. 'MDT-2m-163417-04-2024_slope.tif'). Embeds source MDT tile_id for traceability."
+        tests: [not_null, unique]
+      - name: footprint_pt
+        description: "ST_ConvexHull(rast) in EPSG:3763. GIST-indexed — used for fast pre-filter in fn_assess_polygon before the expensive ST_Clip."
+        tests: [not_null]
+      - name: footprint
+        description: "Same as footprint_pt but transformed to EPSG:4326 for display in web maps."
+      - name: _loaded_at
+        description: "Bronze raster row's load timestamp (pass-through)"
+      - name: _updated_at
+        description: "Timestamp of last dbt build run (NOW())"

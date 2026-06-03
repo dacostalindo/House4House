@@ -973,3 +973,27 @@ Sprint-09 WS4 quick-wins batch shipped in one PR. Three new silvers for `gold.fn
 **Pages touched** (per propagation rule): [[apa]], [[lneg]], [[ine]] (Silver layer sections + last_verified bump); [[srup-constraint-model]] (15th layer added + last_verified bump); [[index]] (new concept + count update 17→18); [[sprint-09]] (3 bullets flipped DONE + status-update-history entry + last_verified bump); [[log]] (this entry). New wiki page: [[silver-dq-baseline]].
 
 **Out of scope (deferred)**: LiDAR terrain → silver (~1.5d, bronze empty); Aveiro PMOT → bronze + silver (~2-3d, extractor not yet run); LNEG 1:50k JPGw raster ingest as Atlas Inspector WMS layer (sprint-10+); SRUP+COS dual-CRS naming migration to canonical (sprint-10 cleanup).
+
+## [2026-06-03] ship | WS4 batch 2 PR A — LiDAR terrain via postgis_raster
+
+Sprint-09 WS4 batch 2 PR A (1 of 3). Replaced the parcel-proxied terrain stats path with on-the-fly postgis_raster computation, fixing the imprecision + BUPI-coverage-gap limitations of the previous approach. `silver_geo.terrain_slope_raster` is a thin view over `bronze_terrain.raster_lidar_slope_2m` (489 single-band Float32 rasters loaded via `ST_FromGDALRaster`) that adds GIST-indexed convex-hull footprints. `gold.fn_assess_polygon` (later PR) does `ST_Clip(rast, drawn_polygon) + ST_SummaryStatsAgg` inline for exact-per-polygon slope statistics.
+
+**Discovery**: sprint-09's "bronze empty / pipeline never run" claim was wrong ([[silver-dq-baseline]] Rule 0 in action) — bronze had been fully populated with 489×3 manifests + 10,339 parcel stats. The wiki had drifted; live warehouse was authoritative.
+
+**Architectural decisions locked**:
+- Option C (in-DB postgis_raster) chosen over parcel-proxy (imprecise), Atlas-Inspector-DAG-call (split logic), and H3 grid pre-agg (still imprecise).
+- Option Y' merged: `lidar_derive_terrain` DAG produces slope rasters AND loads them into postgres in one DAG (3 LiDAR DAGs total instead of 4). No MinIO archive of slope COGs — derived artifacts, regenerable from MDT in ~25-40min via DAG re-run.
+- No `raster2pgsql` chunking: 489 rows × ~1 MB each is fine at our scale.
+- `raster2pgsql` binary not in Airflow image — pivoted to Python `psycopg2.Binary` + `ST_FromGDALRaster(bytea, 3763)`. Same end result, no Dockerfile rebuild.
+
+**Cleanup (post-QA)**:
+- Dropped `pipelines/gis/lidar/parcel_zonal_stats_dag.py` (~350 LOC retired)
+- Dropped `bronze_terrain.parcel_terrain_stats` (10,339 rows, no consumer under Option C)
+- Dropped `bronze_terrain.derived_lidar_slope_2m_manifest` (redundant with new raster table)
+- Removed manifest INSERT + MinIO upload steps from `derive_terrain_dag.py`
+
+**Pre-drop QA**: 20 random Aveiro BUPI parcels compared raster-path vs proxy mean slope. Max abs diff 0.069° (tolerance: 0.5°). PASS — methods agree within numerical noise.
+
+**PostGIS raster operational pattern locked**: PostGIS 3.x ships `postgis.gdal_enabled_drivers` as empty whitelist for security. Production + CI both `ALTER DATABASE ... SET postgis.gdal_enabled_drivers TO 'GTiff PNG JPEG'` (one-time). DAG also issues `SET LOCAL` as belt-and-braces.
+
+**Pages touched**: [[lidar]] (Silver layer + Pre-drop QA + Operational notes + last_verified 2026-06-03 + manifest schema rewrite); [[sprint-09]] (LiDAR bullet flipped DONE); [[log]] (this entry).

@@ -1,7 +1,7 @@
 ---
 title: DGT LiDAR Aveiro (2m DTM & DSM)
 type: source
-last_verified: 2026-05-13
+last_verified: 2026-06-03
 tags: [gis, regulatory, government, terrain, raster, stac]
 priority: P1
 ---
@@ -22,19 +22,48 @@ This is a source page about DGT's LiDAR-derived 2m elevation rasters (DTM bare-e
 
 ## Schema
 
-Two manifest tables (bronze stores manifests pointing to MinIO-mirrored TIFFs, NOT the raster bytes themselves):
+**Two manifest tables** (pointers to MinIO-mirrored TIFFs, NOT the raster bytes):
 
-- `bronze_terrain.raw_lidar_mdt_2m_manifest` — MDT-2m (bare-earth Digital Terrain Model)
-- `bronze_terrain.raw_lidar_mds_2m_manifest` — MDS-2m (first-return Digital Surface Model — includes buildings + vegetation)
+- `bronze_terrain.raw_lidar_mdt_2m_manifest` — MDT-2m (bare-earth DTM). 489 rows.
+- `bronze_terrain.raw_lidar_mds_2m_manifest` — MDS-2m (first-return DSM, includes buildings + vegetation). 489 rows.
 
 Per-tile manifest row:
 - **tile_id** — STAC item identifier
-- **footprint** — Polygon, EPSG:3763 PT-TM06 (tile bounding box)
-- **minio_object** — `s3://lidar/<collection>/<tile_id>.tif` path
-- **version, datetime** — STAC item version + timestamp
+- **geom** — Polygon, EPSG:3763 PT-TM06 (tile bounding box)
+- **minio_object** — `lidar/<collection>/<date>/tiles/<tile_id>.tif` path
+- **version, acquisition_date** — STAC item metadata
 - **file_size_bytes** — for sanity checks
 
-The actual raster files (~1 MB each, ~490 MB per collection) live in MinIO. Downstream pipelines stream them on demand.
+The raw GeoTIFF tiles (~1 MB each, ~490 MB per collection) live in MinIO. Downstream pipelines stream them on demand.
+
+**One in-DB raster table** (sprint-09 WS4 PR A, 2026-06-03):
+
+- `bronze_terrain.raster_lidar_slope_2m` — slope COGs derived from MDT-2m via `gdaldem slope -alg Horn` and loaded into postgis_raster as 489 rows × ~1 MB each (~500 MB total). Queried directly by `gold.fn_assess_polygon` via `ST_Clip` + `ST_SummaryStatsAgg` — see [[silver-dq-baseline]].
+
+## Silver layer
+
+`silver_geo.terrain_slope_raster` (shipped sprint-09 WS4 PR A, 2026-06-03) — thin dbt view over `bronze_terrain.raster_lidar_slope_2m` that adds two materialized convex-hull footprint columns (`footprint_pt` in EPSG:3763, GIST-indexed; `footprint` in EPSG:4326 for display). This lets `fn_assess_polygon` pre-filter the 489 tiles to the 1-4 overlapping a drawn polygon via an index-only `ST_Intersects` before the expensive `ST_Clip`.
+
+**Architectural pivot**: the original sprint-09 plan called for `parcel_zonal_stats_dag` to pre-compute per-BUPI-parcel slope/elevation stats into `bronze_terrain.parcel_terrain_stats` (10,339 rows). That approach was rejected because (a) BUPI coverage has gaps (anywhere outside BUPI = no slope info), and (b) parcel-proxied stats are imprecise for arbitrary drawn polygons that don't align with parcel boundaries. Option C — on-the-fly raster computation via postgis_raster — gives exact stats per drawn polygon. The pre-aggregated `parcel_terrain_stats` table and its DAG were dropped after a one-time spot-check confirmed agreement within tolerance.
+
+### Operational notes
+
+- **`postgis.gdal_enabled_drivers`** must be set (PostGIS 3.x defaults to empty whitelist for security). Production sets `GTiff PNG JPEG` at the database level via `ALTER DATABASE ... SET postgis.gdal_enabled_drivers TO ...`; the DAG also issues `SET LOCAL` as belt-and-braces.
+- **`raster2pgsql` not used**: the Airflow image lacks the binary. Instead the DAG reads raster bytes via Python and passes them to `ST_FromGDALRaster(bytea, 3763)` from PostGIS 3.4. Same end result, no Dockerfile rebuild.
+- **No MinIO archive of slope COGs**: they're regenerable from MDT in ~25-40 min via DAG re-run. Saves ~490 MB in MinIO. If postgres dies + we need to rebuild, derive_terrain_dag is the recovery path.
+
+### Pre-drop QA result (2026-06-03)
+
+Before dropping `bronze_terrain.parcel_terrain_stats`, verified the new raster path agreed with the old parcel-proxy on 20 random Aveiro BUPI parcels:
+
+| Metric | Result |
+|---|---|
+| Max absolute slope-mean diff | 0.069° |
+| Median absolute diff | ~0.003° |
+| Tolerance threshold | 0.5° |
+| Verdict | PASS — raster path matches parcel proxy within numerical noise |
+
+The small residual differences are attributable to nodata-handling differences between rasterio.zonal_stats (used in the old DAG) and PostGIS ST_Clip + ST_SummaryStatsAgg. The raster path is more correct for arbitrary drawn polygons (no parcel-snapping); the agreement on parcel queries confirms there's no upstream-data drift between the two methods.
 
 ## Quirks
 
@@ -47,4 +76,4 @@ The actual raster files (~1 MB each, ~490 MB per collection) live in MinIO. Down
 
 ## Last verified
 
-2026-05-08 (Phase 3 PR 2 seed pass — config re-read; new pipeline post-PR 1 work).
+2026-06-03 — sprint-09 WS4 PR A. Re-verified via live warehouse: 489 MDT manifests + 489 MDS manifests + 489 postgis_raster rows in `bronze_terrain.raster_lidar_slope_2m`. Confirmed `derive_terrain_dag` end-to-end on Aveiro município bbox. The previous sprint-09 claim "bronze never populated" was wrong — bronze had been populated (10,339 BUPI-keyed parcel stats + 489×3 manifests) but the wiki hadn't been refreshed. Resolved by silver-dq-baseline Rule 0 (schema discovery precedes derivation).
