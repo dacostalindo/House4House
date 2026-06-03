@@ -226,7 +226,7 @@ jobs:
           uv run dbt build \
             --project-dir dbt \
             --target ci \
-            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long +terrain_slope_raster \
+            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long +terrain_slope_raster +land_use \
             --indirect-selection cautious \
             --no-partial-parse
           echo "::endgroup::"
