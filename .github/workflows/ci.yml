@@ -91,24 +91,12 @@ jobs:
           pg_prove --version
           echo "::endgroup::"
 
-      - name: pg_prove
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: ci
-          PGPASSWORD: ci
-          PGDATABASE: house4house
-        shell: bash
-        run: |
-          echo "::group::pg-prove"
-          shopt -s nullglob
-          files=(tests/sql/*.sql)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No tests/sql/*.sql files yet — sprint-09 adds them (Activity 9 green-empty state)"
-          else
-            pg_prove --verbose "${files[@]}"
-          fi
-          echo "::endgroup::"
+      # pg_prove step moved AFTER `dbt build (structural)` below (sprint-09 WS4
+      # 2026-06-03): new tests reference silver_geo.floodplains / .aquifers /
+      # .geology + silver_market.ine_indicators_long, which don't exist until
+      # `dbt build` materializes them. SCE clustering tests are fixture-driven
+      # (BEGIN/ROLLBACK + TEMP tables) and would have worked either way; the
+      # new silver-invariant tests need the silver tables to be queryable.
 
       - name: ty check (advisory)
         run: |
@@ -223,4 +211,27 @@ jobs:
             --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long \
             --indirect-selection cautious \
             --no-partial-parse
+          echo "::endgroup::"
+
+      # pg_prove (moved here 2026-06-03 — runs after dbt build so the new
+      # silver-invariant tests can query silver_geo.* + silver_market.* tables).
+      # Empty bronze (Tier-1) means silvers are empty too; the assertions are
+      # invariant-shaped (COUNT(*) WHERE NOT condition = 0) and trivially pass.
+      - name: pg_prove
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: ci
+          PGPASSWORD: ci
+          PGDATABASE: house4house
+        shell: bash
+        run: |
+          echo "::group::pg-prove"
+          shopt -s nullglob
+          files=(tests/sql/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No tests/sql/*.sql files yet"
+          else
+            pg_prove --verbose "${files[@]}"
+          fi
           echo "::endgroup::"
