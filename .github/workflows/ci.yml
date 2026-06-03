@@ -83,6 +83,24 @@ jobs:
             -c "CREATE EXTENSION IF NOT EXISTS pgtap"
           echo "::endgroup::"
 
+      - name: Install postgis_raster extension
+        # Sprint-09 WS4 PR A (2026-06-03): silver_geo.terrain_slope_raster
+        # depends on postgis_raster for the RASTER column type + ST_FromGDALRaster
+        # at load time + ST_Clip/ST_SummaryStatsAgg at query time. Bundled with
+        # postgis/postgis:16-3.4 image (already installed; just enable in DB).
+        # Plus the GDAL driver whitelist: PostGIS 3.x default is empty (no
+        # drivers enabled) — must explicitly allow GTiff for ST_FromGDALRaster
+        # to read TIFF bytes.
+        run: |
+          echo "::group::postgis-raster-install"
+          PGPASSWORD=ci psql -h localhost -U ci -d house4house \
+            -c "CREATE EXTENSION IF NOT EXISTS postgis_raster"
+          PGPASSWORD=ci psql -h localhost -U ci -d house4house \
+            -c "ALTER DATABASE house4house SET postgis.gdal_enabled_drivers TO 'GTiff PNG JPEG'"
+          PGPASSWORD=ci psql -h localhost -U ci -d house4house \
+            -c "ALTER DATABASE house4house SET postgis.enable_outdb_rasters TO 1"
+          echo "::endgroup::"
+
       - name: Install pg_prove (test runner)
         run: |
           echo "::group::pg-prove-install"
@@ -208,7 +226,7 @@ jobs:
           uv run dbt build \
             --project-dir dbt \
             --target ci \
-            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long \
+            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long +terrain_slope_raster \
             --indirect-selection cautious \
             --no-partial-parse
           echo "::endgroup::"

@@ -5,10 +5,11 @@ For each LIDAR_LAYERS entry, reads the latest manifest.json from MinIO
 (written by lidar_aveiro_ingestion) and populates a manifest table under
 bronze_terrain.raw_lidar_*_manifest. ONE ROW PER TILE.
 
-This is a manifest table — NOT a raster ingest. The actual GeoTIFF tiles
-remain in MinIO; the manifest records WHERE they are + their footprint
-geometry so that WS3b's parcel_zonal_stats DAG can locate the right tiles
-via spatial join (parcel ↔ tile bbox intersect).
+This is a manifest table — NOT a raster ingest. The actual MDT/MDS GeoTIFF
+tiles remain in MinIO; the manifest records WHERE they are + their footprint
+geometry so derive_terrain_dag can locate and derive slope from each tile.
+(Derived slope rasters live in bronze_terrain.raster_lidar_slope_2m as
+in-DB postgis_raster rows — not in a manifest table — per sprint-09 WS4.)
 
 Schema per bronze table:
   tile_id              VARCHAR(64)    -- e.g. 'MDT-2m-163417-04-2024'
