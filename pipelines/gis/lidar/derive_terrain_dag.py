@@ -265,9 +265,7 @@ def _create_dag():
                 # SET LOCAL belt-and-braces in case ALTER DATABASE didn't take
                 # effect on this session (postgis.gdal_enabled_drivers default
                 # is empty in PostGIS 3.x for security).
-                cur.execute(
-                    "SET LOCAL postgis.gdal_enabled_drivers = 'GTiff PNG JPEG'"
-                )
+                cur.execute("SET LOCAL postgis.gdal_enabled_drivers = 'GTiff PNG JPEG'")
                 cur.execute(
                     f"""
                     INSERT INTO {RASTER_TABLE} (rast, filename)
