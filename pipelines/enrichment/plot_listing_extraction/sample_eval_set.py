@@ -71,9 +71,7 @@ OUT_PATH = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "plot_li
 # ---------------------------------------------------------------------------
 
 # Explicit "área de construção" / "área bruta de construção" / variants.
-REGEX_AREA_DE_CONSTRUCAO = re.compile(
-    r"área(\s+bruta)?\s+de\s+constr[uçãoíi]+", re.IGNORECASE
-)
+REGEX_AREA_DE_CONSTRUCAO = re.compile(r"área(\s+bruta)?\s+de\s+constr[uçãoíi]+", re.IGNORECASE)
 
 # Any "<number> m²" mention (also matches "m2"). Trailing word boundary
 # omitted because Python re considers ² a non-word character on some locales.
@@ -181,7 +179,7 @@ def top_priced_selection(
                     f"target {n_target} — using all available.",
                     file=sys.stderr,
                 )
-            selected.extend(pool[: n_target])
+            selected.extend(pool[:n_target])
 
         # Backfill the concelho to 25 if any bucket was short — from the
         # next-most-expensive rows in that concelho across any bucket.
@@ -234,7 +232,9 @@ def to_jsonl_entry(row: dict) -> dict:
         "description": row["description"],
         "listing_url": row["listing_url"],
         "bronze_lot_size": float(row["lot_size"]) if row["lot_size"] is not None else None,
-        "property_price": float(row["property_price"]) if row["property_price"] is not None else None,
+        "property_price": float(row["property_price"])
+        if row["property_price"] is not None
+        else None,
         "expected": EXPECTED_SHELL.copy(),
         "candidates": {"m2_mentions": extract_m2_candidates(row["description"])},
         "_bucket": row.get("_bucket"),
@@ -255,19 +255,23 @@ def main() -> int:
     sampled = top_priced_selection(rows, PER_CONCELHO_TARGETS, CONCELHOS)
     print(
         f"Selected {len(sampled)} rows by top-price "
-        f"({sum(1 for r in sampled if r['concelho_slug']=='aveiro')} Aveiro / "
-        f"{sum(1 for r in sampled if r['concelho_slug']=='coimbra')} Coimbra).",
+        f"({sum(1 for r in sampled if r['concelho_slug'] == 'aveiro')} Aveiro / "
+        f"{sum(1 for r in sampled if r['concelho_slug'] == 'coimbra')} Coimbra).",
         file=sys.stderr,
     )
 
     # Per-concelho price summary for the operator.
     for concelho in CONCELHOS:
-        prices = [r["property_price"] for r in sampled if r["concelho_slug"] == concelho and r["property_price"] is not None]
+        prices = [
+            r["property_price"]
+            for r in sampled
+            if r["concelho_slug"] == concelho and r["property_price"] is not None
+        ]
         if prices:
             print(
                 f"  {concelho}: top price €{max(prices):,.0f} / "
                 f"min selected price €{min(prices):,.0f} / "
-                f"median €{sorted(prices)[len(prices)//2]:,.0f}",
+                f"median €{sorted(prices)[len(prices) // 2]:,.0f}",
                 file=sys.stderr,
             )
 

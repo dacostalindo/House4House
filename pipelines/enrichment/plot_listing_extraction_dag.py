@@ -71,8 +71,8 @@ log = logging.getLogger(__name__)
 # and R/C floor counting). Sonnet 4.6 is 3-4x more expensive but materially
 # stronger on multi-field structured extraction. Decision 2026-05-29.
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
-PRICE_INPUT_PER_MTOK = 3.00   # USD per 1M input tokens (Sonnet 4.6)
-PRICE_OUTPUT_PER_MTOK = 15.00 # USD per 1M output tokens (Sonnet 4.6)
+PRICE_INPUT_PER_MTOK = 3.00  # USD per 1M input tokens (Sonnet 4.6)
+PRICE_OUTPUT_PER_MTOK = 15.00  # USD per 1M output tokens (Sonnet 4.6)
 
 # Defaults — overridable via dag_run.conf.
 DEFAULT_MAX_COST_USD = 80.0
@@ -366,8 +366,7 @@ def plot_listing_extraction_dag():
         tool_schema = {
             "name": "extract_plot_listing",
             "description": (
-                "Record the structured plot-listing data extracted from the "
-                "Portuguese description."
+                "Record the structured plot-listing data extracted from the Portuguese description."
             ),
             "input_schema": PlotListingExtraction.model_json_schema(),
         }
@@ -395,7 +394,7 @@ def plot_listing_extraction_dag():
                 SELECT s.listing_id, s.concelho_slug, s.description,
                        s.listing_url, s.lot_size, s.property_price
                 FROM staging_dbt.stg_plot_listings s
-                WHERE {' AND '.join(stg_filter_clauses)}
+                WHERE {" AND ".join(stg_filter_clauses)}
                 ORDER BY s.concelho_slug, s.listing_id
                 """,
                 stg_filter_params,
@@ -517,10 +516,14 @@ def plot_listing_extraction_dag():
                         (hash_key,),
                     )
                     if cur.fetchone() is not None:
-                        log.info("[plot_extract] %s already extracted by concurrent run — skipping", lid)
+                        log.info(
+                            "[plot_extract] %s already extracted by concurrent run — skipping", lid
+                        )
                         continue
                 except psycopg2.OperationalError as exc:
-                    log.warning("[plot_extract] db OperationalError on lookup, reconnecting: %s", exc)
+                    log.warning(
+                        "[plot_extract] db OperationalError on lookup, reconnecting: %s", exc
+                    )
                     _reconnect()
                     cur.execute(
                         "SELECT 1 FROM bronze_enrichment.raw_plot_listing_extractions "
@@ -539,7 +542,9 @@ def plot_listing_extraction_dag():
 
                 cumulative_cost += result["cost_usd"]
                 row_values = (
-                    hash_key, lid, url,
+                    hash_key,
+                    lid,
+                    url,
                     result["fields"].get("implantation_area_m2"),
                     result["fields"].get("construction_area_m2_above_ground"),
                     result["fields"].get("construction_area_m2_total"),
@@ -564,7 +569,10 @@ def plot_listing_extraction_dag():
                     cur.execute(insert_sql, row_values)
                     conn.commit()
                 except psycopg2.OperationalError as exc:
-                    log.warning("[plot_extract] db OperationalError on insert, reconnecting + retrying: %s", exc)
+                    log.warning(
+                        "[plot_extract] db OperationalError on insert, reconnecting + retrying: %s",
+                        exc,
+                    )
                     _reconnect()
                     cur.execute(insert_sql, row_values)
                     conn.commit()
@@ -576,7 +584,9 @@ def plot_listing_extraction_dag():
                 if (extracted + failed) % 25 == 0:
                     log.info(
                         "[plot_extract] progress: %d ok, %d failed, $%.3f cumulative",
-                        extracted, failed, cumulative_cost,
+                        extracted,
+                        failed,
+                        cumulative_cost,
                     )
 
             cur.close()
@@ -730,7 +740,10 @@ def _extract_one(client, description: str, tool_schema: dict) -> dict:
     tool_input: dict | None = None
     raw_dump = str(extract_response.content)
     for block in extract_response.content:
-        if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == "extract_plot_listing":
+        if (
+            getattr(block, "type", None) == "tool_use"
+            and getattr(block, "name", None) == "extract_plot_listing"
+        ):
             tool_input = block.input
             break
 
