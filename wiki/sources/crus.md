@@ -1,7 +1,7 @@
 ---
 title: CRUS — Carta do Regime de Uso do Solo (per-município WFS — RETIRED)
 type: source
-last_verified: 2026-05-13
+last_verified: 2026-06-03
 tags: [gis, regulatory, government, landuse, wfs, legacy, retired]
 priority: P2
 status: retired
@@ -25,7 +25,7 @@ Downstream impact at retirement time:
 - `dbt/models/staging/regulatory/stg_crus_ordenamento.sql` redirected from `source('bronze_regulatory', 'raw_crus_ordenamento')` → `source('bronze_regulatory', 'raw_crus_national_ogc')`. Column names match 1:1 for the fields the staging model consumes; the two new OGC columns are not yet consumed.
 - `silver_geo.zoning` reads `stg_crus_ordenamento` and was unchanged.
 - `tests/configs/test_config_equivalence.py` lost its `crus` parametrize entry; the fixture moved to `tests/configs/fixtures/_retired/crus.json` for historical record.
-- `bronze_regulatory.raw_crus_ordenamento` PostGIS table NOT dropped — leave for any ad-hoc historical query. To physically drop: `DROP TABLE bronze_regulatory.raw_crus_ordenamento`.
+- `bronze_regulatory.raw_crus_ordenamento` PostGIS table **dropped 2026-06-03** ([[sprint-09]] WS4 PR B) after parity check confirmed 0% delta for the 5 legacy municipalities vs. the OGC superset. A stale `staging_dbt.stg_pdm_ordenamento` view (leftover from a deleted dbt model) was DROPped CASCADE in the same operation.
 
 ## Historical source spec (pre-retirement)
 
@@ -61,4 +61,4 @@ Downstream impact at retirement time:
 
 ## Last verified
 
-2026-05-13 (retirement; pipeline deleted, page preserved as historical record).
+2026-05-13 (retirement; pipeline deleted, page preserved as historical record). **2026-06-03: legacy `bronze_regulatory.raw_crus_ordenamento` PostGIS table dropped + stale `staging_dbt.stg_pdm_ordenamento` view dropped CASCADE ([[sprint-09]] WS4 PR B).**

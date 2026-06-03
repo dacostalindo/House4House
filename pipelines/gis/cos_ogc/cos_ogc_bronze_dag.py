@@ -27,6 +27,8 @@ import shutil
 import tempfile
 from datetime import timedelta
 
+import ijson
+
 from pipelines.gis.cos_ogc.cos_ogc_config import (
     BRONZE_SCHEMA_TABLE,
     COS_OGC_CONFIG,
@@ -184,36 +186,44 @@ def _create_dag():
             batch: list[tuple] = []
             total = 0
 
-            with open(local_path, encoding="utf-8") as f:
-                data = json.load(f)
+            # ijson.items() streams the GeoJSON FeatureCollection one feature at
+            # a time, keeping RAM flat regardless of input size. Previous
+            # `json.load(f)` OOM'd the Airflow worker on national COS (~3.4 GB,
+            # 784k features) and CRUS (~2.1 GB, 236k). Sprint-09 WS4 PR B.
+            # `features.item` is the canonical jsonpath for FeatureCollection
+            # elements; binary mode (rb) for ijson's performance path.
+            # use_float=True: by default ijson returns Decimal for numbers
+            # (precision-preserving) but json.dumps(geom) on a feature with
+            # Decimal coordinates raises TypeError. float is sufficient for
+            # GeoJSON coords (sub-millimeter precision at GPS scale).
+            with open(local_path, "rb") as f:
+                for feat in ijson.items(f, "features.item", use_float=True):
+                    if feat.get("type") != "Feature":
+                        continue
+                    props = feat.get("properties", {})
+                    geom = feat.get("geometry")
+                    if not geom:
+                        continue
 
-            for feat in data.get("features", []):
-                if feat.get("type") != "Feature":
-                    continue
-                props = feat.get("properties", {})
-                geom = feat.get("geometry")
-                if not geom:
-                    continue
-
-                batch.append(
-                    (
-                        props.get("objectid"),
-                        props.get("Municipio", ""),
-                        props.get("NUTSII", ""),
-                        props.get("NUTSIII", ""),
-                        props.get("COS23_n4_C", ""),
-                        props.get("COS23_n4_L", ""),
-                        source_url,
-                        json.dumps(geom),
+                    batch.append(
+                        (
+                            props.get("objectid"),
+                            props.get("Municipio", ""),
+                            props.get("NUTSII", ""),
+                            props.get("NUTSIII", ""),
+                            props.get("COS23_n4_C", ""),
+                            props.get("COS23_n4_L", ""),
+                            source_url,
+                            json.dumps(geom),
+                        )
                     )
-                )
 
-                if len(batch) >= BATCH_SIZE:
-                    psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)
-                    total += len(batch)
-                    if total % 5000 == 0:
-                        log.info("[cos_ogc] inserted %d rows", total)
-                    batch.clear()
+                    if len(batch) >= BATCH_SIZE:
+                        psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)
+                        total += len(batch)
+                        if total % 5000 == 0:
+                            log.info("[cos_ogc] inserted %d rows", total)
+                        batch.clear()
 
             if batch:
                 psycopg2.extras.execute_batch(cur, INSERT_SQL, batch, page_size=BATCH_SIZE)

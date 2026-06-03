@@ -39,7 +39,7 @@ models:
   - name: stg_cos2023
     description: >
       COS 2023 land-use/cover classification staging view.
-      View over bronze_geo.raw_cos2023 with column renames and CRS transform.
+      View over bronze_geo.raw_cos_national_ogc with column renames and CRS transform.
       ~784K MultiPolygons covering all mainland Portugal.
       Source: DGT COS 2023 (Series 2, GPKG layer COS2023v1). CC-BY 4.0.
     columns:

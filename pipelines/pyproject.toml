@@ -15,6 +15,10 @@ dependencies = [
     "minio==7.2.7",
     "requests>=2.31",
     "tenacity",
+    # Streaming JSON parser (sprint-09 WS4 PR B): cos_ogc + crus_ogc bronze
+    # loaders use ijson.items() to stream national-scale GeoJSON (~2.3 GB COS,
+    # ~700 MB CRUS) without loading the whole file into memory.
+    "ijson",
     # Scraping
     "beautifulsoup4",
     "nodriver",
