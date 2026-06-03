@@ -91,24 +91,12 @@ jobs:
           pg_prove --version
           echo "::endgroup::"
 
-      - name: pg_prove
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: ci
-          PGPASSWORD: ci
-          PGDATABASE: house4house
-        shell: bash
-        run: |
-          echo "::group::pg-prove"
-          shopt -s nullglob
-          files=(tests/sql/*.sql)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No tests/sql/*.sql files yet — sprint-09 adds them (Activity 9 green-empty state)"
-          else
-            pg_prove --verbose "${files[@]}"
-          fi
-          echo "::endgroup::"
+      # pg_prove step moved AFTER `dbt build (structural)` below (sprint-09 WS4
+      # 2026-06-03): new tests reference silver_geo.floodplains / .aquifers /
+      # .geology + silver_market.ine_indicators_long, which don't exist until
+      # `dbt build` materializes them. SCE clustering tests are fixture-driven
+      # (BEGIN/ROLLBACK + TEMP tables) and would have worked either way; the
+      # new silver-invariant tests need the silver tables to be queryable.
 
       - name: ty check (advisory)
         run: |
@@ -207,9 +195,11 @@ jobs:
         run: |
           set -o pipefail
           echo "::group::dbt-build-slice-b"
-          # Slice B + B-prime path: silver_sce_buildings + silver_unified_developments
+          # Slice B + B-prime path + sprint-09 WS4 quick-wins:
+          #   silver_sce_buildings, silver_unified_developments,
+          #   floodplains (APA), aquifers + geology (LNEG), ine_indicators_long
           # and everything upstream (stg_sce_certificates, the 4 stg_portal_developments_*,
-          # dim_geography → stg_caop_freguesias + stg_bgri_freguesia_agg).
+          # dim_geography, dim_constraint_severity, stg_apa_arpsi, stg_lneg_*, stg_ine_indicators).
           # Bronze tables are empty (Tier-1 — Tier-2 in sprint-10 seeds fixtures).
           # --indirect-selection cautious: only run tests whose parents are ALL in the
           # selection. Without it, building dim_geography would pull in the
@@ -218,7 +208,30 @@ jobs:
           uv run dbt build \
             --project-dir dbt \
             --target ci \
-            --select +silver_sce_buildings +silver_unified_developments \
+            --select +silver_sce_buildings +silver_unified_developments +floodplains +aquifers +geology +ine_indicators_long \
             --indirect-selection cautious \
             --no-partial-parse
+          echo "::endgroup::"
+
+      # pg_prove (moved here 2026-06-03 — runs after dbt build so the new
+      # silver-invariant tests can query silver_geo.* + silver_market.* tables).
+      # Empty bronze (Tier-1) means silvers are empty too; the assertions are
+      # invariant-shaped (COUNT(*) WHERE NOT condition = 0) and trivially pass.
+      - name: pg_prove
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: ci
+          PGPASSWORD: ci
+          PGDATABASE: house4house
+        shell: bash
+        run: |
+          echo "::group::pg-prove"
+          shopt -s nullglob
+          files=(tests/sql/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No tests/sql/*.sql files yet"
+          else
+            pg_prove --verbose "${files[@]}"
+          fi
           echo "::endgroup::"

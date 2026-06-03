@@ -1,0 +1,56 @@
+version: 2
+
+sources:
+  - name: bronze_hydrology
+    database: house4house
+    schema: bronze_hydrology
+    description: >
+      Hydrology bronze tables: APA ARPSI floodplains (EU Floods Directive scope)
+      and LNEG Sistemas Aquíferos. Both come from ArcGIS REST FeatureServers
+      with server-side reprojection to EPSG:3763 (PT-TM06).
+    tables:
+      - name: raw_apa_arpsi_floodplain
+        description: >
+          APA ARPSI — Áreas de Risco Potencial Significativo de Inundação.
+          ~188 polygons national, ~18 in Aveiro município. Key field is
+          return_period_years (100 or 1000). Loaded by apa_arpsi_bronze_load DAG.
+          See [[apa]] wiki page for coverage caveat (EU Floods Directive scope
+          only — NOT all flood zones in Portugal).
+        columns:
+          - name: feature_id
+            description: ArcGIS OBJECTID
+          - name: river_basin
+            description: RHidro — hydrographic region (e.g. 'PTRH4A' Vouga)
+          - name: location
+            description: Local — descriptive location field
+          - name: designation
+            description: Designa — free-form site name
+          - name: source
+            description: Fonte — data source
+          - name: publication_date
+            description: Data — publication timestamp
+          - name: return_period_years
+            description: TRetorno — 100 (T100, 1% annual probability) or 1000 (T1000, 0.1%)
+            tests: [not_null]
+          - name: geocode
+            description: GEOCOD — region/district code
+          - name: geom
+            description: Polygon geometry in EPSG:3763 (server-reprojected)
+
+      - name: raw_lneg_aquiferos
+        description: >
+          LNEG Sistemas Aquíferos — national aquifer-system polygons (~63 rows).
+          Generic JSONB properties pattern. Loaded by lneg_bronze_load DAG.
+          See [[lneg]] for upstream-authority context (endpoint, license, coverage).
+          Per [[silver-dq-baseline]] Rule 0, JSONB key descriptions live on the
+          typed staging outputs, not here — see stg_lneg_aquiferos.sql header
+          comment for the current key list (discovered 2026-06-02).
+        columns:
+          - name: feature_id
+            description: ArcGIS OBJECTID
+          - name: layer_name
+            description: Constant 'lneg_aquiferos' for this table
+          - name: properties
+            description: "JSONB — see stg_lneg_aquiferos.sql header comment for current key list (discovered 2026-06-02). Authority: live ArcGIS REST endpoint, not the wiki."
+          - name: geom
+            description: Polygon geometry in EPSG:3763 (server-reprojected)

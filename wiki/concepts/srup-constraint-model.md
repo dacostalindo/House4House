@@ -1,13 +1,24 @@
 ---
 title: SRUP constraint model — how regulatory layers gate construction on a drawn polygon
 type: concept
-last_verified: 2026-05-14
+last_verified: 2026-06-02
 tags: [srup, regulatory, gis, constraint, polygon, spatial, concept]
 ---
 
 ## For future Claude
 
-This is a concept page about the **SRUP constraint model**: how the 14 in-scope regulatory layers (servidões e restrições de utilidade pública) are represented, how each one constrains construction under Portuguese law, and the locked schema that sprint-09's `gold.fn_assess_polygon` queries against. Read this before writing or editing any `stg_srup_*` staging model, the `dim_constraint_severity` model, or `fn_assess_polygon`. It is the output of Sprint-08 Activity 6 PR 1 (deep research + schema design). The key finding: **most SRUP layers ARE the legally-drawn restriction zones** — the zone-type is already an attribute of each feature, so there is no geometric core-vs-buffer computation to do; the three layers that take a query-time buffer (REN linear, Rede Viária, Rede Ferroviária) carry a static per-`zone_type` `buffer_m` + `buffer_ref` in the dimension.
+This is a concept page about the **SRUP constraint model**: how the 14 SRUP regulatory layers (servidões e restrições de utilidade pública) **+ the 15th APA ARPSI floodplain layer added 2026-06-02** are represented, how each one constrains construction under Portuguese law, and the locked schema that sprint-09's `gold.fn_assess_polygon` queries against. Read this before writing or editing any `stg_srup_*` staging model, the `dim_constraint_severity` model, the new `stg_apa_arpsi` model, or `fn_assess_polygon`. It is the output of Sprint-08 Activity 6 PR 1 (deep research + schema design) plus the sprint-09 WS4 quick-wins-batch extension. The key finding: **most layers ARE the legally-drawn restriction zones** — the zone-type is already an attribute of each feature, so there is no geometric core-vs-buffer computation to do; the three layers that take a query-time buffer (REN linear, Rede Viária, Rede Ferroviária) carry a static per-`zone_type` `buffer_m` + `buffer_ref` in the dimension.
+
+### 15th layer — APA ARPSI floodplain (added 2026-06-02, sprint-09 WS4)
+
+`constraint_code = 'ARPSI_Floodplain'` with two zone_types from the EU Floods Directive return periods:
+
+| zone_type | severity | category | legal basis |
+|---|---|---|---|
+| `T100` | 3 (hard gate) | `flood_risk` | Diretiva 2007/60/CE; DL 115/2010 (PGRI) — non-aedificandi default in PT planning |
+| `T1000` | 2 (conditioned) | `flood_risk` | Same — but PT planning practice treats the 0.1%-annual catastrophe band as buildable with APA mitigation approval rather than hard-blocked |
+
+`buffer_m = 0` for both (the polygon IS the legal flood envelope). Authority: APA / ARH. Lives in [silver_geo.floodplains](../../dbt/models/silver/geo/floodplains.sql), built from [stg_apa_arpsi](../../dbt/models/staging/hydrology/stg_apa_arpsi.sql) → bronze [[apa]] ARPSI. Coverage: ~188 polygons national (EU Floods Directive scope ONLY — NOT all flood-prone areas in PT). `fn_assess_polygon` joins it exactly like the 14 SRUP layers — same `ST_Intersects` + denormalized severity pattern. See [[apa]] for the full source page and [[silver-dq-baseline]] for the silver-layer DQ pattern.
 
 ## What it is
 

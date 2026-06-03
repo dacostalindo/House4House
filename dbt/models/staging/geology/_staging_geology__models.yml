@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_lneg_geology
+    description: >
+      Staging view over bronze_geology.raw_lneg_geology_500k. Unpacks the
+      11 JSONB properties keys empirically present in bronze (verified
+      2026-06-02 via `jsonb_object_keys`): Código (lithology code, e.g. 'gama',
+      'PEU', 'CTRVA2', 'a', 'J3A'), Descrição (rich text label like 'Aluviões'),
+      Eonotema (eon), Eratema (era, e.g. 'Cenozóico'), Sistema (geological
+      period, e.g. 'Quaternário'), Série (epoch, e.g. 'Holocénico'), Zona,
+      Intrusões_plutónicas. NO foundation_difficulty in v1 (locked decisions
+      14+17 defer to v2 — per-formation lookup with citations). Dual-CRS
+      canonical. See [[lneg]] + [[silver-dq-baseline]].
+    columns:
+      - name: feature_id
+      - name: lithology_code
+        description: "From Código — heterogeneous codes ('gama', 'PEU', 'a', 'J3A', etc.). No meaningful single-char prefix; use `era` directly for grouping."
+        tests: [not_null]
+      - name: lithology_description
+        description: "From Descrição — rich text label (e.g. 'Aluviões', 'Granitos geralmente porfiróides')"
+      - name: lithology_description_extra
+        description: "From Descrição1 — secondary classification (e.g. 'Depósitos de cobertura')"
+      - name: eon
+        description: "From Eonotema (e.g. 'Fanerozóico')"
+      - name: era
+        description: "From Eratema (e.g. 'Cenozóico', 'Mesozóico', 'Paleozóico', 'Pré-câmbrico')"
+      - name: geological_period
+        description: "From Sistema (e.g. 'Quaternário', 'Cretácico', 'Jurássico')"
+      - name: epoch
+        description: "From Série (e.g. 'Holocénico', 'Pleistocénico')"
+      - name: chrono_zone
+        description: "From bronze JSONB Zona — broader chrono-structural grouping (e.g. 'Cobertura Cenozóica'). Not strictly chronostratigraphic per the International Chronostratigraphic Chart hierarchy (Eonothem > Erathem > System > Series > Stage); Zona is closer to a lithologic-structural unit."
+      - name: plutonic_intrusions
+        description: "From Intrusões_plutónicas — NULL when not a plutonic body"
+      - name: geom
+        description: "Polygon geometry in EPSG:4326. SRID + ST_IsValid invariants enforced via pgTAP."
+        tests: [not_null]
+      - name: geom_pt
+        description: "Polygon geometry in EPSG:3763. SRID invariant enforced via pgTAP."
+        tests: [not_null]
+      - name: _loaded_at

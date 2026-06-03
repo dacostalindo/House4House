@@ -1,0 +1,94 @@
+version: 2
+
+sources:
+  - name: bronze_enrichment
+    database: house4house
+    schema: bronze_enrichment
+    description: >
+      Bronze tables produced by the enrichment DAGs (LLM extraction,
+      geocoding, etc.). Bronze-permissive: schemas are stable but no
+      semantic validation happens here.
+    tables:
+      - name: raw_plot_listing_extractions
+        description: >
+          Per-listing structured output from Claude Haiku 4.5 on idealista
+          plot descriptions. Created + populated by
+          `pipelines/enrichment/plot_listing_extraction_dag.py` (Sprint-09
+          Slice C). Idempotent on `idempotency_hash` =
+          sha256(listing_url + NFC(description).strip()).
+
+          Per-row metadata: `extraction_status` ('success'|'failed'),
+          `extraction_confidence` (self-eval second LLM call, clamped to
+          [0,1]), `cost_usd` (per-row token cost), `model_id`. Failed
+          rows carry `error_message` + `raw_response` for ops debugging.
+
+          Silver model `silver_plot_listings_enriched` joins this to
+          `stg_plot_listings` on `listing_id` and filters
+          `extraction_status='success'`.
+        columns:
+          - name: idempotency_hash
+            description: "sha256 hex digest of listing_url + NFC-normalized + trimmed description. PK."
+            tests:
+              - unique
+              - not_null
+          - name: listing_id
+            description: "External listing ID — joins to stg_plot_listings.listing_id."
+            tests:
+              - not_null
+          - name: listing_url
+            description: "Idealista canonical URL."
+            tests:
+              - not_null
+          - name: implantation_area_m2
+            description: "Impl. — building footprint, m². LLM-extracted."
+          - name: construction_area_m2_above_ground
+            description: "ABC Sol — above-ground gross built area, m². LLM-extracted."
+          - name: construction_area_m2_total
+            description: "ABC T — total gross built area (incl. basement), m². LLM-extracted. Demo headline."
+          - name: area_loteamento_m2
+            description: "Subdivision area when is_loteamento=true, m². LLM-extracted."
+          - name: num_dwellings_allowed
+            description: "# de Fogos — count of dwellings the planning instrument allows. LLM-extracted."
+          - name: max_floors_allowed
+            description: "Max floors (R/C counts as 1). LLM-extracted."
+          - name: num_caves
+            description: "Number of basement / cave levels. LLM-extracted."
+          - name: permit_status
+            description: "permit_status — 4-class Literal, null when not mentioned."
+            tests:
+              - accepted_values:
+                  values: [pip_pending, pip_approved, project_drafted, project_approved]
+                  config:
+                    where: "permit_status IS NOT NULL"
+          - name: needs_loteamento
+            description: "True when the planned development requires the parcel to be split into multiple legal lots (multiple buildings on one parcel, or explicit loteamento)."
+          - name: loteamento_complete
+            description: "True when the loteamento infrastructure / alvará is already in place (the buyer doesn't need to do the subdivision process). Null when needs_loteamento is false/null."
+          - name: source_spans
+            description: "JSONB map: populated-field-name → exact source sentence."
+          - name: extraction_confidence
+            description: "Self-eval confidence on [0, 1] from a second Haiku call. NULL when self-eval call itself failed."
+          - name: extraction_status
+            description: "'success' or 'failed' (sentinel rows when Anthropic / Pydantic fail after retries)."
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [success, failed]
+          - name: error_message
+            description: "Failure reason for status='failed' rows."
+          - name: raw_response
+            description: "Raw LLM response for status='failed' rows — ops debugging only."
+          - name: model_id
+            description: "Anthropic model ID used (e.g., claude-haiku-4-5)."
+            tests:
+              - not_null
+          - name: input_tokens
+            description: "Total input tokens for extraction + self-eval calls."
+          - name: output_tokens
+            description: "Total output tokens for extraction + self-eval calls."
+          - name: cost_usd
+            description: "Per-row API cost in USD based on token counts × list price."
+          - name: extracted_at
+            description: "When the row was written. NOW() default."
+            tests:
+              - not_null
