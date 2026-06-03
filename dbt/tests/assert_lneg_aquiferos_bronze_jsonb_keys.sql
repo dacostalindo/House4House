@@ -5,17 +5,20 @@
 -- staging SQL header comment + extraction list.
 --
 -- Pattern: dbt singular test passes when SELECT returns zero rows.
+--
+-- Empty-bronze short-circuit (CI Tier-1): skip when bronze has 0 rows.
 
 SELECT 1 AS jsonb_key_drift
-WHERE (
-    SELECT array_agg(DISTINCT k ORDER BY k)
-    FROM {{ source('bronze_hydrology', 'raw_lneg_aquiferos') }},
-         jsonb_object_keys(properties) k
-) IS DISTINCT FROM ARRAY[
-    'CodigoInag',
-    'Idade',
-    'IDUnidadeHidrogeologica',
-    'NomeCompleto',
-    'OBJECTID',
-    'SistemaAquifero'
-]
+WHERE (SELECT COUNT(*) FROM {{ source('bronze_hydrology', 'raw_lneg_aquiferos') }}) > 0
+  AND (
+      SELECT array_agg(DISTINCT k ORDER BY k)
+      FROM {{ source('bronze_hydrology', 'raw_lneg_aquiferos') }},
+           jsonb_object_keys(properties) k
+  ) IS DISTINCT FROM ARRAY[
+      'CodigoInag',
+      'Idade',
+      'IDUnidadeHidrogeologica',
+      'NomeCompleto',
+      'OBJECTID',
+      'SistemaAquifero'
+  ]
