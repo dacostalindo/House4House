@@ -1133,3 +1133,56 @@ Earlier "26 redundant rows" claim was wrong — initial keyword regex matched su
 - `dbt/models/silver/geo/zoning.sql` — subcategoria column + PDM JOIN by subcategoria/umbrella
 
 **Pages touched**: [[log]] (this entry), [[aveiro-pdm]] (last_verified 2026-06-04), [[pdm-srup-constraint-model]] (new), [[sprint-09]] (WS5 status entry). [[crus]] / [[crus-ogc]] / [[srup]] / [[UC-3]] cross-references deferred to next sprint.
+
+## [2026-06-04] ship | dim_constraint_severity legal_quote columns (Sprint-09 WS5 follow-up)
+
+Added verbatim PT legal-text columns to [[pdm-srup-constraint-model|dim_constraint_severity]] so each severity row carries the operative paragraph from its statute. **100% coverage across all 36 rows**, no NULLs.
+
+Four new columns:
+- `legal_quote_article` — citation label, e.g. `Artigo 21.º (Acções interditas)`
+- `legal_quote_url` — official dre.pt URL (preferred) or fallback mirror
+- `legal_quote_status` — `full_paragraph` (23 rows, primary source) | `anchor_only` (12 rows, PDF/Cloudflare-gated) | `derived_advisory` (1 row, data-quality fallback)
+- `legal_quote_pt` — verbatim PT operative paragraph(s)
+
+**Sources fetched (14 unique statutes):**
+
+| Statute | Rows | Status | Source |
+|---|---|---|---|
+| DL 73/2009 Art. 21 (RAN) | 1 | full | dre.pt consolidada (via PGDL Lisboa) |
+| DL 166/2008 Art. 20 + 16 (REN) | 3 | full | dre.pt consolidada (via PGDL Lisboa) |
+| Lei 107/2001 Art. 43+45 + DL 309/2009 Art. 51 (IC) | 2 | full | dre.pt consolidada (via PGDL Lisboa) |
+| Lei 54/2005 Art. 25 n.os 1+2+5 (DPH) | 2 | full | dre.pt consolidada (via PGDL Lisboa) |
+| DL 142/2008 Art. 23 (Áreas Protegidas) | 1 | full | dre.pt detalhe |
+| Lei 34/2015 Art. 32 n.os 1+2 (RedeViaria) | 3 | full | dre.pt consolidada |
+| DL 107/2009 Art. 19+20+21 (Albufeiras) | 3 | full | dre.pt consolidada |
+| DL 364/98 Art. 5 (ARPSI substantive regime) | 3 | full | Faolex PDF (direct Read) |
+| DL 124/2006 Art. 16 + Aveiro PDM Art. 51 (Perigosidade) | 5 | full | PGDL Lisboa + wiki/sources/aveiro-pdm.md |
+| DL 140/99 Art. 9 (ZPE/ZEC) | 2 | anchor | PGDL doesn't render Art. 9 inline |
+| RSLEAT Art. 28 + DL 43335 Art. 6 (RedeEletrica) | 2 | anchor | OERN PDF 404 + dre.pt empty body |
+| DL 276/2003 Art. 15 (RedeFerroviaria) | 3 | anchor | files.dre.pt PDF needs pdftoppm (not installed) |
+| Lei 2078/1955 + DL 45986/1964 (DefesaMilitar) | 2 | anchor | tretas.org Cloudflare-gated; no dre.pt consolidada (pre-1976) |
+| DL 45987/1964 (Aeronautica) | 3 | anchor | same as above |
+
+**Two `legal_basis` text fixes** shipped alongside (matching the new citations per audit):
+- RedeEletrica: `RSLEAT art. 30` → `art. 28` (Art. 30 is conductor clearances, not faixa de servidão)
+- ARPSI: added `+ DL 364/98 art. 5` (DL 115/2010 is transposition only; substantive regime is in DL 364/98)
+
+**Verification**:
+```sql
+SELECT legal_quote_status, COUNT(*), AVG(LENGTH(legal_quote_pt))::INT AS avg_chars
+FROM gold_analytics.dim_constraint_severity GROUP BY 1;
+-- full_paragraph    | 23 | 874 chars
+-- anchor_only       | 12 | 540 chars
+-- derived_advisory  | 1  | 493 chars
+```
+
+**Files shipped**:
+- `dbt/models/gold/dim_constraint_severity.sql` — regenerated via `/tmp/build_severity_quotes.py`; +4 columns, 2 legal_basis text fixes, +156 lines (quotes CTE)
+- `wiki/concepts/pdm-srup-constraint-model.md` — added §"Legal quote columns" with the status table + statute coverage matrix
+- `wiki/log.md` — this entry
+
+**Pending follow-ups**:
+- [ ] Flip 12 `anchor_only` rows → `full_paragraph` once user (or future Claude with `pdftoppm` + browser-class fetcher) can extract from the gated sources
+- [ ] Decide whether to denormalize `legal_quote_pt` into `silver_regulatory.srup_constraints` (would add ~1.8 GB; today callers JOIN to dim when needed)
+
+**Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).

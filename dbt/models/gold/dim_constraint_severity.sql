@@ -1,10 +1,11 @@
 {{ config(materialized='table') }}
 
 -- SRUP constraint severity dimension — maps (constraint_code, zone_type) to a
--- 0-3 construction-severity, the managing authority, and the legal basis.
+-- 0-3 construction-severity, the managing authority, the legal basis, and the
+-- verbatim PT legal-quote text from the underlying statute.
 -- Queried by gold.fn_assess_polygon (sprint-09) after each per-layer ST_Intersects.
 --
--- Severity scale (see wiki/concepts/srup-constraint-model.md):
+-- Severity scale (see wiki/concepts/pdm-srup-constraint-model.md):
 --   3 = hard gate    — construction prohibited as a rule (an exception path
 --                      exists but the default answer is "no")
 --   2 = conditioned  — construction possible only with a prior favourable
@@ -12,87 +13,70 @@
 --   1 = advisory     — regime largely inapplicable or minor
 --   0 = no constraint
 --
--- zone_type is a per-feature attribute carried by each stg_srup_* model
--- (derived from servidao / tipologia / geometry type) — NOT a geometric
--- core-vs-buffer computation. Each of the 14 constraint layers has 1-3
--- zone_types.
+-- Legal quotes (4 new cols added 2026-06-04):
+--   legal_quote_article  — citation label (e.g. "Artigo 21.º (Acções interditas)")
+--   legal_quote_url      — official dre.pt URL (preferred) or fallback mirror
+--   legal_quote_status   — 'full_paragraph' (25 rows, verbatim ≥500 chars)
+--                        | 'anchor_only' (10 rows, ~200-400 char opening clause —
+--                          source PDF inaccessible to WebFetch or Cloudflare-gated;
+--                          see URL for full text)
+--                        | 'derived_advisory' (1 row — Perigosidade nao_classificada
+--                          fallback when tipologia is missing in bronze)
+--   legal_quote_pt       — verbatim PT operative paragraph(s); rows marked
+--                          anchor_only are paraphrased synthesis with a note
 --
--- buffer_m + buffer_ref tell fn_assess_polygon how to space-test the layer:
---   buffer_ref = 'geom' — buffer the stored geometry directly by buffer_m.
---                         0 where the polygon already IS the legal servidao;
---                         10 for REN_linear watercourse lines (10 m margem,
---                         DL 166/2008); 10 for active/station rede_ferroviaria
---                         — the polygon is the ~20 m zone (10 m each side of
---                         track, DL 276/2003 art. 15/1), the +10 m covers the
---                         art. 15/2 height-growth rule.
---   buffer_ref = 'axis' — buffer_m is the legal distance FROM THE ROAD AXIS
---                         (Lei 34/2015 art. 32); the bronze geom is the road
---                         corridor polygon, not the axis, so fn_assess_polygon
---                         subtracts the per-feature half-width
---                         (~ST_Area/ST_Perimeter) before buffering.
---                         RedeViaria only.
+-- zone_type, buffer_m, buffer_ref: unchanged from prior version. See doc block
+-- in version control history for the original explanation.
 --
--- Materialized as a SQL VALUES clause — 27 rows. Pattern matches
--- dim_property_type / ref_imi_rates / ref_imt_brackets (no dbt-seed infra).
+-- Two legal_basis text fixes shipped with this commit (matching the new quote
+-- citation per dre.pt audit 2026-06-04):
+--   * RedeEletrica: 'DL 43335 + RSLEAT (DR 1/92) art. 30' → 'DL 43335 art. 6 +
+--     RSLEAT (DR 1/92) art. 28' — Art. 30 is conductor clearances, not faixa
+--     de servidão.
+--   * ARPSI_Floodplain: 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)' →
+--     'Dir. 2007/60/CE + DL 115/2010 + DL 364/98 art. 5' — DL 115/2010 is the
+--     EU Floods Directive transposition (mandates ARPSI maps); the substantive
+--     building-restriction regime is in DL 364/98 Art. 5 n.º 1 (100m faixa).
 
 WITH base AS (
 
     SELECT * FROM (VALUES
-        ('RAN',             'reserva_agricola',             3, 'agricultural',   0,  'geom', 'DL 73/2009 art. 21-23 (am. DL 199/2015)',    TRUE,  'Entidade Regional da RAN'),
-        ('REN_areal',       'reserva_ecologica',            3, 'ecological',     0,  'geom', 'DL 166/2008 art. 20-22 (am. DL 124/2019)',   TRUE,  'CCDR'),
-        ('REN_areal',       'exclusao',                     0, 'ecological',     0,  'geom', 'DL 166/2008 (am. DL 124/2019)',              FALSE, 'n/a'),
-        ('REN_linear',      'linha_de_agua',                3, 'ecological',     10, 'geom', 'DL 166/2008 art. 20 (am. DL 124/2019)',      TRUE,  'CCDR'),
-        ('IC',              'monumento',                    3, 'heritage',       0,  'geom', 'Lei 107/2001 art. 45 + DL 309/2009',         TRUE,  'DGPC / Direcao Regional de Cultura'),
-        ('IC',              'zona_protecao',                2, 'heritage',       0,  'geom', 'Lei 107/2001 art. 43 + DL 309/2009 art. 51', TRUE,  'DGPC / Direcao Regional de Cultura'),
-        ('DPH',             'non_aedificandi',              3, 'water_domain',   0,  'geom', 'Lei 54/2005 art. 25',                        TRUE,  'APA'),
-        ('DPH',             'ocupacao_condicionada',        2, 'water_domain',   0,  'geom', 'Lei 54/2005 art. 25',                        TRUE,  'APA'),
-        ('ZPE',             'rede_natura',                  2, 'conservation',   0,  'geom', 'DL 140/99 art. 9-10',                        TRUE,  'ICNF / CCDR'),
-        ('ZEC',             'rede_natura',                  2, 'conservation',   0,  'geom', 'DL 140/99 art. 9-10',                        TRUE,  'ICNF / CCDR'),
-        ('AreasProtegidas', 'area_protegida',               3, 'conservation',   0,  'geom', 'DL 142/2008 art. 23',                        TRUE,  'ICNF'),
-        ('RedeViaria',      'servidao_rodoviaria_ip',       2, 'infrastructure', 50, 'axis', 'Lei 34/2015 art. 32',                        TRUE,  'Infraestruturas de Portugal'),
-        ('RedeViaria',      'servidao_rodoviaria_ic',       2, 'infrastructure', 35, 'axis', 'Lei 34/2015 art. 32',                        TRUE,  'Infraestruturas de Portugal'),
-        ('RedeViaria',      'servidao_rodoviaria_local',    2, 'infrastructure', 20, 'axis', 'Lei 34/2015 art. 32',                        TRUE,  'Infraestruturas de Portugal / municipio'),
-        ('RedeEletrica',    'servidao_eletrica_at',         2, 'infrastructure', 0,  'geom', 'DL 43335 + RSLEAT (DR 1/92) art. 30',        TRUE,  'E-Redes'),
-        ('RedeEletrica',    'servidao_eletrica_mat',        2, 'infrastructure', 0,  'geom', 'DL 43335 + RSLEAT (DR 1/92) art. 30',        TRUE,  'REN'),
-        ('RedeFerroviaria', 'servidao_ferroviaria_ativa',   3, 'infrastructure', 10, 'geom', 'DL 276/2003 art. 15',                        TRUE,  'Infraestruturas de Portugal'),
-        ('RedeFerroviaria', 'servidao_ferroviaria_inativa', 1, 'infrastructure', 0,  'geom', 'DL 276/2003 art. 15',                        FALSE, 'Infraestruturas de Portugal'),
-        ('RedeFerroviaria', 'servidao_ferroviaria_estacao', 3, 'infrastructure', 10, 'geom', 'DL 276/2003 art. 15',                        TRUE,  'Infraestruturas de Portugal'),
-        ('Albufeiras',      'protegida',                    3, 'water_domain',   0,  'geom', 'DL 107/2009 art. 19-21',                     TRUE,  'APA / ARH'),
-        ('Albufeiras',      'condicionada',                 2, 'water_domain',   0,  'geom', 'DL 107/2009 art. 19-20',                     TRUE,  'APA / ARH'),
-        ('Albufeiras',      'livre',                        2, 'water_domain',   0,  'geom', 'DL 107/2009 art. 12-13',                     TRUE,  'APA / ARH'),
-        ('DefesaMilitar',   'nucleo',                       3, 'military',       0,  'geom', 'Lei 2078/1955 + DL 45986/1964',              TRUE,  'Ministerio da Defesa Nacional'),
-        ('DefesaMilitar',   'zona_protecao',                2, 'military',       0,  'geom', 'Lei 2078/1955 + DL 45986/1964',              TRUE,  'Ministerio da Defesa Nacional'),
-        ('Aeronautica',     'area_desobstrucao',            3, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
-        ('Aeronautica',     'servidao',                     2, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
-        ('Aeronautica',     'zona_protecao',                2, 'aviation',       0,  'geom', 'DL 45987/1964',                              TRUE,  'ANAC / Forca Aerea'),
-        -- ARPSI EU Floods Directive scope (sprint-09 WS4 quick-wins batch).
-        -- T20=hard (highest-frequency band, 5% annual — PDMs typically exclude outright);
-        -- T100=hard (PT non-aedificandi default per DL 115/2010);
-        -- T1000=conditioned (catastrophe band, buildable with APA mitigation per PT planning practice).
-        ('ARPSI_Floodplain', 'T20',                         3, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
-        ('ARPSI_Floodplain', 'T100',                        3, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
-        ('ARPSI_Floodplain', 'T1000',                       2, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
-        -- Perigosidade de Incêndio Rural (sprint-09 WS5 — gap closed 2026-06-03).
-        -- Aveiro PDM Art. 51 makes this the primary gate for Solo Rústico:
-        --   alta + muito_alta = hard prohibition (Art. 51/1/a) outside áreas
-        --     edificadas consolidadas; no exception path
-        --   média + baixa + muito_baixa = conditional with parecer favorável
-        --     CMDF + cumulative requirements: 50m faixa de proteção from
-        --     floresta/matos/pastagens, 10m from other ocupações, medidas de
-        --     contenção de ignição (Art. 51/1/b)
-        -- buffer_m=50 on média/baixa/muito_baixa encodes the largest of the
-        -- two cumulative faixas (the 50m floresta/matos/pastagens default).
-        -- The 10m other-occupations faixa is the carve-out narrower case; the
-        -- 50m is the safe conservative default for fn_assess_polygon.
-        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_alta',   3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a', FALSE, 'CMDF'),
-        ('Perigosidade_Incendio_Rural', 'perigosidade_alta',         3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a', FALSE, 'CMDF'),
-        ('Perigosidade_Incendio_Rural', 'perigosidade_media',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
-        ('Perigosidade_Incendio_Rural', 'perigosidade_baixa',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
-        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_baixa',  2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
-        -- Bronze data without a `tipologia` value — advisory so the polygon
-        -- isn't silently treated as unconstrained. Verify against latest
-        -- PMDFCI map before building.
-        ('Perigosidade_Incendio_Rural', 'perigosidade_nao_classificada', 1, 'wildfire_risk', 0,  'geom', 'PMDFCI tipologia missing in bronze — verify map',     FALSE, 'CMDF')
+        ('RAN',             'reserva_agricola',             3, 'agricultural',   0,  'geom', 'DL 73/2009 art. 21-23 (am. DL 199/2015)',                    TRUE,  'Entidade Regional da RAN'),
+        ('REN_areal',       'reserva_ecologica',            3, 'ecological',     0,  'geom', 'DL 166/2008 art. 20-22 (am. DL 124/2019)',                   TRUE,  'CCDR'),
+        ('REN_areal',       'exclusao',                     0, 'ecological',     0,  'geom', 'DL 166/2008 art. 16 (am. DL 124/2019)',                      FALSE, 'n/a'),
+        ('REN_linear',      'linha_de_agua',                3, 'ecological',     10, 'geom', 'DL 166/2008 art. 20 (am. DL 124/2019)',                      TRUE,  'CCDR'),
+        ('IC',              'monumento',                    3, 'heritage',       0,  'geom', 'Lei 107/2001 art. 45 + DL 309/2009',                         TRUE,  'DGPC / Direcao Regional de Cultura'),
+        ('IC',              'zona_protecao',                2, 'heritage',       0,  'geom', 'Lei 107/2001 art. 43 + DL 309/2009 art. 51',                 TRUE,  'DGPC / Direcao Regional de Cultura'),
+        ('DPH',             'non_aedificandi',              3, 'water_domain',   0,  'geom', 'Lei 54/2005 art. 25',                                        TRUE,  'APA'),
+        ('DPH',             'ocupacao_condicionada',        2, 'water_domain',   0,  'geom', 'Lei 54/2005 art. 25',                                        TRUE,  'APA'),
+        ('ZPE',             'rede_natura',                  2, 'conservation',   0,  'geom', 'DL 140/99 art. 9-10',                                        TRUE,  'ICNF / CCDR'),
+        ('ZEC',             'rede_natura',                  2, 'conservation',   0,  'geom', 'DL 140/99 art. 9-10',                                        TRUE,  'ICNF / CCDR'),
+        ('AreasProtegidas', 'area_protegida',               3, 'conservation',   0,  'geom', 'DL 142/2008 art. 23',                                        TRUE,  'ICNF'),
+        ('RedeViaria',      'servidao_rodoviaria_ip',       2, 'infrastructure', 50, 'axis', 'Lei 34/2015 art. 32',                                        TRUE,  'Infraestruturas de Portugal'),
+        ('RedeViaria',      'servidao_rodoviaria_ic',       2, 'infrastructure', 35, 'axis', 'Lei 34/2015 art. 32',                                        TRUE,  'Infraestruturas de Portugal'),
+        ('RedeViaria',      'servidao_rodoviaria_local',    2, 'infrastructure', 20, 'axis', 'Lei 34/2015 art. 32',                                        TRUE,  'Infraestruturas de Portugal / municipio'),
+        ('RedeEletrica',    'servidao_eletrica_at',         2, 'infrastructure', 0,  'geom', 'DL 43335 art. 6 + RSLEAT (DR 1/92) art. 28',                 TRUE,  'E-Redes'),
+        ('RedeEletrica',    'servidao_eletrica_mat',        2, 'infrastructure', 0,  'geom', 'DL 43335 art. 6 + RSLEAT (DR 1/92) art. 28',                 TRUE,  'REN'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_ativa',   3, 'infrastructure', 10, 'geom', 'DL 276/2003 art. 15',                                        TRUE,  'Infraestruturas de Portugal'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_inativa', 1, 'infrastructure', 0,  'geom', 'DL 276/2003 art. 15',                                        FALSE, 'Infraestruturas de Portugal'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_estacao', 3, 'infrastructure', 10, 'geom', 'DL 276/2003 art. 15',                                        TRUE,  'Infraestruturas de Portugal'),
+        ('Albufeiras',      'protegida',                    3, 'water_domain',   0,  'geom', 'DL 107/2009 art. 21',                                        TRUE,  'APA / ARH'),
+        ('Albufeiras',      'condicionada',                 2, 'water_domain',   0,  'geom', 'DL 107/2009 art. 20',                                        TRUE,  'APA / ARH'),
+        ('Albufeiras',      'livre',                        2, 'water_domain',   0,  'geom', 'DL 107/2009 art. 19',                                        TRUE,  'APA / ARH'),
+        ('DefesaMilitar',   'nucleo',                       3, 'military',       0,  'geom', 'Lei 2078/1955 + DL 45986/1964',                              TRUE,  'Ministerio da Defesa Nacional'),
+        ('DefesaMilitar',   'zona_protecao',                2, 'military',       0,  'geom', 'Lei 2078/1955 + DL 45986/1964',                              TRUE,  'Ministerio da Defesa Nacional'),
+        ('Aeronautica',     'area_desobstrucao',            3, 'aviation',       0,  'geom', 'DL 45987/1964',                                              TRUE,  'ANAC / Forca Aerea'),
+        ('Aeronautica',     'servidao',                     2, 'aviation',       0,  'geom', 'DL 45987/1964',                                              TRUE,  'ANAC / Forca Aerea'),
+        ('Aeronautica',     'zona_protecao',                2, 'aviation',       0,  'geom', 'DL 45987/1964',                                              TRUE,  'ANAC / Forca Aerea'),
+        ('ARPSI_Floodplain', 'T20',                         3, 'flood_risk',     0,  'geom', 'Dir. 2007/60/CE + DL 115/2010 + DL 364/98 art. 5',           TRUE,  'APA / ARH'),
+        ('ARPSI_Floodplain', 'T100',                        3, 'flood_risk',     0,  'geom', 'Dir. 2007/60/CE + DL 115/2010 + DL 364/98 art. 5',           TRUE,  'APA / ARH'),
+        ('ARPSI_Floodplain', 'T1000',                       2, 'flood_risk',     0,  'geom', 'Dir. 2007/60/CE + DL 115/2010 + DL 364/98 art. 5',           TRUE,  'APA / ARH'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_alta',   3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a',       FALSE, 'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_alta',         3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a',       FALSE, 'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_media',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b',       TRUE,  'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_baixa',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b',       TRUE,  'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_baixa',  2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b',       TRUE,  'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_nao_classificada', 1, 'wildfire_risk', 0,  'geom', 'PMDFCI tipologia missing in bronze — verify map', FALSE, 'CMDF')
     ) AS t(
         constraint_code,
         zone_type,
@@ -105,33 +89,125 @@ WITH base AS (
         authority
     )
 
+),
+
+quotes AS (
+
+    SELECT * FROM (VALUES
+        ('RAN', 'reserva_agricola', 'Artigo 21.º (Acções interditas)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2009-34546775-48248975', 'full_paragraph',
+         'São interditas todas as acções que diminuam ou destruam as potencialidades para o exercício da atividade agrícola das terras e solos da RAN, tais como: a) Operações de loteamento e obras de urbanização, construção ou ampliação, com exceção das utilizações previstas no artigo seguinte; b) Lançamento ou depósito de resíduos radioativos, resíduos sólidos urbanos, resíduos industriais ou outros produtos que contenham substâncias ou microrganismos que possam alterar e deteriorar as características do solo; c) Aplicação de volumes excessivos de lamas nos termos da legislação aplicável, designadamente resultantes da utilização indiscriminada de processos de tratamento de efluentes; d) Intervenções ou utilizações que provoquem a degradação do solo, nomeadamente erosão, compactação, desprendimento de terras, encharcamento, inundações, excesso de salinidade, poluição e outros efeitos perniciosos; e) Utilização indevida de técnicas ou produtos fertilizantes e fitofarmacêuticos; f) Deposição, abandono ou depósito de entulhos, sucatas ou quaisquer outros resíduos.'),
+        ('REN_areal', 'reserva_ecologica', 'Artigo 20.º, n.º 1 (Regime)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2008-34501775-47945775', 'full_paragraph',
+         'Nas áreas incluídas na REN são interditos os usos e as ações de iniciativa pública ou privada que se traduzam em: a) Operações de loteamento; b) Obras de urbanização, construção e ampliação; c) Vias de comunicação; d) Escavações e aterros; e) Destruição do revestimento vegetal, não incluindo as ações necessárias ao normal e regular desenvolvimento das operações culturais de aproveitamento agrícola do solo, das operações correntes de condução e exploração dos espaços florestais e de ações extraordinárias de proteção fitossanitária previstas em legislação específica.'),
+        ('REN_areal', 'exclusao', 'Artigo 16.º (Alterações da delimitação da REN)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2008-34501775-47945775', 'full_paragraph',
+         'As alterações da delimitação da REN devem salvaguardar a preservação dos valores e funções naturais fundamentais, bem como a prevenção e mitigação de riscos para pessoas e bens. As propostas de alteração da delimitação da REN devem fundamentar-se na evolução das condições económicas, sociais, culturais e ambientais, nomeadamente as decorrentes de projetos públicos ou privados a executar na área cuja exclusão se pretende. Em casos excecionais e devidamente fundamentados, as alterações da delimitação da REN podem ser elaboradas e aprovadas pela comissão de coordenação e desenvolvimento regional, ouvida a câmara municipal e as entidades administrativas representativas dos interesses a ponderar em função das áreas da REN em presença.'),
+        ('REN_linear', 'linha_de_agua', 'Artigo 20.º, n.º 1 (Regime)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2008-34501775-47945775', 'full_paragraph',
+         'Nas áreas incluídas na REN são interditos os usos e as ações de iniciativa pública ou privada que se traduzam em: a) Operações de loteamento; b) Obras de urbanização, construção e ampliação; c) Vias de comunicação; d) Escavações e aterros; e) Destruição do revestimento vegetal, não incluindo as ações necessárias ao normal e regular desenvolvimento das operações culturais de aproveitamento agrícola do solo, das operações correntes de condução e exploração dos espaços florestais e de ações extraordinárias de proteção fitossanitária previstas em legislação específica.'),
+        ('IC', 'monumento', 'Artigo 45.º, n.º 3 (Lei 107/2001 — Projectos, obras e intervenções)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2001-72871514-72871615', 'full_paragraph',
+         'As obras ou intervenções em bens imóveis classificados nos termos do artigo 15.º da presente lei, ou em vias de classificação como tal, serão objecto de autorização e acompanhamento do órgão competente para a decisão final do procedimento de classificação, nos termos definidos na lei.'),
+        ('IC', 'zona_protecao', 'Artigo 43.º, n.º 1 (Lei 107/2001) + Artigo 51.º, n.º 1 (DL 309/2009)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2009-75525223-75532977', 'full_paragraph',
+         'Lei 107/2001, Art. 43.º n.º 1 — Os bens imóveis classificados nos termos do artigo 15.º da presente lei, ou em vias de classificação como tal, beneficiarão automaticamente de uma zona geral de protecção de 50 m, contados a partir dos seus limites externos, cujo regime é fixado por lei. DL 309/2009, Art. 51.º n.º 1 — Nas zonas de proteção de bens imóveis em vias de classificação ou de bens imóveis classificados de interesse nacional ou de interesse público, as operações urbanísticas relativas a obras de construção, reconstrução, alteração, ampliação, conservação ou demolição sujeitas ao procedimento de licença nos termos do regime jurídico da urbanização e da edificação, aprovado pelo Decreto-Lei n.º 555/99, de 16 de dezembro, na sua redação atual, estão sujeitas a parecer prévio vinculativo do Património Cultural, I. P., ou da comissão de coordenação e desenvolvimento regional territorialmente competente.'),
+        ('DPH', 'non_aedificandi', 'Artigo 25.º, n.os 1 e 2 (Restrições nas zonas adjacentes)', 'https://diariodarepublica.pt/dr/detalhe/lei/54-2005-583983', 'full_paragraph',
+         '1 — Nas zonas adjacentes pode o diploma que procede à classificação definir áreas de ocupação edificada proibida e ou áreas de ocupação edificada condicionada, devendo neste último caso definir as regras a observar pela ocupação edificada. 2 — Nas áreas delimitadas como zona de ocupação edificada proibida é interdito: a) Destruir o revestimento vegetal ou alterar o relevo natural, com exceção da prática de culturas tradicionalmente integradas em explorações agrícolas; b) Instalar vazadouros, lixeiras, parques de sucata ou quaisquer outros depósitos de materiais; c) Realizar construções, construir edifícios ou executar obras suscetíveis de constituir obstrução à livre passagem das águas; d) Dividir a propriedade em áreas inferiores à unidade mínima de cultura.'),
+        ('DPH', 'ocupacao_condicionada', 'Artigo 25.º, n.os 1 e 5 (Restrições nas zonas adjacentes)', 'https://diariodarepublica.pt/dr/detalhe/lei/54-2005-583983', 'full_paragraph',
+         '1 — Nas zonas adjacentes pode o diploma que procede à classificação definir áreas de ocupação edificada proibida e ou áreas de ocupação edificada condicionada, devendo neste último caso definir as regras a observar pela ocupação edificada. 5 — Nas áreas delimitadas como zonas de ocupação edificada condicionada só é permitida a construção de edifícios mediante autorização de utilização dos recursos hídricos afetados e desde que: a) Tais edifícios constituam complemento indispensável de outros já existentes e devidamente licenciados ou que se encontrem inseridos em planos já aprovados; e, além disso, b) Os efeitos das cheias sejam minimizados através de normas específicas, sistemas de proteção e drenagem e medidas para a manutenção e recuperação de condições de permeabilidade dos solos.'),
+        ('ZPE', 'rede_natura', 'Artigo 9.º, n.º 1 (Actos e actividades condicionados)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/1999-34527675', 'anchor_only',
+         'Carecem de parecer favorável do Instituto da Conservação da Natureza e das Florestas (ICNF) a realização de planos, projetos, trabalhos ou ações nas zonas de proteção especial (ZPE) e nos sítios de importância comunitária (SIC/ZEC) da Rede Natura 2000 susceptíveis de afectar significativamente esses sítios. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — consultar URL acima para verbatim integral; quote actual é uma síntese da abertura operativa do artigo conforme research agent.]'),
+        ('ZEC', 'rede_natura', 'Artigo 9.º, n.º 1 (Actos e actividades condicionados)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/1999-34527675', 'anchor_only',
+         'Carecem de parecer favorável do Instituto da Conservação da Natureza e das Florestas (ICNF) a realização de planos, projetos, trabalhos ou ações nas zonas de proteção especial (ZPE) e nos sítios de importância comunitária (SIC/ZEC) da Rede Natura 2000 susceptíveis de afectar significativamente esses sítios. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — consultar URL acima para verbatim integral; quote actual é uma síntese da abertura operativa do artigo conforme research agent.]'),
+        ('AreasProtegidas', 'area_protegida', 'Artigo 23.º, n.os 3 e 4 (Programas especiais das áreas protegidas)', 'https://diariodarepublica.pt/dr/detalhe/decreto-lei/142-2008-454502', 'full_paragraph',
+         '3 — Os programas especiais das áreas protegidas estabelecem, em função da salvaguarda dos recursos e valores naturais, as ações permitidas, as ações condicionadas ao cumprimento de determinados parâmetros e condições neles estabelecidas e as ações proibidas. 4 — As normas dos programas especiais de áreas protegidas que, em função da sua incidência territorial urbanística, condicionem a ocupação, o uso e a transformação do solo são obrigatoriamente integradas nos planos territoriais de âmbito intermunicipal e municipais abrangidos.'),
+        ('RedeViaria', 'servidao_rodoviaria_ip', 'Artigo 32.º, n.os 1 e 2 (Zona de servidão non aedificandi)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2015-105652086-105654645', 'full_paragraph',
+         '1 — É constituída em benefício das infraestruturas rodoviárias, do tráfego rodoviário, da segurança das pessoas, designadamente dos utilizadores da estrada, e da salvaguarda dos interesses ambientais, uma zona de servidão non aedificandi sobre os prédios confinantes e vizinhos daquelas, ficando sujeitas a autorização da administração rodoviária, nos termos previstos no presente Estatuto, as operações urbanísticas de edificação, construção, transformação, ocupação e uso do solo e dos bens compreendidos na zona de servidão. 2 — Até à aprovação da respetiva planta parcelar, a zona de servidão non aedificandi é definida por uma faixa de 200 m para cada lado do eixo da estrada, e por um círculo de 650 m de raio centrado em cada nó de ligação.'),
+        ('RedeViaria', 'servidao_rodoviaria_ic', 'Artigo 32.º, n.os 1 e 2 (Zona de servidão non aedificandi)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2015-105652086-105654645', 'full_paragraph',
+         '1 — É constituída em benefício das infraestruturas rodoviárias, do tráfego rodoviário, da segurança das pessoas, designadamente dos utilizadores da estrada, e da salvaguarda dos interesses ambientais, uma zona de servidão non aedificandi sobre os prédios confinantes e vizinhos daquelas, ficando sujeitas a autorização da administração rodoviária, nos termos previstos no presente Estatuto, as operações urbanísticas de edificação, construção, transformação, ocupação e uso do solo e dos bens compreendidos na zona de servidão. 2 — Até à aprovação da respetiva planta parcelar, a zona de servidão non aedificandi é definida por uma faixa de 200 m para cada lado do eixo da estrada, e por um círculo de 650 m de raio centrado em cada nó de ligação.'),
+        ('RedeViaria', 'servidao_rodoviaria_local', 'Artigo 32.º, n.os 1 e 2 (Zona de servidão non aedificandi)', 'https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2015-105652086-105654645', 'full_paragraph',
+         '1 — É constituída em benefício das infraestruturas rodoviárias, do tráfego rodoviário, da segurança das pessoas, designadamente dos utilizadores da estrada, e da salvaguarda dos interesses ambientais, uma zona de servidão non aedificandi sobre os prédios confinantes e vizinhos daquelas, ficando sujeitas a autorização da administração rodoviária, nos termos previstos no presente Estatuto, as operações urbanísticas de edificação, construção, transformação, ocupação e uso do solo e dos bens compreendidos na zona de servidão. 2 — Até à aprovação da respetiva planta parcelar, a zona de servidão non aedificandi é definida por uma faixa de 200 m para cada lado do eixo da estrada, e por um círculo de 650 m de raio centrado em cada nó de ligação.'),
+        ('RedeEletrica', 'servidao_eletrica_at', 'Artigo 6.º (DL 43335) + Artigo 28.º (RSLEAT — DR 1/92)', 'https://www.oern.pt/documentos/legislacao/d_dl_dr/DR1_92.pdf', 'anchor_only',
+         'DL 43335/1960, Art. 6.º — Constitui servidão administrativa, em benefício das instalações eléctricas de serviço público, o gravame imposto aos prédios sobre os quais se estabeleçam linhas ou cabos de transporte ou distribuição de energia. RSLEAT (DR 1/92), Art. 28.º — Estabelece as faixas de servidão sob linhas eléctricas de alta tensão para travessia sobre obstáculos diversos, com larguras de 3 m (≤60 kV), 5 m (60-150 kV) e 7,5 m (≥220 kV) medidas a cada lado dos condutores extremos. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — PDF do OERN não acessível; consultar URL acima ou versão consolidada DR.]'),
+        ('RedeEletrica', 'servidao_eletrica_mat', 'Artigo 6.º (DL 43335) + Artigo 28.º (RSLEAT — DR 1/92)', 'https://www.oern.pt/documentos/legislacao/d_dl_dr/DR1_92.pdf', 'anchor_only',
+         'DL 43335/1960, Art. 6.º — Constitui servidão administrativa, em benefício das instalações eléctricas de serviço público, o gravame imposto aos prédios sobre os quais se estabeleçam linhas ou cabos de transporte ou distribuição de energia. RSLEAT (DR 1/92), Art. 28.º — Estabelece as faixas de servidão sob linhas eléctricas de alta tensão para travessia sobre obstáculos diversos, com larguras de 3 m (≤60 kV), 5 m (60-150 kV) e 7,5 m (≥220 kV) medidas a cada lado dos condutores extremos. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — PDF do OERN não acessível; consultar URL acima ou versão consolidada DR.]'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_ativa', 'Artigo 15.º (Servidões de linha férrea)', 'https://files.dre.pt/1s/2003/11/255a00/73407348.pdf', 'anchor_only',
+         'As servidões de linha férrea destinadas à implantação da via ou respetivas obras de suporte têm a natureza de direitos reais públicos sobre bens alheios. Os proprietários dos prédios confinantes e vizinhos ficam sujeitos às servidões e restrições estabelecidas no presente Estatuto. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — PDF do DR não decodificável sem pdftoppm; consultar URL acima.]'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_inativa', 'Artigo 15.º (Servidões de linha férrea — regime advisory para linha desactivada)', 'https://files.dre.pt/1s/2003/11/255a00/73407348.pdf', 'anchor_only',
+         'DL 276/2003 não tem artigo dedicado a linhas desactivadas. A severidade advisory deriva da ausência de tráfego operacional que elimina a justificação de segurança; o regime patrimonial é regulado pelo regime do IP Património (anteriormente REFER Património) por DL 24/2022 de 4 de Março. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — verificar URL para artigo 15.º base.]'),
+        ('RedeFerroviaria', 'servidao_ferroviaria_estacao', 'Artigo 15.º (Servidões de linha férrea)', 'https://files.dre.pt/1s/2003/11/255a00/73407348.pdf', 'anchor_only',
+         'As servidões de linha férrea destinadas à implantação da via ou respetivas obras de suporte têm a natureza de direitos reais públicos sobre bens alheios. Os proprietários dos prédios confinantes e vizinhos ficam sujeitos às servidões e restrições estabelecidas no presente Estatuto. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — PDF do DR não decodificável sem pdftoppm; consultar URL acima.]'),
+        ('Albufeiras', 'protegida', 'Artigo 21.º (Atividades interditas na zona reservada)', 'https://dre.pt/legislacao-consolidada/-/lc/108162778', 'full_paragraph',
+         'Na zona reservada da zona terrestre de protecção das albufeiras de águas públicas, para além das interdições constantes dos números 2 e 3 do artigo 19.º, são ainda interditas, com excepção das obras que venham a ser autorizadas nos termos do artigo 22.º: a) As operações de loteamento e obras de urbanização; b) As obras de construção; c) As obras de ampliação; d) A instalação ou ampliação de estabelecimentos de aquicultura; e) A realização de aterros ou escavações; f) A instalação de vedações com excepção daquelas que constituam a única alternativa viável à protecção e segurança de pessoas e bens; g) A pernoita e o parqueamento de gado e a construção de sistemas de abeberamento; h) A abertura de novas vias de comunicação ou de acesso ou a ampliação das vias existentes sobre as margens; i) As actividades de prospecção, pesquisa e exploração de massas minerais; j) A instalação ou ampliação de campos de golfe; l) A aplicação de fertilizantes orgânicos no solo, nomeadamente efluentes pecuários e lamas; m) O abandono de embarcações nas margens.'),
+        ('Albufeiras', 'condicionada', 'Artigo 20.º, n.º 1 (Atividades condicionadas na zona terrestre)', 'https://dre.pt/legislacao-consolidada/-/lc/108162778', 'full_paragraph',
+         'Na zona terrestre de proteção das albufeiras de águas públicas, e sem prejuízo do disposto no artigo 25.º, estão sujeitas a parecer prévio vinculativo da ARH territorialmente competente: a) A instalação, alteração ou ampliação de qualquer tipo de empreendimentos turísticos, nos termos do regime jurídico da instalação, exploração e funcionamento dos empreendimentos turísticos; b) A instalação ou ampliação de campos de golfe, quando não sujeitos a avaliação de impacte ambiental; c) A instalação ou alteração de estabelecimentos industriais; d) A instalação, alteração ou ampliação de explorações ou instalações pecuárias; e) A instalação, alteração ou reconversão de parques industriais ou de áreas de localização empresarial; f) A realização de quaisquer operações urbanísticas, operações de loteamento e obras de demolição; g) A realização de atividades de prospecção, pesquisa e exploração de massas minerais; h) A realização de acampamentos ocasionais, sempre que esta atividade se realize ao abrigo de programas organizados para esse efeito.'),
+        ('Albufeiras', 'livre', 'Artigo 19.º (Regime das atividades na zona terrestre de proteção)', 'https://dre.pt/legislacao-consolidada/-/lc/108162778', 'full_paragraph',
+         '1 — Na zona terrestre de proteção das albufeiras de águas públicas podem ser desenvolvidas, nos termos e condições previstos no presente decreto-lei, as atividades que não comprometam os objetivos de proteção nele fixados. 3 — Para além das atividades referidas no número anterior, na zona terrestre de proteção das albufeiras de águas públicas são ainda interditas, sem prejuízo do disposto nos artigos 21.º e 24.º, as seguintes atividades: a) A deposição, o abandono ou o depósito de entulhos, sucatas ou quaisquer outros resíduos fora dos locais para tal destinados; b) A rejeição de efluentes de qualquer natureza, mesmo quando tratados, nas linhas de água afluentes ao plano de água; c) A prática de campismo ou caravanismo fora dos locais previstos para esse fim; e) A prática de atividades passíveis de conduzir ao aumento da erosão, ao transporte de material sólido para o meio hídrico ou que induzam alterações ao relevo existente; g) O encerramento ou bloqueio dos acessos públicos ao plano de água; h) A instalação de estabelecimentos industriais que sejam considerados de tipo 1; i) A instalação ou ampliação de aterros destinados a resíduos perigosos, não perigosos ou inertes.'),
+        ('DefesaMilitar', 'nucleo', 'Base I e Base II (Lei 2078/1955) + Artigo 1.º (DL 45986/1964)', 'https://dre.tretas.org/dre/33051/lei-2078-de-11-de-julho', 'anchor_only',
+         'Lei 2078/1955, Base I — Aos prédios situados nas zonas confinantes ou na vizinhança de organizações ou instalações militares, ou de interesse para a defesa nacional, de carácter permanente ou temporário, podem ser impostas servidões militares destinadas a garantir a segurança e a eficácia destes estabelecimentos. Base IV — As servidões militares são constituídas, modificadas ou extintas, caso a caso, por decreto aprovado pelo Ministro da Defesa Nacional, ouvida a câmara municipal. As interdições específicas (núcleo: construção totalmente proibida; zona de protecção: construção condicionada) constam do decreto particular publicado em DR para cada instalação militar. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — tretas.org atrás de Cloudflare; consultar URL acima ou Decreto da instalação específica.]'),
+        ('DefesaMilitar', 'zona_protecao', 'Base I e Base II (Lei 2078/1955) + Artigo 1.º (DL 45986/1964)', 'https://dre.tretas.org/dre/33051/lei-2078-de-11-de-julho', 'anchor_only',
+         'Lei 2078/1955, Base I — Aos prédios situados nas zonas confinantes ou na vizinhança de organizações ou instalações militares, ou de interesse para a defesa nacional, de carácter permanente ou temporário, podem ser impostas servidões militares destinadas a garantir a segurança e a eficácia destes estabelecimentos. Base IV — As servidões militares são constituídas, modificadas ou extintas, caso a caso, por decreto aprovado pelo Ministro da Defesa Nacional, ouvida a câmara municipal. As interdições específicas (zona de protecção: construção condicionada com altura limitada) constam do decreto particular publicado em DR para cada instalação militar. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — tretas.org atrás de Cloudflare; consultar URL acima ou Decreto da instalação específica.]'),
+        ('Aeronautica', 'area_desobstrucao', 'Artigo 1.º (DL 45987/1964) — Servidões aeronáuticas civis', 'https://dre.tretas.org/dre/58936/decreto-lei-45987-de-22-de-outubro', 'anchor_only',
+         'DL 45987/1964 estabelece o regime geral das servidões aeronáuticas civis a que ficam sujeitas as zonas confinantes com aeródromos civis e instalações de apoio à aviação civil. Na área de desobstrução (cone de aproximação e descolagem), é interdita a construção de qualquer edificação que ultrapasse os planos limitadores de obstáculos definidos para cada aeródromo. Cada aeródromo (Lisboa, Porto, Faro, Cascais, S. Jacinto/Aveiro) tem o seu Decreto Regulamentar específico publicado em DR. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — tretas.org atrás de Cloudflare; consultar URL acima ou Decreto do aeródromo específico.]'),
+        ('Aeronautica', 'servidao', 'Artigo 1.º (DL 45987/1964) — Servidões aeronáuticas civis', 'https://dre.tretas.org/dre/58936/decreto-lei-45987-de-22-de-outubro', 'anchor_only',
+         'DL 45987/1964 estabelece o regime geral das servidões aeronáuticas civis a que ficam sujeitas as zonas confinantes com aeródromos civis e instalações de apoio à aviação civil. Na zona de servidão, a construção fica sujeita a parecer favorável da ANAC e a limitações de altura definidas pelos planos limitadores de obstáculos do aeródromo aplicável. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — tretas.org atrás de Cloudflare; consultar URL acima ou Decreto do aeródromo específico.]'),
+        ('Aeronautica', 'zona_protecao', 'Artigo 1.º (DL 45987/1964) — Servidões aeronáuticas civis', 'https://dre.tretas.org/dre/58936/decreto-lei-45987-de-22-de-outubro', 'anchor_only',
+         'DL 45987/1964 estabelece o regime geral das servidões aeronáuticas civis a que ficam sujeitas as zonas confinantes com aeródromos civis e instalações de apoio à aviação civil. Na zona de protecção (perímetro alargado em torno do aeródromo), a construção fica condicionada a limitações de altura e a parecer favorável da ANAC. [TEXTO COMPLETO INDISPONÍVEL VIA WEBFETCH — tretas.org atrás de Cloudflare; consultar URL acima ou Decreto do aeródromo específico.]'),
+        ('ARPSI_Floodplain', 'T20', 'Artigo 5.º, n.º 1 (DL 364/98 — regime transitório de ocupação em zonas inundáveis)', 'https://faolex.fao.org/docs/pdf/por24426.pdf', 'full_paragraph',
+         'Até à entrada em vigor das restrições e interdições a que se refere o artigo 2.º e quando esteja em causa a ocupação de solos que se localizem dentro do limite da maior cheia conhecida ou, quando se desconheça esse limite, de uma faixa de 100 m para cada lado da linha de margem do curso de água, os requerentes de pedido de informação prévia ou de licença de obras particulares, de obras de urbanização ou de operação de loteamento devem fazer prova, através de estudo adequado, de que o empreendimento, tal como se encontra projectado, não é susceptível de pôr em perigo a segurança de pessoas e bens. São nulos os actos administrativos que violem o disposto no número anterior. (Complementarmente, Art. 2.º n.º 5 estipula que as cotas dos pisos de habitação são superiores à cota local da máxima cheia conhecida.) DL 115/2010 transpõe a Directiva 2007/60/CE e mandata a produção da cartografia ARPSI integrada no PGRI; o regime substantivo de edificação em zona inundável é o do DL 364/98.'),
+        ('ARPSI_Floodplain', 'T100', 'Artigo 5.º, n.º 1 (DL 364/98 — regime transitório de ocupação em zonas inundáveis)', 'https://faolex.fao.org/docs/pdf/por24426.pdf', 'full_paragraph',
+         'Até à entrada em vigor das restrições e interdições a que se refere o artigo 2.º e quando esteja em causa a ocupação de solos que se localizem dentro do limite da maior cheia conhecida ou, quando se desconheça esse limite, de uma faixa de 100 m para cada lado da linha de margem do curso de água, os requerentes de pedido de informação prévia ou de licença de obras particulares, de obras de urbanização ou de operação de loteamento devem fazer prova, através de estudo adequado, de que o empreendimento, tal como se encontra projectado, não é susceptível de pôr em perigo a segurança de pessoas e bens. São nulos os actos administrativos que violem o disposto no número anterior. (Complementarmente, Art. 2.º n.º 5 estipula que as cotas dos pisos de habitação são superiores à cota local da máxima cheia conhecida.) DL 115/2010 transpõe a Directiva 2007/60/CE e mandata a produção da cartografia ARPSI integrada no PGRI; o regime substantivo de edificação em zona inundável é o do DL 364/98.'),
+        ('ARPSI_Floodplain', 'T1000', 'Artigo 5.º, n.º 1 (DL 364/98 — regime transitório de ocupação em zonas inundáveis)', 'https://faolex.fao.org/docs/pdf/por24426.pdf', 'full_paragraph',
+         'Até à entrada em vigor das restrições e interdições a que se refere o artigo 2.º e quando esteja em causa a ocupação de solos que se localizem dentro do limite da maior cheia conhecida ou, quando se desconheça esse limite, de uma faixa de 100 m para cada lado da linha de margem do curso de água, os requerentes de pedido de informação prévia ou de licença de obras particulares, de obras de urbanização ou de operação de loteamento devem fazer prova, através de estudo adequado, de que o empreendimento, tal como se encontra projectado, não é susceptível de pôr em perigo a segurança de pessoas e bens. São nulos os actos administrativos que violem o disposto no número anterior. (Complementarmente, Art. 2.º n.º 5 estipula que as cotas dos pisos de habitação são superiores à cota local da máxima cheia conhecida.) DL 115/2010 transpõe a Directiva 2007/60/CE e mandata a produção da cartografia ARPSI integrada no PGRI; o regime substantivo de edificação em zona inundável é o do DL 364/98.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_alta', 'Artigo 16.º, n.º 2 (DL 124/2006 — SNDFCI) + Aveiro PDM Art. 51, n.º 1, alínea a)', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'full_paragraph',
+         'DL 124/2006, Art. 16.º n.º 1 — A classificação e qualificação do solo definidas no âmbito dos instrumentos de gestão territorial vinculativos dos particulares devem considerar a cartografia de perigosidade de incêndio rural definida em PMDFCI a integrar, obrigatoriamente, na planta de condicionantes dos planos municipais e intermunicipais de ordenamento do território. n.º 2 — Fora das áreas edificadas consolidadas, não é permitida a construção de novos edifícios nas áreas classificadas na cartografia de perigosidade de incêndio rural definida no PMDFCI como de alta e muito alta perigosidade, sem prejuízo do disposto no número seguinte. Aveiro PDM, Art. 51.º n.º 1 al. a) — Fora das áreas edificadas consolidadas, não é permitida a construção de novos edifícios em áreas classificadas, na Planta de Condicionantes — Perigosidade de incêndio rural, com perigosidade alta ou muito alta.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_alta', 'Artigo 16.º, n.º 2 (DL 124/2006 — SNDFCI) + Aveiro PDM Art. 51, n.º 1, alínea a)', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'full_paragraph',
+         'DL 124/2006, Art. 16.º n.º 1 — A classificação e qualificação do solo definidas no âmbito dos instrumentos de gestão territorial vinculativos dos particulares devem considerar a cartografia de perigosidade de incêndio rural definida em PMDFCI a integrar, obrigatoriamente, na planta de condicionantes dos planos municipais e intermunicipais de ordenamento do território. n.º 2 — Fora das áreas edificadas consolidadas, não é permitida a construção de novos edifícios nas áreas classificadas na cartografia de perigosidade de incêndio rural definida no PMDFCI como de alta e muito alta perigosidade, sem prejuízo do disposto no número seguinte. Aveiro PDM, Art. 51.º n.º 1 al. a) — Fora das áreas edificadas consolidadas, não é permitida a construção de novos edifícios em áreas classificadas, na Planta de Condicionantes — Perigosidade de incêndio rural, com perigosidade alta ou muito alta.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_media', 'Artigo 16.º, n.º 4 (DL 124/2006 — SNDFCI) + Aveiro PDM Art. 51, n.º 1, alínea b)', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'full_paragraph',
+         'DL 124/2006, Art. 16.º n.º 4 — A construção de novos edifícios ou a ampliação de edifícios existentes apenas são permitidas fora das áreas edificadas consolidadas, nas áreas classificadas na cartografia de perigosidade de incêndio rural definida em PMDFCI como de média, baixa e muito baixa perigosidade, desde que se cumpram, cumulativamente, os seguintes condicionalismos: a) Garantir, na sua implantação no terreno, a distância à estrema da propriedade de uma faixa de proteção nunca inferior a 50 m, quando confinantes com terrenos ocupados com floresta, matos ou pastagens naturais; b) Adotar medidas relativas à contenção de possíveis fontes de ignição de incêndios no edifício e nos respetivos acessos; c) Existência de parecer favorável da CMDF. Aveiro PDM, Art. 51.º n.º 1 al. b) — Fora das áreas edificadas consolidadas, apenas são permitidas a construção de novos edifícios e a ampliação de edifícios existentes, nas áreas classificadas na Planta de Condicionantes — Perigosidade de incêndio rural, com perigosidade média, baixa e muito baixa, desde que cumpram, cumulativamente, as faixas de proteção 50 m / 10 m, medidas de contenção de ignição e parecer favorável CMDF.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_baixa', 'Artigo 16.º, n.º 4 (DL 124/2006 — SNDFCI) + Aveiro PDM Art. 51, n.º 1, alínea b)', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'full_paragraph',
+         'DL 124/2006, Art. 16.º n.º 4 — A construção de novos edifícios ou a ampliação de edifícios existentes apenas são permitidas fora das áreas edificadas consolidadas, nas áreas classificadas na cartografia de perigosidade de incêndio rural definida em PMDFCI como de média, baixa e muito baixa perigosidade, desde que se cumpram, cumulativamente, os seguintes condicionalismos: a) Garantir, na sua implantação no terreno, a distância à estrema da propriedade de uma faixa de proteção nunca inferior a 50 m, quando confinantes com terrenos ocupados com floresta, matos ou pastagens naturais; b) Adotar medidas relativas à contenção de possíveis fontes de ignição de incêndios no edifício e nos respetivos acessos; c) Existência de parecer favorável da CMDF. Aveiro PDM, Art. 51.º n.º 1 al. b) — Fora das áreas edificadas consolidadas, apenas são permitidas a construção de novos edifícios e a ampliação de edifícios existentes, nas áreas classificadas na Planta de Condicionantes — Perigosidade de incêndio rural, com perigosidade média, baixa e muito baixa, desde que cumpram, cumulativamente, as faixas de proteção 50 m / 10 m, medidas de contenção de ignição e parecer favorável CMDF.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_baixa', 'Artigo 16.º, n.º 4 (DL 124/2006 — SNDFCI) + Aveiro PDM Art. 51, n.º 1, alínea b)', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'full_paragraph',
+         'DL 124/2006, Art. 16.º n.º 4 — A construção de novos edifícios ou a ampliação de edifícios existentes apenas são permitidas fora das áreas edificadas consolidadas, nas áreas classificadas na cartografia de perigosidade de incêndio rural definida em PMDFCI como de média, baixa e muito baixa perigosidade, desde que se cumpram, cumulativamente, os seguintes condicionalismos: a) Garantir, na sua implantação no terreno, a distância à estrema da propriedade de uma faixa de proteção nunca inferior a 50 m, quando confinantes com terrenos ocupados com floresta, matos ou pastagens naturais; b) Adotar medidas relativas à contenção de possíveis fontes de ignição de incêndios no edifício e nos respetivos acessos; c) Existência de parecer favorável da CMDF. Aveiro PDM, Art. 51.º n.º 1 al. b) — Fora das áreas edificadas consolidadas, apenas são permitidas a construção de novos edifícios e a ampliação de edifícios existentes, nas áreas classificadas na Planta de Condicionantes — Perigosidade de incêndio rural, com perigosidade média, baixa e muito baixa, desde que cumpram, cumulativamente, as faixas de proteção 50 m / 10 m, medidas de contenção de ignição e parecer favorável CMDF.'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_nao_classificada', 'n/a — fallback de qualidade de dados', 'https://pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1931&tabela=leis', 'derived_advisory',
+         'Severidade advisory (nível 1) atribuída quando o campo tipologia está ausente na bronze (raw_srup_perigosidade_inc_rural). Não corresponde a regime jurídico — é um fallback de qualidade de dados que sinaliza ao fn_assess_polygon que o polígono interseta uma feature de Perigosidade mas a classe de risco não é determinável. Antes de qualquer decisão de construção, verificar a cartografia PMDFCI municipal mais atualizada para confirmar a classe real (muito alta/alta/média/baixa/muito baixa).')
+    ) AS q(
+        constraint_code,
+        zone_type,
+        legal_quote_article,
+        legal_quote_url,
+        legal_quote_status,
+        legal_quote_pt
+    )
+
 )
 
 SELECT
-    ROW_NUMBER() OVER (ORDER BY constraint_code, zone_type)::INTEGER
+    ROW_NUMBER() OVER (ORDER BY base.constraint_code, base.zone_type)::INTEGER
                                             AS constraint_severity_key,
-    constraint_code,
-    zone_type,
-    severity,
-    category,
-    buffer_m,
-    buffer_ref,
-    legal_basis,
-    requires_prior_opinion,
-    authority,
-    (severity >= 3)                         AS is_hard_gate,
-    (severity = 2)                          AS is_conditioned,
-    (severity = 1)                          AS is_advisory,
-    CASE severity
+    base.constraint_code,
+    base.zone_type,
+    base.severity,
+    base.category,
+    base.buffer_m,
+    base.buffer_ref,
+    base.legal_basis,
+    base.requires_prior_opinion,
+    base.authority,
+    (base.severity >= 3)                    AS is_hard_gate,
+    (base.severity = 2)                     AS is_conditioned,
+    (base.severity = 1)                     AS is_advisory,
+    CASE base.severity
         WHEN 3 THEN 'Hard gate'
         WHEN 2 THEN 'Conditioned'
         WHEN 1 THEN 'Advisory'
         ELSE 'No constraint'
     END                                     AS severity_label,
-    CASE severity
+    CASE base.severity
         WHEN 3 THEN '#d32f2f'
         WHEN 2 THEN '#f57c00'
         WHEN 1 THEN '#fbc02d'
         ELSE '#9e9e9e'
-    END                                     AS display_color
+    END                                     AS display_color,
+    -- legal quote columns (added 2026-06-04)
+    quotes.legal_quote_article,
+    quotes.legal_quote_url,
+    quotes.legal_quote_status,
+    quotes.legal_quote_pt
 FROM base
+LEFT JOIN quotes USING (constraint_code, zone_type)

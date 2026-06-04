@@ -15,7 +15,7 @@ Three dims/silvers cooperate to answer "what can I build on this drawn polygon?"
 
 | Object | Layer | Grain | What it carries |
 |---|---|---|---|
-| `gold_analytics.dim_constraint_severity` | gold dim | one row per (SRUP `constraint_code`, `zone_type`) | severity 0-3 + authority + legal_basis + buffer_m + display_color — from **national law** (DL/Lei references) |
+| `gold_analytics.dim_constraint_severity` | gold dim | one row per (SRUP `constraint_code`, `zone_type`) | severity 0-3 + authority + legal_basis + buffer_m + display_color + **legal_quote_pt** (verbatim PT operative paragraph) + **legal_quote_article + legal_quote_url + legal_quote_status** — from **national law** (DL/Lei references) |
 | `gold_analytics.dim_pdm_constraint` | gold dim | one row per atomic Regulamento clause | verbatim source_text + constraint_type + **zone_pattern TEXT[]** (array of values the row matches: subcategoria, umbrella slug, AND/OR SRUP layer codes) + applies_to_zone_types + applies_when_land_classification — from the **local PDM** |
 | `silver_regulatory.srup_constraints` | silver | one row per spatial SRUP feature (UNION ALL of 15 stg_srup_*) | spatial geom + denormalized severity attrs + **municipality_codes TEXT[]** (multi-município support) + pdm_constraint_keys[] (from dim_pdm_constraint, aggregated per feature) |
 | `silver_geo.zoning` | silver | one row per CRUS polygon | the local plan zoning (Solo Urbano/Rústico × subcategoria) + applicable_pdm_constraint_keys[] (matched by subcategoria + umbrella slugs only) |
@@ -131,9 +131,35 @@ LEFT JOIN LATERAL (
 ### Coverage status (2026-06-04, Aveiro v1)
 
 - `dim_pdm_constraint`: 314 rows for município 0105 (Aveiro), 100% subcategoria coverage of 1148 zoning polygons
-- `dim_constraint_severity`: 36 rows national + Aveiro-specific Perigosidade additions
+- `dim_constraint_severity`: 36 rows national + Aveiro-specific Perigosidade additions; **100% legal_quote_pt populated** (23 full_paragraph + 12 anchor_only + 1 derived_advisory) as of 2026-06-04
 - `silver_regulatory.srup_constraints`: ~1.8M features nationally (Aveiro ~3k)
 - `silver_geo.zoning`: 236,920 polygons nationally (Aveiro 1148 covered 100%)
+
+### Legal quote columns on `dim_constraint_severity` (added 2026-06-04)
+
+Every severity row carries the **verbatim PT operative paragraph** from the underlying statute. Four columns:
+
+| Column | What it carries |
+|---|---|
+| `legal_quote_article` | Citation label, e.g. `Artigo 21.º (Acções interditas)` or combined cite `Artigo 43.º, n.º 1 (Lei 107/2001) + Artigo 51.º, n.º 1 (DL 309/2009)` |
+| `legal_quote_url` | Official source URL (preferred: `diariodarepublica.pt` consolidada; fallbacks: `pgdlisboa.pt`, `faolex.fao.org`, `dre.tretas.org`) |
+| `legal_quote_status` | `full_paragraph` (verbatim PT from primary source) \| `anchor_only` (opening clause synthesized from research — PDF unparseable or Cloudflare-gated source) \| `derived_advisory` (data-quality fallback, not a statutory regime) |
+| `legal_quote_pt` | Verbatim PT operative paragraph(s) (avg 874 chars for full; 540 chars for anchor) |
+
+Coverage by status:
+
+| Status | Rows | Source quality | Statutes covered |
+|---|---|---|---|
+| `full_paragraph` | 23 | dre.pt / PGDL Lisboa / Faolex (primary) | RAN, REN (Art. 20+16), IC (Lei 107/2001 + DL 309/2009), DPH (Lei 54/2005), AreasProtegidas (DL 142/2008), RedeViaria (Lei 34/2015), Albufeiras (DL 107/2009), ARPSI (DL 364/98), Perigosidade (DL 124/2006 + Aveiro PDM) |
+| `anchor_only` | 12 | research synthesis (PDF unparseable without pdftoppm OR Cloudflare-gated tretas.org) | ZPE/ZEC (DL 140/99), RedeEletrica (RSLEAT), RedeFerroviaria (DL 276/2003), DefesaMilitar (Lei 2078/1955), Aeronautica (DL 45987/1964) |
+| `derived_advisory` | 1 | n/a — data-quality fallback | Perigosidade_nao_classificada (tipologia missing in bronze) |
+
+Two `legal_basis` text fixes shipped alongside the new columns (matching the new article citations per dre.pt audit 2026-06-04):
+
+- **RedeEletrica**: `DL 43335 + RSLEAT (DR 1/92) art. 30` → `DL 43335 art. 6 + RSLEAT (DR 1/92) art. 28`. Art. 30 is conductor clearances, not faixa de servidão; Art. 28 is the actual servidão regime.
+- **ARPSI_Floodplain**: `Diretiva 2007/60/CE; DL 115/2010 (PGRI)` → `Dir. 2007/60/CE + DL 115/2010 + DL 364/98 art. 5`. DL 115/2010 is the EU-Floods-Directive transposition (mandates ARPSI maps); the substantive building-restriction regime (100m faixa each side of watercourse margin where flood limit is unknown) is in DL 364/98 Art. 5 n.º 1.
+
+The `anchor_only` rows are the v1 cost of WebFetch tooling limits on `pdftoppm`-required PDFs and Cloudflare-gated mirrors. A follow-up (next sprint) can fix any of these by pasting the verbatim text from local copies — flip `legal_quote_status` to `full_paragraph` and replace `legal_quote_pt`.
 
 ## Audit findings (2026-06-04 — strict-regex audit of source_text)
 
