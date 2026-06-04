@@ -6,7 +6,7 @@ tags: [sprint, plan, uc-3, wedge, completion, llm-extraction, dev-dedup, cross-p
 status: in_progress
 sprint_number: "9"
 weeks: "19-21"
-last_status_update: 2026-06-03
+last_status_update: 2026-06-04
 ---
 
 ## For future Claude
@@ -396,6 +396,8 @@ All 22 critical tests integrated into CI/CD. Tests landing in Sprint 9 (the rema
 - Office-hours design doc: `~/.gstack/projects/dacostalindo-House4House/manuellindo-feature-phase-7c-scaffolding-skills-design-20260512-151500.md`
 - /plan-eng-review test plan: `~/.gstack/projects/dacostalindo-House4House/manuellindo-feature-phase-7c-scaffolding-skills-eng-review-test-plan-20260512-155850.md`
 - Variant B-prime UI mockup: `~/.gstack/projects/dacostalindo-House4House/designs/aveiro-parcel-assessment-inspect-20260506/approved.json`
+
+- 2026-06-04: **WS5 — PDM + SRUP constraint model SHIPPED.** Aveiro PDM Regulamento extracted into structured form (314 atomic constraints in `dim_pdm_constraint` from [[aveiro-pdm]]). New `silver_regulatory.srup_constraints` (1.8M rows) UNIONs all 15 stg_srup_* layers and joins both `dim_constraint_severity` (national severity) + `dim_pdm_constraint` (local PDM rules, aggregated as `pdm_constraint_keys[]` per SRUP feature). New `stg_srup_perigosidade_inc_rural` closes the gap on Art. 51 (wildfire risk hard-gate for 159 Aveiro Solo Rústico polygons). 14 PDM rows moved from umbrella slugs to SRUP-layer overlay slugs (RAN, ZPE, ZEC, Perigosidade_Incendio_Rural) with new `applies_to_zone_types TEXT[]` + `applies_when_land_classification TEXT` columns. **Final per-layer Aveiro PDM linkage: 11/14 layers at 100% (RedeFerroviaria/RedeViaria/REN_areal/REN_linear/ZPE/ZEC/DefesaMilitar/AreasProtegidas/RAN/IC/Perigosidade); 3 national-only correctly at 0% (RedeEletrica, Albufeiras, Aeronautica).** Late-session refactor: `zone_pattern` became `TEXT[]` (subsumes the cross_refs_srup sidecar column we briefly tried); multi-município features now resolve via `municipality_codes TEXT[]` (split on comma). New concept page [[pdm-srup-constraint-model]]. Slug renames: PATRIMONIO_CLASSIFICADO→IC, ZONAS_INUNDAVEIS→ARPSI_Floodplain, PORNDSJ→AreasProtegidas. Standalone Leaflet visualization at `/tmp/aveiro-srup-map.html` shows per-feature PDM source_text in popups. **Pending followups**: CI bootstrap stubs + pgTAP tests + Coimbra/Lisboa/Porto/Leiria rollout (1d/município).
 
 ## 🏁 Milestone
 
