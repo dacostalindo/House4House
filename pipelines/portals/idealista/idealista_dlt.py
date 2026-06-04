@@ -314,18 +314,24 @@ with DAG(
                 )
                 devs_enriched = cur.fetchone()[0]
 
-                # Row-count bands. When the override Param is in use (e.g. Aveiro
-                # test) the bands don't apply — the override is for testing.
+                # Row-count bands. When the override Param is in use (e.g. a
+                # different geo scope for testing) the bands don't apply.
+                # Bands sized for the DEFAULT scope = Aveiro município only
+                # (~1/16 of Aveiro distrito). Restore wider bands if
+                # TARGET_AREAS expands. Last verified runs at município scope
+                # are pending — bands are conservative lower/upper guesses
+                # scaled from the prior Aveiro distrito run (81 devs / 399
+                # units / ~30 plots).
                 if not override_used:
-                    if devs_current < 200 or devs_current > 3000:
+                    if devs_current < 5 or devs_current > 500:
                         raise RuntimeError(
                             f"developments current-state row count {devs_current} "
-                            f"outside expected band [200, 3000]"
+                            f"outside expected band [5, 500] (Aveiro município scope)"
                         )
-                    if units_current < 500 or units_current > 50_000:
+                    if units_current < 20 or units_current > 5_000:
                         raise RuntimeError(
                             f"units current-state row count {units_current} "
-                            f"outside expected band [500, 50000]"
+                            f"outside expected band [20, 5000] (Aveiro município scope)"
                         )
 
                 # Pass 2 enrichment floor
@@ -386,10 +392,10 @@ with DAG(
                     raise RuntimeError(
                         f"plots _dlt_loads for load_id={plots_load_id} not status=0: {plot_load_rows}"
                     )
-                if not override_used and (plots_current < 500 or plots_current > 10_000):
+                if not override_used and (plots_current < 10 or plots_current > 1_000):
                     raise RuntimeError(
                         f"plots current-state row count {plots_current} "
-                        f"outside expected band [500, 10000]"
+                        f"outside expected band [10, 1000] (Aveiro município scope)"
                     )
                 plots_pass2_total = plots_result.get("plots_pass2_total", 0)
                 plots_pass2_stubs = plots_result.get("plots_pass2_stubs", 0)
