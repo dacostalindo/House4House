@@ -157,6 +157,29 @@ sources:
           - name: _load_timestamp
             description: "Timestamp when the row was loaded into PostGIS"
 
+      - name: raw_srup_perigosidade_inc_rural
+        description: >
+          SRUP Perigosidade de Incêndio Rural — wildfire-risk classification
+          per município (Decreto-Lei 124/2006 + PMDFCI). National coverage,
+          1.78M features. JSONB properties — zone_type is properties.tipologia
+          ∈ {Muito Alta, Alta, Média, Baixa, Muito Baixa}. CRS EPSG:3763.
+          Aveiro PDM Art. 51 makes this the primary gate for Solo Rústico
+          construction (hard prohibition on alta/muito_alta; conditional with
+          50m faixa + CMDF parecer on média/baixa/muito_baixa).
+        columns:
+          - name: feature_id
+            description: "Per-feature integer ID"
+          - name: layer_name
+            description: "Omnibus loader layer label"
+          - name: properties
+            description: "Raw JSONB attributes (tipologia, municipio, serv_dr, etc.)"
+          - name: geom
+            description: "MultiPolygon, EPSG:3763"
+          - name: _source_url
+            description: "MinIO object path"
+          - name: _load_timestamp
+            description: "Load timestamp"
+
       - name: raw_srup_zpe
         description: >
           SRUP Rede Natura 2000 — Zonas de Proteção Especial (birds).

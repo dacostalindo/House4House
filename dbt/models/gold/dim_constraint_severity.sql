@@ -71,7 +71,28 @@ WITH base AS (
         -- T1000=conditioned (catastrophe band, buildable with APA mitigation per PT planning practice).
         ('ARPSI_Floodplain', 'T20',                         3, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
         ('ARPSI_Floodplain', 'T100',                        3, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
-        ('ARPSI_Floodplain', 'T1000',                       2, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH')
+        ('ARPSI_Floodplain', 'T1000',                       2, 'flood_risk',     0,  'geom', 'Diretiva 2007/60/CE; DL 115/2010 (PGRI)',    TRUE,  'APA / ARH'),
+        -- Perigosidade de Incêndio Rural (sprint-09 WS5 — gap closed 2026-06-03).
+        -- Aveiro PDM Art. 51 makes this the primary gate for Solo Rústico:
+        --   alta + muito_alta = hard prohibition (Art. 51/1/a) outside áreas
+        --     edificadas consolidadas; no exception path
+        --   média + baixa + muito_baixa = conditional with parecer favorável
+        --     CMDF + cumulative requirements: 50m faixa de proteção from
+        --     floresta/matos/pastagens, 10m from other ocupações, medidas de
+        --     contenção de ignição (Art. 51/1/b)
+        -- buffer_m=50 on média/baixa/muito_baixa encodes the largest of the
+        -- two cumulative faixas (the 50m floresta/matos/pastagens default).
+        -- The 10m other-occupations faixa is the carve-out narrower case; the
+        -- 50m is the safe conservative default for fn_assess_polygon.
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_alta',   3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a', FALSE, 'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_alta',         3, 'wildfire_risk', 0,  'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/a', FALSE, 'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_media',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_baixa',        2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
+        ('Perigosidade_Incendio_Rural', 'perigosidade_muito_baixa',  2, 'wildfire_risk', 50, 'geom', 'DL 124/2006 + PMDFCI; Aveiro PDM Art. 51/1/b', TRUE,  'CMDF'),
+        -- Bronze data without a `tipologia` value — advisory so the polygon
+        -- isn't silently treated as unconstrained. Verify against latest
+        -- PMDFCI map before building.
+        ('Perigosidade_Incendio_Rural', 'perigosidade_nao_classificada', 1, 'wildfire_risk', 0,  'geom', 'PMDFCI tipologia missing in bronze — verify map',     FALSE, 'CMDF')
     ) AS t(
         constraint_code,
         zone_type,
