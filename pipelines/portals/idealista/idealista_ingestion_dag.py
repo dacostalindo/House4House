@@ -181,6 +181,12 @@ def _create_dag():
         max_active_runs=config.max_active_runs,
         max_active_tasks=config.max_active_tasks,
         default_args=default_args,
+        # Paused since 2026-06-04 (Sprint-09 Aveiro município scope-down).
+        # Legacy resale pipeline — superseded by idealista_developments_dlt
+        # for new construction + plots; retiring in Sprint 4.5. Manual unpause
+        # required to trigger; default scope is 3 distritos (40+ concelhos),
+        # well outside the município-only intent.
+        is_paused_upon_creation=True,
         params={
             "distrito": Param(
                 default="all",

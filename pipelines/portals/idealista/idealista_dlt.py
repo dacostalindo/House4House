@@ -257,8 +257,23 @@ with DAG(
             counters["total"],
             counters["stubs"],
         )
+        # last_load_info.loads_ids is empty when discovery yielded zero plots
+        # OR when every discovery call hit a transient upstream error (e.g.
+        # ZenRows ERR0001 HTTP 500). Both are legitimate run outcomes for a
+        # small município scope; don't crash the task — surface as empty load_id
+        # and let validate_facts make the call via the band check.
+        loads_ids = pipeline.last_trace.last_load_info.loads_ids if pipeline.last_trace else []
+        load_id = loads_ids[-1] if loads_ids else None
+        if load_id is None:
+            log.warning(
+                "[idealista_dev_dlt] plots load produced no load_ids "
+                "(discovery returned %d plots, %d stubs) — likely empty scope "
+                "or upstream API outage; passing empty load_id to validate_facts",
+                counters["total"],
+                counters["stubs"],
+            )
         return {
-            "load_id": pipeline.last_trace.last_load_info.loads_ids[-1],
+            "load_id": load_id,
             "plots_pass2_total": counters["total"],
             "plots_pass2_stubs": counters["stubs"],
             "override_used": bool(override),
@@ -314,18 +329,24 @@ with DAG(
                 )
                 devs_enriched = cur.fetchone()[0]
 
-                # Row-count bands. When the override Param is in use (e.g. Aveiro
-                # test) the bands don't apply — the override is for testing.
+                # Row-count bands. When the override Param is in use (e.g. a
+                # different geo scope for testing) the bands don't apply.
+                # Bands sized for the DEFAULT scope = Aveiro município only
+                # (~1/16 of Aveiro distrito). Restore wider bands if
+                # TARGET_AREAS expands. Last verified runs at município scope
+                # are pending — bands are conservative lower/upper guesses
+                # scaled from the prior Aveiro distrito run (81 devs / 399
+                # units / ~30 plots).
                 if not override_used:
-                    if devs_current < 200 or devs_current > 3000:
+                    if devs_current < 5 or devs_current > 500:
                         raise RuntimeError(
                             f"developments current-state row count {devs_current} "
-                            f"outside expected band [200, 3000]"
+                            f"outside expected band [5, 500] (Aveiro município scope)"
                         )
-                    if units_current < 500 or units_current > 50_000:
+                    if units_current < 20 or units_current > 5_000:
                         raise RuntimeError(
                             f"units current-state row count {units_current} "
-                            f"outside expected band [500, 50000]"
+                            f"outside expected band [20, 5000] (Aveiro município scope)"
                         )
 
                 # Pass 2 enrichment floor
@@ -377,19 +398,28 @@ with DAG(
                 )
                 plots_current = cur.fetchone()[0]
                 plots_load_id = plots_result["load_id"]
-                cur.execute(
-                    f"SELECT status FROM {DATASET_NAME}._dlt_loads WHERE load_id = %s",
-                    (plots_load_id,),
-                )
-                plot_load_rows = cur.fetchall()
-                if not plot_load_rows or any(r[0] != 0 for r in plot_load_rows):
-                    raise RuntimeError(
-                        f"plots _dlt_loads for load_id={plots_load_id} not status=0: {plot_load_rows}"
+                # load_id may be None when load_plots saw 0 discoveries (empty
+                # município scope OR upstream API outage). _dlt_loads check
+                # only applies when something was actually loaded.
+                if plots_load_id is not None:
+                    cur.execute(
+                        f"SELECT status FROM {DATASET_NAME}._dlt_loads WHERE load_id = %s",
+                        (plots_load_id,),
                     )
-                if not override_used and (plots_current < 500 or plots_current > 10_000):
+                    plot_load_rows = cur.fetchall()
+                    if not plot_load_rows or any(r[0] != 0 for r in plot_load_rows):
+                        raise RuntimeError(
+                            f"plots _dlt_loads for load_id={plots_load_id} not status=0: {plot_load_rows}"
+                        )
+                else:
+                    log.warning(
+                        "[idealista_dev_dlt] plots load_id is None — skipping _dlt_loads "
+                        "status check (load_plots saw 0 discoveries)"
+                    )
+                if not override_used and (plots_current < 10 or plots_current > 1_000):
                     raise RuntimeError(
                         f"plots current-state row count {plots_current} "
-                        f"outside expected band [500, 10000]"
+                        f"outside expected band [10, 1000] (Aveiro município scope)"
                     )
                 plots_pass2_total = plots_result.get("plots_pass2_total", 0)
                 plots_pass2_stubs = plots_result.get("plots_pass2_stubs", 0)

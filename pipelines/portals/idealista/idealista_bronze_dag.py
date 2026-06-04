@@ -125,6 +125,10 @@ def _create_dag():
         catchup=False,
         default_args=default_args,
         tags=["idealista", "bronze", "listings", "postgis"],
+        # Paused since 2026-06-04 (Sprint-09 Aveiro município scope-down).
+        # Legacy resale pipeline — downstream of idealista_ingestion (also
+        # paused). Retiring in Sprint 4.5; manual unpause required to trigger.
+        is_paused_upon_creation=True,
     )
     def idealista_bronze_load():
         @task()

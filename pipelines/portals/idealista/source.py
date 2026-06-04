@@ -129,24 +129,37 @@ RE_API_STUB_FIELD_THRESHOLD = 6
 
 # ---------------------------------------------------------------------------
 # Target geographic areas. Each entry is a list of idealista URL slugs to use
-# as discovery roots. All distrito-level via the `-distrito` slug suffix
-# verified in the Aveiro feasibility test. Lisbon and Setúbal distritos
-# together cover the AML (Área Metropolitana de Lisboa) plus surrounding
-# rural concelhos — the over-fetch is small relative to the AML core and
-# avoids enumerating the 18 AML concelhos individually.
+# as discovery roots.
+#
+# Scope reduced to AVEIRO MUNICÍPIO ONLY on 2026-06-04 (Sprint-09 alignment
+# with Aveiro v1 PDM/SRUP model + LiDAR coverage): the slug `aveiro` (no
+# suffix) is the concelho/município de Aveiro alone, NOT the whole distrito.
+# Idealista's URL convention:
+#   /comprar-empreendimentos/aveiro/           → município (1 concelho)
+#   /comprar-empreendimentos/aveiro-distrito/  → distrito (16 concelhos)
+# The prior reduction (2026-05-21) was already at distrito level for cost
+# control after the full 7-distrito run drained the ZenRows account. This
+# tighter scope aligns with the rest of the warehouse (PDM dim_pdm_constraint,
+# silver_regulatory.srup_constraints, silver_geo.terrain_slope_raster) which
+# all carry Aveiro município data only as of Sprint-09.
 #
 # This is the DEFAULT scope. The DAG can override per-run via the
 # `target_areas_override` Param, which threads through `target_areas` arg
 # all the way down to `_ensure_payload`. NEVER mutate this dict at runtime.
+#
+# To restore wider scope: replace "aveiro" with "aveiro-distrito" (16
+# concelhos) or uncomment the other distrito-level entries below.
 # ---------------------------------------------------------------------------
 TARGET_AREAS: dict[str, list[str]] = {
-    "aveiro": ["aveiro-distrito"],
-    "braga": ["braga-distrito"],
-    "coimbra": ["coimbra-distrito"],
-    "leiria": ["leiria-distrito"],
-    "lisboa": ["lisboa-distrito"],
-    "porto": ["porto-distrito"],
-    "setubal": ["setubal-distrito"],
+    "aveiro": ["aveiro"],
+    # --- Wider scopes, disabled for cost + Sprint-09 município-scope alignment.
+    # "aveiro_distrito": ["aveiro-distrito"],   # 16 concelhos in distrito de Aveiro
+    # "braga": ["braga-distrito"],
+    # "coimbra": ["coimbra-distrito"],
+    # "leiria": ["leiria-distrito"],
+    # "lisboa": ["lisboa-distrito"],
+    # "porto": ["porto-distrito"],
+    # "setubal": ["setubal-distrito"],
 }
 
 
