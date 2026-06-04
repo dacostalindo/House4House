@@ -257,8 +257,23 @@ with DAG(
             counters["total"],
             counters["stubs"],
         )
+        # last_load_info.loads_ids is empty when discovery yielded zero plots
+        # OR when every discovery call hit a transient upstream error (e.g.
+        # ZenRows ERR0001 HTTP 500). Both are legitimate run outcomes for a
+        # small município scope; don't crash the task — surface as empty load_id
+        # and let validate_facts make the call via the band check.
+        loads_ids = pipeline.last_trace.last_load_info.loads_ids if pipeline.last_trace else []
+        load_id = loads_ids[-1] if loads_ids else None
+        if load_id is None:
+            log.warning(
+                "[idealista_dev_dlt] plots load produced no load_ids "
+                "(discovery returned %d plots, %d stubs) — likely empty scope "
+                "or upstream API outage; passing empty load_id to validate_facts",
+                counters["total"],
+                counters["stubs"],
+            )
         return {
-            "load_id": pipeline.last_trace.last_load_info.loads_ids[-1],
+            "load_id": load_id,
             "plots_pass2_total": counters["total"],
             "plots_pass2_stubs": counters["stubs"],
             "override_used": bool(override),
@@ -383,14 +398,23 @@ with DAG(
                 )
                 plots_current = cur.fetchone()[0]
                 plots_load_id = plots_result["load_id"]
-                cur.execute(
-                    f"SELECT status FROM {DATASET_NAME}._dlt_loads WHERE load_id = %s",
-                    (plots_load_id,),
-                )
-                plot_load_rows = cur.fetchall()
-                if not plot_load_rows or any(r[0] != 0 for r in plot_load_rows):
-                    raise RuntimeError(
-                        f"plots _dlt_loads for load_id={plots_load_id} not status=0: {plot_load_rows}"
+                # load_id may be None when load_plots saw 0 discoveries (empty
+                # município scope OR upstream API outage). _dlt_loads check
+                # only applies when something was actually loaded.
+                if plots_load_id is not None:
+                    cur.execute(
+                        f"SELECT status FROM {DATASET_NAME}._dlt_loads WHERE load_id = %s",
+                        (plots_load_id,),
+                    )
+                    plot_load_rows = cur.fetchall()
+                    if not plot_load_rows or any(r[0] != 0 for r in plot_load_rows):
+                        raise RuntimeError(
+                            f"plots _dlt_loads for load_id={plots_load_id} not status=0: {plot_load_rows}"
+                        )
+                else:
+                    log.warning(
+                        "[idealista_dev_dlt] plots load_id is None — skipping _dlt_loads "
+                        "status check (load_plots saw 0 discoveries)"
                     )
                 if not override_used and (plots_current < 10 or plots_current > 1_000):
                     raise RuntimeError(
