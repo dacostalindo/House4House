@@ -1,13 +1,52 @@
 version: 2
 
 models:
-  - name: unified_listings
+  - name: unified_listings_residential
     description: >
-      Idealista listings parsed from TEXT bronze to typed silver with Portuguese labels.
-      Incremental merge on source_listing_id preserves first_seen_date and initial_price.
-      Spatial join to dim_geography for geo_key; two-pass join to dim_property_type.
-      Post-hook deactivates listings not seen for >3 days.
-      ~1,495 unique listings (Aveiro district, sale + rent).
+      Cross-portal LISTING-grain silver for residential properties (apartments
+      + houses, resale + dev units). UNION ALL across the 4 portal-listing
+      staging models (idealista / RE/MAX / Zome / JLL). Incremental merge by
+      listing_hash = MD5(source || '|' || source_listing_id) — pipeline-safe
+      re-merge. NO cross-portal listing-level dedup in v1; same physical property
+      on 3 portals = 3 rows. Floor plans: 4-source TEXT[] with floor_plan_source
+      tracking which portal contributed. See wiki/concepts/cross-portal-listings.md.
+    columns:
+      - name: listing_hash
+        description: "MD5(source || '|' || source_listing_id) — deterministic merge key, never collides across portals"
+        tests:
+          - unique
+          - not_null
+      - name: source
+        description: "Portal identifier — idealista / remax / zome / jll"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['idealista', 'remax', 'zome', 'jll']
+      - name: source_listing_id
+        description: "Portal-native listing ID, cast to TEXT"
+        tests:
+          - not_null
+      - name: price_eur
+        description: "Asking price in EUR. Rows with NULL or <=0 are filtered out at silver."
+      - name: floor_plan_urls
+        description: "TEXT[] of floor plan URLs. JLL: PDFs from blue_prints. Idealista: tagged JPG/WEBP. Zome: aplantsgallery.hres filtered by 'planta' filename. RE/MAX: single PDF wrapped (may 404 if session-gated)."
+      - name: has_floor_plan
+        description: "True iff floor_plan_urls is non-empty"
+      - name: floor_plan_source
+        description: "Which portal supplied the plans — jll_blueprints / idealista_tagged / zome_aplants / remax_path / NULL"
+      - name: geo_key
+        description: "FK to dim_geography — derived via point-in-polygon on freguesia_geom_pt"
+      - name: is_active
+        description: "True if last_seen_date is within 3-day grace; flipped to FALSE by post-hook when stale"
+
+  - name: unified_listings_idealista_legacy
+    description: >
+      [LEGACY] Idealista-only listing silver, parsed from TEXT bronze to typed
+      silver with Portuguese labels. Renamed 2026-06-05 from `unified_listings`
+      when the cross-portal `unified_listings_residential` shipped. Kept
+      alongside the new model for non-breaking consumer migration; downstream
+      consumers should migrate to unified_listings_residential at their cadence.
+      Will be retired once all consumers have moved.
     columns:
       # ── Identity ────────────────────────────────────────────────────────────
       - name: listing_key
@@ -344,5 +383,81 @@ models:
 
       - name: room_area_m2
         description: "Room area in m² as extracted by CV from the floor plan. NULL areas are excluded"
+        tests:
+          - not_null
+
+  - name: unified_developments
+    description: >
+      One row per marketed real-estate development, de-duplicated across the 4
+      listing portals (idealista, RE/MAX, Zome, JLL). Sprint-09 Slice B-prime.
+      Relocated 2026-06-05 from silver_regulatory → silver_properties (it models
+      marketed properties, not regulation); pairs with unified_listings.
+
+      Portal dedup is name-driven: project names are normalized (deaccent;
+      strip typology codes T1/T2/T1+1, boilerplate words empreendimento/edifício/
+      the, and a trailing concelho name; punctuation → space), tokenized, and two
+      listings are linked when their word-sets have Jaccard overlap >= 0.6 AND
+      they share a concelho. A 1km distance ceiling is a guardrail (skipped when
+      a coord is missing). Connected components over those links produce one
+      development per component. Proximity-first (DBSCAN) was rejected: portal
+      coordinates disagree by 200-300m+ for the same development.
+
+      Geometry hierarchy: the development takes geom + concelho + parish from the
+      highest-priority portal present that has coordinates: JLL > Zome > RE/MAX
+      > idealista. geo_key resolved by point-in-polygon of the unified geom
+      against dim_geography.freguesia_geom_pt.
+
+      SCE is intentionally NOT merged here. SCE buildings (certified physical
+      buildings) and portal developments (marketed projects) are different
+      concepts with no shared identifier and incompatible geocoding precision.
+      Atlas Inspector / fn_assess_polygon query unified_developments AND
+      silver_sce_buildings side-by-side ("marketed developments here + certified
+      buildings here") rather than forcing them into one row.
+
+      portal_unit_counts (JSONB) exposes every portal's reported count without
+      picking an "authoritative" one — each portal's count has different semantics
+      (idealista = listed-units subset per the 2026-05-22 facade audit; Zome =
+      inventory; JLL = total fractions; RE/MAX = listings at RE/MAX). Consumers
+      read the breakdown and choose.
+    columns:
+      # ── Identity ───────────────────────────────────────────────────────
+      - name: unified_development_id
+        description: "Surrogate BIGINT key produced by ROW_NUMBER over the result. Stable within a build, NOT across rebuilds. The stable identity of a development is the content of portal_refs."
+        tests:
+          - unique
+          - not_null
+      # ── Geometry (dual CRS, both GIST-indexed) ────────────────────────
+      - name: unified_geom_3763
+        description: "Development centroid in EPSG:3763 (PT-TM06). Taken from the highest-priority portal with coordinates (JLL > Zome > RE/MAX > idealista) — ST_Centroid over that portal's member geoms."
+        tests:
+          - not_null
+      - name: unified_geom_4326
+        description: "Same centroid in EPSG:4326 (WGS84). For Kepler.gl / Leaflet display in the Inspector."
+        tests:
+          - not_null
+      # ── Administrative ────────────────────────────────────────────────
+      - name: geo_key
+        description: "FK to dim_geography (the freguesia containing unified_geom_3763). NULL when the point falls outside every current freguesia polygon (~1% of rows — typically offshore/boundary edge cases)."
+      - name: concelho
+        description: "Concelho name — COALESCE(dim_geography.concelho_name resolved via point-in-polygon, portal text MODE)."
+      - name: parish
+        description: "Freguesia name — COALESCE(dim_geography.freguesia_name resolved via point-in-polygon, portal text MODE)."
+      - name: dominant_name
+        description: "Most common canonical_name across the development's portal members (MODE over non-null names). NULL only if every contributing portal listed the dev without a name."
+      # ── Counts + provenance ──────────────────────────────────────────
+      - name: portal_unit_counts
+        description: "JSONB {portal: unit_count} — each portal's reported total_units. No authoritative pick: idealista = listed-units subset, Zome = inventory, JLL = total_fractions, RE/MAX = listings at RE/MAX. Consumer reads the breakdown."
+        tests:
+          - not_null
+      - name: n_portal_contributors
+        description: "Number of distinct portals that contributed to this development (1-4)."
+        tests:
+          - not_null
+      - name: portal_refs
+        description: "JSONB {portal: [portal_dev_id, ...]} — every contributing portal record. The stable identity of the development; the surrogate id is not."
+        tests:
+          - not_null
+      - name: _built_at
+        description: "Timestamp the table was built (NOW() at SELECT time)."
         tests:
           - not_null
