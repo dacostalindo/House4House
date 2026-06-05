@@ -15,10 +15,13 @@
 -- https://i.maxwork.pt/bb/{listing_pictures[i]}.
 
 WITH latest AS (
-    SELECT *
+    -- DISTINCT ON guards against dlt SCD2 close-row duplicates (~0.03% rate
+    -- on remax — wiki/sprints/sprint-09 status 2026-05-19).
+    SELECT DISTINCT ON (listing_id) *
     FROM {{ source('bronze_listings', 'remax_listings') }}
     WHERE _dlt_valid_to IS NULL
       AND listing_id IS NOT NULL
+    ORDER BY listing_id, _dlt_valid_from DESC
 )
 
 SELECT

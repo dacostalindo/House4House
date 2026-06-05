@@ -12,10 +12,13 @@
 -- footprint, areaterreno = land/lot.
 
 WITH latest AS (
-    SELECT *
+    -- DISTINCT ON guards against dlt SCD2 close-row duplicates (~6% rate on
+    -- zome — wiki/sprints/sprint-09 status 2026-05-19, worst across portals).
+    SELECT DISTINCT ON (pid) *
     FROM {{ source('bronze_listings', 'zome_listings') }}
     WHERE _dlt_valid_to IS NULL
       AND pid IS NOT NULL
+    ORDER BY pid, _dlt_valid_from DESC
 )
 
 SELECT

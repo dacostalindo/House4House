@@ -10,23 +10,55 @@
 -- URL on egorealestate CDN). 92.72% coverage — the strongest plan signal
 -- across portals.
 --
--- Areas: gross_area + net_area. CAVEAT — JLL frequently reports
--- net_area = gross_area as a fallback when only one is known (Decision C·i).
--- Flag and null out useful_area_m2 when they match exactly AND both > 0.
+-- Areas — corrected semantics 2026-06-05:
+--   bronze.gross_area  = "Área Bruta Privativa" (interior with walls, NO outdoor)
+--                      → canonical useful_area_m2
+--   bronze.net_area    = unused (ambiguous: also interior, different measure)
+--   canonical gross    = bronze.gross_area + sum of exterior areas extracted from
+--                        features.Areas children with tags AREA_BALCONY,
+--                        AREA_TERRACE, AREA_GARDEN, PATIO_AREA
+--   area_exterior_m2   = sum of those exterior tags (new column)
+-- This matches the JLL UI semantic where "AREA BRUTA" is interior and
+-- "AREA EXTERIOR" is a separate column for outdoor areas.
 
 WITH latest AS (
-    SELECT *
+    -- DISTINCT ON guards against dlt SCD2 close-row duplicates (~0.01% rate
+    -- on jll — wiki/sprints/sprint-09 status 2026-05-19). Pick newest version
+    -- when bronze accidentally retains >1 _dlt_valid_to IS NULL row per id.
+    SELECT DISTINCT ON (id) *
     FROM {{ source('bronze_listings', 'jll_listings') }}
     WHERE _dlt_valid_to IS NULL
       AND id IS NOT NULL
+    ORDER BY id, _dlt_valid_from DESC
+),
+
+exterior_sum AS (
+    -- Sum the outdoor area tags per listing from features.Areas.Childs
+    SELECT
+        l.id,
+        COALESCE(SUM((child->>'Value')::NUMERIC), 0) AS area_exterior_m2
+    FROM latest l,
+         LATERAL jsonb_array_elements(l.features) AS feat,
+         LATERAL jsonb_array_elements(feat->'Childs') AS child
+    WHERE jsonb_typeof(l.features) = 'array'
+      AND jsonb_typeof(feat->'Childs') = 'array'
+      AND (child->>'Tag') IN (
+          ';AREAS;AREA_BALCONY;',
+          ';AREAS;AREA_TERRACE;',
+          ';AREAS;AREA_GARDEN;',
+          ';AREAS;PATIO_AREA;'
+      )
+      AND (child->>'Value') ~ '^[0-9]+\.?[0-9]*$'
+      AND (child->>'Unit') = 'm²'
+    GROUP BY l.id
 )
 
 SELECT
     -- Identity
     'jll'::TEXT                                                      AS source,
-    id::TEXT                                                         AS source_listing_id,
-    MD5('jll|' || id::TEXT)::TEXT                                    AS listing_hash,
-    'https://www.jll.pt/property/' || id::TEXT                       AS listing_url,
+    latest.id::TEXT                                                  AS source_listing_id,
+    MD5('jll|' || latest.id::TEXT)::TEXT                             AS listing_hash,
+    'https://www.jll.pt/property/' || latest.id::TEXT                AS listing_url,
 
     -- Operation: property_business JSONB usually carries the business type
     CASE
@@ -38,18 +70,17 @@ SELECT
     -- Pricing
     NULLIF(price_value, 0)::NUMERIC                                  AS price_eur,
 
-    -- Areas — apply C·i: detect net_area==gross_area fallback, null out useful
-    gross_area::NUMERIC                                              AS gross_area_m2,
-    CASE
-        WHEN gross_area > 0
-         AND net_area > 0
-         AND gross_area = net_area
-            THEN NULL::NUMERIC
-        ELSE net_area::NUMERIC
-    END                                                              AS useful_area_m2,
+    -- Areas — corrected semantics:
+    --   useful_area_m2 = JLL bronze gross_area (= Área Bruta Privativa, interior)
+    --   gross_area_m2  = useful + extracted exterior (balcony + terrace + garden + patio)
+    --   area_exterior_m2 = the extracted exterior sum (NEW column)
+    -- net_area dropped (ambiguous; consumers can read directly from bronze)
+    -- net_area_suspicious dropped (no longer relevant — we use gross as useful directly)
+    (latest.gross_area + COALESCE(es.area_exterior_m2, 0))::NUMERIC  AS gross_area_m2,
+    latest.gross_area::NUMERIC                                       AS useful_area_m2,
     NULL::NUMERIC                                                    AS implantation_area_m2,
-    land_area::NUMERIC                                               AS land_area_m2,
-    (gross_area > 0 AND net_area > 0 AND gross_area = net_area)      AS net_area_suspicious,
+    latest.land_area::NUMERIC                                        AS land_area_m2,
+    NULL::BOOLEAN                                                    AS net_area_suspicious,
 
     -- Rooms
     LEAST(rooms, 15)                                                 AS num_rooms,
@@ -134,3 +165,4 @@ SELECT
     NULL::TEXT                                                       AS agency_name
 
 FROM latest
+LEFT JOIN exterior_sum es ON es.id = latest.id
