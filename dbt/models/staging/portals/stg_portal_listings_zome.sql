@@ -14,10 +14,24 @@
 WITH latest AS (
     -- DISTINCT ON guards against dlt SCD2 close-row duplicates (~6% rate on
     -- zome — wiki/sprints/sprint-09 status 2026-05-19, worst across portals).
+    --
+    -- Scope filter (2026-06-06): only listings associated with an
+    -- empreendimento (development) are in scope for unified_listings_residential.
+    -- Identified by raw_json.emid OR raw_json.idemp being non-empty. Drops
+    -- coverage from 9,335 → ~1,140 (12.2%) — the rest are individual resale
+    -- listings without a development link, out of scope for v1.
     SELECT DISTINCT ON (pid) *
     FROM {{ source('bronze_listings', 'zome_listings') }}
     WHERE _dlt_valid_to IS NULL
       AND pid IS NOT NULL
+      AND raw_json IS NOT NULL
+      AND raw_json::text ~ '^\{'
+      AND (
+          (raw_json::jsonb ->> 'emid')  IS NOT NULL AND (raw_json::jsonb ->> 'emid')  <> ''
+          OR
+          (raw_json::jsonb ->> 'idemp') IS NOT NULL AND (raw_json::jsonb ->> 'idemp') <> ''
+                                                    AND (raw_json::jsonb ->> 'idemp') <> '0'
+      )
     ORDER BY pid, _dlt_valid_from DESC
 )
 
