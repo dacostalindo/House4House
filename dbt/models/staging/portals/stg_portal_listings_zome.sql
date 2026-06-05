@@ -3,10 +3,13 @@
 -- to take the current version per pid.
 --
 -- Floor plans: zome stores in aplantsgallery JSONB OBJECT (not array) with
--- 3-resolution keys {hres, lres, mres}. The hres array mixes real floor plans
--- with generic photos; we filter URLs whose basename starts with "planta" to
--- isolate the ~27% of listings with actual floor plans. zome URLs are direct
--- public links to images.zome.pt — no CDN prefix needed.
+-- 3-resolution keys {hres, lres, mres}. Column literally means "a plantas
+-- gallery" — its sole purpose is floor plans. Any non-empty hres entry is
+-- treated as a plan (filenames like 'planta_...', 'planta1', 'piso1', or
+-- bare 'N' are all unit/floor-numbered plans). 2026-06-06 correction —
+-- earlier filter on '/planta' basename was over-strict and dropped legitimate
+-- multi-unit numbered plans. zome URLs are direct public links to
+-- images.zome.pt — no CDN prefix needed.
 --
 -- Areas: areabrutaconst = gross (ABC), areautilhab = useful, areaimplement =
 -- footprint, areaterreno = land/lot.
@@ -109,44 +112,29 @@ SELECT
     NULL::TEXT                                                       AS address_raw,
     COALESCE(localizacaolevel3, localizacaolevel4imovel)             AS location_name,
 
-    -- Media + Floor Plans (filter aplantsgallery.hres[] by 'planta' filename)
+    -- Media + Floor Plans — aplantsgallery is the dedicated floor-plan column;
+    -- any non-empty entry in hres is a plan.
     CASE WHEN jsonb_typeof(gallery) = 'array'
          THEN jsonb_array_length(gallery)
          ELSE 0 END                                                  AS image_count,
     COALESCE(
         (SELECT ARRAY_AGG(url ORDER BY url)
          FROM jsonb_array_elements_text(aplantsgallery->'hres') AS url
-         WHERE aplantsgallery IS NOT NULL
-           AND jsonb_typeof(aplantsgallery) = 'object'
-           AND jsonb_typeof(aplantsgallery->'hres') = 'array'
-           AND url ~* '/planta'),
+         WHERE jsonb_typeof(aplantsgallery) = 'object'
+           AND jsonb_typeof(aplantsgallery->'hres') = 'array'),
         ARRAY[]::TEXT[]
     )                                                                AS floor_plan_urls,
-    EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements_text(aplantsgallery->'hres') AS url
-        WHERE aplantsgallery IS NOT NULL
-          AND jsonb_typeof(aplantsgallery) = 'object'
-          AND jsonb_typeof(aplantsgallery->'hres') = 'array'
-          AND url ~* '/planta'
-    )                                                                AS has_floor_plan,
-    COALESCE(
-        (SELECT COUNT(*)::INTEGER
-         FROM jsonb_array_elements_text(aplantsgallery->'hres') AS url
-         WHERE aplantsgallery IS NOT NULL
-           AND jsonb_typeof(aplantsgallery) = 'object'
-           AND jsonb_typeof(aplantsgallery->'hres') = 'array'
-           AND url ~* '/planta'),
-        0
-    )                                                                AS floor_plan_count,
-    CASE WHEN EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements_text(aplantsgallery->'hres') AS url
-        WHERE aplantsgallery IS NOT NULL
-          AND jsonb_typeof(aplantsgallery) = 'object'
-          AND jsonb_typeof(aplantsgallery->'hres') = 'array'
-          AND url ~* '/planta'
-    ) THEN 'zome_aplants' END                                        AS floor_plan_source,
+    (jsonb_typeof(aplantsgallery) = 'object'
+     AND jsonb_typeof(aplantsgallery->'hres') = 'array'
+     AND jsonb_array_length(aplantsgallery->'hres') > 0)             AS has_floor_plan,
+    CASE WHEN jsonb_typeof(aplantsgallery) = 'object'
+              AND jsonb_typeof(aplantsgallery->'hres') = 'array'
+         THEN jsonb_array_length(aplantsgallery->'hres')
+         ELSE 0 END                                                  AS floor_plan_count,
+    CASE WHEN jsonb_typeof(aplantsgallery) = 'object'
+              AND jsonb_typeof(aplantsgallery->'hres') = 'array'
+              AND jsonb_array_length(aplantsgallery->'hres') > 0
+         THEN 'zome_aplants' END                                     AS floor_plan_source,
 
     -- Lifecycle
     _dlt_valid_from::DATE                                            AS last_seen_date,
