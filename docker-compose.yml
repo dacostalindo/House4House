@@ -16,6 +16,10 @@ x-airflow-common: &airflow-common
     dockerfile: Dockerfile.airflow.uv
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # Long portal crawls (imovirtual/idealista/remax) run as a single synchronous
+    # task for 30+ min; the default 300s zombie threshold kills the live task when
+    # its heartbeat lapses under CPU contention. 1h gives long crawls headroom.
+    AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD: "3600"
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD}@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"

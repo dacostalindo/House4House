@@ -1186,3 +1186,13 @@ FROM gold_analytics.dim_constraint_severity GROUP BY 1;
 - [ ] Decide whether to denormalize `legal_quote_pt` into `silver_regulatory.srup_constraints` (would add ~1.8 GB; today callers JOIN to dim when needed)
 
 **Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).
+
+## [2026-06-06] add-portal-source + first load | imovirtual (P1) — Next.js _next/data JSON
+
+Onboarded [[imovirtual]] as the 5th listing portal (after [[idealista]] / [[remax]] / [[zome]] / [[jll]]) per [[2026-06-05-imovirtual-portal-onboarding]], then ran it end-to-end. Created `pipelines/portals/imovirtual/` (source.py + imovirtual_dlt_dag.py + README + 33 offline tests), the [[imovirtual]] source page, and 6 bronze source declarations in [_staging_listings__sources.yml](../dbt/models/staging/listings/_staging_listings__sources.yml). Acquisition is direct Next.js `_next/data` JSON — no scraping vendor. Aligns with [[scd2-row-hash]], [[heartbeat-sidecar]], [[portal-naming-conventions]], [[portal-plot-conventions]]; mirrors [[zome]]'s single-file dlt skeleton + [[idealista]]'s dev→units FK-at-parse-time.
+
+**First load (verified in `bronze_listings`)**: developments **801** (national, 64 concelhos), development_units **4,465** (0 orphans), plots **4,894** (Aveiro, 100% with coords; 4,759 distinct — pagination overlap dups collapse at staging via `DISTINCT ON`). All within validation bands. imovirtual exposes BOTH `number_of_units_in_project` (true total) and listed count — better than [[idealista]] (listed-subset only).
+
+**Two operational findings baked into the pipeline + the [[2026-06-05-imovirtual-portal-onboarding]] ADR**: (1) the load task is a single 30+ min synchronous crawl, so Airflow's default 300s `scheduler_zombie_task_threshold` killed the live task when its heartbeat lapsed under CPU contention — raised to 3600s in [docker-compose.yml](../docker-compose.yml) and the two loads serialized; (2) DataDome throws short 403 bursts under sustained load (~every few hundred plots) — the crawl's retry/backoff rides them out (first full run: 19 retries, **0 plots dropped**). Confirm-at-build items resolved: unit `?page=N` pagination works; terreno `characteristics.type` enum = {building, habitat, agricultural, other, commercial, agricultural_building, woodland} + nullable.
+
+**Pages touched**: [[log]] (this entry), new [[2026-06-05-imovirtual-portal-onboarding]], new [[imovirtual]], [[index.md|index]] (Real-estate portals 4→5, Sources 23→24, Decisions 17→18, P1 13→14). **Deferred** (follow-up PR): `stg_portal_developments_imovirtual.sql` + the 5th `unified_developments` UNION arm + geo-priority rank; [[portal-field-map]] imovirtual columns.
