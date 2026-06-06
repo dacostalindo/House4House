@@ -1196,3 +1196,25 @@ Onboarded [[imovirtual]] as the 5th listing portal (after [[idealista]] / [[rema
 **Two operational findings baked into the pipeline + the [[2026-06-05-imovirtual-portal-onboarding]] ADR**: (1) the load task is a single 30+ min synchronous crawl, so Airflow's default 300s `scheduler_zombie_task_threshold` killed the live task when its heartbeat lapsed under CPU contention — raised to 3600s in [docker-compose.yml](../docker-compose.yml) and the two loads serialized; (2) DataDome throws short 403 bursts under sustained load (~every few hundred plots) — the crawl's retry/backoff rides them out (first full run: 19 retries, **0 plots dropped**). Confirm-at-build items resolved: unit `?page=N` pagination works; terreno `characteristics.type` enum = {building, habitat, agricultural, other, commercial, agricultural_building, woodland} + nullable.
 
 **Pages touched**: [[log]] (this entry), new [[2026-06-05-imovirtual-portal-onboarding]], new [[imovirtual]], [[index.md|index]] (Real-estate portals 4→5, Sources 23→24, Decisions 17→18, P1 13→14). **Deferred** (follow-up PR): `stg_portal_developments_imovirtual.sql` + the 5th `unified_developments` UNION arm + geo-priority rank; [[portal-field-map]] imovirtual columns.
+
+## [2026-06-06] fix | [[idealista]] phantom SCD2 versions from RE-API outage
+
+**Bronze regression:** `bronze_listings.idealista_development_units.location_hierarchy = '{}'` on 150/150 active rows; surfaced during the imovirtual 5th-portal silver audit. Root cause was a 2-day-old **ZenRows RE-API outage** (HTTP 500 ERR0001 on both `/properties/{id}` and `/discovery/`, verified via direct `curl` 2026-06-06; Universal Scraper unaffected). PR #48's 2026-06-04 run framed it as transient — it isn't.
+
+**Why the bug bit bronze:** `_fetch_one_unit_detail` swallows API exceptions and returns `{}`. The resource-level skip in `development_units()` only filtered `_re_api_stub=True`, NOT empty-detail-from-API-failure, so 150 phantom SCD2 rows were yielded with all-NULL enrichment fields. dlt's SCD2 strategy then closed all 444 prior good rows (2026-05-18 batch) on the way in. Phantoms also exposed a latent type bug: `location_hierarchy: detail.get("location_hierarchy") or {}` defaulted to `{}` (dict) for a column the staging `->> 1`/`->> 2` array-indexing expects to be `[]` (list).
+
+**Fixes shipped** in [pipelines/portals/idealista/source.py](../pipelines/portals/idealista/source.py):
+- `development_units()` (and `plots()` for symmetry) skip when `detail.get("_re_api_stub") or not detail` — empty detail now treated as stub-equivalent; heartbeat sidecar still ticks.
+- `_normalize_unit` / `_normalize_plot` / `_parse_unit_detail_re` defaults: `location_hierarchy or {}` → `or []` (type-correct, consistent with bronze content + every other JSONB-array column).
+
+**SCD2 data restore (one-shot)**: `DELETE` the 150 phantoms then `UPDATE` the 444 prior rows back to `_dlt_valid_to = NULL`. Reverts the 2026-06-04 batch to a "no-op" — the next successful pipeline run reconciles naturally (delisted units close, live ones keep / version normally).
+
+**Verified end-to-end**: rebuilt `stg_portal_developments_idealista` + `silver_properties.unified_developments` + `unified_listings_residential`. 16/21 idealista dev rows now carry concelho (was 0/21); **5 idealista devs now merge cross-portal** (was 0). "The Unique" (idealista) ↔ "Unique" (remax) merges as `n_portal_contributors=2`. The remaining 5 NULL-concelho devs are net-NEW 2026-06-04 discoveries whose units never had real RE-API data — they recover automatically when ZenRows fixes the outage.
+
+**Cross-portal silver-dedup algorithm unchanged**: the dual-signal name match + dropped 1km guard from the imovirtual silver wiring (same session, separate PR) handles these correctly the moment concelho is non-NULL.
+
+**Pending follow-ups**:
+- [ ] ZenRows support ticket — RE-API outage is now ≥48h. Re-running the [[idealista]] dev/units DAG is a no-op while it stays down.
+- [ ] Once RE-API is back: re-run `idealista_developments_units_plots_dag` to refresh the 5 new-discovery devs + any drift since 2026-05-18; the new skip-on-empty guard prevents another phantom batch on transient failures.
+
+**Pages touched**: [[log]] (this entry).
