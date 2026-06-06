@@ -885,6 +885,11 @@ sources:
           encoded category IDs (idcondicaoimovel, idtipoimovel, idtiponegocio)
           decoded via the ref_zome_* lookup tables. Source: Supabase
           tab_listing_list table. Column names retain Portuguese.
+          Enriched in-place from tab_listing_view (the website detail-page
+          relation) with floor plans (aplantsgallery), energy certificate,
+          full description, and extra attributes — see the
+          "tab_listing_view enrichment" column group below. These are excluded
+          from row_hash and do not drive SCD2 versioning.
         columns:
           - name: listing_id
             description: "Zome listing primary key."
@@ -1022,8 +1027,52 @@ sources:
             description: "Geo metadata JSONB."
           - name: raw_json
             description: "Full upstream record. JSONB."
+          # ── tab_listing_view enrichment (DETAIL_COLUMNS) ──────────────────
+          # Folded in from tab_listing_view (the website detail-page relation),
+          # which carries fields the base tab_listing_list table lacks. OUT of
+          # row_hash: captured at insert, refreshed on any version bump, never
+          # drive SCD2 versioning. See pipelines/portals/zome/source.py.
+          - name: aplantsgallery
+            description: "Floor plans (plantas) as {lres,mres,hres} JSON text (string). Cast ::jsonb in staging; ->'hres' gives the highest-res plan URLs. The structured planta field the base table lacks."
+          - name: brochura
+            description: "Multi-language brochure object. JSONB. Often empty strings."
+          - name: video
+            description: "Video embed array as JSON text (YouTube etc.)."
+          - name: virtualreality
+            description: "VR / Matterport tour array as JSON text."
+          - name: certificadenergeticodesc
+            description: "Energy certificate rating, e.g. 'A'/'B'/'F'. ~82% coverage. Absent from tab_listing_list."
+          - name: certificadenergeticoimg
+            description: "Energy-rating badge image filename (e.g. 'B.svg')."
+          - name: idcertificadoenergetico
+            description: "Energy certificate type ID."
+          - name: imagemceimovel
+            description: "Energy-cert image object (multi-language) as JSON text."
+          - name: descricao_completa
+            description: "Full marketing description (multi-language) as JSON text."
+          - name: attr_quartos
+            description: "Bedroom count (view-derived; complements totalquartossuite)."
+          - name: attr_suite
+            description: "Suite count."
+          - name: attr_year
+            description: "Construction / completion year."
+          - name: totalassoalhadas
+            description: "Total rooms (assoalhadas)."
+          - name: piso
+            description: "Floor label as free text (e.g. '2ºAB')."
+          - name: areas_extras
+            description: "Per-space area breakdown (rooms/suite/wcs/garden...) as JSON text."
+          - name: attributes_extras
+            description: "Extra attributes (amenities w/ icons), multi-language, as JSON text."
+          - name: tipologiaespecial
+            description: "Special typology label (multi-language) as JSON text. Usually empty."
+          - name: percentagemdesconto
+            description: "Discount percentage when on promotion (~5% of rows)."
+          - name: txtfinalidade
+            description: "Purpose label (Habitação/etc.), multi-language, as JSON text."
+          # ──────────────────────────────────────────────────────────────────
           - name: row_hash
-            description: "SHA256 over LISTINGS_VERSION_COLUMNS. dlt-managed."
+            description: "SHA256 over LISTINGS_VERSION_COLUMNS (base tab_listing_list cols only — detail columns above are excluded). dlt-managed."
           - name: _dlt_valid_from
             description: "SCD2 active-from."
           - name: _dlt_valid_to
@@ -1247,5 +1296,18 @@ sources:
             description: "SHA256 over the version columns. Drives SCD2 diff. dlt-managed."
           - name: _dlt_valid_from
             description: "SCD2 active-from timestamp. dlt-managed."
+          - name: _dlt_valid_to
+            description: "SCD2 active-to timestamp. NULL = currently-active version."
+
+      - name: jll_listings
+        description: >
+          JLL SCD2 listing facts. One row per (id, version) — `_dlt_valid_to IS NULL`
+          selects current state. ~7,455 active listings nationally, 0 Aveiro
+          (JLL operates Lisboa/Porto/Faro/Setúbal). Floor plans in `blue_prints`
+          JSONB column (92.7% coverage — best across portals). Loaded by jll_dlt DAG.
+          Consumed by stg_portal_listings_jll → unified_listings_residential.
+        columns:
+          - name: id
+            description: "JLL listing primary key (bigint). Stable across runs."
           - name: _dlt_valid_to
             description: "SCD2 active-to timestamp. NULL = currently-active version."

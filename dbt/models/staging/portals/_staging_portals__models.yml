@@ -5,12 +5,12 @@ models:
     description: >
       Canonical RE/MAX development staging — normalizes
       `bronze_listings.remax_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Coords are
       parish-centroid-precision (per [[portal-field-map]] audit 2026-05-18):
       ~51% of nationwide rows have NULL coords; the rest often share lat/lng
       across distinct developments in the same parish. Downstream PR-C
-      (`silver_unified_developments`) compensates via Levenshtein
+      (`unified_developments`) compensates via Levenshtein
       name-similarity disambiguation. RE/MAX `_dlt_valid_to IS NULL` filter
       excludes superseded SCD2 versions.
     columns:
@@ -56,7 +56,7 @@ models:
     description: >
       Canonical Zome development staging — normalizes
       `bronze_listings.zome_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Zome stores
       geocoords as VARCHAR (cast via `NULLIF + ::FLOAT`); `regiao` is a JSONB
       int-array of region codes so address_text is composed from the
@@ -105,7 +105,7 @@ models:
     description: >
       Canonical Idealista development staging — normalizes
       `bronze_listings.idealista_developments` to the 13-column cross-portal
-      schema consumed by sprint-09 Slice B-prime's `silver_unified_developments`.
+      schema consumed by sprint-09 Slice B-prime's `unified_developments`.
       View. Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Idealista
       exposes coords AND admin geography only at unit grain — the unit_agg CTE
       rolls `idealista_development_units` up per development: `geom_*` is the
@@ -158,7 +158,7 @@ models:
     description: >
       Canonical JLL development staging — normalizes
       `bronze_listings.jll_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). JLL is the
       cleanest of the 4 portals: typed `municipality`/`parish`/`district` +
       double-precision `gps_lat`/`gps_lon` (no casts). `has_gps_location` is an
@@ -253,3 +253,92 @@ models:
         description: "`NOW()` at staging-view evaluation."
         tests:
           - not_null
+
+  - name: stg_portal_listings_idealista
+    description: >
+      Canonical-schema staging for Idealista DEVELOPMENT UNITS. Consumes
+      `bronze_listings.idealista_development_units` — Pass 3 RE API
+      enrichment per unit, discovered via Pass 1+2 of the developments DAG
+      over /comprar-empreendimentos/. Each row carries a typed development_id
+      linking back to the parent project. Filters Pass 3 stubs
+      (_has_detail = FALSE) so the silver waits for the next clean Pass 3
+      to populate. Floor plans extracted via parallel-array indexing:
+      property_images[i] is a plan when property_image_tags[i] = 'plan'.
+      **Refactor 2026-06-06**: previously consumed `bronze_listings.raw_idealista`
+      (LEGACY append-only resale catalog, NOT dev-linked) — wrong scope.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['idealista']}}]
+      - name: source_listing_id
+        description: "Idealista unit_id (text)."
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "Idealista development_id (varchar) — links unit to parent dev page; 100% populated by API design."
+        tests: [not_null]
+
+  - name: stg_portal_listings_remax
+    description: >
+      Canonical-schema staging for RE/MAX listings. Filters to active SCD2
+      version (_dlt_valid_to IS NULL). Dev-linked by API design — all
+      listings come from POST /api/Development/PaginatedSearch traversal.
+      Floor plans: single PDF from floor_plan_path, prefixed with
+      https://i.maxwork.pt/bb. PDFs may 404 on direct fetch (likely
+      session-gated).
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['remax']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "RE/MAX development_id (bigint cast to TEXT); 100% populated."
+        tests: [not_null]
+
+  - name: stg_portal_listings_zome
+    description: >
+      Canonical-schema staging for Zome listings. SCD2 latest filter +
+      empreendimento scope filter on typed idemp (bigint). ~12.2% of bronze
+      have a dev link (~1,140 rows); the remaining 87.8% are individual
+      resale listings, out of scope for unified_listings_residential. Floor
+      plans extracted from aplantsgallery.hres[] — column literally means
+      "a plantas gallery", any non-empty hres entry is a plan (filenames
+      like planta_, planta1, plantapiso1, or bare unit numbers).
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['zome']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: >
+          Zome idemp (bigint) cast to TEXT — same identifier
+          unified_developments uses for Zome (venture_id::TEXT in the
+          dev-grain bronze table). Co-populated alongside emid (text code
+          like EMPT194625) but idemp is used for FK uniformity with
+          unified_developments. 100% populated within filtered scope.
+        tests: [not_null]
+
+  - name: stg_portal_listings_jll
+    description: >
+      Canonical-schema staging for JLL listings. Dev-linked by API design —
+      all units come from /v1/Developments/{id}/Fractions traversal. Zero
+      Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) — included for v2
+      national rollout. Floor plans extracted as blue_prints[].Original
+      (PDF URLs on egorealestate CDN, 92.72% coverage — best across portals).
+      Areas: useful = bronze.gross_area (Área Bruta Privativa, interior);
+      canonical gross = useful + sum of AREA_BALCONY/TERRACE/GARDEN/PATIO
+      from features.Areas.Childs JSONB.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['jll']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "JLL development_id (bigint cast to TEXT); 100% populated."
+        tests: [not_null]

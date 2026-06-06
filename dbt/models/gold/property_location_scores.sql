@@ -21,7 +21,7 @@
 
 WITH listings AS (
     SELECT listing_key, geo_key, geom_pt
-    FROM {{ ref('unified_listings') }}
+    FROM {{ ref('unified_listings_idealista_legacy') }}
     WHERE geom_pt IS NOT NULL
 )
 
