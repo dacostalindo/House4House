@@ -67,24 +67,79 @@ class RankingFile:
 # (those URLs have stable bodies — Público hasn't backfilled corrections).
 YEAR_FILE_TABLE: tuple[RankingFile, ...] = (
     # --- Era 1: static.publicocdn.com, year-embedded filenames ---
-    RankingFile(2018, "sec",  "https://static.publicocdn.com/files/rankings2018/data/listas/rankings2018sec.js",   290_000),
-    RankingFile(2018, "9ano", "https://static.publicocdn.com/files/rankings2018/data/listas/rankings20189ano.js",  360_000),
-    RankingFile(2019, "sec",  "https://static.publicocdn.com/files/rankings2019/data/listas/rankings2019sec.js",   275_000),
-    RankingFile(2019, "9ano", "https://static.publicocdn.com/files/rankings2019/data/listas/rankings20199ano.js",  335_000),
-    RankingFile(2020, "sec",  "https://static.publicocdn.com/files/rankings2020/data/listas/rankings2020sec.js",   280_000),
+    RankingFile(
+        2018,
+        "sec",
+        "https://static.publicocdn.com/files/rankings2018/data/listas/rankings2018sec.js",
+        290_000,
+    ),
+    RankingFile(
+        2018,
+        "9ano",
+        "https://static.publicocdn.com/files/rankings2018/data/listas/rankings20189ano.js",
+        360_000,
+    ),
+    RankingFile(
+        2019,
+        "sec",
+        "https://static.publicocdn.com/files/rankings2019/data/listas/rankings2019sec.js",
+        275_000,
+    ),
+    RankingFile(
+        2019,
+        "9ano",
+        "https://static.publicocdn.com/files/rankings2019/data/listas/rankings20199ano.js",
+        335_000,
+    ),
+    RankingFile(
+        2020,
+        "sec",
+        "https://static.publicocdn.com/files/rankings2020/data/listas/rankings2020sec.js",
+        280_000,
+    ),
     # 2020 9ano omitted — Provas Finais 9º ano cancelled (COVID).
-
     # --- Era 2: static.publico.pt /files/, year stripped from filename ---
-    RankingFile(2021, "sec",  "https://static.publico.pt/files/rankings2021/data/listas/rankingssec.js",           685_000),
+    RankingFile(
+        2021,
+        "sec",
+        "https://static.publico.pt/files/rankings2021/data/listas/rankingssec.js",
+        685_000,
+    ),
     # 2021 9ano omitted — Provas Finais 9º ano cancelled (COVID).
-    RankingFile(2022, "sec",  "https://static.publico.pt/files/rankings2022/data/listas/rankingssec.js",           930_000),
-    RankingFile(2022, "9ano", "https://static.publico.pt/files/rankings2022/data/listas/rankings9ano.js",          925_000),
-    RankingFile(2023, "sec",  "https://static.publico.pt/files/rankings2023/data/listas/rankingssec.js",           525_000),
-    RankingFile(2023, "9ano", "https://static.publico.pt/files/rankings2023/data/listas/rankings9ano.js",          540_000),
-
+    RankingFile(
+        2022,
+        "sec",
+        "https://static.publico.pt/files/rankings2022/data/listas/rankingssec.js",
+        930_000,
+    ),
+    RankingFile(
+        2022,
+        "9ano",
+        "https://static.publico.pt/files/rankings2022/data/listas/rankings9ano.js",
+        925_000,
+    ),
+    RankingFile(
+        2023,
+        "sec",
+        "https://static.publico.pt/files/rankings2023/data/listas/rankingssec.js",
+        525_000,
+    ),
+    RankingFile(
+        2023,
+        "9ano",
+        "https://static.publico.pt/files/rankings2023/data/listas/rankings9ano.js",
+        540_000,
+    ),
     # --- Era 3: static.publico.pt /s3/, same filename convention as Era 2 ---
-    RankingFile(2024, "sec",  "https://static.publico.pt/s3/rankings2024/data/listas/rankingssec.js",              555_000),
-    RankingFile(2024, "9ano", "https://static.publico.pt/s3/rankings2024/data/listas/rankings9ano.js",             575_000),
+    RankingFile(
+        2024, "sec", "https://static.publico.pt/s3/rankings2024/data/listas/rankingssec.js", 555_000
+    ),
+    RankingFile(
+        2024,
+        "9ano",
+        "https://static.publico.pt/s3/rankings2024/data/listas/rankings9ano.js",
+        575_000,
+    ),
 )
 
 

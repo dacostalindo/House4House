@@ -63,7 +63,12 @@ def _create_dag():
         def fanout() -> list[dict]:
             """Materialize the year-file table into a list of mappable dicts."""
             return [
-                {"year": rf.year, "kind": rf.kind, "url": rf.url, "min_bytes": rf.expected_min_bytes}
+                {
+                    "year": rf.year,
+                    "kind": rf.kind,
+                    "url": rf.url,
+                    "min_bytes": rf.expected_min_bytes,
+                }
                 for rf in YEAR_FILE_TABLE
             ]
 
@@ -138,7 +143,9 @@ def _create_dag():
 
             log.info(
                 "[publico] PUT s3://%s/%s (%d bytes)",
-                MINIO_BUCKET, object_name, len(body),
+                MINIO_BUCKET,
+                object_name,
+                len(body),
             )
             client.put_object(
                 MINIO_BUCKET,

@@ -56,113 +56,119 @@ BRONZE_TABLE = "bronze_education.raw_publico_rankings"
 # double precision for everything else.
 SOURCE_KEY_TO_COLUMN: dict[str, tuple[str, str]] = {
     # --- Identity & geography ---
-    "e":     ("nome",                  "text"),
-    "id":    ("id_publico",            "text"),
-    "co":    ("concelho",              "text"),
-    "c":     ("contexto_agrupamento",  "text"),
-    "coduo": ("codigo_uo_dgeec",       "text"),
-    "lt":    ("latitude",              "double precision"),
-    "ln":    ("longitude",             "double precision"),
-    "t":     ("tipo",                  "double precision"),  # 1=privado, 2=publico
+    "e": ("nome", "text"),
+    "id": ("id_publico", "text"),
+    "co": ("concelho", "text"),
+    "c": ("contexto_agrupamento", "text"),
+    "coduo": ("codigo_uo_dgeec", "text"),
+    "lt": ("latitude", "double precision"),
+    "ln": ("longitude", "double precision"),
+    "t": ("tipo", "double precision"),  # 1=privado, 2=publico
     # --- Headline principal ---
-    "mt":    ("media_total_exames",    "double precision"),
-    "rt":    ("ranking_exames",        "double precision"),
-    "nt":    ("num_provas_total",      "double precision"),
+    "mt": ("media_total_exames", "double precision"),
+    "rt": ("ranking_exames", "double precision"),
+    "nt": ("num_provas_total", "double precision"),
     # --- Ranking da Superação ---
-    "rs":    ("ranking_superacao",     "double precision"),
-    "v":     ("media_esperada",        "double precision"),
+    "rs": ("ranking_superacao", "double precision"),
+    "v": ("media_esperada", "double precision"),
     # --- Per-disciplina principal (1-letter codebook) ---
     # m = Matemática A, p = Português, b = Bio-Geo, f = Física-Química A,
     # g = Geografia A, fl = Filosofia, h = História A, ma = ECONOMIA A, i = MACS
-    "mm":    ("media_matematica_a",    "double precision"),
-    "mp":    ("media_portugues",       "double precision"),
-    "mb":    ("media_bio_geo",         "double precision"),
-    "mf":    ("media_fq_a",            "double precision"),
-    "mg":    ("media_geografia_a",     "double precision"),
-    "mfl":   ("media_filosofia",       "double precision"),
-    "mh":    ("media_historia_a",      "double precision"),
-    "mma":   ("media_economia_a",      "double precision"),
-    "mi":    ("media_macs",            "double precision"),
-    "nm":    ("num_provas_matematica_a", "double precision"),
-    "np":    ("num_provas_portugues",  "double precision"),
-    "nb":    ("num_provas_bio_geo",    "double precision"),
-    "nf":    ("num_provas_fq_a",       "double precision"),
-    "ng":    ("num_provas_geografia_a","double precision"),
-    "nfl":   ("num_provas_filosofia",  "double precision"),
-    "nh":    ("num_provas_historia_a", "double precision"),
-    "nma":   ("num_provas_economia_a", "double precision"),
-    "ni":    ("num_provas_macs",       "double precision"),
-    "rm":    ("ranking_matematica_a",  "double precision"),
-    "rp":    ("ranking_portugues",     "double precision"),
-    "rb":    ("ranking_bio_geo",       "double precision"),
-    "rf":    ("ranking_fq_a",          "double precision"),
-    "rg":    ("ranking_geografia_a",   "double precision"),
-    "rfl":   ("ranking_filosofia",     "double precision"),
-    "rh":    ("ranking_historia_a",    "double precision"),
-    "rma":   ("ranking_economia_a",    "double precision"),
-    "ri":    ("ranking_macs",          "double precision"),
+    "mm": ("media_matematica_a", "double precision"),
+    "mp": ("media_portugues", "double precision"),
+    "mb": ("media_bio_geo", "double precision"),
+    "mf": ("media_fq_a", "double precision"),
+    "mg": ("media_geografia_a", "double precision"),
+    "mfl": ("media_filosofia", "double precision"),
+    "mh": ("media_historia_a", "double precision"),
+    "mma": ("media_economia_a", "double precision"),
+    "mi": ("media_macs", "double precision"),
+    "nm": ("num_provas_matematica_a", "double precision"),
+    "np": ("num_provas_portugues", "double precision"),
+    "nb": ("num_provas_bio_geo", "double precision"),
+    "nf": ("num_provas_fq_a", "double precision"),
+    "ng": ("num_provas_geografia_a", "double precision"),
+    "nfl": ("num_provas_filosofia", "double precision"),
+    "nh": ("num_provas_historia_a", "double precision"),
+    "nma": ("num_provas_economia_a", "double precision"),
+    "ni": ("num_provas_macs", "double precision"),
+    "rm": ("ranking_matematica_a", "double precision"),
+    "rp": ("ranking_portugues", "double precision"),
+    "rb": ("ranking_bio_geo", "double precision"),
+    "rf": ("ranking_fq_a", "double precision"),
+    "rg": ("ranking_geografia_a", "double precision"),
+    "rfl": ("ranking_filosofia", "double precision"),
+    "rh": ("ranking_historia_a", "double precision"),
+    "rma": ("ranking_economia_a", "double precision"),
+    "ri": ("ranking_macs", "double precision"),
     # --- Nota Interna (CIF — Classificação Interna de Frequência) ---
     # Same 1-letter codebook.
-    "nimm":  ("cif_media_matematica_a", "double precision"),
-    "nimp":  ("cif_media_portugues",   "double precision"),
-    "nimb":  ("cif_media_bio_geo",     "double precision"),
-    "nimf":  ("cif_media_fq_a",        "double precision"),
-    "nimg":  ("cif_media_geografia_a", "double precision"),
-    "nimfl": ("cif_media_filosofia",   "double precision"),
-    "nimma": ("cif_media_economia_a",  "double precision"),
-    "nimi":  ("cif_media_macs",        "double precision"),
-    "nipm":  ("cif_ranking_matematica_a", "double precision"),
-    "nipp":  ("cif_ranking_portugues", "double precision"),
-    "nipb":  ("cif_ranking_bio_geo",   "double precision"),
-    "nipf":  ("cif_ranking_fq_a",      "double precision"),
-    "nipg":  ("cif_ranking_geografia_a","double precision"),
+    "nimm": ("cif_media_matematica_a", "double precision"),
+    "nimp": ("cif_media_portugues", "double precision"),
+    "nimb": ("cif_media_bio_geo", "double precision"),
+    "nimf": ("cif_media_fq_a", "double precision"),
+    "nimg": ("cif_media_geografia_a", "double precision"),
+    "nimfl": ("cif_media_filosofia", "double precision"),
+    "nimma": ("cif_media_economia_a", "double precision"),
+    "nimi": ("cif_media_macs", "double precision"),
+    "nipm": ("cif_ranking_matematica_a", "double precision"),
+    "nipp": ("cif_ranking_portugues", "double precision"),
+    "nipb": ("cif_ranking_bio_geo", "double precision"),
+    "nipf": ("cif_ranking_fq_a", "double precision"),
+    "nipg": ("cif_ranking_geografia_a", "double precision"),
     "nipfl": ("cif_ranking_filosofia", "double precision"),
-    "nipma": ("cif_ranking_economia_a","double precision"),
-    "nipi":  ("cif_ranking_macs",      "double precision"),
+    "nipma": ("cif_ranking_economia_a", "double precision"),
+    "nipi": ("cif_ranking_macs", "double precision"),
     # --- Per-disciplina Superação (2-letter codebook) ---
     # CAREFUL: 'ma' here = Matemática A, NOT Economia (opposite of 1-letter codebook).
-    "rsma":  ("ranking_superacao_matematica_a", "double precision"),
-    "rspo":  ("ranking_superacao_portugues",    "double precision"),
-    "rsbi":  ("ranking_superacao_bio_geo",      "double precision"),
-    "rsfq":  ("ranking_superacao_fq_a",         "double precision"),
-    "rsge":  ("ranking_superacao_geografia_a",  "double precision"),
-    "rsfi":  ("ranking_superacao_filosofia",    "double precision"),
-    "rsec":  ("ranking_superacao_economia_a",   "double precision"),
-    "rsmc":  ("ranking_superacao_macs",         "double precision"),
+    "rsma": ("ranking_superacao_matematica_a", "double precision"),
+    "rspo": ("ranking_superacao_portugues", "double precision"),
+    "rsbi": ("ranking_superacao_bio_geo", "double precision"),
+    "rsfq": ("ranking_superacao_fq_a", "double precision"),
+    "rsge": ("ranking_superacao_geografia_a", "double precision"),
+    "rsfi": ("ranking_superacao_filosofia", "double precision"),
+    "rsec": ("ranking_superacao_economia_a", "double precision"),
+    "rsmc": ("ranking_superacao_macs", "double precision"),
     # --- Prior-year carry (rolling history of mt/rt) ---
     # The YY suffix is legacy: in newer files these hold the IMMEDIATELY PRIOR
     # year, regardless of literal digits. e.g. m21 in the 2024 file = 2023 value.
-    "m17":   ("media_legacy_y17",      "double precision"),
-    "m18":   ("media_legacy_y18",      "double precision"),
-    "m19":   ("media_legacy_y19",      "double precision"),
-    "m20":   ("media_legacy_y20",      "double precision"),
-    "m21":   ("media_ano_anterior",    "double precision"),
-    "r17":   ("ranking_legacy_y17",    "double precision"),
-    "r18":   ("ranking_legacy_y18",    "double precision"),
-    "r19":   ("ranking_legacy_y19",    "double precision"),
-    "r20":   ("ranking_legacy_y20",    "double precision"),
-    "r21":   ("ranking_ano_anterior",  "double precision"),
+    "m17": ("media_legacy_y17", "double precision"),
+    "m18": ("media_legacy_y18", "double precision"),
+    "m19": ("media_legacy_y19", "double precision"),
+    "m20": ("media_legacy_y20", "double precision"),
+    "m21": ("media_ano_anterior", "double precision"),
+    "r17": ("ranking_legacy_y17", "double precision"),
+    "r18": ("ranking_legacy_y18", "double precision"),
+    "r19": ("ranking_legacy_y19", "double precision"),
+    "r20": ("ranking_legacy_y20", "double precision"),
+    "r21": ("ranking_ano_anterior", "double precision"),
     # --- Contexto socioeconómico ---
-    "hp":    ("habilitacoes_pais",     "double precision"),  # anos escolaridade pai (média)
-    "hm":    ("habilitacoes_maes",     "double precision"),  # anos escolaridade mãe (média)
-    "ac":    ("pct_sem_ase",           "double precision"),  # % alunos SEM Acção Social Escolar
-    "im":    ("idade_media_12ano",     "double precision"),  # idade média alunos no 12º ano
-    "pdq":   ("pct_professores_quadros","double precision"), # % corpo docente em quadros
+    "hp": ("habilitacoes_pais", "double precision"),  # anos escolaridade pai (média)
+    "hm": ("habilitacoes_maes", "double precision"),  # anos escolaridade mãe (média)
+    "ac": ("pct_sem_ase", "double precision"),  # % alunos SEM Acção Social Escolar
+    "im": ("idade_media_12ano", "double precision"),  # idade média alunos no 12º ano
+    "pdq": ("pct_professores_quadros", "double precision"),  # % corpo docente em quadros
     # --- Taxa de retenção (10º/11º/12º para sec; 7º/8º/9º para 9ano) ---
-    "tx0":   ("taxa_retencao_ano0",    "double precision"),  # 10º (sec) ou 7º (9ano)
-    "tx1":   ("taxa_retencao_ano1",    "double precision"),  # 11º ou 8º
-    "tx2":   ("taxa_retencao_ano2",    "double precision"),  # 12º ou 9º
+    "tx0": ("taxa_retencao_ano0", "double precision"),  # 10º (sec) ou 7º (9ano)
+    "tx1": ("taxa_retencao_ano1", "double precision"),  # 11º ou 8º
+    "tx2": ("taxa_retencao_ano2", "double precision"),  # 12º ou 9º
     # --- Equidade ---
-    "pde":   ("equidade_pct_ase_3anos",     "double precision"),  # % alunos ASE concluíram em 3 anos
-    "pdp":   ("equidade_pct_pais_3anos",    "double precision"),  # % país com perfil semelhante em 3 anos
-    "pdr":   ("equidade_ranking_diferenca", "double precision"),  # ranking da diferença escola vs país
+    "pde": ("equidade_pct_ase_3anos", "double precision"),  # % alunos ASE concluíram em 3 anos
+    "pdp": (
+        "equidade_pct_pais_3anos",
+        "double precision",
+    ),  # % país com perfil semelhante em 3 anos
+    "pdr": (
+        "equidade_ranking_diferenca",
+        "double precision",
+    ),  # ranking da diferença escola vs país
     # --- Equivalência à Frequência ---
-    "eq1":         ("equivalencia_comp1",       "double precision"),
-    "eq2":         ("equivalencia_comp2",       "double precision"),
-    "eq3":         ("equivalencia_delta",       "double precision"),
-    "eqnaousar":   ("equivalencia_flag_nao_usar","double precision"),
-    "eqnusar":     ("equivalencia_flag_nao_usar_v2","double precision"),
-    "re":          ("ranking_equivalencia",     "double precision"),
+    "eq1": ("equivalencia_comp1", "double precision"),
+    "eq2": ("equivalencia_comp2", "double precision"),
+    "eq3": ("equivalencia_delta", "double precision"),
+    "eqnaousar": ("equivalencia_flag_nao_usar", "double precision"),
+    "eqnusar": ("equivalencia_flag_nao_usar_v2", "double precision"),
+    "re": ("ranking_equivalencia", "double precision"),
 }
 
 PK_COLS: tuple[str, str, str] = ("year", "kind", "eid")
@@ -275,9 +281,7 @@ def _create_dag():
             )
 
             specs = []
-            for obj in client.list_objects(
-                MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True
-            ):
+            for obj in client.list_objects(MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True):
                 parts = obj.object_name.split("/")
                 if len(parts) != 3 or not parts[2].endswith(".json"):
                     log.warning("[publico-bronze] skipping unrecognized key %s", obj.object_name)
@@ -371,7 +375,10 @@ def _create_dag():
             if unknown_keys:
                 log.warning(
                     "[publico-bronze] %s/%s: source has %d unknown keys (dropped): %s",
-                    spec["year"], spec["kind"], len(unknown_keys), sorted(unknown_keys),
+                    spec["year"],
+                    spec["kind"],
+                    len(unknown_keys),
+                    sorted(unknown_keys),
                 )
 
             conn = psycopg2.connect(
@@ -390,7 +397,9 @@ def _create_dag():
 
             log.info(
                 "[publico-bronze] upserted %d rows for %s/%s",
-                len(payload), spec["year"], spec["kind"],
+                len(payload),
+                spec["year"],
+                spec["kind"],
             )
             return {
                 "year": spec["year"],
@@ -406,7 +415,9 @@ def _create_dag():
             for r in sorted(results, key=lambda x: (x["year"], x["kind"])):
                 log.info(
                     "[publico-bronze]   %d/%s -> %d rows%s",
-                    r["year"], r["kind"], r["rows_upserted"],
+                    r["year"],
+                    r["kind"],
+                    r["rows_upserted"],
                     f" (unknown keys: {r['unknown_keys']})" if r["unknown_keys"] else "",
                 )
                 all_unknown.update(r["unknown_keys"])
@@ -417,7 +428,8 @@ def _create_dag():
                 )
             log.info(
                 "[publico-bronze] done: %d (year,kind) partitions, %d total rows",
-                len(results), total,
+                len(results),
+                total,
             )
             return {
                 "partitions": len(results),
