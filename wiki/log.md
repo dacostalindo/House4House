@@ -1196,3 +1196,50 @@ Onboarded [[imovirtual]] as the 5th listing portal (after [[idealista]] / [[rema
 **Two operational findings baked into the pipeline + the [[2026-06-05-imovirtual-portal-onboarding]] ADR**: (1) the load task is a single 30+ min synchronous crawl, so Airflow's default 300s `scheduler_zombie_task_threshold` killed the live task when its heartbeat lapsed under CPU contention — raised to 3600s in [docker-compose.yml](../docker-compose.yml) and the two loads serialized; (2) DataDome throws short 403 bursts under sustained load (~every few hundred plots) — the crawl's retry/backoff rides them out (first full run: 19 retries, **0 plots dropped**). Confirm-at-build items resolved: unit `?page=N` pagination works; terreno `characteristics.type` enum = {building, habitat, agricultural, other, commercial, agricultural_building, woodland} + nullable.
 
 **Pages touched**: [[log]] (this entry), new [[2026-06-05-imovirtual-portal-onboarding]], new [[imovirtual]], [[index.md|index]] (Real-estate portals 4→5, Sources 23→24, Decisions 17→18, P1 13→14). **Deferred** (follow-up PR): `stg_portal_developments_imovirtual.sql` + the 5th `unified_developments` UNION arm + geo-priority rank; [[portal-field-map]] imovirtual columns.
+
+## [2026-06-06] silver wiring | imovirtual 5th UNION arm in unified_developments
+
+Landed the deferred follow-up from the [2026-06-06 imovirtual onboarding entry above](#2026-06-06-add-portal-source-first-load-imovirtual-p1-nextjs-_next_data-json). Created [stg_portal_developments_imovirtual](../dbt/models/staging/portals/stg_portal_developments_imovirtual.sql) (13-col canonical schema, typed `reverseGeocoding` admin geography, dev-level GPS, TRUE-total unit count), added the matching test block to [_staging_portals__models.yml](../dbt/models/staging/portals/_staging_portals__models.yml) at JLL/Zome depth, and added the 5th `UNION ALL` arm to [unified_developments](../dbt/models/silver/properties/unified_developments.sql).
+
+**Geometry-priority demotion**: original ADR locked imovirtual at slot 2 (just below JLL). Demoted to **slot 4** (`JLL > Zome > RE/MAX > imovirtual > idealista`) because coordinate coverage was unverified at silver-build time — Zome's ~98% coverage is proven, imovirtual's isn't. Conservative slot until a coverage spot-check clears a promotion. Reversibility = 4 lines in the priority CASE. Rationale captured as a 2026-06-06 addendum on [[2026-06-05-imovirtual-portal-onboarding]].
+
+**Unit-count semantics**: `total_units` carries `number_of_units_in_project` (TRUE project size), not the listed subset — imovirtual's data-quality edge over [[idealista]] survives through silver. `listed_units_count` lives in `raw_meta` for consumers that want both.
+
+**Pages touched**: [[log]] (this entry), [[2026-06-05-imovirtual-portal-onboarding]] (addendum), [[imovirtual]] (silver wiring marked done), [[cross-portal-dev-dedup]] (4 portals → 5, new geom ladder, imovirtual unit-count semantics). **Out of scope**: units/plots staging + `unified_listings_residential` integration (no cross-portal consumer for those grains yet).
+
+## [2026-06-06] dual-signal dedup + drop 1km guardrail | unified_developments
+
+Audit of [[imovirtual]] Aveiro merges (user review) exposed three dedup blockers, all algorithmic not portal-specific:
+
+1. **1km distance ceiling vetoing correct merges.** Portal pins disagree by **3-4km** on identical-named devs in the same concelho (Ethula remax↔imovirtual = 3,949m; JC Barrocas zome↔imovirtual = 3,412m; UNIQUE Matosinhos = 4,697m) — worse than the original 200-300m audit. **Dropped the ceiling entirely**: same name + same concelho is sufficient.
+2. **Token-Jaccard structurally blind to whitespace collapse.** "VIANOVA" tokens = {vianova}; "Via Nova" tokens = {via, nova}; Jaccard = 0.0. **Added a parallel char-trigram-Jaccard edge generator** on the whitespace-stripped clean_name; ≥ 0.6 threshold. UNION'd with the existing token-Jaccard edges before connected components.
+
+   Why UNION not replace: pure char-trigrams regress subset matches ("jcbarrocas" vs "jcbarrocasapartments" trigram-Jaccard = 0.44, below 0.6). Tokens handle subsets; trigrams handle collapses. Either signal is sufficient.
+
+3. **[[idealista]] has NULL concelho on every dev** (21/21 active, bronze `idealista_development_units.location_hierarchy = {}` on 150/150 rows). The dedup join requires `a.concelho = b.concelho` — NULL=NULL is FALSE, so every idealista dev fails to merge across portals. "The Unique" (idealista) ↔ "Unique" (remax/Aveiro) stays split for this reason. **Out of scope here** — bronze regression, separate task.
+
+**Verification (post-rebuild)**: 1,511 → **1,435** unified rows (-76 from new cross-portal merges); 197 → **243** multi-portal rows. All four user-reported pairs (Ethula/ETHULA, JC Barrocas variants, Via Nova/VIANOVA, UNIQUE Matosinhos) now merge correctly. No over-merges observed in 3+ portal rows.
+
+**Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (dual-signal section + dropped-ceiling rationale), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (algorithm + header comment), [_silver_properties__models.yml](../dbt/models/silver/properties/_silver_properties__models.yml) (model description).
+
+## [2026-06-06] macroize name normalize + CAOP geo in dev staging
+
+Pushed name-matching normalization into each portal dev-staging model and added CAOP-resolved admin geography there too — per the user's "for geography, should we check against CAOP? for the developments names should it be at staging?" review. Originally planned as a follow-up PR; bundled into this PR because the CAOP signal **fixes the idealista cross-portal merge problem** without waiting for the bronze `location_hierarchy` fix.
+
+**What shipped:**
+
+1. New macro [normalize_dev_name.sql](../dbt/macros/normalize_dev_name.sql) — encapsulates the lowercase + deaccent + strip-typology + strip-boilerplate + punct-to-space pipeline previously inline in [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql). The cross-cutting trailing-concelho strip stays in silver because it needs `join_concelho`.
+2. All 5 dev-staging models (`stg_portal_developments_{idealista,remax,zome,jll,imovirtual}.sql`) gain four columns:
+   - `match_name` — `normalize_dev_name(canonical_name)`.
+   - `geo_concelho_name`, `geo_parish_name`, `geo_key` — point-in-polygon against `dim_geography.freguesia_geom_pt` (`is_current`), NULL when geom is NULL.
+3. Silver `unified_developments` refactored:
+   - `portal_pre` CTE dropped (normalization is upstream).
+   - Same-concelho join uses `join_concelho = lower+deaccent of COALESCE(geo_concelho_name, concelho)` — CAOP-first.
+   - `portal_dev_concelho` MODEs `COALESCE(geo_concelho_name, concelho)` and `geo_key` across contributors (≤8 boundary disagreements total, audited).
+   - Final SELECT drops its own LATERAL CAOP lookup — already resolved upstream.
+
+**CAOP-vs-portal-text disagreement audit (post-staging build, case+accent normalized)**: idealista 0/16, imovirtual 0/800, jll 0/169, **remax 5/591**, **zome 3/309**. Only 8 real-data disagreements across 1,885 staging rows — driving a 1,435 → 1,430 row shift in silver.
+
+**Idealista breakthrough**: bronze `idealista_development_units.location_hierarchy = '{}'` leaves portal-text concelho NULL on every active idealista dev (separate spawned task). But 16/21 idealista devs have non-NULL `geom_3763` from the AVG-of-unit-geocodes path, and CAOP resolves concelho for all 16. After the refactor, **5 idealista devs now merge cross-portal** (was 0) — including the user-reported pairing **"The Unique" (idealista) ↔ "Unique" (remax/Aveiro)**, and **"JC Barrocas Apartments" (idealista) joining the existing zome+imovirtual merge** for a 3-portal row.
+
+**Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (normalize-in-staging + CAOP geo sections), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (refactor), [_silver_properties__models.yml](../dbt/models/silver/properties/_silver_properties__models.yml), [_staging_portals__models.yml](../dbt/models/staging/portals/_staging_portals__models.yml) (4 new columns per dev-staging model). Out of scope: the idealista `location_hierarchy = {}` bronze regression — still tracked as a separate task; CAOP now papers over it for merge purposes but the bronze should still be fixed.

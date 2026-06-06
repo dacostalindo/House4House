@@ -25,39 +25,56 @@ WITH active_latest AS (
     WHERE development_id IS NOT NULL
       AND _dlt_valid_to IS NULL
     ORDER BY development_id, _dlt_valid_from DESC
+),
+
+dev_typed AS (
+    SELECT
+        'jll'::TEXT                                                  AS portal,
+        development_id::TEXT                                         AS portal_dev_id,
+        COALESCE(title, name)                                        AS canonical_name,
+        address                                                      AS address_text,
+        UPPER(TRIM(municipality))                                    AS concelho,
+        parish                                                       AS parish,
+        zip_code                                                     AS postal_code,
+        CASE
+            WHEN has_gps_location AND gps_lat IS NOT NULL AND gps_lon IS NOT NULL
+            THEN ST_Transform(
+                ST_SetSRID(ST_MakePoint(gps_lon, gps_lat), 4326),
+                3763
+            )
+        END                                                          AS geom_3763,
+        CASE
+            WHEN has_gps_location AND gps_lat IS NOT NULL AND gps_lon IS NOT NULL
+            THEN ST_SetSRID(ST_MakePoint(gps_lon, gps_lat), 4326)
+        END                                                          AS geom_4326,
+        total_fractions::INTEGER                                     AS total_units,
+        NULL::TEXT                                                   AS listing_url,
+        jsonb_build_object(
+            'uid', uid,
+            'district', district,
+            'status', status,
+            'availability', availability,
+            'condition', condition,
+            'year', year,
+            'total_available_fractions', total_available_fractions,
+            'min_property_formatted_price', min_property_formatted_price,
+            'max_property_formatted_price', max_property_formatted_price
+        )                                                            AS raw_meta
+    FROM active_latest
 )
 
 SELECT
-    'jll'::TEXT                                                  AS portal,
-    development_id::TEXT                                         AS portal_dev_id,
-    COALESCE(title, name)                                        AS canonical_name,
-    address                                                      AS address_text,
-    UPPER(TRIM(municipality))                                    AS concelho,
-    parish                                                       AS parish,
-    zip_code                                                     AS postal_code,
-    CASE
-        WHEN has_gps_location AND gps_lat IS NOT NULL AND gps_lon IS NOT NULL
-        THEN ST_Transform(
-            ST_SetSRID(ST_MakePoint(gps_lon, gps_lat), 4326),
-            3763
-        )
-    END                                                          AS geom_3763,
-    CASE
-        WHEN has_gps_location AND gps_lat IS NOT NULL AND gps_lon IS NOT NULL
-        THEN ST_SetSRID(ST_MakePoint(gps_lon, gps_lat), 4326)
-    END                                                          AS geom_4326,
-    total_fractions::INTEGER                                     AS total_units,
-    NULL::TEXT                                                   AS listing_url,
-    jsonb_build_object(
-        'uid', uid,
-        'district', district,
-        'status', status,
-        'availability', availability,
-        'condition', condition,
-        'year', year,
-        'total_available_fractions', total_available_fractions,
-        'min_property_formatted_price', min_property_formatted_price,
-        'max_property_formatted_price', max_property_formatted_price
-    )                                                            AS raw_meta,
-    NOW()::TIMESTAMPTZ                                           AS _loaded_at
-FROM active_latest
+    db.*,
+    {{ normalize_dev_name('canonical_name') }}                       AS match_name,
+    g.geo_key,
+    g.concelho_name                                                  AS geo_concelho_name,
+    g.freguesia_name                                                 AS geo_parish_name,
+    NOW()::TIMESTAMPTZ                                               AS _loaded_at
+FROM dev_typed db
+LEFT JOIN LATERAL (
+    SELECT g.geo_key, g.concelho_name, g.freguesia_name
+    FROM {{ ref('dim_geography') }} g
+    WHERE g.is_current
+      AND ST_Contains(g.freguesia_geom_pt, db.geom_3763)
+    LIMIT 1
+) g ON TRUE

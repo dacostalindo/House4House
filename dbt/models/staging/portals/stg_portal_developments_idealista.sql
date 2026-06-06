@@ -49,37 +49,54 @@ unit_agg AS (
     GROUP BY development_id
 )
 
+, dev_typed AS (
+    SELECT
+        'idealista'::TEXT                                            AS portal,
+        d.development_id::TEXT                                       AS portal_dev_id,
+        (regexp_match(d.title, '^Empreendimento (.+?) anuncia '))[1] AS canonical_name,
+        d.name                                                       AS address_text,
+        UPPER(TRIM(u.location_hierarchy ->> 1))                      AS concelho,
+        u.location_hierarchy ->> 2                                   AS parish,
+        NULL::TEXT                                                   AS postal_code,
+        CASE
+            WHEN u.avg_lat IS NOT NULL AND u.avg_lng IS NOT NULL
+            THEN ST_Transform(
+                ST_SetSRID(ST_MakePoint(u.avg_lng::FLOAT, u.avg_lat::FLOAT), 4326),
+                3763
+            )
+        END                                                          AS geom_3763,
+        CASE
+            WHEN u.avg_lat IS NOT NULL AND u.avg_lng IS NOT NULL
+            THEN ST_SetSRID(ST_MakePoint(u.avg_lng::FLOAT, u.avg_lat::FLOAT), 4326)
+        END                                                          AS geom_4326,
+        d.units_count::INTEGER                                       AS total_units,
+        d.development_url                                            AS listing_url,
+        jsonb_build_object(
+            'title_raw', d.title,
+            'location_hierarchy', u.location_hierarchy,
+            'area_slug', d.area_slug,
+            'min_price', d.min_price,
+            'typology_summary', d.typology_summary,
+            'is_completed', d.is_completed,
+            'promoter_name', d.promoter_name,
+            'n_geocoded_units', u.n_geocoded_units
+        )                                                            AS raw_meta
+    FROM active_latest d
+    LEFT JOIN unit_agg u USING (development_id)
+)
+
 SELECT
-    'idealista'::TEXT                                            AS portal,
-    d.development_id::TEXT                                       AS portal_dev_id,
-    (regexp_match(d.title, '^Empreendimento (.+?) anuncia '))[1] AS canonical_name,
-    d.name                                                       AS address_text,
-    UPPER(TRIM(u.location_hierarchy ->> 1))                      AS concelho,
-    u.location_hierarchy ->> 2                                   AS parish,
-    NULL::TEXT                                                   AS postal_code,
-    CASE
-        WHEN u.avg_lat IS NOT NULL AND u.avg_lng IS NOT NULL
-        THEN ST_Transform(
-            ST_SetSRID(ST_MakePoint(u.avg_lng::FLOAT, u.avg_lat::FLOAT), 4326),
-            3763
-        )
-    END                                                          AS geom_3763,
-    CASE
-        WHEN u.avg_lat IS NOT NULL AND u.avg_lng IS NOT NULL
-        THEN ST_SetSRID(ST_MakePoint(u.avg_lng::FLOAT, u.avg_lat::FLOAT), 4326)
-    END                                                          AS geom_4326,
-    d.units_count::INTEGER                                       AS total_units,
-    d.development_url                                            AS listing_url,
-    jsonb_build_object(
-        'title_raw', d.title,
-        'location_hierarchy', u.location_hierarchy,
-        'area_slug', d.area_slug,
-        'min_price', d.min_price,
-        'typology_summary', d.typology_summary,
-        'is_completed', d.is_completed,
-        'promoter_name', d.promoter_name,
-        'n_geocoded_units', u.n_geocoded_units
-    )                                                            AS raw_meta,
-    NOW()::TIMESTAMPTZ                                           AS _loaded_at
-FROM active_latest d
-LEFT JOIN unit_agg u USING (development_id)
+    db.*,
+    {{ normalize_dev_name('canonical_name') }}                       AS match_name,
+    g.geo_key,
+    g.concelho_name                                                  AS geo_concelho_name,
+    g.freguesia_name                                                 AS geo_parish_name,
+    NOW()::TIMESTAMPTZ                                               AS _loaded_at
+FROM dev_typed db
+LEFT JOIN LATERAL (
+    SELECT g.geo_key, g.concelho_name, g.freguesia_name
+    FROM {{ ref('dim_geography') }} g
+    WHERE g.is_current
+      AND ST_Contains(g.freguesia_geom_pt, db.geom_3763)
+    LIMIT 1
+) g ON TRUE

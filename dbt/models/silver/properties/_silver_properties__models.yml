@@ -421,24 +421,40 @@ models:
 
   - name: unified_developments
     description: >
-      One row per marketed real-estate development, de-duplicated across the 4
-      listing portals (idealista, RE/MAX, Zome, JLL). Sprint-09 Slice B-prime.
+      One row per marketed real-estate development, de-duplicated across the 5
+      listing portals (idealista, RE/MAX, Zome, JLL, imovirtual). Sprint-09 Slice B-prime.
       Relocated 2026-06-05 from silver_regulatory → silver_properties (it models
       marketed properties, not regulation); pairs with unified_listings.
 
-      Portal dedup is name-driven: project names are normalized (deaccent;
-      strip typology codes T1/T2/T1+1, boilerplate words empreendimento/edifício/
-      the, and a trailing concelho name; punctuation → space), tokenized, and two
-      listings are linked when their word-sets have Jaccard overlap >= 0.6 AND
-      they share a concelho. A 1km distance ceiling is a guardrail (skipped when
-      a coord is missing). Connected components over those links produce one
-      development per component. Proximity-first (DBSCAN) was rejected: portal
-      coordinates disagree by 200-300m+ for the same development.
+      Portal dedup is name-driven, dual-signal (2026-06-06 refactor): the
+      `normalize_dev_name()` macro runs in each staging model so every dev
+      arrives with a `match_name` column (deaccent + strip typology codes
+      T1/T2/T1+1 + strip boilerplate empreendimento/edifício/the + punctuation
+      → space). Each staging row also exposes CAOP-resolved `geo_concelho_name`,
+      `geo_parish_name`, `geo_key` via point-in-polygon against
+      `dim_geography.freguesia_geom_pt`. The dedup's same-concelho gate uses
+      `COALESCE(geo_concelho_name, concelho)` — CAOP wins when geom resolved,
+      portal-text fallback otherwise. The trailing-concelho strip ("…, aveiro"
+      → "…") stays inline here because it needs the cross-cutting join_concelho.
+      Two parallel edge generators link members, both gated on same-concelho,
+      the UNION feeds connected components:
+        (1) token-Jaccard ≥ 0.6 on whitespace-split tokens (catches subset names
+            like "jc barrocas" ⊆ "jc barrocas apartments");
+        (2) char-trigram Jaccard ≥ 0.6 on the whitespace-stripped clean_name
+            (catches collapse variants like "vianova" ↔ "via nova" that token
+            Jaccard scores at 0.0).
+      The 1km distance ceiling was removed 2026-06-06: portal pins disagree by
+      3-4km on identical-named devs in the same concelho (worse than the original
+      200-300m audit number); same name + same concelho is sufficient evidence.
+      Proximity-first (DBSCAN) remains rejected for the same reason.
 
       Geometry hierarchy: the development takes geom + concelho + parish from the
       highest-priority portal present that has coordinates: JLL > Zome > RE/MAX
-      > idealista. geo_key resolved by point-in-polygon of the unified geom
-      against dim_geography.freguesia_geom_pt.
+      > imovirtual > idealista. Devs with NO geom-bearing portal contributor
+      flow through with NULL geom (refactor 2026-06-06 — previously dropped,
+      losing ~10 devs + ~60 listing FK joins in unified_listings_residential).
+      geo_key resolved by point-in-polygon of the unified geom against
+      dim_geography.freguesia_geom_pt; NULL when geom is NULL or falls outside.
 
       SCE is intentionally NOT merged here. SCE buildings (certified physical
       buildings) and portal developments (marketed projects) are different
@@ -450,8 +466,9 @@ models:
       portal_unit_counts (JSONB) exposes every portal's reported count without
       picking an "authoritative" one — each portal's count has different semantics
       (idealista = listed-units subset per the 2026-05-22 facade audit; Zome =
-      inventory; JLL = total fractions; RE/MAX = listings at RE/MAX). Consumers
-      read the breakdown and choose.
+      inventory; JLL = total fractions; RE/MAX = listings at RE/MAX; imovirtual
+      = TRUE project size from number_of_units_in_project, listed subset lives
+      in the staging model's raw_meta). Consumers read the breakdown and choose.
     columns:
       # ── Identity ───────────────────────────────────────────────────────
       - name: unified_development_id
@@ -461,13 +478,9 @@ models:
           - not_null
       # ── Geometry (dual CRS, both GIST-indexed) ────────────────────────
       - name: unified_geom_3763
-        description: "Development centroid in EPSG:3763 (PT-TM06). Taken from the highest-priority portal with coordinates (JLL > Zome > RE/MAX > idealista) — ST_Centroid over that portal's member geoms."
-        tests:
-          - not_null
+        description: "Development centroid in EPSG:3763 (PT-TM06). Taken from the highest-priority portal with coordinates (JLL > Zome > RE/MAX > imovirtual > idealista) — ST_Centroid over that portal's member geoms. NULL when no contributing portal has coordinates (the 2026-06-06 refactor keeps those devs instead of dropping them)."
       - name: unified_geom_4326
-        description: "Same centroid in EPSG:4326 (WGS84). For Kepler.gl / Leaflet display in the Inspector."
-        tests:
-          - not_null
+        description: "Same centroid in EPSG:4326 (WGS84). For Kepler.gl / Leaflet display in the Inspector. NULL when unified_geom_3763 is NULL."
       # ── Administrative ────────────────────────────────────────────────
       - name: geo_key
         description: "FK to dim_geography (the freguesia containing unified_geom_3763). NULL when the point falls outside every current freguesia polygon (~1% of rows — typically offshore/boundary edge cases)."
@@ -479,11 +492,11 @@ models:
         description: "Most common canonical_name across the development's portal members (MODE over non-null names). NULL only if every contributing portal listed the dev without a name."
       # ── Counts + provenance ──────────────────────────────────────────
       - name: portal_unit_counts
-        description: "JSONB {portal: unit_count} — each portal's reported total_units. No authoritative pick: idealista = listed-units subset, Zome = inventory, JLL = total_fractions, RE/MAX = listings at RE/MAX. Consumer reads the breakdown."
+        description: "JSONB {portal: unit_count} — each portal's reported total_units. No authoritative pick: idealista = listed-units subset, Zome = inventory, JLL = total_fractions, RE/MAX = listings at RE/MAX, imovirtual = TRUE project size. Consumer reads the breakdown."
         tests:
           - not_null
       - name: n_portal_contributors
-        description: "Number of distinct portals that contributed to this development (1-4)."
+        description: "Number of distinct portals that contributed to this development (1-5)."
         tests:
           - not_null
       - name: portal_refs

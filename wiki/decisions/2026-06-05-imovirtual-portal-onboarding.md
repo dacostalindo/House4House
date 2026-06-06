@@ -6,9 +6,18 @@ tags: [imovirtual, portals, dlt, bronze, scd2, next-data, datadome, scope]
 confidence: high
 ---
 
+## Addendum 2026-06-06 — silver wiring landed + geometry-priority demotion
+
+The remaining follow-up listed in the preamble — `stg_portal_developments_imovirtual` + 5th UNION arm in [[cross-portal-dev-dedup|unified_developments]] — shipped. Two notes on what diverged from the original record:
+
+1. **Geometry-priority slot demoted from 2 to 4.** Original ladder: `JLL > imovirtual > Zome > RE/MAX > idealista`. Shipped ladder: `JLL > Zome > RE/MAX > imovirtual > idealista`. imovirtual's typed dev-level pin + `reverseGeocoding` are cleaner than RE/MAX in principle, but coordinate coverage was unverified at silver-build time — the conservative slot (just above idealista) wins for v1 until a coverage spot-check (% non-null gps_lat, distribution within a known concelho) clears a promotion. Reversibility cost is 4 lines in the priority CASE.
+2. **Unit-count semantics held** — `total_units` carries `number_of_units_in_project` (TRUE project size, not the listed subset). `listed_units_count` lives in `raw_meta` of the staging model for consumers that want both. This is the data-quality edge over idealista the decision called out, kept intact through silver.
+
+Units/plots staging remain deferred (no cross-portal consumer needs them yet; `unified_listings_residential` stays at 4 portals).
+
 ## For future Claude
 
-This is a decision record about adding **imovirtual** as the 5th listing portal, alongside [[idealista]], [[remax]], [[zome]], [[jll]]. It locks the acquisition method (direct Next.js `_next/data` JSON, no scraping vendor), the three-grain table design (developments + development_units + plots), the per-grain geographic scope (devs/units national, plots Aveiro), and the silver participation (5th arm of [[cross-portal-dev-dedup|unified_developments]]). Designed from live-API recon + a DataDome canary 2026-06-05, then **built, run, and verified 2026-06-06**: the national dev+unit load (801 devs / 4,465 units) + Aveiro plots (4,894) landed in `bronze_listings` and passed the validation bands. Field maps are live-verified and the bronze dlt pipeline is battle-tested; the dbt staging/silver wiring is the remaining follow-up. Read this before extending the imovirtual pipeline or revisiting its scope.
+This is a decision record about adding **imovirtual** as the 5th listing portal, alongside [[idealista]], [[remax]], [[zome]], [[jll]]. It locks the acquisition method (direct Next.js `_next/data` JSON, no scraping vendor), the three-grain table design (developments + development_units + plots), the per-grain geographic scope (devs/units national, plots Aveiro), and the silver participation (5th arm of [[cross-portal-dev-dedup|unified_developments]]). Designed from live-API recon + a DataDome canary 2026-06-05, then **built, run, and verified 2026-06-06**: the national dev+unit load (801 devs / 4,465 units) + Aveiro plots (4,894) landed in `bronze_listings` and passed the validation bands. The dbt staging + 5th UNION arm shipped 2026-06-06 — see the addendum above for the rank-change rationale. Read this before extending the imovirtual pipeline or revisiting its scope.
 
 ## Decision
 
