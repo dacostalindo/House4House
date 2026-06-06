@@ -38,7 +38,6 @@ def _create_dag():
         REQUEST_HEADERS,
         SOFT_404_BYTES,
         YEAR_FILE_TABLE,
-        RankingFile,
     )
 
     default_args = {
@@ -103,7 +102,7 @@ def _create_dag():
                 json.loads(body)
             except json.JSONDecodeError as e:
                 head = body[:120].decode("utf-8", errors="replace")
-                raise ValueError(f"Body for {url} is not valid JSON: {e}. Head={head!r}")
+                raise ValueError(f"Body for {url} is not valid JSON: {e}. Head={head!r}") from e
 
             return {
                 "year": spec["year"],
