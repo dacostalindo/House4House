@@ -1,0 +1,282 @@
+version: 2
+
+sources:
+  - name: bronze_education
+    database: house4house
+    schema: bronze_education
+    tables:
+      - name: raw_publico_rankings
+        data_tests:
+          # Headline ranks are per-edition-per-kind: rank 1 means "best in this
+          # year's sec/9ano cohort", NOT a global #1. Within each (year, kind)
+          # partition `ranking_exames` is strictly unique 1..N — Público's mt
+          # is precise enough that ties don't occur in the 2018-2024 corpus.
+          # `ranking_superacao` ALLOWS TIES (standard competition ranking — the
+          # rank after a 3-way tie at 569 is 572, skipping 570, 571) because
+          # the `mt - v` gap quantizes to limited precision at the bottom of
+          # the distribution. We test only ranking_exames here; ranking_superacao
+          # ties are documented but not enforced.
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [year, kind, ranking_exames]
+              config:
+                where: "ranking_exames IS NOT NULL"
+        description: >
+          Público school rankings (secundário + 3º ciclo Provas Finais), one row
+          per (year × kind × school). Unnested at bronze with human-readable
+          Portuguese column names — every cryptic source key (mt, rt, mm, mp,
+          nimm, etc.) is renamed to its UI label (media_total_exames,
+          ranking_exames, media_matematica_a, ...). MinIO holds the verbatim raw
+          JSON as the audit trail. Loaded by publico_rankings_bronze_load.
+          Covers 2018-2024; 9ano gap for 2020+2021 (COVID — Provas Finais cancelled).
+          See [[publico-rankings-column-legend]] for the full source-key →
+          renamed-column map ground-truthed against Público's UI for eid=1069.
+        columns:
+          # --- Partition keys / audit ---
+          - name: year
+            description: "Edition year (e.g. 2024). Promoted from the MinIO file path, not the JSON body."
+            tests: [not_null]
+          - name: kind
+            description: "'sec' (11º+12º exames nacionais) or '9ano' (3º ciclo Provas Finais)."
+            tests:
+              - not_null
+              - accepted_values: {values: ['sec', '9ano']}
+          - name: eid
+            description: "Público internal school id (string, stable across years). PK component."
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock time the bronze loader inserted/updated this row. Refreshed on every UPSERT."
+            tests: [not_null]
+          # --- Identity & geography ---
+          - name: nome
+            description: "School name (free-form Portuguese, accents intact). Source key: `e`."
+          - name: id_publico
+            description: "Público 4-digit short code (zero-padded). NOT a prefix of DGEEC's 6-digit. Source key: `id`."
+          - name: concelho
+            description: "Concelho name (no DICOFRE). Source key: `co`."
+          - name: contexto_agrupamento
+            description: >
+              Letter code for the agrupamento's socioeconomic context: D=Desfavorável,
+              F=Favorável, I=Intermédio, PRI=privado sem contrato, PRI_CA=privado com
+              contrato de associação, Açores, Madeira. Source key: `c`.
+          - name: codigo_uo_dgeec
+            description: >
+              DGEEC 6-digit agrupamento código (Unidade Orgânica). Populated for ~79%
+              of 9ano rows; NULL for all sec rows. Primary join key to
+              [[rede-escolar]].CODUOME. Source key: `coduo`.
+          - name: latitude
+            description: "WGS84 latitude. Source key: `lt`."
+          - name: longitude
+            description: "WGS84 longitude. Source key: `ln`."
+          - name: tipo
+            description: "Natureza: 1=privado/cooperativo/IPSS, 2=público. Source key: `t`."
+            tests:
+              - not_null
+              - accepted_values: {values: [1, 2]}
+
+          # --- Headline ranking principal ---
+          - name: media_total_exames
+            description: "Média total dos exames nacionais. Scale 0-20 sec, 0-5 9ano. The primary ranking score. Source key: `mt`."
+            tests: [not_null]
+          - name: ranking_exames
+            description: >
+              National rank from media_total_exames, scoped per (year, kind) partition.
+              Sequential 1..N per edition: rank 1 means "best in this year's sec or 9ano cohort",
+              NOT a global #1. Querying without filtering by (year, kind) returns 12 separate
+              rank-1 rows (one per partition — verified in the 2018-2024 corpus). NULL when
+              sample size below Público's threshold. Source key: `rt`.
+          - name: num_provas_total
+            description: "Total number of exam provas (denominator of media_total_exames). Source key: `nt`."
+
+          # --- Ranking da Superação ---
+          - name: ranking_superacao
+            description: >
+              Público's 2nd headline ranking — rank by (media_total_exames − media_esperada),
+              scoped per (year, kind) partition (same convention as ranking_exames). Rank 1 =
+              biggest positive gap above expected; NOT global. TIES ALLOWED via standard
+              competition ranking (1, 2, 2, 4): schools with identical gap share a rank and
+              the next rank skips accordingly (verified: 2024 9ano has a 3-way tie at 569,
+              next rank = 572). Empirically ties cluster at the bottom of the distribution
+              where the gap quantizes to limited precision. Source key: `rs`.
+          - name: media_esperada
+            description: "Expected average given the school's socioeconomic context. Baseline for Superação. Source key: `v`."
+
+          # --- Per-disciplina principal: média (1-letter codebook) ---
+          - name: media_matematica_a
+            description: "Média dos exames de Matemática A (0-20 sec) / Matemática (0-5 9ano). Source key: `mm`."
+          - name: media_portugues
+            description: "Média dos exames de Português. Source key: `mp`."
+          - name: media_bio_geo
+            description: "Média dos exames de Biologia e Geologia (sec only). Source key: `mb`."
+          - name: media_fq_a
+            description: "Média dos exames de Física e Química A (sec only). Source key: `mf`."
+          - name: media_geografia_a
+            description: "Média dos exames de Geografia A (sec only). Source key: `mg`."
+          - name: media_filosofia
+            description: "Média dos exames de Filosofia (sec only). Source key: `mfl`."
+          - name: media_historia_a
+            description: "Média dos exames de História A (sec only). Source key: `mh`."
+          - name: media_economia_a
+            description: "Média dos exames de Economia A (sec only). Source key: `mma` — 1-letter codebook where `ma`=Economia (NOT Mat A)."
+          - name: media_macs
+            description: "Média dos exames de Matemática Aplicada às Ciências Sociais (sec only). Source key: `mi` — 1-letter codebook where `i`=MACS (NOT Inglês)."
+
+          # --- Per-disciplina principal: número de provas ---
+          - name: num_provas_matematica_a
+            description: "Número de provas de Matemática A. Source key: `nm`."
+          - name: num_provas_portugues
+            description: "Número de provas de Português. Source key: `np`."
+          - name: num_provas_bio_geo
+            description: "Número de provas de Biologia e Geologia. Source key: `nb`."
+          - name: num_provas_fq_a
+            description: "Número de provas de Física e Química A. Source key: `nf`."
+          - name: num_provas_geografia_a
+            description: "Número de provas de Geografia A. Source key: `ng`."
+          - name: num_provas_filosofia
+            description: "Número de provas de Filosofia. Source key: `nfl`."
+          - name: num_provas_historia_a
+            description: "Número de provas de História A. Source key: `nh`."
+          - name: num_provas_economia_a
+            description: "Número de provas de Economia A. Source key: `nma`."
+          - name: num_provas_macs
+            description: "Número de provas de MACS. Source key: `ni`."
+
+          # --- Per-disciplina principal: ranking nacional ---
+          - name: ranking_matematica_a
+            description: "Ranking nacional na disciplina de Matemática A. NULL when sample size below threshold. Source key: `rm`."
+          - name: ranking_portugues
+            description: "Ranking nacional na disciplina de Português. Source key: `rp`."
+          - name: ranking_bio_geo
+            description: "Ranking nacional na disciplina de Biologia e Geologia. Source key: `rb`."
+          - name: ranking_fq_a
+            description: "Ranking nacional na disciplina de Física e Química A. Source key: `rf`."
+          - name: ranking_geografia_a
+            description: "Ranking nacional na disciplina de Geografia A. Source key: `rg`."
+          - name: ranking_filosofia
+            description: "Ranking nacional na disciplina de Filosofia. Source key: `rfl`."
+          - name: ranking_historia_a
+            description: "Ranking nacional na disciplina de História A. Source key: `rh`."
+          - name: ranking_economia_a
+            description: "Ranking nacional na disciplina de Economia A. Source key: `rma`."
+          - name: ranking_macs
+            description: "Ranking nacional na disciplina de MACS. Source key: `ri`."
+
+          # --- Nota Interna (CIF): média ---
+          - name: cif_media_matematica_a
+            description: "Classificação Interna de Frequência média em Matemática A (scale 0-20). Source key: `nimm`."
+          - name: cif_media_portugues
+            description: "CIF média em Português. Source key: `nimp`."
+          - name: cif_media_bio_geo
+            description: "CIF média em Biologia e Geologia. Source key: `nimb`."
+          - name: cif_media_fq_a
+            description: "CIF média em Física e Química A. Source key: `nimf`."
+          - name: cif_media_geografia_a
+            description: "CIF média em Geografia A. Source key: `nimg`."
+          - name: cif_media_filosofia
+            description: "CIF média em Filosofia. Source key: `nimfl`."
+          - name: cif_media_economia_a
+            description: "CIF média em Economia A. Source key: `nimma` — 1-letter codebook where `ma`=Economia."
+          - name: cif_media_macs
+            description: "CIF média em MACS. Source key: `nimi` — 1-letter codebook where `i`=MACS."
+
+          # --- Nota Interna (CIF): ranking ---
+          - name: cif_ranking_matematica_a
+            description: "Ranking nacional pelo CIF em Matemática A. Source key: `nipm`."
+          - name: cif_ranking_portugues
+            description: "Ranking nacional pelo CIF em Português. Source key: `nipp`."
+          - name: cif_ranking_bio_geo
+            description: "Ranking nacional pelo CIF em Biologia e Geologia. Source key: `nipb`."
+          - name: cif_ranking_fq_a
+            description: "Ranking nacional pelo CIF em Física e Química A. Source key: `nipf`."
+          - name: cif_ranking_geografia_a
+            description: "Ranking nacional pelo CIF em Geografia A. Source key: `nipg`."
+          - name: cif_ranking_filosofia
+            description: "Ranking nacional pelo CIF em Filosofia. Source key: `nipfl`."
+          - name: cif_ranking_economia_a
+            description: "Ranking nacional pelo CIF em Economia A. Source key: `nipma`."
+          - name: cif_ranking_macs
+            description: "Ranking nacional pelo CIF em MACS. Source key: `nipi`."
+
+          # --- Per-disciplina Superação (2-letter codebook — `ma` here = Matemática A) ---
+          - name: ranking_superacao_matematica_a
+            description: "Ranking da Superação na disciplina de Matemática A. Source key: `rsma` — 2-letter codebook where `ma`=Mat A (opposite of 1-letter `mma`!)."
+          - name: ranking_superacao_portugues
+            description: "Ranking da Superação em Português. Source key: `rspo`."
+          - name: ranking_superacao_bio_geo
+            description: "Ranking da Superação em Biologia e Geologia. Source key: `rsbi`."
+          - name: ranking_superacao_fq_a
+            description: "Ranking da Superação em Física e Química A. Source key: `rsfq`."
+          - name: ranking_superacao_geografia_a
+            description: "Ranking da Superação em Geografia A. Source key: `rsge`."
+          - name: ranking_superacao_filosofia
+            description: "Ranking da Superação em Filosofia. Source key: `rsfi`."
+          - name: ranking_superacao_economia_a
+            description: "Ranking da Superação em Economia A. Source key: `rsec`."
+          - name: ranking_superacao_macs
+            description: "Ranking da Superação em MACS. Source key: `rsmc`."
+
+          # --- Prior-year carry ---
+          - name: media_ano_anterior
+            description: >
+              Média total no ano imediatamente anterior à edição. The source key `m21` is
+              legacy — its meaning is "previous year", not literally 2021. e.g. in the
+              2024 file this column holds the 2023 value.
+          - name: ranking_ano_anterior
+            description: "Ranking total no ano imediatamente anterior. Source key: `r21` (legacy suffix; semantics = prior year)."
+          - name: media_legacy_y17
+            description: "Legacy prior-year média carry from source key `m17`. Semantics drift across file vintages; treat as opaque history."
+          - name: media_legacy_y18
+            description: "Legacy prior-year média carry from source key `m18`. Semantics drift across file vintages."
+          - name: media_legacy_y19
+            description: "Legacy prior-year média carry from source key `m19`. Semantics drift across file vintages."
+          - name: media_legacy_y20
+            description: "Legacy prior-year média carry from source key `m20`. Semantics drift across file vintages."
+          - name: ranking_legacy_y17
+            description: "Legacy prior-year ranking carry from source key `r17`."
+          - name: ranking_legacy_y18
+            description: "Legacy prior-year ranking carry from source key `r18`."
+          - name: ranking_legacy_y19
+            description: "Legacy prior-year ranking carry from source key `r19`."
+          - name: ranking_legacy_y20
+            description: "Legacy prior-year ranking carry from source key `r20`."
+
+          # --- Contexto socioeconómico ---
+          - name: habilitacoes_pais
+            description: "Anos de escolaridade do pai (média do agrupamento). Source key: `hp`."
+          - name: habilitacoes_maes
+            description: "Anos de escolaridade da mãe (média do agrupamento). Source key: `hm`."
+          - name: pct_sem_ase
+            description: "% alunos SEM Acção Social Escolar (wealth proxy — high = wealthier cohort). Source key: `ac`."
+          - name: idade_media_12ano
+            description: "Idade média dos alunos no 12º ano (sec) ou 9º ano (9ano). Source key: `im`."
+          - name: pct_professores_quadros
+            description: "% do corpo docente em quadros (tenure stability proxy). Source key: `pdq`."
+
+          # --- Taxa de retenção ---
+          - name: taxa_retencao_ano0
+            description: "Taxa de retenção no 10º ano (sec) / 7º ano (9ano), em %. Source key: `tx0`."
+          - name: taxa_retencao_ano1
+            description: "Taxa de retenção no 11º ano (sec) / 8º ano (9ano), em %. Source key: `tx1`."
+          - name: taxa_retencao_ano2
+            description: "Taxa de retenção no 12º ano (sec) / 9º ano (9ano), em %. Source key: `tx2`."
+
+          # --- Equidade ---
+          - name: equidade_pct_ase_3anos
+            description: "% alunos com ASE que concluíram o secundário em 3 anos. Source key: `pde`."
+          - name: equidade_pct_pais_3anos
+            description: "% alunos do país com perfil semelhante que concluíram em 3 anos. Source key: `pdp`."
+          - name: equidade_ranking_diferenca
+            description: "Ranking da diferença entre a escola e a média nacional comparável. Source key: `pdr`."
+
+          # --- Equivalência à Frequência ---
+          - name: equivalencia_comp1
+            description: "Componente 1 do score de Provas de Equivalência à Frequência. Source key: `eq1`."
+          - name: equivalencia_comp2
+            description: "Componente 2 do score de Equivalência à Frequência. Source key: `eq2`."
+          - name: equivalencia_delta
+            description: "Delta sinalizado vs norma nacional para Provas de Equivalência. Source key: `eq3`."
+          - name: equivalencia_flag_nao_usar
+            description: "Flag de qualidade: dados de equivalência excluídos do ranking. Source key: `eqnaousar`."
+          - name: equivalencia_flag_nao_usar_v2
+            description: "Variante do flag de qualidade (mais recente). Source key: `eqnusar`."
+          - name: ranking_equivalencia
+            description: "Ranking entre escolas com dados de equivalência. Source key: `re` (100% sample-size overlap com `eq*`)."
