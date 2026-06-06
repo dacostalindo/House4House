@@ -1420,3 +1420,23 @@ Bootstrapped the second source of the [[pt-education-amenity-pillar]] (the GesEd
 **Live verification (2026-06-06)**: count probe = 8,670 features. Pagination verified at offset 0/2000/4000/6000 = 2000 features each (`exceededTransferLimit=True`); offset 8000 = 670 tail features (no flag). Live field set = our `SOURCE_KEY_TO_COLUMN` exactly (zero drift; 42 attribute fields incl. CODESCME PK). 92/670 tail-page features had NULL geometry (handled — row inserts with `geom`/`geom_pt` NULL). Did NOT run the Airflow DAG end-to-end in this worktree because the docker scheduler mounts the main repo's `pipelines/`, not this worktree's — same constraint as the [[publico-rankings]] dev cycle; live trigger will happen after merge.
 
 **Pages touched**: [[log]] (this entry), [[rede-escolar]] (new source page with pagination verification table), [[index]] (Sources 25 → 26; P1 15 → 16; Education subsection (1) → (2)), [[pt-education-amenity-pillar]] (Phase 0 dashboard: source #2 flipped to 🟢 with verification line).
+
+## [2026-06-06] verify | rede-escolar end-to-end Airflow run
+
+Triggered both [[rede-escolar]] DAGs on the live stack (temporarily synced into the main-repo `pipelines/gis/` so the docker scheduler would pick them up; reverted after).
+
+**Ingestion DAG** (`rede_escolar_ingestion`): 9 seconds end-to-end. probe_and_fanout (1s) → 5× download_page parallel (1-2s each) → 5× upload_page parallel → summarize. MinIO blobs: page_000000–006000 at ~2.2 MB each, page_008000 tail at 756 KiB.
+
+**Bronze load DAG** (`rede_escolar_bronze_load`): 5 seconds end-to-end. discover_latest_run → fanout_pages (5 blobs) → ensure_table → 5× load_page parallel → summarize.
+
+**Bronze verification** against `bronze_education.raw_rede_escolar`:
+- 8,670 rows total — matches the live ArcGIS count probe exactly.
+- 8,670 unique `codigo_escola` (no PK duplication).
+- 7,844 rows with geometry (90.47%); 826 NULL (~9.5% — population-wide, vs the ~14% tail-page sample I had earlier).
+- 0 `(run_date, codigo_escola)` PK duplicates → confirms the dbt source uniqueness test would pass.
+- Tipologia distribution: 4,123 EB1, 1,944 JI, 335 EB+S, 313 Sec, 261 Profissional — all plausible.
+- Probed school `614798` (Jardim de Infância de Gandufe, Mangualde) round-trips identically (lon −7.8015, lat 40.5815) and `geom_pt` reprojects to PT-TM06 (28077.1, 101460.9) — confirms `ST_Transform(geom, 3763)` works through the loader.
+
+Initial DAG-import error caught and fixed: `@monthly` schedule needs an explicit `start_date`; the publico_rankings shape used `schedule=None` so the missing-start_date didn't bite. Added `start_date=datetime(2026, 6, 1)` to ingestion DAG, committed in the same PR.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (source #2 dashboard flipped to ✅ shipped + end-to-end verified, sub-task tick for live Airflow run added).

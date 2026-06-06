@@ -26,7 +26,7 @@ snapshots monthly is enough; silver promotes the latest.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def _create_dag():
             "(~8,670 PT schools, point geometry, EPSG:4326). Pre-computed offsets."
         ),
         schedule="@monthly",
-        start_date=None,
+        start_date=datetime(2026, 6, 1),
         catchup=False,
         default_args=default_args,
         tags=["rede_escolar", "gesedu", "education", "schools", "arcgis", "p1", "monthly"],
