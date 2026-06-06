@@ -16,7 +16,7 @@
 -- (Relocated 2026-06-05 from silver_regulatory → silver_properties, alongside
 --  unified_listings; the model is about marketed properties, not regulation.)
 --
--- Portal scope: idealista, RE/MAX, Zome, JLL. SCE is intentionally *not* merged
+-- Portal scope: idealista, RE/MAX, Zome, JLL, imovirtual. SCE is intentionally *not* merged
 -- in: SCE buildings (certified physical buildings) and portal developments
 -- (marketed projects) are different concepts that resist clean merging — no
 -- shared identifier, no shared geocoding precision, no shared address grain.
@@ -27,16 +27,38 @@
 -- Phase 1 — portal dedup, name-driven. Portal coordinates disagree by 200-300m+
 -- for the same development (RE/MAX can sit near the parish centroid, idealista
 -- averages unit geocodes), so proximity is NOT the grouping key. Instead:
--- normalize the project name (deaccent; strip typology codes T1/T2/T1+1,
--- boilerplate words empreendimento/edifício/the, and a trailing concelho name;
--- punctuation → space), tokenize, and link two portal listings when their
--- word-sets have Jaccard overlap >= 0.6 AND they share a concelho. A 1km
--- distance ceiling is a guardrail (skipped when a coord is missing). Connected
--- components over those links → one development per component.
+-- (a) name normalization lives in each staging model via the
+--     normalize_dev_name() macro — deaccent + strip typology codes T1/T2/T1+1 +
+--     strip boilerplate empreendimento/edifício/the + punctuation→space. Each
+--     staging row exposes a `match_name` column ready to feed the dedup.
+-- (b) admin geography is CAOP-resolved per staging row by point-in-polygon
+--     against dim_geography.freguesia_geom_pt — staging exposes geo_concelho_name,
+--     geo_parish_name, geo_key. The dedup's same-concelho gate joins on
+--     COALESCE(geo_concelho_name, concelho) — CAOP wins when geom resolved,
+--     portal-text fallback for NULL-geom devs (idealista today).
+-- (c) trailing-concelho strip ("… , Aveiro" → "…") stays here because it needs
+--     the cross-cutting join_concelho context staging can't supply uniformly.
+-- Two parallel edge generators link portal listings — both gated on
+-- same-concelho — and the UNION of edges feeds connected components:
+--   (1) Token-Jaccard ≥ 0.6 on whitespace-split tokens — catches subset names
+--       ("JC Barrocas" ↔ "JC Barrocas Apartments" = 0.667).
+--   (2) Char-trigram Jaccard ≥ 0.6 on the whitespace-stripped clean_name —
+--       catches whitespace-collapse variants ("VIANOVA" ↔ "Via Nova" = 1.0)
+--       that the token signal is structurally blind to.
+-- The 1km distance ceiling was removed 2026-06-06: portal pins disagree by
+-- 3-4km on identical-named devs in the same concelho (worse than the original
+-- 200-300m audit number), so distance was vetoing correct merges. Same name +
+-- same concelho is sufficient evidence; both edge generators require Jaccard
+-- ≥ 0.6 which is stricter than the geographic gate ever was.
 --
 -- Geometry hierarchy — the development takes geom + concelho + parish from the
--- highest-priority portal present that has coordinates: JLL > Zome > RE/MAX >
--- idealista. geo_key (Decision 10) resolved by point-in-polygon of the unified
+-- highest-priority portal present that has coordinates:
+--   JLL > Zome > RE/MAX > imovirtual > idealista.
+-- imovirtual sits at slot 4 (above idealista, below RE/MAX) — typed dev-level
+-- pin + reverseGeocoding are cleaner than RE/MAX in principle, but coverage is
+-- unverified at silver-build time so the conservative slot wins for v1. See the
+-- 2026-06-06 addendum on the imovirtual onboarding decision for the rank-change
+-- rationale. geo_key (Decision 10) resolved by point-in-polygon of the unified
 -- geom against dim_geography.freguesia_geom_pt.
 --
 -- Unit counts: portal_unit_counts (JSONB) exposes every portal's reported count
@@ -55,55 +77,59 @@ WITH RECURSIVE
 -- with no geom-bearing member at all is dropped at portal_dev_geo.
 
 portal_members AS (
-    SELECT portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units
-    FROM {{ ref('stg_portal_developments_idealista') }}
-    UNION ALL
-    SELECT portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units
-    FROM {{ ref('stg_portal_developments_remax') }}
-    UNION ALL
-    SELECT portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units
-    FROM {{ ref('stg_portal_developments_zome') }}
-    UNION ALL
-    SELECT portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units
-    FROM {{ ref('stg_portal_developments_jll') }}
+    {% set staging_models = [
+        'stg_portal_developments_idealista',
+        'stg_portal_developments_remax',
+        'stg_portal_developments_zome',
+        'stg_portal_developments_jll',
+        'stg_portal_developments_imovirtual',
+    ] %}
+    {% for m in staging_models %}
+    SELECT portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units,
+           match_name, geo_concelho_name, geo_parish_name, geo_key
+    FROM {{ ref(m) }}
+    {% if not loop.last %}UNION ALL{% endif %}
+    {% endfor %}
 ),
 
--- clean_name: lowercase, deaccent, strip typology codes (t1, t2, t1+1) and the
--- boilerplate words empreendimento/edifício/the, punctuation → space.
-portal_pre AS (
+-- join_concelho: CAOP-resolved concelho when geom hit a freguesia polygon,
+--   portal-text concelho otherwise. Deaccented + lowercased so the same-concelho
+--   gate aligns with the deaccented match_name (case + accent normalization).
+-- priority: geo-source rank (lower wins) — JLL > Zome > RE/MAX > imovirtual > idealista.
+portal_keyed_pre AS (
     SELECT
-        portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units,
-        TRIM(regexp_replace(
-            regexp_replace(
-                regexp_replace(
-                    translate(lower(COALESCE(canonical_name, '')),
-                              'áàâãäçéèêëíìîïóòôõöúùûü', 'aaaaaceeeeiiiiooooouuuu'),
-                    '\mt[0-9]+([-+/][0-9]+)*\M', ' ', 'g'),
-                '\m(empreendimento|edificio|the)\M', ' ', 'g'),
-            '[^a-z0-9]+', ' ', 'g')) AS clean_name,
-        translate(lower(COALESCE(concelho, '')),
-                  'áàâãäçéèêëíìîïóòôõöúùûü', 'aaaaaceeeeiiiiooooouuuu') AS norm_concelho
-    FROM portal_members
+        pm.*,
+        portal || ':' || portal_dev_id AS member_id,
+        CASE portal
+            WHEN 'jll' THEN 1
+            WHEN 'zome' THEN 2
+            WHEN 'remax' THEN 3
+            WHEN 'imovirtual' THEN 4
+            ELSE 5
+        END AS priority,
+        translate(lower(COALESCE(geo_concelho_name, concelho, '')),
+                  'áàâãäçéèêëíìîïóòôõöúùûü', 'aaaaaceeeeiiiiooooouuuu') AS join_concelho
+    FROM portal_members pm
 ),
 
--- name_key: clean_name minus a trailing concelho name (e.g. "… , Matosinhos").
--- priority: geo-source rank (lower wins) — JLL > Zome > RE/MAX > idealista.
+-- name_key: match_name minus a trailing concelho name (e.g. "… , aveiro") —
+-- cross-cutting because it needs join_concelho, which the staging models
+-- couldn't supply uniformly (different signals across portals + CAOP).
 portal_named AS (
     SELECT
-        portal, portal_dev_id, canonical_name, concelho, parish, geom_3763, total_units,
-        portal || ':' || portal_dev_id AS member_id,
-        CASE portal WHEN 'jll' THEN 1 WHEN 'zome' THEN 2 WHEN 'remax' THEN 3 ELSE 4 END
-            AS priority,
+        pk.*,
         CASE
-            WHEN norm_concelho <> '' AND clean_name LIKE '% ' || norm_concelho
-            THEN TRIM(LEFT(clean_name, length(clean_name) - length(norm_concelho) - 1))
-            ELSE clean_name
+            WHEN join_concelho <> ''
+             AND match_name LIKE '% ' || join_concelho
+            THEN TRIM(LEFT(match_name, length(match_name) - length(join_concelho) - 1))
+            ELSE match_name
         END AS name_key
-    FROM portal_pre
+    FROM portal_keyed_pre pk
 ),
 
+-- ── Edge generator 1: token-Jaccard on whitespace-split tokens ───────────
 member_tokens AS (
-    SELECT p.member_id, p.concelho, t.token
+    SELECT DISTINCT p.member_id, p.join_concelho, t.token
     FROM portal_named p,
          unnest(string_to_array(p.name_key, ' ')) AS t(token)
     WHERE p.name_key <> '' AND t.token <> ''
@@ -113,30 +139,68 @@ token_counts AS (
     SELECT member_id, COUNT(*) AS n_tokens FROM member_tokens GROUP BY member_id
 ),
 
--- Shared word count for every same-concelho pair that shares at least one token.
-shared AS (
-    SELECT a.member_id AS u, b.member_id AS v, COUNT(*) AS shared_tokens
+shared_tokens AS (
+    SELECT a.member_id AS u, b.member_id AS v, COUNT(*) AS n_shared
     FROM member_tokens a
     JOIN member_tokens b
       ON a.token = b.token
-     AND a.concelho = b.concelho
+     AND a.join_concelho = b.join_concelho
      AND a.member_id < b.member_id
     GROUP BY a.member_id, b.member_id
 ),
 
--- "Same development": word-set Jaccard >= 0.6, within a 1km ceiling (skipped
--- when either coord is missing — name + concelho is sufficient there).
-name_pairs AS (
+name_pairs_token AS (
     SELECT s.u, s.v
-    FROM shared s
+    FROM shared_tokens s
     JOIN token_counts ca ON ca.member_id = s.u
     JOIN token_counts cb ON cb.member_id = s.v
-    JOIN portal_named pa ON pa.member_id = s.u
-    JOIN portal_named pb ON pb.member_id = s.v
-    WHERE s.shared_tokens::numeric
-            / (ca.n_tokens + cb.n_tokens - s.shared_tokens)::numeric >= 0.6
-      AND (pa.geom_3763 IS NULL OR pb.geom_3763 IS NULL
-           OR ST_DWithin(pa.geom_3763, pb.geom_3763, 1000))
+    WHERE s.n_shared::numeric
+            / (ca.n_tokens + cb.n_tokens - s.n_shared)::numeric >= 0.6
+),
+
+-- ── Edge generator 2: char-trigram Jaccard on whitespace-stripped name ───
+-- Catches "VIANOVA" ↔ "Via Nova" which token-Jaccard scores at 0.0.
+-- DISTINCT collapses repeated trigrams to set semantics. Skip names shorter
+-- than 3 chars (no trigrams exist).
+member_trigrams AS (
+    SELECT DISTINCT
+        p.member_id,
+        p.join_concelho,
+        substring(regexp_replace(p.name_key, '\s+', '', 'g') FROM g FOR 3) AS trigram
+    FROM portal_named p,
+         generate_series(1, length(regexp_replace(p.name_key, '\s+', '', 'g')) - 2) AS g
+    WHERE length(regexp_replace(p.name_key, '\s+', '', 'g')) >= 3
+),
+
+trigram_counts AS (
+    SELECT member_id, COUNT(*) AS n_trigrams FROM member_trigrams GROUP BY member_id
+),
+
+shared_trigrams AS (
+    SELECT a.member_id AS u, b.member_id AS v, COUNT(*) AS n_shared
+    FROM member_trigrams a
+    JOIN member_trigrams b
+      ON a.trigram = b.trigram
+     AND a.join_concelho = b.join_concelho
+     AND a.member_id < b.member_id
+    GROUP BY a.member_id, b.member_id
+),
+
+name_pairs_trigram AS (
+    SELECT s.u, s.v
+    FROM shared_trigrams s
+    JOIN trigram_counts ca ON ca.member_id = s.u
+    JOIN trigram_counts cb ON cb.member_id = s.v
+    WHERE s.n_shared::numeric
+            / (ca.n_trigrams + cb.n_trigrams - s.n_shared)::numeric >= 0.6
+),
+
+-- UNION of the two edge generators. Either signal is sufficient; connected
+-- components don't care which one produced the edge.
+name_pairs AS (
+    SELECT u, v FROM name_pairs_token
+    UNION
+    SELECT u, v FROM name_pairs_trigram
 ),
 
 edges AS (
@@ -220,12 +284,19 @@ portal_dev_geo AS (
 ),
 
 portal_dev_concelho AS (
-    -- Concelho/parish are derivable from ANY contributing portal regardless of
-    -- geom presence; this CTE always has one row per dev_key.
+    -- Per-dev concelho/parish/geo_key — CAOP-resolved when staging hit a
+    -- freguesia polygon, portal-text fallback. MODE picks the most common
+    -- value across contributing portals (handles edge-case CAOP boundary
+    -- disagreements: only ~8 devs across all portals diverge after case+accent
+    -- normalization per the 2026-06-06 audit). Always populated since
+    -- COALESCE(CAOP, portal-text) is non-null for any contributor.
     SELECT
         k.dev_key,
-        MODE() WITHIN GROUP (ORDER BY k.concelho)       AS concelho_text,
-        MODE() WITHIN GROUP (ORDER BY k.parish)         AS parish_text
+        MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_concelho_name, k.concelho))
+                                                          AS concelho_resolved,
+        MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_parish_name, k.parish))
+                                                          AS parish_resolved,
+        MODE() WITHIN GROUP (ORDER BY k.geo_key)          AS geo_key_resolved
     FROM portal_keyed k
     GROUP BY k.dev_key
 ),
@@ -233,13 +304,13 @@ portal_dev_concelho AS (
 portal_devs AS (
     -- Driver: portal_dev_refs (every dev_key with ≥1 portal contributor).
     -- LEFT JOIN portal_dev_geo (NULL geom when no contributor has it).
-    -- LEFT JOIN portal_dev_concelho (always populated since name+concelho
-    --   come from portal_keyed regardless of geom).
+    -- LEFT JOIN portal_dev_concelho (always populated; CAOP-first).
     SELECT
         r.dev_key,
         g.geom_3763,
-        c.concelho_text,
-        c.parish_text,
+        c.concelho_resolved,
+        c.parish_resolved,
+        c.geo_key_resolved,
         nm.dominant_name,
         r.portal_refs, r.portal_unit_counts, r.n_portal_contributors
     FROM portal_dev_refs r
@@ -255,19 +326,12 @@ SELECT
                                                                   AS unified_development_id,
     pd.geom_3763::geometry(Point, 3763)                           AS unified_geom_3763,
     ST_Transform(pd.geom_3763, 4326)::geometry(Point, 4326)       AS unified_geom_4326,
-    dg.geo_key,
-    COALESCE(dg.concelho_name, pd.concelho_text)                  AS concelho,
-    COALESCE(dg.freguesia_name, pd.parish_text)                   AS parish,
+    pd.geo_key_resolved                                           AS geo_key,
+    pd.concelho_resolved                                          AS concelho,
+    pd.parish_resolved                                            AS parish,
     pd.dominant_name,
     pd.portal_unit_counts,
     pd.n_portal_contributors,
     pd.portal_refs,
     NOW()::timestamptz                                            AS _built_at
 FROM portal_devs pd
-LEFT JOIN LATERAL (
-    SELECT g.geo_key, g.concelho_name, g.freguesia_name
-    FROM {{ ref('dim_geography') }} g
-    WHERE g.is_current
-      AND ST_Contains(g.freguesia_geom_pt, pd.geom_3763)
-    LIMIT 1
-) dg ON TRUE

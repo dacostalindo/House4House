@@ -20,44 +20,61 @@ WITH active_latest AS (
     WHERE venture_id IS NOT NULL
       AND _dlt_valid_to IS NULL
     ORDER BY venture_id, _dlt_valid_from DESC
+),
+
+dev_typed AS (
+    SELECT
+        'zome'::TEXT                                                          AS portal,
+        venture_id::TEXT                                                      AS portal_dev_id,
+        nome                                                                  AS canonical_name,
+        NULLIF(TRIM(CONCAT_WS(', ', localizacaolevel3, localizacaolevel2)), '') AS address_text,
+        UPPER(TRIM(localizacaolevel2))                                        AS concelho,
+        localizacaolevel3                                                     AS parish,
+        NULL::TEXT                                                            AS postal_code,
+        CASE
+            WHEN NULLIF(geocoordinateslat, '') IS NOT NULL
+             AND NULLIF(geocoordinateslong, '') IS NOT NULL
+            THEN ST_Transform(
+                ST_SetSRID(ST_MakePoint(geocoordinateslong::FLOAT, geocoordinateslat::FLOAT), 4326),
+                3763
+            )
+        END                                                                   AS geom_3763,
+        CASE
+            WHEN NULLIF(geocoordinateslat, '') IS NOT NULL
+             AND NULLIF(geocoordinateslong, '') IS NOT NULL
+            THEN ST_SetSRID(ST_MakePoint(geocoordinateslong::FLOAT, geocoordinateslat::FLOAT), 4326)
+        END                                                                   AS geom_4326,
+        (
+            COALESCE(imoveisdisponiveis, 0)
+            + COALESCE(imoveisreservados, 0)
+            + COALESCE(imoveisvendidos, 0)
+        )::INTEGER                                                            AS total_units,
+        url_user_link                                                         AS listing_url,
+        jsonb_build_object(
+            'emid', emid,
+            'precosemformatacao', precosemformatacao,
+            'tipologiagrupos', tipologiagrupos,
+            'imoveisdisponiveis', imoveisdisponiveis,
+            'imoveisreservados', imoveisreservados,
+            'imoveisvendidos', imoveisvendidos,
+            'idestado', idestado,
+            'deschub', deschub
+        )                                                                     AS raw_meta
+    FROM active_latest
 )
 
 SELECT
-    'zome'::TEXT                                                          AS portal,
-    venture_id::TEXT                                                      AS portal_dev_id,
-    nome                                                                  AS canonical_name,
-    NULLIF(TRIM(CONCAT_WS(', ', localizacaolevel3, localizacaolevel2)), '') AS address_text,
-    UPPER(TRIM(localizacaolevel2))                                        AS concelho,
-    localizacaolevel3                                                     AS parish,
-    NULL::TEXT                                                            AS postal_code,
-    CASE
-        WHEN NULLIF(geocoordinateslat, '') IS NOT NULL
-         AND NULLIF(geocoordinateslong, '') IS NOT NULL
-        THEN ST_Transform(
-            ST_SetSRID(ST_MakePoint(geocoordinateslong::FLOAT, geocoordinateslat::FLOAT), 4326),
-            3763
-        )
-    END                                                                   AS geom_3763,
-    CASE
-        WHEN NULLIF(geocoordinateslat, '') IS NOT NULL
-         AND NULLIF(geocoordinateslong, '') IS NOT NULL
-        THEN ST_SetSRID(ST_MakePoint(geocoordinateslong::FLOAT, geocoordinateslat::FLOAT), 4326)
-    END                                                                   AS geom_4326,
-    (
-        COALESCE(imoveisdisponiveis, 0)
-        + COALESCE(imoveisreservados, 0)
-        + COALESCE(imoveisvendidos, 0)
-    )::INTEGER                                                            AS total_units,
-    url_user_link                                                         AS listing_url,
-    jsonb_build_object(
-        'emid', emid,
-        'precosemformatacao', precosemformatacao,
-        'tipologiagrupos', tipologiagrupos,
-        'imoveisdisponiveis', imoveisdisponiveis,
-        'imoveisreservados', imoveisreservados,
-        'imoveisvendidos', imoveisvendidos,
-        'idestado', idestado,
-        'deschub', deschub
-    )                                                                     AS raw_meta,
-    NOW()::TIMESTAMPTZ                                                    AS _loaded_at
-FROM active_latest
+    db.*,
+    {{ normalize_dev_name('canonical_name') }}                                AS match_name,
+    g.geo_key,
+    g.concelho_name                                                           AS geo_concelho_name,
+    g.freguesia_name                                                          AS geo_parish_name,
+    NOW()::TIMESTAMPTZ                                                        AS _loaded_at
+FROM dev_typed db
+LEFT JOIN LATERAL (
+    SELECT g.geo_key, g.concelho_name, g.freguesia_name
+    FROM {{ ref('dim_geography') }} g
+    WHERE g.is_current
+      AND ST_Contains(g.freguesia_geom_pt, db.geom_3763)
+    LIMIT 1
+) g ON TRUE
