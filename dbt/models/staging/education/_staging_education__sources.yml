@@ -280,3 +280,130 @@ sources:
             description: "Variante do flag de qualidade (mais recente). Source key: `eqnusar`."
           - name: ranking_equivalencia
             description: "Ranking entre escolas com dados de equivalência. Source key: `re` (100% sample-size overlap com `eq*`)."
+
+      - name: raw_rede_escolar
+        data_tests:
+          # codigo_escola (DGEEC 6-digit CODESCME) is the natural per-school key.
+          # Snapshots are partitioned by run_date, so uniqueness is enforced as
+          # (run_date, codigo_escola). Live verification 2026-06-06 confirmed
+          # unique CODESCME within a single page; cross-page dedup is the loader's
+          # job (ON CONFLICT (run_date, codigo_escola) DO UPDATE).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [run_date, codigo_escola]
+        description: >
+          GesEdu school register (RedeEscolar_mapa FeatureServer layer 0) —
+          one row per school per monthly snapshot. ~8,670 schools mainland +
+          autonomous regions, point geometry in EPSG:4326 + EPSG:3763 (per the
+          dual-CRS storage ADR). All 42 ArcGIS field names renamed to readable
+          Portuguese at bronze (same convention as raw_publico_rankings — see
+          [[dbt-source-column-descriptions]]). Loaded by rede_escolar_bronze_load
+          from MinIO snapshots written by rede_escolar_ingestion (paginated
+          ArcGIS REST, pre-computed offsets at 2000 stride). 92/670 tail-page
+          features had NULL geometry in the 2026-06-06 probe; those rows are
+          retained with geom/geom_pt NULL — silver filters them out.
+        columns:
+          # --- Partition keys / audit ---
+          - name: run_date
+            description: "Monthly snapshot partition. Promoted from the MinIO path raw/rede_escolar/{run_date}/."
+            tests: [not_null]
+          - name: codigo_escola
+            description: "DGEEC 6-digit school code (renamed from `CODESCME`). Natural PK; joins to publico_rankings via this code."
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Esri internal ---
+          - name: arcgis_objectid
+            description: "Esri-internal OBJECTID — not stable across publishes; kept only for traceability."
+          # --- Unidade Orgânica (agrupamento) ---
+          - name: codigo_uo
+            description: "Código da Unidade Orgânica (agrupamento). Source key: `CODUOME`. Joins to publico_rankings.codigo_uo_dgeec."
+          - name: nome_uo
+            description: "Nome do agrupamento. Source key: `NOMEUO`."
+          - name: nif_uo
+            description: "NIF do agrupamento (entidade fiscal). Source key: `NIFUO`."
+          # --- Escola identity ---
+          - name: nome
+            description: "Nome da escola. Source key: `NOME`."
+          - name: sede_flag
+            description: "'S'/'N' — escola é sede do agrupamento. Source key: `SEDE`."
+          - name: data_inicio
+            description: "Data de início de atividade. Source format inconsistent (string, not always parseable as date) — kept as text. Source key: `DTINICIO`."
+          # --- Endereço ---
+          - name: morada
+            description: "Endereço postal completo. Source key: `MORADA`."
+          - name: cp4
+            description: "Código postal 4 dígitos. Source key: `CP4`."
+          - name: cp3
+            description: "Extensão postal 3 dígitos. Source key: `CP3`."
+          - name: localidade
+            description: "Localidade. Source key: `LOCALIDADE`."
+          - name: codigo_concelho
+            description: "Código CAOP do concelho. Source key: `COD_CONCELHO`. Joins to caop.concelhos."
+          - name: concelho
+            description: "Nome do concelho. Source key: `CONCELHO`."
+          - name: codigo_distrito
+            description: "Código CAOP do distrito. Source key: `COD_DISTRITO`."
+          - name: distrito
+            description: "Nome do distrito. Source key: `DISTRITO`."
+          - name: codigo_dsr
+            description: "Código da Direção de Serviços de Região (estrutura desconcentrada AGSE). Source key: `CODDSR`."
+          - name: codigo_qzp
+            description: "Código do Quadro de Zona Pedagógica (zona de colocação de professores). Source key: `CODQZP`."
+          - name: nuts_id
+            description: "Código NUTS (Nomenclatura de Unidades Territoriais). Source key: `IDNUTS`."
+          - name: nuts_desc
+            description: "Descrição NUTS. Source key: `NUTS_DESC`."
+          # --- Coordinates ---
+          - name: latitude
+            description: "Latitude em WGS84. Source key: `LATITUDE`. Redundante com geom.y mas mantido para spot-checks."
+          - name: longitude
+            description: "Longitude em WGS84. Source key: `LONGITUDE`. Redundante com geom.x mas mantido para spot-checks."
+          # --- Tipologia + tutela + natureza ---
+          - name: codigo_grupo_natureza
+            description: "Código do grupo de natureza institucional. Source key: `CODGRUPONATUREZAINST`."
+          - name: grupo_natureza
+            description: "Grupo de natureza institucional (label). Source key: `GRUPONATUREZAINST`."
+          - name: codigo_tipologia
+            description: "Código da tipologia da escola. Source key: `CODTIPOLOGIA`."
+          - name: tipologia
+            description: "Tipologia da escola — ex. 'EB1', 'EB2,3/S', 'JI', 'Sec'. Source key: `TIPOLOGIA`. Usado para filtros por nível de ensino."
+          - name: tutela
+            description: "Tutela administrativa (código). Source key: `TUTELA`."
+          - name: tutela_desc
+            description: "Tutela administrativa (descrição). Source key: `TUTELA_DESC`."
+          - name: ensinos_ministrados
+            description: "Códigos concatenados dos ensinos ministrados. Source key: `ENSINOS_MIN`."
+          - name: ensinos_ministrados_desc
+            description: "Descrição dos ensinos ministrados (lista). Source key: `ENSINOS_MIN_DESC`."
+          - name: natureza_institucional
+            description: "Natureza institucional (código). Source key: `NATUREZAINSTITUCIONAL`."
+          - name: natureza_institucional_desc
+            description: "Natureza institucional (descrição) — 'Pública' vs 'Privada' vs subgrupos. Source key: `NATUREZAINSTITUCIONAL_DESC`."
+          # --- Situação operacional ---
+          - name: codigo_situacao
+            description: "Código da situação operacional. Source key: `CODSITUACAOESCOLA`."
+          - name: situacao_escola
+            description: "Situação operacional — silver filters by 'Em funcionamento'. Source key: `SITUACAOESCOLA`."
+          - name: ciclo
+            description: "Ciclo de ensino (label). Source key: `CICLO`."
+          - name: codigo_ciclo
+            description: "Ciclo de ensino (código). Source key: `CICLO_COD`."
+          - name: dgeec_code
+            description: "Código DGEEC — frequentemente duplica codigo_escola (CODESCME) mas mantido em separado para diagnóstico de drift. Source key: `DGEEC`."
+          - name: flag_extinguir
+            description: "Flag de escola em processo de extinção. Source key: `ESCOLA_EXTINGUIR`."
+          # --- Contacto ---
+          - name: fax
+            description: "Fax (frequentemente NULL ou vazio). Source key: `FAX`."
+          - name: url
+            description: "URL institucional. Source key: `URL`."
+          - name: email
+            description: "Email institucional. Source key: `EMAIL`."
+          - name: telefone
+            description: "Telefone. Source key: `TELEFONE`."
+          # --- Geometria (PostGIS dual-CRS per ADR 2026-05-10) ---
+          - name: geom
+            description: "Geometria do ponto da escola em EPSG:4326 (display + joins). NULL para ~14% das escolas na sondagem 2026-06-06."
+          - name: geom_pt
+            description: "Mesma geometria em EPSG:3763 (PT-TM06) para cálculos de distância/área em metros. ST_Transform aplicado no loader."
