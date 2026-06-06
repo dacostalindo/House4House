@@ -45,9 +45,9 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
-## Sources (24 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+## Sources (25 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (14): bupi, cadastro, cos, crus, crus-ogc, eurostat, imovirtual, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, cos, crus, crus-ogc, eurostat, imovirtual, jll, lidar, publico-rankings, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
 ### Real-estate portals (5)
 
@@ -68,6 +68,10 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (14): bupi, cadastro, c
 
 - [[sce]] — SCE energy-certificate registry; only nodriver scraper; Cloudflare Turnstile; current scope Aveiro distrito.
 
+### Education (1)
+
+- [[publico-rankings]] — Público annual school rankings (sec + 9ano Provas Finais); 2018-latest backfill via per-year URL resolver (3 hosting eras); soft-404 trap; the primary `mt` score signal for the [[2026-06-06-pt-education-amenity-design|education amenity pillar]].
+
 ### Regulatory + spatial GIS (14)
 
 - [[caop]] — official administrative boundaries (distritos / municípios / freguesias); P0 foundation source.
@@ -85,9 +89,12 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (14): bupi, cadastro, c
 - [[osm]] — OpenStreetMap PT via Geofabrik; 18 layers, ~4.5M features; companion OSRM + Nominatim services.
 - [[aveiro-pmot]] — Aveiro municipal WebGIS bulk WMS-GFI extractor; one-off, not a recurring DAG; ~1,669 feature types.
 
-## Concepts (18 pages)
+## Concepts (20 pages)
+
+
 
 - [[bronze-permissive]] — bronze accepts whatever the source returns; validation lives in dbt staging; never-delete invariant.
+- [[publico-rankings-column-legend]] — ground-truthed legend for the 91 cryptic columns in `bronze_education.raw_publico_rankings`; matched UI-label-to-DB-value against the Público school card for Escola Dr. Ferreira da Silva (eid=1069); 9 families (identity / headline / Superação / per-disciplina / Nota Interna CIF / prior-year carry / contexto socioeconómico / taxa retenção / equidade-equivalência); collision trap: 1-letter `ma` = Economia A, 2-letter `ma` = Matemática A.
 - [[pydantic-not-in-dlt]] — Pydantic in configs YES, in dlt resources NO; the strict guardrail protecting [[bronze-permissive]].
 - [[scd2-row-hash]] — curated `*_VERSION_COLUMNS` policy for SCD2 row versioning; include real business events, exclude noisy proxies.
 - [[heartbeat-sidecar]] — UPSERT-only companion table answering "is this entity still in the source?"; the 21-day silver-layer floor.
@@ -103,6 +110,7 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (14): bupi, cadastro, c
 - [[srup-properties-schema]] — per-key breakdown of the 16 `raw_srup_*` `properties` JSONB blobs (OGC lowercase vs WFS UPPERCASE conventions) → typed `stg_srup_*` columns.
 - [[sce-buildings-clustering]] — DBSCAN(30m) + GROUP BY normalized_address roll-up of geocoded [[sce]] certificates into `silver_sce_buildings` rows; documents Decisions 1-5 (Nominatim-only filter, exact-match over Levenshtein, no parcel_id, no Splink, address-grouping vs coord-only).
 - [[cross-portal-dev-dedup]] — name-driven word-set Jaccard dedup of the 4 listing portals into `silver_unified_developments`; documents why proximity-first failed, the normalization pipeline (typology + boilerplate + trailing-concelho strip), the geo hierarchy (JLL > Zome > RE/MAX > idealista), and why SCE is *not* merged here.
+- [[dbt-source-column-descriptions]] — every column in every `_staging_<domain>__sources.yml` carries a `description:`; one line, names unit/scale, cites original source key when renamed, expands codebook letters inline; verification triad: `information_schema` ≡ YAML ≡ dbt manifest column counts must agree.
 - [[silver-dq-baseline]] — 4 universal invariants every silver model follows (dual-CRS, surrogate PK, bronze→silver row-count parity, FK denorm integrity); deliberate exclusion of `accepted_values`; statistical-source silver topology mapping (macro_timeseries vs ine_indicators_long boundary). Established by sprint-09 WS4 quick-wins batch.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
