@@ -26,7 +26,7 @@ Sibling reference pages (read these alongside, NOT instead):
 | # | Source | Type | Bronze table | Status | PR |
 |---|---|---|---|---|---|
 | 1 | [[publico-rankings]] | annual rankings JSON | `bronze_education.raw_publico_rankings` (95 cols, 10,288 rows) | ✅ **Shipped** (2 DAGs + bronze + legend + tests) | [#52](https://github.com/dacostalindo/House4House/pull/52) |
-| 2 | `rede_escolar` (ArcGIS REST FeatureServer) | KG → sec register | `bronze_education.raw_rede_escolar` | ⏳ Phase 0 stub started, custom paginator pending | — |
+| 2 | [[rede-escolar]] | KG → sec register (paginated ArcGIS REST) | `bronze_education.raw_rede_escolar` (46 cols, 8,670 schools/snapshot) | 🟢 **Code shipped + live-verified**, end-to-end Airflow run pending merge | this PR |
 | 3 | `dgeec_ens_sup` (DGEEC shapefile) | higher-ed register | `bronze_education.raw_dgeec_ens_sup` | 🔲 Endpoint verified + fixture downloaded; not bootstrapped | — |
 | 4 | `dges_acesso` (XLSX) | higher-ed ranking | `bronze_education.raw_dges_acesso` | 🔲 Endpoint verified; not bootstrapped | — |
 | 5 | `infoescolas` (XLSX) | 3º ciclo cross-check | `bronze_education.raw_infoescolas` | 🔲 Endpoint verified; demoted to fallback after Público 9ano discovery | — |
@@ -42,7 +42,15 @@ Sibling reference pages (read these alongside, NOT instead):
   - [x] Ground-truth column legend (verified vs Público UI for eid=1069)
   - [x] dbt sources YAML — all 95 cols documented, 18/18 tests pass
   - [x] Wiki source page + concept legend + column-description convention page
-- [ ] Bootstrap source #2 (`rede_escolar`) — paginated ArcGIS REST custom DAG
+- [x] Bootstrap source #2 ([[rede-escolar]]) — paginated ArcGIS REST custom DAG:
+  - [x] Config module (endpoint + count probe + sanity bands + headers)
+  - [x] Ingestion DAG (probe_and_fanout → download_page.expand → upload_page.expand → summarize; pre-computed offsets @ 2000 stride; `@monthly`)
+  - [x] Bronze loader DAG (discover_latest_run → fanout_pages → ensure_table → load_page.expand → summarize; dual-CRS geom 4326+3763 per [[2026-05-10-dual-crs-storage]])
+  - [x] Rename 42 ArcGIS field names → readable Portuguese columns
+  - [x] dbt sources YAML — 46 cols documented + unique (run_date, codigo_escola) test
+  - [x] Wiki source page with pagination verification table
+  - [x] Live-verified field set matches rename map exactly (zero drift, 2026-06-06)
+  - [ ] Trigger DAGs end-to-end on the main repo (post-merge)
 - [ ] Bootstrap source #3 (`dgeec_ens_sup`) — shapefile via standard GIS template
 - [ ] Bootstrap source #4 (`dges_acesso`) — XLSX with vagas-weighted aggregation
 - [ ] Bootstrap source #5 (`infoescolas`) — XLSX as fallback for 3º ciclo

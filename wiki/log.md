@@ -1476,3 +1476,17 @@ Moved `tests/PT-EDUCATION-DESIGN.md` into the wiki at [[pt-education-amenity-pil
 - [[index]] Planning section count 4 → 5; added the [[pt-education-amenity-pillar]] entry.
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (new), [[planning/README]] (Pillar-specific subsection added), [[index]] (Planning 4 → 5), `tests/PT-EDUCATION-DESIGN.md` (now a pointer stub).
+
+## [2026-06-06] ingest | rede-escolar bootstrap — Phase 0 source #2 of 5
+
+Bootstrapped the second source of the [[pt-education-amenity-pillar]] (the GesEdu paginated ArcGIS REST FeatureServer; canonical PT school register with point geometry). Same custom-DAG shape as [[publico-rankings]] — skipped `pipelines/gis/template/` because the template handles single-URL file downloads, not paginated REST query endpoints.
+
+**Code shipped**:
+- `pipelines/gis/rede_escolar/rede_escolar_config.py` — endpoint URL + `maxRecordCount=2000` page size + count probe + sanity bands + headers.
+- `pipelines/gis/rede_escolar/rede_escolar_ingestion_dag.py` — paginated ingest. `probe_and_fanout` (live `returnCountOnly` probe) → `download_page.expand(spec=offsets)` → `upload_page.expand` → `summarize` reconciles `sum(page features) == probe total`. `@monthly` schedule.
+- `pipelines/gis/rede_escolar/rede_escolar_bronze_dag.py` — `discover_latest_run` picks newest snapshot, `fanout_pages` lists page blobs, `ensure_table` builds dual-CRS PostGIS schema per [[2026-05-10-dual-crs-storage]], `load_page` unnests features + writes geom (4326) + geom_pt (3763), upserts on `(run_date, codigo_escola)`.
+- `dbt/models/staging/education/_staging_education__sources.yml` — appended `raw_rede_escolar` source with 46 column descriptions (3 audit + 41 renamed + 2 geom) + `unique_combination_of_columns: [run_date, codigo_escola]` test. Same column-description convention as [[publico-rankings]] (see [[dbt-source-column-descriptions]]).
+
+**Live verification (2026-06-06)**: count probe = 8,670 features. Pagination verified at offset 0/2000/4000/6000 = 2000 features each (`exceededTransferLimit=True`); offset 8000 = 670 tail features (no flag). Live field set = our `SOURCE_KEY_TO_COLUMN` exactly (zero drift; 42 attribute fields incl. CODESCME PK). 92/670 tail-page features had NULL geometry (handled — row inserts with `geom`/`geom_pt` NULL). Did NOT run the Airflow DAG end-to-end in this worktree because the docker scheduler mounts the main repo's `pipelines/`, not this worktree's — same constraint as the [[publico-rankings]] dev cycle; live trigger will happen after merge.
+
+**Pages touched**: [[log]] (this entry), [[rede-escolar]] (new source page with pagination verification table), [[index]] (Sources 25 → 26; P1 15 → 16; Education subsection (1) → (2)), [[pt-education-amenity-pillar]] (Phase 0 dashboard: source #2 flipped to 🟢 with verification line).
