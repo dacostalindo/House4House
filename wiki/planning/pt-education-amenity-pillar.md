@@ -26,7 +26,7 @@ Sibling reference pages (read these alongside, NOT instead):
 | # | Source | Type | Bronze table | Status | PR |
 |---|---|---|---|---|---|
 | 1 | [[publico-rankings]] | annual rankings JSON | `bronze_education.raw_publico_rankings` (95 cols, 10,288 rows) | ✅ **Shipped** (2 DAGs + bronze + legend + tests) | [#52](https://github.com/dacostalindo/House4House/pull/52) |
-| 2 | [[rede-escolar]] | KG → sec register (paginated ArcGIS REST) | `bronze_education.raw_rede_escolar` (46 cols, 8,670 schools/snapshot) | 🟢 **Code shipped + live-verified**, end-to-end Airflow run pending merge | this PR |
+| 2 | [[rede-escolar]] | KG → sec register (paginated ArcGIS REST) | `bronze_education.raw_rede_escolar` (46 cols, 8,670 rows / 90.47% with geom) | ✅ **Shipped + end-to-end verified** (live Airflow + bronze query) | this PR |
 | 3 | `dgeec_ens_sup` (DGEEC shapefile) | higher-ed register | `bronze_education.raw_dgeec_ens_sup` | 🔲 Endpoint verified + fixture downloaded; not bootstrapped | — |
 | 4 | `dges_acesso` (XLSX) | higher-ed ranking | `bronze_education.raw_dges_acesso` | 🔲 Endpoint verified; not bootstrapped | — |
 | 5 | `infoescolas` (XLSX) | 3º ciclo cross-check | `bronze_education.raw_infoescolas` | 🔲 Endpoint verified; demoted to fallback after Público 9ano discovery | — |
@@ -50,7 +50,7 @@ Sibling reference pages (read these alongside, NOT instead):
   - [x] dbt sources YAML — 46 cols documented + unique (run_date, codigo_escola) test
   - [x] Wiki source page with pagination verification table
   - [x] Live-verified field set matches rename map exactly (zero drift, 2026-06-06)
-  - [ ] Trigger DAGs end-to-end on the main repo (post-merge)
+  - [x] End-to-end Airflow run on the live stack: ingestion 9s (5 pages → MinIO), bronze load 5s, 8,670 rows in `bronze_education.raw_rede_escolar`, 0 PK duplicates, probed school `614798` round-trips identically
 - [ ] Bootstrap source #3 (`dgeec_ens_sup`) — shapefile via standard GIS template
 - [ ] Bootstrap source #4 (`dges_acesso`) — XLSX with vagas-weighted aggregation
 - [ ] Bootstrap source #5 (`infoescolas`) — XLSX as fallback for 3º ciclo
