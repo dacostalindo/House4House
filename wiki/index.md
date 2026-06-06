@@ -20,7 +20,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 ### `pipelines/` (DAGs, dlt resources, scrapers, configs)
 
 - **Concepts**: [[pydantic-not-in-dlt]] (configs Pydantic, dlt resources not) · [[bronze-permissive]] (bronze accepts whatever the source returns) · [[scd2-row-hash]] (curated version-column policy) · [[heartbeat-sidecar]] (UPSERT-only "still-alive" companion) · [[portal-naming-conventions]] (structural uniformity vs source-faithful leaf names) · [[portal-plot-conventions]] (plots in separate `*_plots` tables) · [[portal-field-map]] (cross-portal column correspondence matrix) · [[zenrows-universal-vs-re-api]] (mixed scrape strategy) · [[payload-cache-lifecycle]] (`_payload_cache` reuse) · [[airflow-home-isolation]] (`~/airflow/airflow.cfg` bleed gotcha) · [[ingest-flows]] (six-flow taxonomy + decision tree) · [[spatial-strategy]] (CRS, GIST, H3 for GIS pipelines)
-- **Sources**: choose the relevant page under [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
+- **Sources**: choose the relevant page under [Sources](#sources-24-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[imovirtual]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
 - **Decisions**: [[2026-05-10-airflow-2-not-3]] (orchestrator pin) · [[2026-05-05-cosmos-pin]] (dbt-DAG generator pin) · [[2026-05-10-minio-not-s3]] (raw landing) · [[2026-05-10-nominatim-osrm-self-hosted]] (geocoding/routing) · [[2026-05-08-idealista-enrichment-architecture]] (three coexisting streams) · [[2026-05-08-sqla-1.4-concession]] (SQLA pin from Airflow)
 - **Architecture**: [[orchestration]] (DAG taxonomy + schedule map) · [[infra]] (Compose service map) · [[data-quality]] (Great Expectations + `metadata.pipeline_runs` audit)
 - **Sprints (currently relevant)**: [[sprint-04]] (Image Classification + Location Scores, `in_progress`) · [[sprint-04.5]] (Listings + Developments Cross-Portal Dedup) · [[sprint-08]] (UC-3 v1 wedge Part 1, GIS + SCE foundations)
@@ -28,7 +28,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 ### `dbt/` (models, macros, source YAMLs)
 
 - **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models + the new 15th APA ARPSI layer) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`) · [[cross-portal-dev-dedup]] (name-driven Jaccard dedup of the 4 portals into `silver_unified_developments`; SCE deliberately not merged) · [[silver-dq-baseline]] (4 universal silver-layer invariants + statistical-source topology; established by sprint-09 WS4)
-- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
+- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-24-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
 - **Decisions**: [[2026-05-10-postgis-as-warehouse]] (PostgreSQL 16 + PostGIS 3.4 chosen over Snowflake/BigQuery/RDS) · [[2026-05-10-dbt-not-sqlmodel]] (dbt Core for transformations) · [[2026-05-10-dual-crs-storage]] (`geom` 4326 + `geom_pt` 3763 invariant for spatial tables)
 - **Architecture**: [[data-quality]] (dbt tests + Great Expectations layering) · [[infra]] (PostgreSQL schema organization: `bronze_*`, `silver_*`, `gold_*`, `metadata`)
 - **Sprints (currently relevant)**: [[sprint-03]] (Silver Layer + UC-3 GIS Foundation, `mostly_done`) · [[sprint-05]] (Hedonic Model & Valuation) · [[sprint-08]] / [[sprint-09]] (UC-3 v1 wedge silver + gold)
@@ -45,13 +45,14 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
-## Sources (23 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+## Sources (24 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, cos, crus, crus-ogc, eurostat, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (14): bupi, cadastro, cos, crus, crus-ogc, eurostat, imovirtual, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
-### Real-estate portals (4)
+### Real-estate portals (5)
 
 - [[idealista]] — largest PT real-estate portal; ZenRows RE API + Universal Scraper mix; three coexisting streams (resale, developments+units, plots); SCD2 + heartbeat sidecars.
+- [[imovirtual]] — OLX/Adevinta Nexus portal; direct Next.js `_next/data` JSON (no vendor); devs+units national (801/4,465) + plots Aveiro (4,894); SCD2 + heartbeat; retry/backoff rides out DataDome 403 bursts. See [[2026-06-05-imovirtual-portal-onboarding]].
 - [[jll]] — JLL Residential PT; dlt-driven SCD2 from imoguia.com proxy; plots deliberately excluded.
 - [[remax]] — RE/MAX Portugal; unified dlt SCD2 (replaces legacy 3-DAG); Pass 2 enrichment pre-fetched in source.py; plots via sitemap walk.
 - [[zome]] — Zome PT; dlt SCD2 from Supabase REST; soft-fail refs / hard-fail facts; curated row_hash to fix JSONB-array reorder.
@@ -123,7 +124,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 
-## Decisions (17 ADRs)
+## Decisions (18 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -152,6 +153,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[2026-05-12-wiki-linter-deferred-to-phase-7]] — mechanical `wiki_health.py` moves to Phase 7 to co-design with structured `wiki/_schema.yaml` (single source of truth).
 - [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
 - [[2026-05-12-phase-6-ty-advisory]] — Astral's `ty` (beta) ships as advisory CI check via Phase 4 annotation-grouping pattern; 3 concrete graduation triggers to BLOCKING.
+- [[2026-06-05-imovirtual-portal-onboarding]] — 5th listing portal; direct Next.js `_next/data` JSON (no ZenRows, DataDome-resilient via retry/backoff); devs/units national + plots Aveiro; built, run & verified (801 devs / 4,465 units / 4,894 plots). `confidence: high`.
 
 **Use cases** (UC-3 reframe — gstack /office-hours + /plan-eng-review surfaced):
 
