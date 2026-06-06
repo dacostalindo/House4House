@@ -8,7 +8,7 @@ priority: P1
 
 ## For future Claude
 
-This is a source page about **Infoescolas** ([[ine|DGEEC]]/MECI) — per-school national-exam results + an equity (value-added) indicator, used as the **quality attribute** joined onto the [[gesedu]] school points by `Código Escola DGEEC`. Non-spatial; it carries no geometry — geometry comes from [[gesedu]]. Pairs with [[bgri]] (resident attainment, the *other* area signal). Design doc: `Personal-Wiki/New developments/PT-education-ingest-design.md`. Read this before editing `pipelines/<education ingest>`.
+This is a source page about **Infoescolas** ([[ine|DGEEC]]/MECI) — per-school national-exam results + an equity (value-added) indicator, used as the **quality attribute** joined onto the [[gesedu]] school points by `Código Escola DGEEC`. Non-spatial; it carries no geometry — geometry comes from [[gesedu]]. Pairs with [[bgri]] (resident attainment, the *other* area signal). Design doc: [[pt-education-amenity-design]]. Read this before editing `pipelines/<education ingest>`.
 
 ## Source
 

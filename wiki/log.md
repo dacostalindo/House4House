@@ -1196,3 +1196,9 @@ Scoped the Portuguese-education geo-amenity layer (dual signal: point-proximity 
 **Pages touched**: [[log]] (this entry), new [[gesedu]] + [[infoescolas]], [[index.md|index]] (Sources 23→25, P1 13→15, new "Education amenity (2)" section, area-routing line + anchors).
 
 **Decisions deferred from v1**: retention/dropout (Regiões em Números — drops the last scraper + concelho-name crosswalk); higher-ed proximity; OSM school points (superseded by the authoritative FeatureServer, kept as coverage cross-check). Full design: `Personal-Wiki/New developments/PT-education-ingest-design.md`. **NOT built** — these are scoped specs, no pipeline run yet.
+
+## [2026-06-06] ingest | move PT-education design into wiki (planning/)
+
+Moved the education-ingest design doc from the Personal-Wiki vault into the House4House wiki as [[pt-education-amenity-design]] (`type: plan`, `status: scoped-not-built`) — adapted to wiki conventions (frontmatter, `## For future Claude`, `[[wikilinks]]`) and reconciled the catchment CRS note to `geom_pt`/EPSG:3763 per [[2026-05-10-dual-crs-storage]] (was "geography"). Original deleted from `Personal-Wiki/New developments/`.
+
+**Pages touched**: [[log]] (this entry), new [[pt-education-amenity-design]], [[index.md|index]] (Planning 4→5), [[planning/README]], [[gesedu]] + [[infoescolas]] (design-doc link repointed from the vault path to [[pt-education-amenity-design]]).

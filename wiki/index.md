@@ -119,7 +119,7 @@ The as-built / as-designed architecture, decomposed from README §3 + §4 + §11
 - [[orchestration]] — Airflow DAG taxonomy + schedule map for ~22 recurring DAGs.
 - [[data-quality]] — dbt tests + Great Expectations + `metadata.pipeline_runs` audit trail.
 
-## Planning (4 pages — PR 7 seed)
+## Planning (5 pages — 4 from PR 7 seed)
 
 Forward-looking project planning content (vs. as-built [[architecture/README|architecture]]). See [[planning/README|planning orientation]] for how each page gets maintained.
 
@@ -127,6 +127,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[resources]] — team / budget / per-sprint effort / data-volume estimates from README §15.
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
+- [[pt-education-amenity-design]] — v1 design for the education geo-amenity layer (point-proximity + area-quality); decision tree + surfacing spec + 6-gate verification; sources [[gesedu]] + [[infoescolas]]. Scoped, not built.
 
 ## Decisions (17 ADRs)
 

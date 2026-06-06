@@ -10,7 +10,7 @@ priority: P1
 
 This is a source page about **GesEdu / Rede Escolar** — the authoritative national register of every Portuguese school (pré-escolar → secundário + profissional, public + private), used as a **geo-amenity layer** for listings (proximity-to-schools). It is owned by **AGSE, I.P.** (Agência para a Gestão do Sistema Educativo; created by DL 99/2025, absorbed DGEstE/DGAE/IGeFE).
 
-The key finding (verified 2026-06-06): GesEdu's `PesquisaRede` map is backed by a **public ArcGIS REST FeatureServer** that returns código + agrupamento + street address + **native lat/lon** in one paginated JSON pull — so this needs **no UI scrape and no geocoding**. Pair with [[infoescolas]] (quality, código-joined) and [[bgri]] (resident attainment). Design doc: `Personal-Wiki/New developments/PT-education-ingest-design.md`. Build template: [[crus-ogc]] (same `ArcgisRestAdapter` path). Read this before editing `pipelines/gis/gesedu/`.
+The key finding (verified 2026-06-06): GesEdu's `PesquisaRede` map is backed by a **public ArcGIS REST FeatureServer** that returns código + agrupamento + street address + **native lat/lon** in one paginated JSON pull — so this needs **no UI scrape and no geocoding**. Pair with [[infoescolas]] (quality, código-joined) and [[bgri]] (resident attainment). Design doc: [[pt-education-amenity-design]]. Build template: [[crus-ogc]] (same `ArcgisRestAdapter` path). Read this before editing `pipelines/gis/gesedu/`.
 
 ## Source
 
