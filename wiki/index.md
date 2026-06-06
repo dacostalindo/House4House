@@ -20,7 +20,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 ### `pipelines/` (DAGs, dlt resources, scrapers, configs)
 
 - **Concepts**: [[pydantic-not-in-dlt]] (configs Pydantic, dlt resources not) · [[bronze-permissive]] (bronze accepts whatever the source returns) · [[scd2-row-hash]] (curated version-column policy) · [[heartbeat-sidecar]] (UPSERT-only "still-alive" companion) · [[portal-naming-conventions]] (structural uniformity vs source-faithful leaf names) · [[portal-plot-conventions]] (plots in separate `*_plots` tables) · [[portal-field-map]] (cross-portal column correspondence matrix) · [[zenrows-universal-vs-re-api]] (mixed scrape strategy) · [[payload-cache-lifecycle]] (`_payload_cache` reuse) · [[airflow-home-isolation]] (`~/airflow/airflow.cfg` bleed gotcha) · [[ingest-flows]] (six-flow taxonomy + decision tree) · [[spatial-strategy]] (CRS, GIST, H3 for GIS pipelines)
-- **Sources**: choose the relevant page under [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
+- **Sources**: choose the relevant page under [Sources](#sources-25-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[gesedu]] / [[infoescolas]] for education amenity; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
 - **Decisions**: [[2026-05-10-airflow-2-not-3]] (orchestrator pin) · [[2026-05-05-cosmos-pin]] (dbt-DAG generator pin) · [[2026-05-10-minio-not-s3]] (raw landing) · [[2026-05-10-nominatim-osrm-self-hosted]] (geocoding/routing) · [[2026-05-08-idealista-enrichment-architecture]] (three coexisting streams) · [[2026-05-08-sqla-1.4-concession]] (SQLA pin from Airflow)
 - **Architecture**: [[orchestration]] (DAG taxonomy + schedule map) · [[infra]] (Compose service map) · [[data-quality]] (Great Expectations + `metadata.pipeline_runs` audit)
 - **Sprints (currently relevant)**: [[sprint-04]] (Image Classification + Location Scores, `in_progress`) · [[sprint-04.5]] (Listings + Developments Cross-Portal Dedup) · [[sprint-08]] (UC-3 v1 wedge Part 1, GIS + SCE foundations)
@@ -28,7 +28,7 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 ### `dbt/` (models, macros, source YAMLs)
 
 - **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models + the new 15th APA ARPSI layer) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`) · [[cross-portal-dev-dedup]] (name-driven Jaccard dedup of the 4 portals into `silver_unified_developments`; SCE deliberately not merged) · [[silver-dq-baseline]] (4 universal silver-layer invariants + statistical-source topology; established by sprint-09 WS4)
-- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-23-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
+- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-25-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
 - **Decisions**: [[2026-05-10-postgis-as-warehouse]] (PostgreSQL 16 + PostGIS 3.4 chosen over Snowflake/BigQuery/RDS) · [[2026-05-10-dbt-not-sqlmodel]] (dbt Core for transformations) · [[2026-05-10-dual-crs-storage]] (`geom` 4326 + `geom_pt` 3763 invariant for spatial tables)
 - **Architecture**: [[data-quality]] (dbt tests + Great Expectations layering) · [[infra]] (PostgreSQL schema organization: `bronze_*`, `silver_*`, `gold_*`, `metadata`)
 - **Sprints (currently relevant)**: [[sprint-03]] (Silver Layer + UC-3 GIS Foundation, `mostly_done`) · [[sprint-05]] (Hedonic Model & Valuation) · [[sprint-08]] / [[sprint-09]] (UC-3 v1 wedge silver + gold)
@@ -45,9 +45,9 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
-## Sources (23 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+## Sources (25 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, cos, crus, crus-ogc, eurostat, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, cos, crus, crus-ogc, eurostat, gesedu, infoescolas, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
 ### Real-estate portals (4)
 
@@ -83,6 +83,11 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (13): bupi, cadastro, c
 - [[lneg]] — LNEG geology 1:500k + national aquifers; ArcGIS REST.
 - [[osm]] — OpenStreetMap PT via Geofabrik; 18 layers, ~4.5M features; companion OSRM + Nominatim services.
 - [[aveiro-pmot]] — Aveiro municipal WebGIS bulk WMS-GFI extractor; one-off, not a recurring DAG; ~1,669 feature types.
+
+### Education amenity (2)
+
+- [[gesedu]] — national school register (Rede Escolar) via AGSE's public ArcGIS REST FeatureServer; ~8,670 schools with código + address + native lat/lon; no scrape, no geocode; build template = [[crus-ogc]].
+- [[infoescolas]] — DGEEC per-school exam-avg + equity quality indicators; bulk XLSX; código-joined (`Código Escola DGEEC`) onto [[gesedu]] points; pairs with [[bgri]] resident attainment.
 
 ## Concepts (18 pages)
 

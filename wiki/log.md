@@ -1186,3 +1186,13 @@ FROM gold_analytics.dim_constraint_severity GROUP BY 1;
 - [ ] Decide whether to denormalize `legal_quote_pt` into `silver_regulatory.srup_constraints` (would add ~1.8 GB; today callers JOIN to dim when needed)
 
 **Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).
+
+## [2026-06-06] ingest | PT education amenity — gesedu + infoescolas sources (P1)
+
+Scoped the Portuguese-education geo-amenity layer (dual signal: point-proximity to schools + area quality) from an interview + a 6-gate verification pass. Created two source pages: [[gesedu]] (national school register via AGSE's **public ArcGIS REST FeatureServer** — `RedeEscolar_mapa/FeatureServer/0`, ~8,670 schools with `CODESCME` código + address + native lat/lon; **no scrape, no geocode**) and [[infoescolas]] (DGEEC per-school exam-avg + equity, bulk XLSX from `bds.asp`, código-joined on `Código Escola DGEEC`). Pairs with [[bgri]] (resident attainment). Build template = [[crus-ogc]]: the unified template already ships an `ArcgisRestAdapter` (`protocol="arcgis_rest"`), so the lead pipeline is config + two thin DAGs, no new fetch code. Bronze `bronze_location.raw_gesedu_schools` + `bronze_location.raw_infoescolas_quality`; dual-CRS per [[2026-05-10-dual-crs-storage]]; catchment mart uses `ST_DWithin(geom_pt, …, {1000,3000})` in EPSG:3763.
+
+**Verification (2026-06-06)**: all 6 gates closed — Infoescolas carries the DGEEC código (clean join, not fuzzy); GesEdu FeatureServer ships geometry (kills geocoding); código grain aligns escola/agrupamento; reorg confirmed (AGSE/DL 99/2025 owns GesEdu, EduQA/DL 105/2025 absorbed IAVE) — all endpoints live, `.medu.pt` drift-prone so add liveness checks. Endpoint + field maps saved to project memory.
+
+**Pages touched**: [[log]] (this entry), new [[gesedu]] + [[infoescolas]], [[index.md|index]] (Sources 23→25, P1 13→15, new "Education amenity (2)" section, area-routing line + anchors).
+
+**Decisions deferred from v1**: retention/dropout (Regiões em Números — drops the last scraper + concelho-name crosswalk); higher-ed proximity; OSM school points (superseded by the authoritative FeatureServer, kept as coverage cross-check). Full design: `Personal-Wiki/New developments/PT-education-ingest-design.md`. **NOT built** — these are scoped specs, no pipeline run yet.
