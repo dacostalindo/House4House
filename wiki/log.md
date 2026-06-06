@@ -1389,3 +1389,20 @@ User question revealed an under-documented invariant: "why are there 2 1s, 2 2s,
 - [[publico-rankings-column-legend]] — added a "Ranks are per-partition, not global" section above the Headline family explaining the invariant + the tie behavior + the silver consequence ("models that depend on unique rank values must dedup or use a `dense_rank()` re-projection").
 
 **Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (per-partition + tie section).
+
+## [2026-06-06] migrate | PT education amenity design → wiki/planning/ + live status dashboard
+
+Moved `tests/PT-EDUCATION-DESIGN.md` into the wiki at [[pt-education-amenity-pillar]] so the doc lives where the rest of the project's planning + tracking lives, with Obsidian backlinks and graph membership.
+
+**What was added on top of the verbatim port**:
+- YAML frontmatter (`type: plan`) + `## For future Claude` preamble.
+- New `## 0. Status` section at the top — a single-page progress dashboard with a 5-row source table (status + PR link per source) and Phase 0 / Phase 1 / Phase 2 / Open-Qs checklists. Source #1 (publico-rankings) checkboxes all ✅ ticked with the verified row counts; sources #2-#5 still 🔲/⏳ pending.
+- Cross-links to the three sibling pages this pillar produced: [[publico-rankings]] (source), [[publico-rankings-column-legend]] (91-col legend), [[dbt-source-column-descriptions]] (convention).
+- Original §7 Phase-0 checklist updated to reflect publico_rankings as shipped (the verbatim items were stale).
+
+**Other touches**:
+- `tests/PT-EDUCATION-DESIGN.md` reduced to a one-screen pointer at the wiki version — single source of truth now lives at [[pt-education-amenity-pillar]], not in `tests/`.
+- [[planning/README|wiki/planning/README]] grew a "Pillar-specific planning pages" subsection so future multi-source pillars (housing supply, regulatory events, etc.) have a documented home.
+- [[index]] Planning section count 4 → 5; added the [[pt-education-amenity-pillar]] entry.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (new), [[planning/README]] (Pillar-specific subsection added), [[index]] (Planning 4 → 5), `tests/PT-EDUCATION-DESIGN.md` (now a pointer stub).
