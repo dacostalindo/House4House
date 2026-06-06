@@ -70,9 +70,7 @@ RATE_LIMIT_S = 1.0  # ~1 req/s + jitter; DataDome-friendly (canary clean at this
 REQUEST_TIMEOUT_S = 30
 MAX_SEARCH_PAGES = 2000  # hard backstop (national plots ~1,188 pages)
 
-_NEXT_DATA_RE = re.compile(
-    r'<script id="__NEXT_DATA__"[^>]*>(\{.*?\})</script>', re.DOTALL
-)
+_NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(\{.*?\})</script>', re.DOTALL)
 
 
 # ---------------------------------------------------------------------------
@@ -225,10 +223,16 @@ def _next_data(path: str, params: list[tuple[str, str]] | None = None) -> dict:
             wait = _RETRY_BACKOFF_S * (attempt + 1)
             log.warning(
                 "[imovirtual] _next_data attempt %d/%d for %s failed (%s) — retry in %ds",
-                attempt + 1, _MAX_REQUEST_ATTEMPTS, path, exc, wait,
+                attempt + 1,
+                _MAX_REQUEST_ATTEMPTS,
+                path,
+                exc,
+                wait,
             )
             time.sleep(wait)
-    raise RuntimeError(f"_next_data exhausted {_MAX_REQUEST_ATTEMPTS} attempts for {path}") from last_exc
+    raise RuntimeError(
+        f"_next_data exhausted {_MAX_REQUEST_ATTEMPTS} attempts for {path}"
+    ) from last_exc
 
 
 def _search_params(category: str, loc: str, page: int) -> list[tuple[str, str]]:
@@ -256,7 +260,11 @@ def _iter_search(category: str, loc: str) -> Iterable[dict]:
         except Exception as exc:
             log.warning(
                 "[imovirtual] %s/%s: list page %d failed after retries — stopping "
-                "pagination here (partial result): %s", category, loc, page, exc,
+                "pagination here (partial result): %s",
+                category,
+                loc,
+                page,
+                exc,
             )
             return
         sa = (pp.get("data") or {}).get("searchAds") or {}
@@ -266,7 +274,11 @@ def _iter_search(category: str, loc: str) -> Iterable[dict]:
         total_pages = (sa.get("pagination") or {}).get("totalPages") or page
         log.info(
             "[imovirtual] %s/%s: list page %d/%d (%d items)",
-            category, loc, page, total_pages, len(items),
+            category,
+            loc,
+            page,
+            total_pages,
+            len(items),
         )
         yield from items
         if page >= total_pages:
@@ -507,11 +519,15 @@ def _ensure_plot_payload() -> list[dict]:
         if seen % 50 == 0:
             log.info(
                 "[imovirtual] plots progress: seen=%d collected=%d skipped=%d",
-                seen, len(rows), skipped,
+                seen,
+                len(rows),
+                skipped,
             )
     log.info(
         "[imovirtual] plots crawl complete: seen=%d collected=%d skipped=%d",
-        seen, len(rows), skipped,
+        seen,
+        len(rows),
+        skipped,
     )
     _PLOT_CACHE = rows
     return _PLOT_CACHE

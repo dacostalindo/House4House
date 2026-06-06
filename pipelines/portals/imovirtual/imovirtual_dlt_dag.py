@@ -195,8 +195,7 @@ with DAG(
 
                 def _current(table: str) -> int:
                     cur.execute(
-                        f"SELECT count(*) FROM {DATASET_NAME}.{table} "
-                        f"WHERE _dlt_valid_to IS NULL"
+                        f"SELECT count(*) FROM {DATASET_NAME}.{table} WHERE _dlt_valid_to IS NULL"
                     )
                     return cur.fetchone()[0]
 
@@ -224,9 +223,7 @@ with DAG(
                     (plots_n, PLOT_BAND, "plots"),
                 ):
                     if n < band[0] or n > band[1]:
-                        raise RuntimeError(
-                            f"{label} current-state count {n} outside band {band}"
-                        )
+                        raise RuntimeError(f"{label} current-state count {n} outside band {band}")
 
                 log.info(
                     "[imovirtual_dlt] validation OK: developments=%d, units=%d, plots=%d",
