@@ -58,6 +58,7 @@ SELECT
     'jll'::TEXT                                                      AS source,
     latest.id::TEXT                                                  AS source_listing_id,
     MD5('jll|' || latest.id::TEXT)::TEXT                             AS listing_hash,
+    latest.development_id::TEXT                                      AS portal_dev_id,
     'https://www.jll.pt/property/' || latest.id::TEXT                AS listing_url,
 
     -- Operation: property_business JSONB usually carries the business type

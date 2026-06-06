@@ -20,21 +20,17 @@ WITH latest AS (
     --
     -- Scope filter (2026-06-06): only listings associated with an
     -- empreendimento (development) are in scope for unified_listings_residential.
-    -- Identified by raw_json.emid OR raw_json.idemp being non-empty. Drops
-    -- coverage from 9,335 → ~1,140 (12.2%) — the rest are individual resale
-    -- listings without a development link, out of scope for v1.
+    -- Filter on typed idemp (bigint) — the numeric empreendimento id, same
+    -- field unified_developments uses as portal_dev_id (sourced there from
+    -- zome_developments.venture_id, also bigint). emid (text code like
+    -- EMPT194625) is co-populated and has identical coverage (1,140 / 9,335
+    -- active = 12.2%), but using idemp keeps the FK join uniform with
+    -- unified_developments.
     SELECT DISTINCT ON (pid) *
     FROM {{ source('bronze_listings', 'zome_listings') }}
     WHERE _dlt_valid_to IS NULL
       AND pid IS NOT NULL
-      AND raw_json IS NOT NULL
-      AND raw_json::text ~ '^\{'
-      AND (
-          (raw_json::jsonb ->> 'emid')  IS NOT NULL AND (raw_json::jsonb ->> 'emid')  <> ''
-          OR
-          (raw_json::jsonb ->> 'idemp') IS NOT NULL AND (raw_json::jsonb ->> 'idemp') <> ''
-                                                    AND (raw_json::jsonb ->> 'idemp') <> '0'
-      )
+      AND idemp IS NOT NULL AND idemp > 0
     ORDER BY pid, _dlt_valid_from DESC
 )
 
@@ -43,6 +39,10 @@ SELECT
     'zome'::TEXT                                                     AS source,
     pid::TEXT                                                        AS source_listing_id,
     MD5('zome|' || pid::TEXT)::TEXT                                  AS listing_hash,
+    -- portal_dev_id = idemp::TEXT (the numeric empreendimento id).
+    -- Matches unified_developments which uses venture_id::TEXT for Zome's
+    -- portal_dev_id (same underlying numeric id, different column name).
+    idemp::TEXT                                                      AS portal_dev_id,
     COALESCE(url_detail_view_link,
              'https://www.zome.pt/imovel/' || pid::TEXT)             AS listing_url,
 

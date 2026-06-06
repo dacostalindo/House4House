@@ -3,13 +3,23 @@ version: 2
 models:
   - name: unified_listings_residential
     description: >
-      Cross-portal LISTING-grain silver for residential properties (apartments
-      + houses, resale + dev units). UNION ALL across the 4 portal-listing
-      staging models (idealista / RE/MAX / Zome / JLL). Incremental merge by
-      listing_hash = MD5(source || '|' || source_listing_id) — pipeline-safe
-      re-merge. NO cross-portal listing-level dedup in v1; same physical property
-      on 3 portals = 3 rows. Floor plans: 4-source TEXT[] with floor_plan_source
-      tracking which portal contributed. See wiki/concepts/cross-portal-listings.md.
+      Cross-portal LISTING-grain silver for residential properties (new-construction
+      development UNITS only — apartments + houses + studios marketed within a
+      project). UNION ALL across the 4 portal-listing staging models
+      (idealista_development_units / remax_listings / zome_listings filtered
+      to dev-linked / jll_listings). Incremental merge by listing_hash =
+      MD5(source || '|' || source_listing_id) — pipeline-safe re-merge, zero
+      duplicates, first_seen_date + initial_price_eur preserved via COALESCE.
+
+      NO cross-portal listing-level dedup in v1; same physical unit on 3 portals
+      = 3 rows. The unified_development_id FK lets consumers roll up to the
+      canonical development for cross-portal comparison.
+
+      Scope correction 2026-06-06: prior version consumed bronze_listings.raw_idealista
+      (LEGACY append-only resale catalog, ~21k rows mixing dev + resale). This
+      was wrong scope — the cross-portal contract is development-marketed units
+      only. Switched idealista source to bronze_listings.idealista_development_units;
+      added portal_dev_id + unified_development_id FK across all portals.
     columns:
       - name: listing_hash
         description: "MD5(source || '|' || source_listing_id) — deterministic merge key, never collides across portals"
@@ -26,12 +36,35 @@ models:
         description: "Portal-native listing ID, cast to TEXT"
         tests:
           - not_null
+      - name: portal_dev_id
+        description: >
+          Portal-native development ID this listing belongs to. Sources:
+          idealista=development_units.development_id, remax=development_id,
+          zome=COALESCE(emid, idemp::TEXT), jll=development_id. All 4 portals
+          guarantee this is populated by API design (each portal's listings
+          come from a Developments/{id}/Fractions-style traversal). Used to
+          resolve unified_development_id via unified_developments.portal_refs.
+        tests:
+          - not_null
+      - name: unified_development_id
+        description: >
+          FK to unified_developments.unified_development_id — the canonical
+          cross-portal development this unit belongs to. Resolved via lateral
+          join: ud.portal_refs->source @> to_jsonb(portal_dev_id). NULL when
+          the development hasn't been dedup'd into a unified row yet (rare;
+          all 4 portals' devs should be in unified_developments by design).
       - name: price_eur
         description: "Asking price in EUR. Rows with NULL or <=0 are filtered out at silver."
+      - name: useful_area_m2
+        description: "Área Útil (interior livable). Maps per portal: idealista=lot_size_usable, remax=living_area, zome=areautilhab, jll=gross_area (Área Bruta Privativa)."
+      - name: gross_area_m2
+        description: "Total gross area incl. exterior. Maps per portal: idealista=lot_size, remax=total_area, zome=areabrutaconst, jll=gross_area + balcony+terrace+garden+patio sum from features."
       - name: floor_plan_urls
-        description: "TEXT[] of floor plan URLs. JLL: PDFs from blue_prints. Idealista: tagged JPG/WEBP. Zome: aplantsgallery.hres filtered by 'planta' filename. RE/MAX: single PDF wrapped (may 404 if session-gated)."
+        description: "TEXT[] of floor plan URLs. JLL: PDFs from blue_prints (egorealestate CDN). Idealista: tagged JPG/WEBP from property_images[i] where property_image_tags[i]='plan'. Zome: aplantsgallery.hres (dedicated floor-plan slot — any entry). RE/MAX: single PDF wrapped, https://i.maxwork.pt/bb prefix (may 404 if session-gated)."
       - name: has_floor_plan
         description: "True iff floor_plan_urls is non-empty"
+      - name: floor_plan_count
+        description: "array_length(floor_plan_urls, 1) — multi-unit numbered plans common in Idealista (avg 2.2) and Zome (avg 1.9)"
       - name: floor_plan_source
         description: "Which portal supplied the plans — jll_blueprints / idealista_tagged / zome_aplants / remax_path / NULL"
       - name: geo_key

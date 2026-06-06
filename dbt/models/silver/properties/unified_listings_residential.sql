@@ -4,6 +4,7 @@
         unique_key='listing_hash',
         incremental_strategy='merge',
         merge_update_columns=[
+            'portal_dev_id', 'unified_development_id',
             'listing_url', 'operation_type',
             'price_eur', 'price_per_sqm_useful', 'price_per_sqm_gross',
             'useful_area_m2', 'gross_area_m2', 'implantation_area_m2', 'land_area_m2',
@@ -32,6 +33,8 @@
             "CREATE INDEX IF NOT EXISTS idx_unified_listings_residential_active ON {{ this }} (is_active) WHERE is_active",
             "CREATE INDEX IF NOT EXISTS idx_unified_listings_residential_operation ON {{ this }} (operation_type)",
             "CREATE INDEX IF NOT EXISTS idx_unified_listings_residential_listing_hash ON {{ this }} (listing_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_unified_listings_residential_unified_dev ON {{ this }} (unified_development_id) WHERE unified_development_id IS NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_unified_listings_residential_portal_dev ON {{ this }} (source, portal_dev_id) WHERE portal_dev_id IS NOT NULL",
             "UPDATE {{ this }} SET is_active = FALSE WHERE last_seen_date < CURRENT_DATE - INTERVAL '3 days' AND is_active"
         ]
     )
@@ -105,6 +108,27 @@ geo_joined AS (
           AND ST_Contains(d.freguesia_geom_pt, g.geom_pt)
         LIMIT 1
     ) dg ON TRUE
+),
+
+dev_joined AS (
+    -- Resolve unified_development_id via portal_refs JSONB containment.
+    -- unified_developments.portal_refs is shaped like
+    --   {"jll":["12345"], "remax":["67890"], "zome":["EMPT194625"]}
+    -- so the match is: ud.portal_refs->(j.source) @> to_jsonb(j.portal_dev_id).
+    -- NULL when the dev hasn't been dedup'd into a unified dev yet (e.g. the
+    -- specific portal_dev_id appears in only one portal, so the unified row
+    -- exists but might not have an entry for OTHER portals).
+    SELECT
+        j.*,
+        ud.unified_development_id
+    FROM geo_joined j
+    LEFT JOIN LATERAL (
+        SELECT unified_development_id
+        FROM {{ ref('unified_developments') }} ud
+        WHERE j.portal_dev_id IS NOT NULL
+          AND (ud.portal_refs -> j.source) @> to_jsonb(j.portal_dev_id)
+        LIMIT 1
+    ) ud ON TRUE
 )
 
 SELECT
@@ -112,6 +136,8 @@ SELECT
     j.listing_hash,
     j.source,
     j.source_listing_id,
+    j.portal_dev_id,
+    j.unified_development_id,
     j.listing_url,
     j.operation_type,
 
@@ -190,7 +216,7 @@ SELECT
     {% endif %}
     NOW()                                                            AS _updated_at
 
-FROM geo_joined j
+FROM dev_joined j
 {% if is_incremental() %}
 LEFT JOIN {{ this }} t ON t.listing_hash = j.listing_hash
 {% endif %}

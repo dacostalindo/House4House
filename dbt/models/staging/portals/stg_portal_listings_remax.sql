@@ -29,6 +29,7 @@ SELECT
     'remax'::TEXT                                                    AS source,
     listing_id::TEXT                                                 AS source_listing_id,
     MD5('remax|' || listing_id::TEXT)::TEXT                          AS listing_hash,
+    development_id::TEXT                                             AS portal_dev_id,
     -- Public detail URL — construct from listing_id and listing_type
     'https://remax.pt/listing/' || listing_id::TEXT                  AS listing_url,
 
