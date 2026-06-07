@@ -1061,7 +1061,24 @@ sources:
           - name: piso
             description: "Floor label as free text (e.g. '2ºAB')."
           - name: areas_extras
-            description: "Per-space area breakdown (rooms/suite/wcs/garden...) as JSON text."
+            description: >
+              Per-space area breakdown as JSON text. Fixed 9-key dict
+              (rooms, suite, wcs, kitchen, livingRoom, balcony, terrace,
+              garden, garage); each value is an array of m² strings, one
+              entry per space of that type. Array length = count, values
+              = areas (e.g. {"wcs":["3.2","4.9","5.9"],"rooms":["14.3","14.3"],
+              "suite":["18.6"],"kitchen":["17.6"],"livingRoom":["49"]} →
+              3 bathrooms, 2 bedrooms, 1 suite, 1 kitchen, 1 living room).
+              Coverage: 8,774/10,628 non-null (82.5%) but only 1,447
+              populated (13.6%); the rest are the empty-arrays sentinel.
+              Unique among the 5 portals — idealista/jll/remax/sce/imovirtual
+              expose only aggregate areas (gross/useful/land). Serves as
+              the ground-truth anchor for floor-plan CV: the populated
+              subset is the labelled eval set against which a vision model
+              extracting per-room areas from `aplantsgallery` floor plans
+              (and from other portals' plans) is evaluated. `rooms` =
+              quartos (non-suite bedrooms); `suite` = en-suite bedrooms
+              (PT real estate distinguishes them).
           - name: attributes_extras
             description: "Extra attributes (amenities w/ icons), multi-language, as JSON text."
           - name: tipologiaespecial
