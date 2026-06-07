@@ -1459,3 +1459,123 @@ User question revealed an under-documented invariant: "why are there 2 1s, 2 2s,
 - [[publico-rankings-column-legend]] — added a "Ranks are per-partition, not global" section above the Headline family explaining the invariant + the tie behavior + the silver consequence ("models that depend on unique rank values must dedup or use a `dense_rank()` re-projection").
 
 **Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (per-partition + tie section).
+
+## [2026-06-06] migrate | PT education amenity design → wiki/planning/ + live status dashboard
+
+Moved `tests/PT-EDUCATION-DESIGN.md` into the wiki at [[pt-education-amenity-pillar]] so the doc lives where the rest of the project's planning + tracking lives, with Obsidian backlinks and graph membership.
+
+**What was added on top of the verbatim port**:
+- YAML frontmatter (`type: plan`) + `## For future Claude` preamble.
+- New `## 0. Status` section at the top — a single-page progress dashboard with a 5-row source table (status + PR link per source) and Phase 0 / Phase 1 / Phase 2 / Open-Qs checklists. Source #1 (publico-rankings) checkboxes all ✅ ticked with the verified row counts; sources #2-#5 still 🔲/⏳ pending.
+- Cross-links to the three sibling pages this pillar produced: [[publico-rankings]] (source), [[publico-rankings-column-legend]] (91-col legend), [[dbt-source-column-descriptions]] (convention).
+- Original §7 Phase-0 checklist updated to reflect publico_rankings as shipped (the verbatim items were stale).
+
+**Other touches**:
+- `tests/PT-EDUCATION-DESIGN.md` reduced to a one-screen pointer at the wiki version — single source of truth now lives at [[pt-education-amenity-pillar]], not in `tests/`.
+- [[planning/README|wiki/planning/README]] grew a "Pillar-specific planning pages" subsection so future multi-source pillars (housing supply, regulatory events, etc.) have a documented home.
+- [[index]] Planning section count 4 → 5; added the [[pt-education-amenity-pillar]] entry.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (new), [[planning/README]] (Pillar-specific subsection added), [[index]] (Planning 4 → 5), `tests/PT-EDUCATION-DESIGN.md` (now a pointer stub).
+
+## [2026-06-06] ingest | rede-escolar bootstrap — Phase 0 source #2 of 5
+
+Bootstrapped the second source of the [[pt-education-amenity-pillar]] (the GesEdu paginated ArcGIS REST FeatureServer; canonical PT school register with point geometry). Same custom-DAG shape as [[publico-rankings]] — skipped `pipelines/gis/template/` because the template handles single-URL file downloads, not paginated REST query endpoints.
+
+**Code shipped**:
+- `pipelines/gis/rede_escolar/rede_escolar_config.py` — endpoint URL + `maxRecordCount=2000` page size + count probe + sanity bands + headers.
+- `pipelines/gis/rede_escolar/rede_escolar_ingestion_dag.py` — paginated ingest. `probe_and_fanout` (live `returnCountOnly` probe) → `download_page.expand(spec=offsets)` → `upload_page.expand` → `summarize` reconciles `sum(page features) == probe total`. `@monthly` schedule.
+- `pipelines/gis/rede_escolar/rede_escolar_bronze_dag.py` — `discover_latest_run` picks newest snapshot, `fanout_pages` lists page blobs, `ensure_table` builds dual-CRS PostGIS schema per [[2026-05-10-dual-crs-storage]], `load_page` unnests features + writes geom (4326) + geom_pt (3763), upserts on `(run_date, codigo_escola)`.
+- `dbt/models/staging/education/_staging_education__sources.yml` — appended `raw_rede_escolar` source with 46 column descriptions (3 audit + 41 renamed + 2 geom) + `unique_combination_of_columns: [run_date, codigo_escola]` test. Same column-description convention as [[publico-rankings]] (see [[dbt-source-column-descriptions]]).
+
+**Live verification (2026-06-06)**: count probe = 8,670 features. Pagination verified at offset 0/2000/4000/6000 = 2000 features each (`exceededTransferLimit=True`); offset 8000 = 670 tail features (no flag). Live field set = our `SOURCE_KEY_TO_COLUMN` exactly (zero drift; 42 attribute fields incl. CODESCME PK). 92/670 tail-page features had NULL geometry (handled — row inserts with `geom`/`geom_pt` NULL). Did NOT run the Airflow DAG end-to-end in this worktree because the docker scheduler mounts the main repo's `pipelines/`, not this worktree's — same constraint as the [[publico-rankings]] dev cycle; live trigger will happen after merge.
+
+**Pages touched**: [[log]] (this entry), [[rede-escolar]] (new source page with pagination verification table), [[index]] (Sources 25 → 26; P1 15 → 16; Education subsection (1) → (2)), [[pt-education-amenity-pillar]] (Phase 0 dashboard: source #2 flipped to 🟢 with verification line).
+
+## [2026-06-06] verify | rede-escolar end-to-end Airflow run
+
+Triggered both [[rede-escolar]] DAGs on the live stack (temporarily synced into the main-repo `pipelines/gis/` so the docker scheduler would pick them up; reverted after).
+
+**Ingestion DAG** (`rede_escolar_ingestion`): 9 seconds end-to-end. probe_and_fanout (1s) → 5× download_page parallel (1-2s each) → 5× upload_page parallel → summarize. MinIO blobs: page_000000–006000 at ~2.2 MB each, page_008000 tail at 756 KiB.
+
+**Bronze load DAG** (`rede_escolar_bronze_load`): 5 seconds end-to-end. discover_latest_run → fanout_pages (5 blobs) → ensure_table → 5× load_page parallel → summarize.
+
+**Bronze verification** against `bronze_education.raw_rede_escolar`:
+- 8,670 rows total — matches the live ArcGIS count probe exactly.
+- 8,670 unique `codigo_escola` (no PK duplication).
+- 7,844 rows with geometry (90.47%); 826 NULL (~9.5% — population-wide, vs the ~14% tail-page sample I had earlier).
+- 0 `(run_date, codigo_escola)` PK duplicates → confirms the dbt source uniqueness test would pass.
+- Tipologia distribution: 4,123 EB1, 1,944 JI, 335 EB+S, 313 Sec, 261 Profissional — all plausible.
+- Probed school `614798` (Jardim de Infância de Gandufe, Mangualde) round-trips identically (lon −7.8015, lat 40.5815) and `geom_pt` reprojects to PT-TM06 (28077.1, 101460.9) — confirms `ST_Transform(geom, 3763)` works through the loader.
+
+Initial DAG-import error caught and fixed: `@monthly` schedule needs an explicit `start_date`; the publico_rankings shape used `schedule=None` so the missing-start_date didn't bite. Added `start_date=datetime(2026, 6, 1)` to ingestion DAG, committed in the same PR.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (source #2 dashboard flipped to ✅ shipped + end-to-end verified, sub-task tick for live Airflow run added).
+
+## [2026-06-07] ingest | source #3 (`dgeec_ens_sup`) bootstrap + end-to-end verified
+
+PT education pillar — source #3 of 5 shipped. DGEEC's higher-ed register
+(`Estabelecimentos do Ensino Superior`, CC BY 4.0 via DGTerritorio SNIG ATOM):
+shapefile bundle, 321 Unidades Orgânicas (faculdade-grain), point geometry in
+EPSG:4326. New package `pipelines/gis/dgeec_ens_sup/` with config +
+ingestion DAG + bronze loader DAG; new wiki page [[dgeec-ens-sup]]; appended
+`raw_dgeec_ens_sup` to `dbt/models/staging/education/_staging_education__sources.yml`
+with 21 column descriptions + `(run_date, codigo_unidade_organica)` uniqueness test.
+
+**Live probe flipped two assumptions baked into planning §3.5**:
+1. Schema is 16 fields, NOT 14 (`Outro telefone` + `Fax` were missed).
+2. "Estabelecimento" is the parent institution (Universidade), NOT a physical
+   building. `Código do Estabelecimento` is non-unique (101 distinct values
+   across 321 rows); the natural PK is `Código da Unidade Orgânica` (321/321
+   unique). Pillar decision #11 was right after all — but my pre-probe rename
+   plan was wrong (would have PK-violated on first load). Renamed the
+   non-unique column `codigo_instituicao` to surface DGEEC's misleading
+   "Estabelecimento" vocabulary, instead of propagating it into silver/gold.
+
+DBF field names truncate to 10 ASCII chars (`Código do`, `Outro tele`, etc.);
+the bronze loader keys off the truncated label and renames to readable
+snake_case Portuguese, same convention as [[rede-escolar]] and
+[[dbt-source-column-descriptions]]. Both 4-digit codes (`codigo_instituicao`,
+`codigo_unidade_organica`) are stored TEXT zero-padded to width 4 so silver
+joins to DGES rankings work without re-padding.
+
+Custom DAG shape, NOT the GIS template — `pipelines/gis/template/`
+auto-extracts ZIPs to a single inner file and deletes the ZIP, which destroys
+shapefile sidecar bundles. No existing repo source uses
+`expected_format='shp'`; templatising shapefile bundles is a separate refactor
+(deferred until N≥2 sibling shapefile sources). Bronze loader uses
+`pyogrio.raw.read()` to avoid the `geopandas`/`shapely` deps (absent in the
+docker Airflow image) and decodes Point WKB manually with `struct.unpack` to
+build the WKT passed to `ST_GeomFromText` + `ST_Transform` for dual-CRS
+storage per [[2026-05-10-dual-crs-storage]].
+
+End-to-end verified on the live Airflow stack:
+- Ingestion DAG: 40.8 KB ZIP, 7 files inside, MinIO blob at
+  `s3://raw/dgeec_ens_sup/2026-06-07/Estab_Ens_Sup_Portugal.zip` in ~3s.
+- Bronze load DAG: 4 tasks, ~5s end-to-end.
+- `bronze_education.raw_dgeec_ens_sup`: 321 rows, 321 unique
+  `codigo_unidade_organica` (PK), 101 unique `codigo_instituicao`, 0 NULL
+  geometry, `run_date = 2026-06-07`.
+- Sample UO `0100` (Universidade dos Açores) round-trips identically:
+  geom_4326 `POINT(-25.6638055555556 37.7460416666667)`, reprojects to PT-TM06
+  `POINT(-1550907.94 -65519.06)` (Açores is far off the mainland-centric
+  EPSG:3763 origin — large negative-x is expected).
+- Natureza distribution: 118 Pol-Públ / 87 Univ-Públ / 64 Pol-Priv /
+  46 Univ-Priv / 5+1 Militar — matches the probe and the DGEEC catalogue.
+- Top institutions by UO count: Universidade Católica Portuguesa (23 UOs),
+  Universidade de Lisboa (20), Universidade do Porto (15), Universidade de
+  Coimbra (11), Universidade do Algarve (10).
+
+Bug caught + fixed in this session: first bronze run failed with
+`ImportError: geopandas is required to use pyogrio.read_dataframe()` — the
+Airflow image bundles `pyogrio` but not `geopandas`/`shapely`. Switched to
+`pyogrio.raw.read()` (returns numpy ndarrays of WKB bytes + per-field column
+arrays) and added a 12-line `_point_wkb_to_wkt` helper that decodes the
+21-byte Point WKB layout with `struct.unpack`. Loader has zero geo-stack deps
+now — pyogrio + psycopg2 only.
+
+**Pages touched**: [[log]] (this entry), [[index]] (Sources 26→27, P1 16→17,
+Education subsection (2)→(3) + new dgeec-ens-sup bullet),
+[[pt-education-amenity-pillar]] (source #3 dashboard flipped to ✅ shipped +
+end-to-end verified; §3.5 updated to reflect the dual-CRS psycopg2 loader
+actually shipped instead of the "ogr2ogr direct" wording from the planning
+phase). New page [[dgeec-ens-sup]].
