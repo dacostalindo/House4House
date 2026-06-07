@@ -30,7 +30,7 @@ Three SCD2 fact tables + per-entity heartbeat sidecars (per [[heartbeat-sidecar]
 
 No ref/lookup tables (the Nexus payload is self-describing via `localizedValue`), so there is no `load_refs` task. Two facts sources with different scope: `imovirtual_developments_facts_source` (national) and `imovirtual_plots_facts_source` (Aveiro), loaded by parallel `load_facts` / `load_plots` DAG tasks into separate dlt pipelines.
 
-Silver: imovirtual is the 5th `UNION ALL` arm of [[cross-portal-dev-dedup|unified_developments]], geometry-priority rank **JLL > imovirtual > Zome > RE/MAX > idealista** (genuine dev-level pin + official reverse-geocode).
+Silver: imovirtual is the 5th `UNION ALL` arm of [[cross-portal-dev-dedup|unified_developments]] (shipped 2026-06-06 via `stg_portal_developments_imovirtual`), geometry-priority rank **JLL > Zome > RE/MAX > imovirtual > idealista**. imovirtual carries a genuine dev-level pin + official reverse-geocode (cleaner than RE/MAX in principle), but the rank was demoted from the originally-planned slot 2 to slot 4 pending a coverage spot-check — see the 2026-06-06 addendum on [[2026-06-05-imovirtual-portal-onboarding]].
 
 ## Quirks
 
@@ -47,4 +47,4 @@ Silver: imovirtual is the 5th `UNION ALL` arm of [[cross-portal-dev-dedup|unifie
 
 ## Last verified
 
-2026-06-06 — built, run & verified end-to-end. First full load in `bronze_listings`: **801 developments + 4,465 units** (national, 64 concelhos, 0 orphans) and **4,894 plots** (Aveiro, 100% coords; 4,759 distinct listing_ids). 33 offline tests + ruff green; all grains within the validation bands. dbt staging + the 5th `unified_developments` arm are the remaining follow-up.
+2026-06-06 — built, run & verified end-to-end. First full load in `bronze_listings`: **801 developments + 4,465 units** (national, 64 concelhos, 0 orphans) and **4,894 plots** (Aveiro, 100% coords; 4,759 distinct listing_ids). 33 offline tests + ruff green; all grains within the validation bands. **2026-06-06**: dbt staging (`stg_portal_developments_imovirtual`) + 5th `unified_developments` UNION arm shipped (geom-priority slot 4 — see decision addendum). Units/plots staging deferred (no cross-portal consumer needs them yet).

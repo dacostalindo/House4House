@@ -33,7 +33,7 @@ The argument is the short kebab-case name of the new source (e.g. `lneg-aquifers
    - `pipelines/gis/<name>/<name>_config.py` — `GISIngestionConfig` instance populated with the user's params
    - `pipelines/gis/<name>/<name>_ingestion_dag.py` — 3-line `from pipelines.gis.<name>.<name>_config import <NAME>_CONFIG` + `from pipelines.gis.template.gis_ingestion_template import create_gis_ingestion_dag` + `dag = create_gis_ingestion_dag(<NAME>_CONFIG)`
    - `wiki/sources/<name>.md` — full frontmatter + `## For future Claude` 2-3-sentence preamble + `## Source` (URL, license, CRS, distributor) + `## Schema` (placeholder for table/layer descriptions; user fills in after first ingest run) + `## Quirks` (placeholder for known gotchas) + `## Last verified` (today's date)
-   - dbt source YAML entry appended to `dbt/models/staging/<domain>/_staging_<domain>__sources.yml`
+   - dbt source YAML entry appended to `dbt/models/staging/<domain>/_staging_<domain>__sources.yml` — **every column must carry a `description:`** per [[dbt-source-column-descriptions]]. After load, verify `information_schema.columns` count for the bronze table equals the YAML column count equals the dbt manifest column count.
 
 6. Propagate per the wiki Write rules:
    - Add the new source to `wiki/index.md` Sources section (alphabetical position).
