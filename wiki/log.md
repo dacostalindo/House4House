@@ -1244,6 +1244,16 @@ Pushed name-matching normalization into each portal dev-staging model and added 
 
 **Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (normalize-in-staging + CAOP geo sections), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (refactor), [_silver_properties__models.yml](../dbt/models/silver/properties/_silver_properties__models.yml), [_staging_portals__models.yml](../dbt/models/staging/portals/_staging_portals__models.yml) (4 new columns per dev-staging model). Out of scope: the idealista `location_hierarchy = {}` bronze regression — still tracked as a separate task; CAOP now papers over it for merge purposes but the bronze should still be fixed.
 
+## [2026-06-06] admin geo follows chosen geom in unified_developments
+
+Surfaced during the JC Barrocas walkthrough: the unified row's geom came from zome (priority slot 2, pin in Glória e Vera Cruz) but its `parish` was Esgueira — that was MODE-vote across all members tiebreaking alphabetically, while the imovirtual pair sat 3km east. Geom + admin geography were drifting apart for borderline merges.
+
+**Fix**: `portal_dev_geo` now produces concelho/parish/geo_key from the SAME `top_portal` it picks the geom from (MODE within that single portal's contributing members). A new `portal_dev_concelho_fallback` CTE keeps the MODE-vote-across-all-members behavior, but ONLY for devs where no contributor has geom (no `top_portal` exists). For pinned devs, parish/concelho now match the freguesia containing the unified pin.
+
+Verified: JC Barrocas Apartments parish flipped Esgueira → União das freguesias de Glória e Vera Cruz; row count unchanged at 1,430; all dbt tests pass.
+
+**Pages touched**: [[log]] (this entry), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (`portal_dev_geo` + new `portal_dev_concelho_fallback` CTE).
+
 ## [2026-06-06] add-gis-source | publico-rankings (P1) — Público school rankings custom DAG
 
 Bootstrapped a new education-pillar source per the [[2026-06-06-pt-education-amenity-design|PT education amenity design]] (design doc at `tests/PT-EDUCATION-DESIGN.md`).

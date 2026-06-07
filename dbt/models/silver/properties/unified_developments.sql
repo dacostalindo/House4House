@@ -270,53 +270,59 @@ top_portal AS (
 ),
 
 portal_dev_geo AS (
-    -- Geom centroid for devs that have at least one geom-bearing contributor.
-    -- Devs with no geom anywhere fall through to portal_devs via LEFT JOIN
-    -- and carry NULL geom (refactor 2026-06-06 — previously dropped here,
-    -- losing ~10 devs + ~60 listing FK joins in unified_listings_residential).
+    -- Geom + admin geography from the highest-priority portal that has
+    -- coordinates (the top_portal pick). Geom is the centroid of that portal's
+    -- contributing members; concelho/parish/geo_key are taken from the SAME
+    -- portal so they don't drift from where the pin actually lands. Devs with
+    -- no geom anywhere fall through via LEFT JOIN and carry NULL geom +
+    -- NULL admin (handled by COALESCE with the no-geom-fallback CTE below).
     SELECT
         k.dev_key,
-        ST_Centroid(ST_Collect(k.geom_3763))            AS geom_3763
+        ST_Centroid(ST_Collect(k.geom_3763))            AS geom_3763,
+        MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_concelho_name, k.concelho))
+                                                        AS concelho_from_geo_portal,
+        MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_parish_name, k.parish))
+                                                        AS parish_from_geo_portal,
+        MODE() WITHIN GROUP (ORDER BY k.geo_key)        AS geo_key_from_geo_portal
     FROM portal_keyed k
     JOIN top_portal tp ON tp.dev_key = k.dev_key AND k.portal = tp.geo_portal
     WHERE k.geom_3763 IS NOT NULL
     GROUP BY k.dev_key
 ),
 
-portal_dev_concelho AS (
-    -- Per-dev concelho/parish/geo_key — CAOP-resolved when staging hit a
-    -- freguesia polygon, portal-text fallback. MODE picks the most common
-    -- value across contributing portals (handles edge-case CAOP boundary
-    -- disagreements: only ~8 devs across all portals diverge after case+accent
-    -- normalization per the 2026-06-06 audit). Always populated since
-    -- COALESCE(CAOP, portal-text) is non-null for any contributor.
+portal_dev_concelho_fallback AS (
+    -- No-geom fallback: when NO portal contributor has coordinates the
+    -- top_portal pick is empty and portal_dev_geo carries NULLs. Use a
+    -- MODE-vote across all members so the dev still gets concelho/parish
+    -- (parish text from idealista's location_hierarchy etc.).
     SELECT
         k.dev_key,
         MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_concelho_name, k.concelho))
-                                                          AS concelho_resolved,
+                                                        AS concelho_fallback,
         MODE() WITHIN GROUP (ORDER BY COALESCE(k.geo_parish_name, k.parish))
-                                                          AS parish_resolved,
-        MODE() WITHIN GROUP (ORDER BY k.geo_key)          AS geo_key_resolved
+                                                        AS parish_fallback,
+        MODE() WITHIN GROUP (ORDER BY k.geo_key)        AS geo_key_fallback
     FROM portal_keyed k
     GROUP BY k.dev_key
 ),
 
 portal_devs AS (
     -- Driver: portal_dev_refs (every dev_key with ≥1 portal contributor).
-    -- LEFT JOIN portal_dev_geo (NULL geom when no contributor has it).
-    -- LEFT JOIN portal_dev_concelho (always populated; CAOP-first).
+    -- Admin geography (concelho/parish/geo_key) follows the chosen geom when
+    -- the dev has a pin; falls back to MODE-vote across all members when no
+    -- contributor has geom (idealista-style devs).
     SELECT
         r.dev_key,
         g.geom_3763,
-        c.concelho_resolved,
-        c.parish_resolved,
-        c.geo_key_resolved,
+        COALESCE(g.concelho_from_geo_portal, fb.concelho_fallback) AS concelho_resolved,
+        COALESCE(g.parish_from_geo_portal,   fb.parish_fallback)   AS parish_resolved,
+        COALESCE(g.geo_key_from_geo_portal,  fb.geo_key_fallback)  AS geo_key_resolved,
         nm.dominant_name,
         r.portal_refs, r.portal_unit_counts, r.n_portal_contributors
     FROM portal_dev_refs r
-    JOIN portal_dev_name nm   USING (dev_key)
-    LEFT JOIN portal_dev_concelho c USING (dev_key)
-    LEFT JOIN portal_dev_geo g      USING (dev_key)
+    JOIN portal_dev_name nm                  USING (dev_key)
+    LEFT JOIN portal_dev_geo g               USING (dev_key)
+    LEFT JOIN portal_dev_concelho_fallback fb USING (dev_key)
 )
 
 SELECT
