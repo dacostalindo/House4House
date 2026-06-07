@@ -1579,3 +1579,69 @@ Education subsection (2)→(3) + new dgeec-ens-sup bullet),
 end-to-end verified; §3.5 updated to reflect the dual-CRS psycopg2 loader
 actually shipped instead of the "ogr2ogr direct" wording from the planning
 phase). New page [[dgeec-ens-sup]].
+
+## [2026-06-07] bootstrap | dges_acesso — source #4 of the PT education amenity pillar
+
+Bootstrapped the 4th source in the pillar: DGES Concurso Nacional de Acesso
+per-(year, phase, curso, instituição) results. 12 years × 3 phases = 36
+source files (2014–2025) in mixed `.xlsx`/`.xls`/`.ods` formats. Bronze
+loader routes by URL suffix to `openpyxl` / `xlrd` / `odfpy` via
+`pandas.read_excel(engine=...)`. ~40k bronze rows total (36 files × ~1100
+per file). Bronze PK: `(year, phase, codigo_instit, codigo_curso)`.
+
+The probe flipped multiple planning §3.3 assumptions that had to be re-locked
+in the interview before any code:
+
+- **Família A trap**: planning §3.3 sampled the wrong XLSX family. DGES
+  publishes both a "reference card" XLSX (`dges_vagascna_nota_ult_colocado_
+  1afase{Y}_{Y+1}_*.xlsx`, published Feb of each year showing next year's
+  vagas + prior year's nota) and the actual per-phase results files
+  (`fase{n}_{YY}.xlsx`). Família B is the real source; Família A is
+  explicitly NOT ingested (duplicates data + publish-date-axis ambiguity).
+- **URL pattern is a lie**: probed 11 candidate URL patterns, only 1
+  resolved. Filenames mix `fase{n}_{YY}.xlsx`, `cna{YY}_{n}f_resultados.xls`,
+  `site_cna19_{n}f_resultados.{xls,xlsx}`, `cna{YY}_{n}f_resultados.ods`,
+  and one-offs like `fase1a25_site.xlsx`. Even *within* a year files differ
+  (2024: F1=.xlsx, F2=.xls, F3=.xlsx). YEAR_PHASE_URLS is a literal 36-entry
+  dict — there is NO pattern.
+- **Schema drift across phases AND years AND formats**: F1 has 12-13 cols,
+  F2 has 14, F3 has 17; labels rename (`"Sobras para 2ª fase"` → `"Vagas
+  Sobrantes"`; `"Nota do últ. colocado (cont. geral)"` drops the
+  parenthetical in F2/F3). 2022 F1 has an extra `"Vaga adic. (vagas
+  autónomas)"` column. 2018 .ods has a `(1)(2)...(N)` annotation row at
+  idx 5 between header and data. SOURCE_LABEL_TO_COLUMN collapses synonyms
+  to canonical column names; bronze is a superset table with NULL in
+  phase-missing columns (L13). The 2018 annotation row is filtered
+  generically by `codigo_instit ∈ ^[0-9A-Za-z]{2,5}$`.
+- **DGES↔DGEEC code overlap is 95.3% (162/170)**: live join probe across
+  all 3 phases of 2025. DGES `Código Instit.` is a strict subset of
+  [[dgeec-ens-sup]] `codigo_unidade_organica` (the unmatched 4.1% maps to
+  the parent-institution code, NOT UO grain). Silver does a LEFT JOIN with
+  `unmatched_uo` flag for the 8 DGES codes (`0521, 3036, 3124, 3125, 6810,
+  7016, 7240, 7270`) that have no DGEEC match — likely UOs added since
+  DGEEC's 2023-03-15 snapshot.
+- **`Código Curso` can contain letters**: a handful of Música variants ship
+  as `L184`, `L344`. Stored as text — NO zfill, NO integer cast.
+
+Files shipped this session: 5 in `pipelines/gis/dges_acesso/`
+(`__init__.py`, config, ingestion DAG, backfill DAG, bronze_load DAG), 2
+dbt models (`stg_dges_acesso.sql` + `silver_dges_acesso_uo.sql`), 2 dbt
+YAMLs (extended `_staging_education__sources.yml`, new
+`_staging_education__models.yml`), 1 new wiki source page
+([[dges-acesso]]).
+
+Silver model computes vagas-weighted `nota_ult_colocado` per (UO, year,
+phase) — `SUM(vagas_iniciais * nota) / NULLIF(SUM(vagas_iniciais), 0)`
+with NULL-nota cursos excluded from BOTH numerator and denominator (L24).
+No `stg_dgeec_ens_sup` exists yet, so silver inlines the "latest run_date"
+filter as a CTE; swap for a `ref` when DGEEC gets a staging model.
+
+Parser locally verified against 5 representative files (2025 fase 1/2/3
+.xlsx + 2022 fase 1 .xls + 2018 fase 1 .ods); zero unknown labels in any.
+E2E Airflow run deferred to next session (Airflow stack not running in
+this worktree).
+
+**Pages touched**: [[log]] (this entry), [[index]] (Sources 27→28, P1
+17→18, Education (3)→(4) + new dges-acesso bullet),
+[[pt-education-amenity-pillar]] (source #4 dashboard flipped to ✅ shipped).
+New page [[dges-acesso]].

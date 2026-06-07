@@ -45,9 +45,9 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
-## Sources (27 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+## Sources (28 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (17): bupi, cadastro, cos, crus, crus-ogc, dgeec-ens-sup, eurostat, imovirtual, jll, lidar, publico-rankings, rede-escolar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (18): bupi, cadastro, cos, crus, crus-ogc, dgeec-ens-sup, dges-acesso, eurostat, imovirtual, jll, lidar, publico-rankings, rede-escolar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
 ### Real-estate portals (5)
 
@@ -68,11 +68,12 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (17): bupi, cadastro, c
 
 - [[sce]] — SCE energy-certificate registry; only nodriver scraper; Cloudflare Turnstile; current scope Aveiro distrito.
 
-### Education (3)
+### Education (4)
 
 - [[publico-rankings]] — Público annual school rankings (sec + 9ano Provas Finais); 2018-latest backfill via per-year URL resolver (3 hosting eras); soft-404 trap; the primary `mt` score signal for the [[2026-06-06-pt-education-amenity-design|education amenity pillar]].
 - [[rede-escolar]] — GesEdu paginated ArcGIS FeatureServer; canonical PT school register (~8,670 schools, point geometry in 4326+3763 dual-CRS); master location layer the other education sources join against via `codigo_escola` (CODESCME).
 - [[dgeec-ens-sup]] — DGEEC higher-ed register (universidades + politécnicos + militar); 321 Unidades Orgânicas, point geometry 4326+3763; shapefile via DGTerritorio SNIG ATOM (CC BY 4.0). Two traps: 10-char DBF truncation + DGEEC's "Estabelecimento" = parent institution (NOT building); PK is `codigo_unidade_organica` (4-digit zfill text).
+- [[dges-acesso]] — DGES Concurso Nacional de Acesso per-(year, phase, curso, instituição) results; 12 years × 3 phases = 36 source files (2014–2025) in mixed .xlsx/.xls/.ods; bronze loader routes by URL suffix. Joins to [[dgeec-ens-sup]] on `codigo_unidade_organica` at 95.3% match; silver computes vagas-weighted `nota_ult_colocado` per (UO, year, phase) with LEFT JOIN + unmatched_uo drift sentinel. Família A "reference card" XLSX explicitly NOT ingested.
 
 ### Regulatory + spatial GIS (14)
 

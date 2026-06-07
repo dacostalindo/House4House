@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: stg_dges_acesso
+    description: >
+      1:1 typed staging of bronze_education.raw_dges_acesso — DGES CNA acesso
+      per-(year, phase, instituição, curso) results, 2014–2025, ~40k rows.
+      Filters out PK-incomplete rows (no codigo_instit OR no codigo_curso),
+      trims name whitespace, preserves NULL nota_ult_colocado. Downstream:
+      [[silver-dges-acesso-uo]] aggregates this per (UO, year, phase) with
+      vagas-weighted mean and a LEFT JOIN to dgeec_ens_sup.
+    columns:
+      - name: year
+        tests:
+          - not_null
+          - accepted_values:
+              values: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: codigo_instit
+        tests: [not_null]
+      - name: codigo_curso
+        tests: [not_null]
+      - name: nota_ult_colocado
+        description: "0-200 scale; NULL when colocados=0 for that curso/phase."
+      - name: vagas_iniciais
+        description: "Weight for silver's nota aggregation."
+
+  - name: silver_dges_acesso_uo
+    description: >
+      Per (codigo_unidade_organica, year, phase) — vagas-weighted nota último
+      colocado plus totals. Aggregation: SUM(vagas_iniciais * nota) /
+      NULLIF(SUM(vagas_iniciais), 0) over cursos with non-NULL nota only (NULL
+      cursos excluded from both numerator AND denominator). LEFT JOIN to the
+      latest dgeec_ens_sup snapshot keeps DGES rows whose codigo_instit has no
+      DGEEC match (≈5% in 2025) with unmatched_uo=true and NULL UO fields.
+      Use unmatched_uo as a drift sentinel — when DGEEC refreshes its
+      snapshot, this should drop toward 0%. See [[dges-acesso]].
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC UO code (joined from dgeec_ens_sup). NULL when unmatched_uo=true."
+      - name: codigo_instit
+        description: "DGES institution code (always present; same value as codigo_unidade_organica when unmatched_uo=false)."
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: nota_ult_colocado_weighted
+        description: "Vagas-weighted mean of nota_ult_colocado across cursos with placements this phase. NULL if UO had 0 placed cursos."
+      - name: vagas_total
+        description: "SUM(vagas_iniciais) across all cursos this UO offered this phase (including NULL-nota cursos)."
+      - name: colocados_total
+        description: "SUM(colocados) across all cursos this UO had this phase."
+      - name: n_cursos
+        description: "Distinct cursos offered by this UO in this phase."
+      - name: n_cursos_with_placement
+        description: "Distinct cursos that had ≥1 placed candidate (used as weight basis for nota_ult_colocado_weighted)."
+      - name: unmatched_uo
+        description: "TRUE when codigo_instit has no DGEEC.codigo_unidade_organica match (≈5% of DGES codes per 2026-06-07 probe). Drift sentinel."
+        tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [codigo_instit, year, phase]
