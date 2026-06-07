@@ -499,3 +499,103 @@ sources:
             description: "Ponto da Unidade Orgânica em EPSG:4326 (display + joins). 0 NULL na sondagem 2026-06-07."
           - name: geom_pt
             description: "Mesma geometria em EPSG:3763 (PT-TM06) para distância/área em metros. ST_Transform aplicado no loader."
+
+      - name: raw_dges_acesso
+        data_tests:
+          # PK is (year, phase, codigo_instit, codigo_curso). Verified
+          # 1132/1132 unique per phase in 2025 probe. Older years (2014-2018)
+          # have similar shape but ~1100 rows; younger years can grow.
+          # codigo_curso can contain letters ('L184' for some Música variants).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [year, phase, codigo_instit, codigo_curso]
+        description: >
+          DGES Concurso Nacional de Acesso — per-(year, phase, curso/instituição)
+          colocações results. 12 years × 3 phases = 36 source files (2014–2025),
+          ~1100 rows per file = ~40k bronze rows total. Mixed source formats:
+          ~8 .xlsx + ~19 .xls + ~9 .ods, parsed by the bronze loader via
+          openpyxl/xlrd/odfpy with engine routed by URL extension. Column labels
+          drift across phases (F1 has "Nota do últ. colocado (cont. geral)",
+          F2/F3 drop "(cont. geral)"; "Sobras para 2ª fase" becomes "Vagas
+          Sobrantes") and across years (2022 F1 has an extra "Vaga adic. (vagas
+          autónomas)" column); SOURCE_LABEL_TO_COLUMN collapses synonyms to
+          canonical names. Schema is the superset across all phases; columns
+          absent in a phase are NULL. codigo_instit joins to
+          raw_dgeec_ens_sup.codigo_unidade_organica at 95.3% match (162/170 of
+          DGES codes are subset of DGEEC's 321 UOs). NOT INGESTED: the
+          "reference card" XLSX family (dges_vagascna_nota_ult_colocado_...)
+          which duplicates this data with a publish-date-axis ambiguity. See
+          [[dges-acesso]] in the wiki.
+        columns:
+          # --- Partition keys / audit ---
+          - name: year
+            description: "Edition year (2014..2025). Promoted from the MinIO path raw/dges_acesso/{year}/."
+            tests: [not_null]
+          - name: phase
+            description: "Fase do CNA: 1, 2, or 3. Promoted from the MinIO path fase_{phase}/."
+            tests:
+              - not_null
+              - accepted_values: {values: [1, 2, 3]}
+          - name: codigo_instit
+            description: >
+              DGES 4-digit institution/UO code (zero-padded text, '0100'..'7730').
+              Joins to dgeec_ens_sup.codigo_unidade_organica (95.3% match;
+              8 DGES codes have no DGEEC match — likely UOs added since
+              DGEEC's 2023-03-15 snapshot). Source label: 'Código Instit.'.
+            tests: [not_null]
+          - name: codigo_curso
+            description: >
+              DGES curso code, 2-5 chars alphanumeric ('9500', '8086', 'L184').
+              Stored as text — DO NOT cast to integer. Source label: 'Código Curso'.
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Identity ---
+          - name: nome_instituicao
+            description: "Nome da instituição/UO (e.g. 'Universidade dos Açores - Faculdade de Ciências Agrárias e do Ambiente'). Source label: 'Nome da Instituição'."
+          - name: nome_curso
+            description: "Nome do curso (e.g. 'Medicina Veterinária (Preparatórios)'). Source label: 'Nome do Curso'."
+          - name: grau
+            description: "Grau (curto): 'L1' (Licenciatura), 'PM' (Mestrado Integrado), etc. Source label: 'Grau'."
+          # --- Vagas ---
+          - name: vagas_iniciais
+            description: "Vagas iniciais publicadas para esta fase. Source labels: 'Vagas Iniciais' (F1/F2/older), 'Vagas Iniciais 3F' (F3 2025+)."
+          - name: vagas_recolocacao
+            description: "Vagas resultantes de recolocação (F2/F3 apenas; NULL em F1). Source label: 'Vagas de recolocação'."
+          # --- Colocados ---
+          - name: colocados
+            description: "Número de candidatos colocados nesta fase. Source label: 'Colocados'."
+          - name: colocados_desemp
+            description: "Colocados via desempate. Presente em todas as fases pós-2018. NULL em 2018 e anteriores. Source label: 'Colocados (desemp.)'."
+          - name: colocados_sem_class
+            description: "Colocados sem classificação final (regimes especiais). Pós-2018. Source label: 'Colocados (sem class. final)'."
+          # --- Vaga adicional (varia por fase/ano) ---
+          - name: vaga_adic_sem_class
+            description: "Vaga adicional sem classificação final. Source label: 'Vaga adic. (sem class. final)'."
+          - name: vaga_adic_autonomas
+            description: "Vaga adicional 'vagas autónomas'. Observado apenas em F1-2022. NULL nos restantes. Source label: 'Vaga adic. (vagas autónomas)'."
+          - name: vaga_adic_alineas_c_e
+            description: "Vaga adicional alíneas c) e e) do artº 10º. F2 apenas. Source label: 'Vaga adic. (alíneas c) e e) do artº 10º)'."
+          # --- Nota (sinal principal) ---
+          - name: nota_ult_colocado
+            description: >
+              Nota do último colocado, contingente geral, escala 0-200. NULL
+              quando colocados=0 (curso ficou com vagas por preencher) ou quando
+              a amostra é insuficiente. Source labels colapsam: 'Nota do últ.
+              colocado (cont. geral)' (F1/anos antigos) + 'Nota do últ. colocado'
+              (F2/F3) → mesma coluna.
+          # --- Sobras / vagas sobrantes (concept rename across phases) ---
+          - name: vagas_sobrantes
+            description: >
+              Vagas que sobraram desta fase para a seguinte. Source labels
+              colapsam: 'Sobras para 2ª fase' (F1), 'Vagas Sobrantes' (F2/F3),
+              'Sobras para2ª fase' (2018 .ods typo) → mesma coluna canónica.
+          # --- F3-only sobras-of-prior-phase accounting ---
+          - name: sobras_2f
+            description: "Sobras vindas da 2ª fase (F3 apenas). Source label: 'Sobras 2F'."
+          - name: nao_matric_2f
+            description: "Colocados em 2ª fase que não se matricularam (F3 apenas). Source label: 'Não Matric 2F'."
+          - name: nao_matric_2f_sem_class
+            description: "Não-matriculados 2F sem classificação final (F3 apenas). Source label: 'Não Matric 2F (sem class. final)'."
+          - name: sobras_retiradas
+            description: "Sobras retiradas (F3 apenas). Source label: 'Sobras Retiradas'."

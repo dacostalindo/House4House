@@ -28,7 +28,7 @@ Sibling reference pages (read these alongside, NOT instead):
 | 1 | [[publico-rankings]] | annual rankings JSON | `bronze_education.raw_publico_rankings` (95 cols, 10,288 rows) | ✅ **Shipped** (2 DAGs + bronze + legend + tests) | [#52](https://github.com/dacostalindo/House4House/pull/52) |
 | 2 | [[rede-escolar]] | KG → sec register (paginated ArcGIS REST) | `bronze_education.raw_rede_escolar` (46 cols, 8,670 rows / 90.47% with geom) | ✅ **Shipped + end-to-end verified** (live Airflow + bronze query) | this PR |
 | 3 | [[dgeec-ens-sup]] | DGEEC shapefile — higher-ed register | `bronze_education.raw_dgeec_ens_sup` (21 cols, 321 rows / 100% with geom, 321 unique UO codes) | ✅ **Shipped + end-to-end verified** (live Airflow + bronze query) | this PR |
-| 4 | `dges_acesso` (XLSX) | higher-ed ranking | `bronze_education.raw_dges_acesso` | 🔲 Endpoint verified; not bootstrapped | — |
+| 4 | [[dges-acesso]] | higher-ed ranking — 36 source files (XLSX/XLS/ODS), 2014–2025 × 3 phases | `bronze_education.raw_dges_acesso` (22 cols, ~40k rows expected) + silver `silver_dges_acesso_uo` (vagas-weighted, per UO/year/phase) | ✅ **Shipped** (3 DAGs + bronze + stg + silver + 36-URL dict + cross-format parser); E2E Airflow run pending | this PR |
 | 5 | `infoescolas` (XLSX) | 3º ciclo cross-check | `bronze_education.raw_infoescolas` | 🔲 Endpoint verified; demoted to fallback after Público 9ano discovery | — |
 
 ### Phase 0 — bootstrap (current sprint)
@@ -60,7 +60,16 @@ Sibling reference pages (read these alongside, NOT instead):
   - [x] Wiki source page with live probe table + DBF-truncation trap + estabelecimento-vocabulary trap
   - [x] Live-verified field set matches rename map exactly (zero unknown keys, 2026-06-07)
   - [x] End-to-end Airflow run: ingestion 3s (1 ZIP → MinIO), bronze load 5s, 321 rows in `bronze_education.raw_dgeec_ens_sup`, 321 unique PKs, 0 NULL geom, sample UO `0100` (Universidade dos Açores) round-trips identically
-- [ ] Bootstrap source #4 (`dges_acesso`) — XLSX with vagas-weighted aggregation
+- [x] Bootstrap source #4 ([[dges-acesso]]) — 36-file XLSX/XLS/ODS mix with vagas-weighted aggregation:
+  - [x] Config (36-entry YEAR_PHASE_URLS dict — no pattern; 12 years × 3 phases; 8 .xlsx + 19 .xls + 9 .ods)
+  - [x] Ingestion DAG (param `{year, phase}` lookup → size + row-count band-check → MinIO `raw/dges_acesso/{year}/fase_{n}/{filename}`)
+  - [x] Backfill DAG (one task per (year, phase) for clean failure isolation across 36 files)
+  - [x] Bronze loader DAG (walks ALL MinIO blobs each run; multi-format parser via openpyxl/xlrd/odfpy routed by URL suffix; SOURCE_LABEL_TO_COLUMN collapses synonyms across phases AND format variants; PK = (year, phase, codigo_instit, codigo_curso); 2018 .ods (1)(2)... annotation row filtered generically)
+  - [x] dbt sources YAML — 22 cols documented + unique (year, phase, codigo_instit, codigo_curso) test
+  - [x] dbt staging `stg_dges_acesso` (1:1 typed cleanup) + silver `silver_dges_acesso_uo` (vagas-weighted nota per UO/year/phase, NULL-nota excluded from both num+denom, LEFT JOIN to latest dgeec_ens_sup with unmatched_uo flag)
+  - [x] Wiki source page ([[dges-acesso]]) with 3-trap doc (Família A, URL-pattern lie, code-subset)
+  - [x] Parser locally verified against 5 representative files (2025 F1/F2/F3 .xlsx + 2022 F1 .xls + 2018 F1 .ods) — zero unknown labels in any
+  - [ ] E2E Airflow run on the live stack (deferred to next session — Airflow not running in this worktree)
 - [ ] Bootstrap source #5 (`infoescolas`) — XLSX as fallback for 3º ciclo
 
 ### Phase 1 — silver promotions (next)
