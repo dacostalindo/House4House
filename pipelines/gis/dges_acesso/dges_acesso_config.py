@@ -125,37 +125,137 @@ LEADING_BLANK_COLS = 1  # column A always blank, data starts at column B
 # Loader normalizes labels (str.strip(), collapse internal whitespace) before
 # lookup. Anything missing from this map is logged as drift in the summarize task.
 SOURCE_LABEL_TO_COLUMN: dict[str, tuple[str, str]] = {
-    # --- Identity (all phases) ---
-    "Código Instit.": ("codigo_instit", "text"),
-    "Código Curso": ("codigo_curso", "text"),
-    "Nome da Instituição": ("nome_instituicao", "text"),
-    "Nome do Curso": ("nome_curso", "text"),
-    "Grau": ("grau", "text"),
-    # --- Vagas ---
+    # --- Identity — codigo_instit (label drifts ACROSS YEARS) ---
+    "Código Instit.": ("codigo_instit", "text"),  # 2018+
+    "Código Instituição": ("codigo_instit", "text"),  # 2017
+    "Código da instituição": ("codigo_instit", "text"),  # 2014-2016 (lowercase i)
+    # --- Identity — codigo_curso ---
+    "Código Curso": ("codigo_curso", "text"),  # 2018+
+    "Código do curso": ("codigo_curso", "text"),  # 2014-2016
+    # --- Identity — nome_instituicao ---
+    "Nome da Instituição": ("nome_instituicao", "text"),  # 2018+
+    "Nome da instituição": ("nome_instituicao", "text"),  # 2014-2016 (lowercase i)
+    "Instituição de ensino superior": ("nome_instituicao", "text"),  # 2017
+    "Instituição": ("nome_instituicao", "text"),  # 2014/2015 F2, 2017/2018 F2
+    # --- Identity — nome_curso ---
+    "Nome do Curso": ("nome_curso", "text"),  # 2018+
+    "Nome do curso": ("nome_curso", "text"),  # 2014-2016
+    "Curso": ("nome_curso", "text"),  # 2017
+    # --- Identity — grau ---
+    "Grau": ("grau", "text"),  # 2014+
+    "Grau académico": ("grau", "text"),  # 2016-2017
+    # --- Vagas iniciais (label drifts heavily ACROSS YEARS — older years
+    # use long-form "Vagas colocadas a concurso" instead of "Vagas Iniciais") ---
     "Vagas Iniciais": ("vagas_iniciais", "integer"),
+    "Vagas iniciais": ("vagas_iniciais", "integer"),  # 2014-2015 lowercase
     "Vagas Iniciais 3F": ("vagas_iniciais", "integer"),  # F3 2025+ rename
+    "Vagas colocadas a concurso": ("vagas_iniciais", "integer"),  # 2014/2015 F2/F3
+    "Vagas colocadas a concurso na 2.ª fase quando da abertura da candidatura": (
+        "vagas_iniciais",
+        "integer",
+    ),  # 2016 F2
+    "Vagas colocadas a concurso na 3.ª fase": ("vagas_iniciais", "integer"),  # 2016 F3
+    "Vagascolocadas aconcurso na 3.ª fase quando da abertura da candidatura": (
+        "vagas_iniciais",
+        "integer",
+    ),  # 2016 F3 typo
+    "Vagascolocadas aconcurso": ("vagas_iniciais", "integer"),  # 2017 F3 typo
+    # --- Vagas de recolocação ---
     "Vagas de recolocação": ("vagas_recolocacao", "integer"),
+    "Vagas de recolo- cação": ("vagas_recolocacao", "integer"),  # 2022 F3 typo (hyphen + space)
+    "Vagas libertadas por recolocação": ("vagas_recolocacao", "integer"),  # 2014 F3
+    "Vagas ocupadas na 1.ª fase libertadas pela recolocação de estudantes colocados e matriculados nessa fase": (
+        "vagas_recolocacao",
+        "integer",
+    ),  # 2016 F2
+    "Vagas ocupadas nas fases anteriores libertadas pela recolocação de estudantes colocados e matriculados em qualquer dessas fases": (
+        "vagas_recolocacao",
+        "integer",
+    ),  # 2016 F3
     # --- Colocados ---
     "Colocados": ("colocados", "integer"),
+    "Estudantes colocados": ("colocados", "integer"),  # 2016 F1
+    "Estudantes colocados na 2.ª fase": ("colocados", "integer"),  # 2016 F2
+    "Estudantes colocados na 3.ª fase": ("colocados", "integer"),  # 2016 F3
     "Colocados (desemp.)": ("colocados_desemp", "integer"),
+    "Colocados em vaga adicional (desempates)": ("colocados_desemp", "integer"),  # 2020 F2
     "Colocados (sem class. final)": ("colocados_sem_class", "integer"),
-    # --- Vaga adicional (varies by phase/year) ---
-    "Vaga adic. (sem class. final)": ("vaga_adic_sem_class", "integer"),
-    "Vaga adic. (vagas autónomas)": ("vaga_adic_autonomas", "integer"),  # F1-2022-only observed
+    "Colocados sem classificação final": ("colocados_sem_class", "integer"),  # 2020 F2
+    # --- Vaga adicional — labels are plural ("Vagas") in 2020-2022, singular
+    # ("Vaga") in 2023+. Older years bundle multiple add'l-vaga concepts. ---
+    "Vaga adic. (sem class. final)": ("vaga_adic_sem_class", "integer"),  # 2023+ singular
+    "Vagas adic. (sem class. final)": ("vaga_adic_sem_class", "integer"),  # 2020-2022 plural
+    "Vagas adic.(desempates)": ("vaga_adic_sem_class", "integer"),  # 2017 F3 (no space)
+    "Vagas adic. (desempates)": ("vaga_adic_sem_class", "integer"),
+    "Vagas adicionais (desemp + outros)": ("vaga_adic_sem_class", "integer"),  # 2017/2018 F2
+    "Vagas adicionais criadas nos termos do Regulamento": (
+        "vaga_adic_sem_class",
+        "integer",
+    ),  # 2016 F2/F3
+    "Vaga adic. (vagas autónomas)": ("vaga_adic_autonomas", "integer"),  # 2023+ singular
+    "Vagas adic. (vagas autónomas)": ("vaga_adic_autonomas", "integer"),  # 2022 F1 plural
+    "Vagas adic. (desempates e vagas autónomas)": (
+        "vaga_adic_autonomas",
+        "integer",
+    ),  # 2020/2021 F3
+    "Vagas adic. (desempates e autónomas)": ("vaga_adic_autonomas", "integer"),  # 2022 F3
     "Vaga adic. (alíneas c) e e) do artº 10º)": ("vaga_adic_alineas_c_e", "integer"),  # F2-only
-    # --- Nota (label drifts F1 vs F2/F3) ---
-    "Nota do últ. colocado (cont. geral)": ("nota_ult_colocado", "numeric"),
-    "Nota do últ. colocado": ("nota_ult_colocado", "numeric"),
+    # --- Nota (label drifts F1 vs F2/F3 AND across years) ---
+    "Nota do últ. colocado (cont. geral)": ("nota_ult_colocado", "numeric"),  # 2018+ F1
+    "Nota do últ. colocado": ("nota_ult_colocado", "numeric"),  # 2018+ F2/F3
+    "Nota do últ. Colocado (cont. geral)": (
+        "nota_ult_colocado",
+        "numeric",
+    ),  # 2018 F2 (uppercase C)
+    "Nota do último colocado (conting. geral)": ("nota_ult_colocado", "numeric"),  # 2020 F2
+    "Nota do últ. colocado (contingente geral)": ("nota_ult_colocado", "numeric"),  # 2017
+    "Nota de candidatura do último colocado pelo contingente geral": (
+        "nota_ult_colocado",
+        "numeric",
+    ),  # 2014-2015
+    "Nota de candidatura do último colocado": ("nota_ult_colocado", "numeric"),  # 2014 F2/F3
+    "Nota de candidatura do último colocado na 2.ª fase": (
+        "nota_ult_colocado",
+        "numeric",
+    ),  # 2016 F2
+    "Nota de candidatura do último colocado na 3.ª fase": (
+        "nota_ult_colocado",
+        "numeric",
+    ),  # 2016 F3
+    # --- Nota do primeiro colocado (2018 F2/F3 only — ceiling signal) ---
+    "Nota do primeiro Colocado (cont. geral)": (
+        "nota_primeiro_colocado",
+        "numeric",
+    ),  # 2018 F2 (uppercase C)
+    "Nota do primeiro colocado": ("nota_primeiro_colocado", "numeric"),  # 2018 F3
     # --- Sobras → vagas sobrantes (L16 canonical) ---
     "Sobras para 2ª fase": ("vagas_sobrantes", "integer"),
-    "Sobras para2ª fase": ("vagas_sobrantes", "integer"),  # 2018 .ods typo
+    "Sobras para a 3ª fase": ("vagas_sobrantes", "integer"),  # 2017/2018 F2
+    "Sobras para2ª fase": ("vagas_sobrantes", "integer"),  # .ods typo (2017+2018)
     "Vagas Sobrantes": ("vagas_sobrantes", "integer"),
+    "Vagas sobrantes": ("vagas_sobrantes", "integer"),  # 2014-2016 lowercase
+    "Vagas não ocupadas": ("vagas_sobrantes", "integer"),  # 2014 F2
+    "Vagas da 3.ª fase não ocupadas": ("vagas_sobrantes", "integer"),  # 2014 F3
+    "Vagas disponíveis no final da 2.ª fase": ("vagas_sobrantes", "integer"),  # 2016 F2
+    "Vagas disponíveis no final da 3.ª fase": ("vagas_sobrantes", "integer"),  # 2016 F3
     # --- F3-only sobras-of-prior-phase accounting ---
     "Sobras 2F": ("sobras_2f", "integer"),
     "Não Matric 2F": ("nao_matric_2f", "integer"),
     "Não Matric 2F (sem class. final)": ("nao_matric_2f_sem_class", "integer"),
+    "Não Matric 2F (sem class . final)": (
+        "nao_matric_2f_sem_class",
+        "integer",
+    ),  # 2023/2024 F3 extra space
     "Sobras Retiradas": ("sobras_retiradas", "integer"),
 }
+
+# Header-anchor candidates — any of these in cols 0–2 of any of the first
+# ~20 rows marks the header row. 3 variants observed across 2014–2025.
+HEADER_ANCHOR_LABELS: tuple[str, ...] = (
+    "Código Instit.",
+    "Código Instituição",
+    "Código da instituição",
+)
 
 # Canonical bronze columns in DDL order (preserves SOURCE_LABEL_TO_COLUMN
 # iteration with duplicates removed).
@@ -174,6 +274,7 @@ BRONZE_DATA_COLUMNS: tuple[tuple[str, str], ...] = (
     ("vaga_adic_autonomas", "integer"),
     ("vaga_adic_alineas_c_e", "integer"),
     ("nota_ult_colocado", "numeric"),
+    ("nota_primeiro_colocado", "numeric"),
     ("vagas_sobrantes", "integer"),
     ("sobras_2f", "integer"),
     ("nao_matric_2f", "integer"),

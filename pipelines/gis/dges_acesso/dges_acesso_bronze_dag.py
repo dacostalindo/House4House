@@ -141,48 +141,54 @@ def _coerce(value: object, sqltype: str):
 def _parse_blob(body: bytes, engine: str) -> tuple[list[str], list[list], set[str]]:
     """Return (header_labels, data_rows, unknown_labels) for one file.
 
-    Skips title rows by scanning for the first row whose column-B value is
-    'Código Instit.' (the header anchor). Filters data rows by codigo_instit
-    shape so the 2018 .ods '(1)(2)...' annotation row and trailing blanks
-    drop out generically.
+    Header layout drifts across years:
+      - 2014-2016: NO leading blank col (data starts at col A) + lowercase
+        labels ('Código da instituição').
+      - 2017: leading blank col (data starts at col B) + 'Código Instituição'.
+      - 2018+: leading blank col + 'Código Instit.'.
+    Header search scans the first ~20 rows × first 3 cols for any of the
+    HEADER_ANCHOR_LABELS, then derives the data column-offset from where the
+    anchor was found. Filters data rows by codigo_instit shape so the
+    universal '(1)(2)...' annotation row + trailing blanks drop out.
     """
     import io
 
     import pandas as pd
 
-    from pipelines.gis.dges_acesso.dges_acesso_config import LEADING_BLANK_COLS
+    from pipelines.gis.dges_acesso.dges_acesso_config import (
+        HEADER_ANCHOR_LABELS,
+        SOURCE_LABEL_TO_COLUMN,
+    )
 
     df = pd.read_excel(io.BytesIO(body), engine=engine, sheet_name=0, header=None)
+    anchors = set(HEADER_ANCHOR_LABELS)
 
-    # Find header row by anchor in column B (index 1).
-    header_row_idx = None
+    # Locate header (row, col) — anchor anywhere in first 3 cols of first 20 rows.
+    header_row_idx: int | None = None
+    code_col_idx: int = 0
     for i in range(min(20, len(df))):
-        cell = df.iat[i, 1] if df.shape[1] > 1 else None
-        if cell is None:
-            continue
-        if _normalize_label(cell) == "Código Instit.":
-            header_row_idx = i
+        for j in range(min(3, df.shape[1])):
+            if _normalize_label(df.iat[i, j]) in anchors:
+                header_row_idx = i
+                code_col_idx = j
+                break
+        if header_row_idx is not None:
             break
     if header_row_idx is None:
-        raise RuntimeError("Could not locate header row (no 'Código Instit.' anchor in col B).")
+        raise RuntimeError(
+            f"Could not locate header row (no anchor {anchors} in cols 0–2 of first 20 rows)."
+        )
 
-    # Header labels: normalize each cell. Stop at first NaN-stretch of 3+
-    # (some files have trailing empty cols).
     headers: list[str | None] = []
-    for j in range(LEADING_BLANK_COLS, df.shape[1]):
+    for j in range(code_col_idx, df.shape[1]):
         headers.append(_normalize_label(df.iat[header_row_idx, j]))
-    # Trim trailing Nones.
     while headers and headers[-1] is None:
         headers.pop()
-
-    from pipelines.gis.dges_acesso.dges_acesso_config import SOURCE_LABEL_TO_COLUMN
 
     known_labels = set(SOURCE_LABEL_TO_COLUMN.keys())
     unknown = {h for h in headers if h is not None and h not in known_labels}
 
-    # Data rows: from header_row_idx + 1 to end, filtered by codigo_instit shape.
     out_rows = []
-    code_col_idx = LEADING_BLANK_COLS  # column B = first non-blank col = codigo_instit
     for i in range(header_row_idx + 1, len(df)):
         code_cell = df.iat[i, code_col_idx]
         if code_cell is None:
@@ -193,7 +199,7 @@ def _parse_blob(body: bytes, engine: str) -> tuple[list[str], list[list], set[st
         if not _CODE_RE.fullmatch(code_str):
             continue
         row = [
-            df.iat[i, LEADING_BLANK_COLS + k] if (LEADING_BLANK_COLS + k) < df.shape[1] else None
+            df.iat[i, code_col_idx + k] if (code_col_idx + k) < df.shape[1] else None
             for k in range(len(headers))
         ]
         out_rows.append(row)
