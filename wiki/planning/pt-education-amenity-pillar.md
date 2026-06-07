@@ -27,7 +27,7 @@ Sibling reference pages (read these alongside, NOT instead):
 |---|---|---|---|---|---|
 | 1 | [[publico-rankings]] | annual rankings JSON | `bronze_education.raw_publico_rankings` (95 cols, 10,288 rows) | ✅ **Shipped** (2 DAGs + bronze + legend + tests) | [#52](https://github.com/dacostalindo/House4House/pull/52) |
 | 2 | [[rede-escolar]] | KG → sec register (paginated ArcGIS REST) | `bronze_education.raw_rede_escolar` (46 cols, 8,670 rows / 90.47% with geom) | ✅ **Shipped + end-to-end verified** (live Airflow + bronze query) | this PR |
-| 3 | `dgeec_ens_sup` (DGEEC shapefile) | higher-ed register | `bronze_education.raw_dgeec_ens_sup` | 🔲 Endpoint verified + fixture downloaded; not bootstrapped | — |
+| 3 | [[dgeec-ens-sup]] | DGEEC shapefile — higher-ed register | `bronze_education.raw_dgeec_ens_sup` (21 cols, 321 rows / 100% with geom, 321 unique UO codes) | ✅ **Shipped + end-to-end verified** (live Airflow + bronze query) | this PR |
 | 4 | `dges_acesso` (XLSX) | higher-ed ranking | `bronze_education.raw_dges_acesso` | 🔲 Endpoint verified; not bootstrapped | — |
 | 5 | `infoescolas` (XLSX) | 3º ciclo cross-check | `bronze_education.raw_infoescolas` | 🔲 Endpoint verified; demoted to fallback after Público 9ano discovery | — |
 
@@ -51,7 +51,15 @@ Sibling reference pages (read these alongside, NOT instead):
   - [x] Wiki source page with pagination verification table
   - [x] Live-verified field set matches rename map exactly (zero drift, 2026-06-06)
   - [x] End-to-end Airflow run on the live stack: ingestion 9s (5 pages → MinIO), bronze load 5s, 8,670 rows in `bronze_education.raw_rede_escolar`, 0 PK duplicates, probed school `614798` round-trips identically
-- [ ] Bootstrap source #3 (`dgeec_ens_sup`) — shapefile via standard GIS template
+- [x] Bootstrap source #3 ([[dgeec-ens-sup]]) — shapefile bundle via custom DAG (template auto-extract destroys sidecars):
+  - [x] Config module (URL + size/feature bands + sidecar list + layer name)
+  - [x] Ingestion DAG (download_and_validate → upload_to_minio → summarize; ZIP stored intact at `s3://raw/dgeec_ens_sup/{run_date}/Estab_Ens_Sup_Portugal.zip`)
+  - [x] Bronze loader DAG (discover_latest_run → ensure_table → load → summarize; pyogrio.raw.read + manual Point WKB decode → dual-CRS geom 4326+3763 per [[2026-05-10-dual-crs-storage]])
+  - [x] Rename 16 DBF (10-char truncated) field names → readable Portuguese; `Código do Estabelecimento` deliberately renamed `codigo_instituicao` (non-unique; means "parent institution", not "building")
+  - [x] dbt sources YAML — 21 cols documented + unique (run_date, codigo_unidade_organica) test
+  - [x] Wiki source page with live probe table + DBF-truncation trap + estabelecimento-vocabulary trap
+  - [x] Live-verified field set matches rename map exactly (zero unknown keys, 2026-06-07)
+  - [x] End-to-end Airflow run: ingestion 3s (1 ZIP → MinIO), bronze load 5s, 321 rows in `bronze_education.raw_dgeec_ens_sup`, 321 unique PKs, 0 NULL geom, sample UO `0100` (Universidade dos Açores) round-trips identically
 - [ ] Bootstrap source #4 (`dges_acesso`) — XLSX with vagas-weighted aggregation
 - [ ] Bootstrap source #5 (`infoescolas`) — XLSX as fallback for 3º ciclo
 
@@ -309,14 +317,39 @@ Archive index: https://infoescolas.medu.pt/bds.asp
 
 ### 3.5 DGEEC — Estabelecimentos do Ensino Superior (higher-ed register)
 
-**Authority**: DGEEC, via SNIG/DGTerritorio. Already verified end-to-end earlier in this session.
+**Status**: ✅ Shipped + end-to-end verified 2026-06-07. See [[dgeec-ens-sup]] for the
+authoritative source page; this section is the planning record and is kept for archaeology.
+
+**Authority**: DGEEC, via SNIG/DGTerritorio.
 
 **Endpoint**: `http://geo2.dgterritorio.gov.pt/ATOM-download/DGEEC/Estab_Ens_Sup_Portugal.zip`
 **Licence**: CC BY 4.0.
-**Format**: Shapefile (EPSG:4326), 321 records.
-**Schema** (subset): `Código do Estabelecimento`, `Código da Unidade Orgânica`, `Estabelecimento`, `Unidade Orgânica`, `Natureza` (6 categories), `Morada`, `Código Postal`, `Distrito`, `Concelho`, `Telefone`, `Website`, `Email`, **`Latitude`, `Longitude`**.
+**Format**: Shapefile (EPSG:4326), 321 records, point geometry, UTF-8 encoded.
 
-**Ingest**: `ogr2ogr` direct load to PostGIS bronze. Joins to DGES via `Código da Unidade Orgânica`.
+**Schema (planning-time draft was WRONG on two counts — corrected by the 2026-06-07 live probe):**
+
+1. **Field count is 16, not 14.** Planning draft missed `Outro telefone` + `Fax`. Full list:
+   `Código do Estabelecimento`, `Estabelecimento`, `Código da Unidade Orgânica`,
+   `Unidade Orgânica`, `Natureza e Tipo` (6 categories), `Website`, `Email`, `Morada`,
+   `Código Postal`, `Distrito`, `Concelho`, `Telefone`, `Outro telefone`, `Fax`,
+   `Latitude`, `Longitude`.
+2. **DGEEC's "Estabelecimento" is the parent institution, NOT a physical building.**
+   `Código do Estabelecimento` is non-unique (101 distinct values across 321 rows — e.g.
+   all UOs of Universidade do Porto share `1100`). The shapefile's grain is **Unidade
+   Orgânica** (faculdade/escola-level); the natural PK is `Código da Unidade Orgânica`
+   (321/321 unique). This aligns with decision #11; the bronze rename map calls the
+   parent-institution column `codigo_instituicao` to defuse DGEEC's confusing
+   vocabulary.
+
+**Ingest**: custom DAG (NOT `ogr2ogr` direct; NOT the GIS template). The GIS template
+auto-extracts ZIPs to a single inner file and deletes the ZIP, which destroys shapefile
+sidecar bundles — no existing source in the repo actually uses `expected_format='shp'`.
+The bronze loader uses `pyogrio.raw.read()` + manual Point WKB decode (no
+geopandas/shapely deps required) and dual-CRS storage (`geom` 4326 + `geom_pt` 3763) per
+[[2026-05-10-dual-crs-storage]], mirroring the pattern shipped by [[rede-escolar]]. Both
+4-digit codes (`codigo_instituicao`, `codigo_unidade_organica`) are stored TEXT zero-padded
+to width 4 so silver joins to DGES rankings work without re-padding. Joins to
+[[dges-acesso]] via `codigo_unidade_organica`.
 
 ---
 
@@ -390,7 +423,7 @@ CREATE TABLE marts.xref_publico_dgeec (
 │ publico_rankings_3c   ← (same DAG if sibling URL confirmed)           │
 │ dges_acesso_fase1     ← Airflow @yearly Sep, dlt single XLSX          │
 │ infoescolas_3c        ← Airflow @yearly Jan, dlt single XLSX          │
-│ dgeec_ens_sup_shp     ← Airflow @yearly, ogr2ogr direct               │
+│ dgeec_ens_sup_shp     ← Airflow manual, pyogrio + dual-CRS psycopg2   │
 ├───────────────────────────────────────────────────────────────────────┤
 │ SILVER (dbt staging)                                                  │
 ├───────────────────────────────────────────────────────────────────────┤
