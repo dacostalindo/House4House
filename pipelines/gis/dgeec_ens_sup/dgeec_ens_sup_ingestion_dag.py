@@ -92,8 +92,7 @@ def _create_dag():
 
             if not zipfile.is_zipfile(io.BytesIO(body)):
                 raise ValueError(
-                    f"Downloaded {size} bytes is not a valid ZIP archive. "
-                    f"Head={body[:64]!r}"
+                    f"Downloaded {size} bytes is not a valid ZIP archive. Head={body[:64]!r}"
                 )
 
             with zipfile.ZipFile(io.BytesIO(body)) as zf:
@@ -102,8 +101,7 @@ def _create_dag():
                 missing = [e for e in REQUIRED_SIDECAR_EXTS if e not in exts]
                 if missing:
                     raise ValueError(
-                        f"ZIP missing required shapefile sidecars: {missing}. "
-                        f"Contents: {names}"
+                        f"ZIP missing required shapefile sidecars: {missing}. Contents: {names}"
                     )
                 log.info("[dgeec_ens_sup] ZIP contents: %s", names)
 
@@ -203,8 +201,7 @@ def _create_dag():
         @task()
         def summarize(upload_result: dict) -> dict:
             log.info(
-                "[dgeec_ens_sup] done: run_date=%s, %d features, %d bytes, "
-                "blob=s3://%s/%s",
+                "[dgeec_ens_sup] done: run_date=%s, %d features, %d bytes, blob=s3://%s/%s",
                 upload_result["run_date"],
                 upload_result["n_features"],
                 upload_result["size_bytes"],

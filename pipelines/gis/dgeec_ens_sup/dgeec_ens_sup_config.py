@@ -26,9 +26,7 @@ License: CC BY 4.0 (DGEEC via DGTerritorio SNIG).
 from __future__ import annotations
 
 # Stable ATOM-mirror URL. No version embedded; DGEEC overwrites in place.
-DOWNLOAD_URL = (
-    "http://geo2.dgterritorio.gov.pt/ATOM-download/DGEEC/Estab_Ens_Sup_Portugal.zip"
-)
+DOWNLOAD_URL = "http://geo2.dgterritorio.gov.pt/ATOM-download/DGEEC/Estab_Ens_Sup_Portugal.zip"
 
 # Probed 2026-06-07: 40 788 bytes. Bounds catch obvious truncation /
 # silent server returning a 200-with-empty-body.

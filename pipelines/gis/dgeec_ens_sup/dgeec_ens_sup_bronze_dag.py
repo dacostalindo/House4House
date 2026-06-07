@@ -93,8 +93,7 @@ PK_SOURCE_KEY = "Código da"  # → codigo_unidade_organica
 
 # Build DDL programmatically.
 _data_col_lines = [
-    f"  {rename:<28} {sql_type},"
-    for rename, sql_type, _ in SOURCE_KEY_TO_COLUMN.values()
+    f"  {rename:<28} {sql_type}," for rename, sql_type, _ in SOURCE_KEY_TO_COLUMN.values()
 ]
 _DATA_COLUMN_DDL = "\n".join(_data_col_lines)
 
@@ -134,9 +133,7 @@ for col in _INSERT_COLS:
 VALUES_TEMPLATE = "(" + ", ".join(_values_slots) + ")"
 
 _insert_col_list = ", ".join(_INSERT_COLS)
-_update_set = ", ".join(
-    f"{c} = EXCLUDED.{c}" for c in (*RENAMED_COLS, "geom", "geom_pt")
-)
+_update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in (*RENAMED_COLS, "geom", "geom_pt"))
 UPSERT_SQL = f"""
 INSERT INTO {BRONZE_TABLE} ({_insert_col_list})
 VALUES %s
@@ -252,9 +249,7 @@ def _create_dag():
             )
 
             run_dates: set[str] = set()
-            for obj in client.list_objects(
-                MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True
-            ):
+            for obj in client.list_objects(MINIO_BUCKET, prefix=f"{MINIO_PREFIX}/", recursive=True):
                 parts = obj.object_name.split("/")
                 if len(parts) != 3 or not parts[2].endswith(".zip"):
                     continue
@@ -327,9 +322,7 @@ def _create_dag():
                     zf.extractall(td)
                 shp_paths = list(Path(td).glob("*.shp"))
                 if not shp_paths:
-                    raise RuntimeError(
-                        f"No .shp inside MinIO blob {run_info['object_name']}"
-                    )
+                    raise RuntimeError(f"No .shp inside MinIO blob {run_info['object_name']}")
                 if len(shp_paths) > 1:
                     log.warning(
                         "[dgeec_ens_sup-bronze] multiple .shp in ZIP: %s — using %s",
@@ -434,8 +427,7 @@ def _create_dag():
                     result["unknown_keys"],
                 )
             log.info(
-                "[dgeec_ens_sup-bronze] done: run_date=%s, %d rows, "
-                "%d no-pk skipped, %d no-geom",
+                "[dgeec_ens_sup-bronze] done: run_date=%s, %d rows, %d no-pk skipped, %d no-geom",
                 result["run_date"],
                 result["rows_upserted"],
                 result["skipped_no_pk"],
