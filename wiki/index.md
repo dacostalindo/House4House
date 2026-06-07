@@ -45,9 +45,9 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - See [[CLAUDE.md|wiki schema document]] for page conventions, ingest workflow, query workflow, lint workflow, write rules, propagation rule.
 
-## Sources (26 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
+## Sources (27 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (16): bupi, cadastro, cos, crus, crus-ogc, eurostat, imovirtual, jll, lidar, publico-rankings, rede-escolar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (17): bupi, cadastro, cos, crus, crus-ogc, dgeec-ens-sup, eurostat, imovirtual, jll, lidar, publico-rankings, rede-escolar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
 
 ### Real-estate portals (5)
 
@@ -68,10 +68,11 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (16): bupi, cadastro, c
 
 - [[sce]] — SCE energy-certificate registry; only nodriver scraper; Cloudflare Turnstile; current scope Aveiro distrito.
 
-### Education (2)
+### Education (3)
 
 - [[publico-rankings]] — Público annual school rankings (sec + 9ano Provas Finais); 2018-latest backfill via per-year URL resolver (3 hosting eras); soft-404 trap; the primary `mt` score signal for the [[2026-06-06-pt-education-amenity-design|education amenity pillar]].
 - [[rede-escolar]] — GesEdu paginated ArcGIS FeatureServer; canonical PT school register (~8,670 schools, point geometry in 4326+3763 dual-CRS); master location layer the other education sources join against via `codigo_escola` (CODESCME).
+- [[dgeec-ens-sup]] — DGEEC higher-ed register (universidades + politécnicos + militar); 321 Unidades Orgânicas, point geometry 4326+3763; shapefile via DGTerritorio SNIG ATOM (CC BY 4.0). Two traps: 10-char DBF truncation + DGEEC's "Estabelecimento" = parent institution (NOT building); PK is `codigo_unidade_organica` (4-digit zfill text).
 
 ### Regulatory + spatial GIS (14)
 

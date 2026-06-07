@@ -407,3 +407,95 @@ sources:
             description: "Geometria do ponto da escola em EPSG:4326 (display + joins). NULL para ~14% das escolas na sondagem 2026-06-06."
           - name: geom_pt
             description: "Mesma geometria em EPSG:3763 (PT-TM06) para cálculos de distância/área em metros. ST_Transform aplicado no loader."
+
+      - name: raw_dgeec_ens_sup
+        data_tests:
+          # PK is (run_date, codigo_unidade_organica). The shapefile's grain
+          # is UO (faculdade-level), 321 unique UO codes / 321 rows verified
+          # 2026-06-07. DGEEC's "Estabelecimento" terminology here means the
+          # parent institution (Universidade, Politécnico), NOT a building —
+          # so `Código do Estabelecimento` is non-unique (101 distinct values)
+          # and is stored as `codigo_instituicao` (deliberately renamed from
+          # the DGEEC label to avoid confusion with rede_escolar.codigo_escola).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [run_date, codigo_unidade_organica]
+        description: >
+          DGEEC Estabelecimentos do Ensino Superior — higher-ed (universidade
+          + politécnico + militar) register, one row per Unidade Orgânica per
+          snapshot. 321 UOs across continente + Açores + Madeira, point
+          geometry in EPSG:4326 + EPSG:3763 (per the dual-CRS storage ADR).
+          DBF field names (10-char truncated by the shapefile format) renamed
+          to readable Portuguese snake_case at bronze. Source ZIP downloaded
+          from DGTerritorio ATOM mirror (CC BY 4.0), stored intact in MinIO
+          and re-extracted on bronze load. Loaded by dgeec_ens_sup_bronze_load
+          from MinIO snapshots written by dgeec_ens_sup_ingestion. 0/321 NULL
+          geometry in the 2026-06-07 probe — significantly cleaner than
+          rede_escolar's ~10% gap.
+        columns:
+          # --- Partition keys / audit ---
+          - name: run_date
+            description: "Snapshot partition. Promoted from the MinIO path raw/dgeec_ens_sup/{run_date}/."
+            tests: [not_null]
+          - name: codigo_unidade_organica
+            description: >
+              DGEEC 4-digit Código da Unidade Orgânica (faculdade-level),
+              zero-padded as text ('0100' .. '7730'). Natural PK. DGES join key
+              for the higher-ed acesso/colocações rankings. DBF source field
+              `Código da` (full label: 'Código da Unidade Orgânica').
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Identity ---
+          - name: codigo_instituicao
+            description: >
+              DGEEC 4-digit parent-institution code, zero-padded text. NON-UNIQUE
+              by design (101 distinct values across 321 UOs) — a Universidade
+              owns many UOs. Renamed from the DBF source label `Código do`
+              (full: 'Código do Estabelecimento') because DGEEC's
+              'estabelecimento' here means the parent institution, not a
+              physical building.
+          - name: instituicao_nome
+            description: "Nome da instituição-mãe (e.g. 'Universidade dos Açores'). DBF source: `Estabeleci`."
+          - name: unidade_organica_nome
+            description: "Nome completo da Unidade Orgânica (faculdade/escola/instituto). DBF source: `Unidade Or`."
+          # --- Categorisation ---
+          - name: natureza_tipo
+            description: >
+              Combinação natureza × tipo armazenada verbatim. 6 valores observados:
+              'Ensino Superior {Público|Privado} - {Universitário|Politécnico}',
+              mais 'Ensino Superior Público - Militar e Policial {Universitário|Politécnico}'.
+              Silver pode dividir em (natureza, tipo). DBF source: `Natureza e`
+              (full label: 'Natureza e Tipo').
+          # --- Web/contact ---
+          - name: website
+            description: "URL institucional. DBF source: `Website`."
+          - name: email
+            description: "Email institucional. DBF source: `Email`."
+          - name: telefone
+            description: "Telefone principal. DBF source: `Telefone`."
+          - name: outro_telefone
+            description: "Telefone secundário. DBF source: `Outro tele` (full: 'Outro telefone')."
+          - name: fax
+            description: "Fax (frequentemente igual ao telefone principal). DBF source: `Fax`."
+          # --- Endereço ---
+          - name: morada
+            description: "Rua / arruamento. DBF source: `Morada`."
+          - name: codigo_postal
+            description: "Código postal + localidade concatenados, ex. '9501-801 PONTA DELGADA'. DBF source: `Código Po`."
+          - name: distrito
+            description: >
+              Distrito ou ilha (e.g. 'Lisboa', 'Ilha de São Miguel', 'Ilha Terceira').
+              Inclui rótulos de ilha — silver normaliza para a chave CAOP. DBF source: `Distrito`.
+          - name: concelho
+            description: "Nome do concelho. DBF source: `Concelho`."
+          # --- Coordinates ---
+          - name: latitude
+            description: "Latitude WGS84. Mantido junto a geom para spot-checks. DBF source: `Latitude`."
+          - name: longitude
+            description: "Longitude WGS84. Mantido junto a geom para spot-checks. DBF source: `Longitude`."
+          # --- Geometria (PostGIS dual-CRS per ADR 2026-05-10) ---
+          - name: geom
+            description: "Ponto da Unidade Orgânica em EPSG:4326 (display + joins). 0 NULL na sondagem 2026-06-07."
+          - name: geom_pt
+            description: "Mesma geometria em EPSG:3763 (PT-TM06) para distância/área em metros. ST_Transform aplicado no loader."

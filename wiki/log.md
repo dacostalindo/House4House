@@ -1440,3 +1440,72 @@ Triggered both [[rede-escolar]] DAGs on the live stack (temporarily synced into 
 Initial DAG-import error caught and fixed: `@monthly` schedule needs an explicit `start_date`; the publico_rankings shape used `schedule=None` so the missing-start_date didn't bite. Added `start_date=datetime(2026, 6, 1)` to ingestion DAG, committed in the same PR.
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (source #2 dashboard flipped to ✅ shipped + end-to-end verified, sub-task tick for live Airflow run added).
+
+## [2026-06-07] ingest | source #3 (`dgeec_ens_sup`) bootstrap + end-to-end verified
+
+PT education pillar — source #3 of 5 shipped. DGEEC's higher-ed register
+(`Estabelecimentos do Ensino Superior`, CC BY 4.0 via DGTerritorio SNIG ATOM):
+shapefile bundle, 321 Unidades Orgânicas (faculdade-grain), point geometry in
+EPSG:4326. New package `pipelines/gis/dgeec_ens_sup/` with config +
+ingestion DAG + bronze loader DAG; new wiki page [[dgeec-ens-sup]]; appended
+`raw_dgeec_ens_sup` to `dbt/models/staging/education/_staging_education__sources.yml`
+with 21 column descriptions + `(run_date, codigo_unidade_organica)` uniqueness test.
+
+**Live probe flipped two assumptions baked into planning §3.5**:
+1. Schema is 16 fields, NOT 14 (`Outro telefone` + `Fax` were missed).
+2. "Estabelecimento" is the parent institution (Universidade), NOT a physical
+   building. `Código do Estabelecimento` is non-unique (101 distinct values
+   across 321 rows); the natural PK is `Código da Unidade Orgânica` (321/321
+   unique). Pillar decision #11 was right after all — but my pre-probe rename
+   plan was wrong (would have PK-violated on first load). Renamed the
+   non-unique column `codigo_instituicao` to surface DGEEC's misleading
+   "Estabelecimento" vocabulary, instead of propagating it into silver/gold.
+
+DBF field names truncate to 10 ASCII chars (`Código do`, `Outro tele`, etc.);
+the bronze loader keys off the truncated label and renames to readable
+snake_case Portuguese, same convention as [[rede-escolar]] and
+[[dbt-source-column-descriptions]]. Both 4-digit codes (`codigo_instituicao`,
+`codigo_unidade_organica`) are stored TEXT zero-padded to width 4 so silver
+joins to DGES rankings work without re-padding.
+
+Custom DAG shape, NOT the GIS template — `pipelines/gis/template/`
+auto-extracts ZIPs to a single inner file and deletes the ZIP, which destroys
+shapefile sidecar bundles. No existing repo source uses
+`expected_format='shp'`; templatising shapefile bundles is a separate refactor
+(deferred until N≥2 sibling shapefile sources). Bronze loader uses
+`pyogrio.raw.read()` to avoid the `geopandas`/`shapely` deps (absent in the
+docker Airflow image) and decodes Point WKB manually with `struct.unpack` to
+build the WKT passed to `ST_GeomFromText` + `ST_Transform` for dual-CRS
+storage per [[2026-05-10-dual-crs-storage]].
+
+End-to-end verified on the live Airflow stack:
+- Ingestion DAG: 40.8 KB ZIP, 7 files inside, MinIO blob at
+  `s3://raw/dgeec_ens_sup/2026-06-07/Estab_Ens_Sup_Portugal.zip` in ~3s.
+- Bronze load DAG: 4 tasks, ~5s end-to-end.
+- `bronze_education.raw_dgeec_ens_sup`: 321 rows, 321 unique
+  `codigo_unidade_organica` (PK), 101 unique `codigo_instituicao`, 0 NULL
+  geometry, `run_date = 2026-06-07`.
+- Sample UO `0100` (Universidade dos Açores) round-trips identically:
+  geom_4326 `POINT(-25.6638055555556 37.7460416666667)`, reprojects to PT-TM06
+  `POINT(-1550907.94 -65519.06)` (Açores is far off the mainland-centric
+  EPSG:3763 origin — large negative-x is expected).
+- Natureza distribution: 118 Pol-Públ / 87 Univ-Públ / 64 Pol-Priv /
+  46 Univ-Priv / 5+1 Militar — matches the probe and the DGEEC catalogue.
+- Top institutions by UO count: Universidade Católica Portuguesa (23 UOs),
+  Universidade de Lisboa (20), Universidade do Porto (15), Universidade de
+  Coimbra (11), Universidade do Algarve (10).
+
+Bug caught + fixed in this session: first bronze run failed with
+`ImportError: geopandas is required to use pyogrio.read_dataframe()` — the
+Airflow image bundles `pyogrio` but not `geopandas`/`shapely`. Switched to
+`pyogrio.raw.read()` (returns numpy ndarrays of WKB bytes + per-field column
+arrays) and added a 12-line `_point_wkb_to_wkt` helper that decodes the
+21-byte Point WKB layout with `struct.unpack`. Loader has zero geo-stack deps
+now — pyogrio + psycopg2 only.
+
+**Pages touched**: [[log]] (this entry), [[index]] (Sources 26→27, P1 16→17,
+Education subsection (2)→(3) + new dgeec-ens-sup bullet),
+[[pt-education-amenity-pillar]] (source #3 dashboard flipped to ✅ shipped +
+end-to-end verified; §3.5 updated to reflect the dual-CRS psycopg2 loader
+actually shipped instead of the "ogr2ogr direct" wording from the planning
+phase). New page [[dgeec-ens-sup]].
