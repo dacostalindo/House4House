@@ -343,7 +343,7 @@ def _create_dag():
                 # geometries is an ndarray of bytes (WKB); fields is a list of
                 # ndarrays in meta["fields"] order. We zip back to a dict.
                 meta, _fids, geometries, field_arrays = pyogrio.raw.read(str(shp_path))
-                field_data = dict(zip(meta["fields"], field_arrays))
+                field_data = dict(zip(meta["fields"], field_arrays, strict=True))
 
             n_rows = len(geometries)
             log.info(
