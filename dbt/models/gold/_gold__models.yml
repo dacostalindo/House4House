@@ -84,13 +84,20 @@ models:
         tests: [not_null]
       - name: tipologia
         description: >
-          Institution shape. For basic_sec: rede_escolar tipologia — 'Escola Básica',
-          'Escola Básica e Secundária', 'Jardim de Infância', 'Escola Profissional', etc.
-          (820 basic_sec rows have NULL tipologia where the source field is empty —
-          mostly Pré-escolar/Especial/Extra-escolar; level still derivable from `has_*`
-          flags). For higher_ed: 'Universidade' / 'Politécnico' / 'Militar e Policial
-          Universitário' / 'Militar e Policial Politécnico' (decomposed from the source
-          natureza_tipo).
+          Institution shape. For basic_sec: rede_escolar tipologia when present
+          (6,976 rows); when source is empty, derived from ciclo/has_* flags
+          (765 rows — see `tipologia_is_derived`). Derived labels use canonical
+          DGEEC vocabulary: ciclo='Pré-escolar' alone → 'Jardim de Infância';
+          'Especial' → 'Escola de Educação Especial'; 'Extra-escolar' → 'Centro
+          Extra-escolar'; has_sec + any basic level → 'Escola Básica e
+          Secundária'; has_sec only → 'Escola Secundária'; any basic ciclo only
+          → 'Escola Básica'. 55 rows remain NULL (both source tipologia AND
+          ciclo are empty — no recovery possible). For higher_ed: 'Universidade'
+          / 'Politécnico' / 'Militar e Policial Universitário' / 'Militar e
+          Policial Politécnico' (decomposed from natureza_tipo).
+      - name: tipologia_is_derived
+        description: "TRUE when tipologia was derived from ciclo/has_* flags because the source field was empty (765 basic_sec rows). FALSE when source-populated (6,976 basic_sec + all 321 higher_ed). Filter on this to exclude derived rows from strict-provenance queries."
+        tests: [not_null]
       - name: ciclo
         description: >
           Level of teaching. For basic_sec: rede_escolar ciclo label, semicolon-separated

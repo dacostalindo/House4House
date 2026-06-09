@@ -65,8 +65,38 @@ basic_sec as (
         r.nome,
         r.codigo_uo                        as agrupamento_codigo,
         r.nome_uo                          as agrupamento_nome,
-        -- Raw category fields (transparency)
-        r.tipologia,
+        -- tipologia: source value when present, else derive from ciclo/has_*
+        -- flags (DGEEC's rede_escolar leaves tipologia empty for ~820 rows,
+        -- mostly preschools + special-ed + extra-escolar). Derivations use
+        -- canonical DGEEC vocabulary where possible.
+        case
+            when r.tipologia is not null and r.tipologia <> '' then r.tipologia
+            when position('Secundário'  in coalesce(r.ciclo,'')) > 0
+                 and (position('1º Ciclo' in coalesce(r.ciclo,'')) > 0
+                      or position('2º Ciclo' in coalesce(r.ciclo,'')) > 0
+                      or position('3º Ciclo' in coalesce(r.ciclo,'')) > 0
+                      or position('Pré-escolar' in coalesce(r.ciclo,'')) > 0)
+                then 'Escola Básica e Secundária'
+            when position('Secundário'  in coalesce(r.ciclo,'')) > 0
+                then 'Escola Secundária'
+            when position('1º Ciclo' in coalesce(r.ciclo,'')) > 0
+                 or position('2º Ciclo' in coalesce(r.ciclo,'')) > 0
+                 or position('3º Ciclo' in coalesce(r.ciclo,'')) > 0
+                then 'Escola Básica'
+            when r.ciclo = 'Pré-escolar' then 'Jardim de Infância'
+            when r.ciclo = 'Especial'    then 'Escola de Educação Especial'
+            when r.ciclo = 'Extra-escolar' then 'Centro Extra-escolar'
+            else null
+        end                                as tipologia,
+        coalesce(
+            (r.tipologia is null or r.tipologia = '')
+            and (
+                position('Secundário'  in coalesce(r.ciclo,'')) > 0
+                or position('1º Ciclo' in coalesce(r.ciclo,'')) > 0
+                or position('2º Ciclo' in coalesce(r.ciclo,'')) > 0
+                or position('3º Ciclo' in coalesce(r.ciclo,'')) > 0
+                or coalesce(r.ciclo,'') in ('Pré-escolar','Especial','Extra-escolar')
+            ), false)                      as tipologia_is_derived,
         r.ciclo,
         r.natureza,
         -- Harmonized
@@ -120,6 +150,7 @@ higher_ed as (
             when u.natureza_tipo ilike '%Politécnico%'                       then 'Politécnico'
             else null
         end                                as tipologia,
+        false                              as tipologia_is_derived,
         'Ensino Superior'::text            as ciclo,
         case
             when u.natureza_tipo ilike 'Ensino Superior Público%'  then 'Ensino Superior Público'
