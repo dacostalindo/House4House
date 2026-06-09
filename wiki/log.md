@@ -1199,6 +1199,30 @@ A code investigation across the four portal `source.py` files established a non-
 
 **Pages touched**: [[log]] (this entry), [[portal-listing-scope]] (new), [[index]] (Concepts catalog 18→19 + by-area pipelines concepts line), [[idealista]] / [[jll]] / [[remax]] / [[zome]] (Quirks/Schema scope notes).
 
+## [2026-06-06] fix | [[idealista]] phantom SCD2 versions from RE-API outage
+
+**Bronze regression:** `bronze_listings.idealista_development_units.location_hierarchy = '{}'` on 150/150 active rows; surfaced during the imovirtual 5th-portal silver audit. Root cause was a 2-day-old **ZenRows RE-API outage** (HTTP 500 ERR0001 on both `/properties/{id}` and `/discovery/`, verified via direct `curl` 2026-06-06; Universal Scraper unaffected). PR #48's 2026-06-04 run framed it as transient — it isn't.
+
+**Why the bug bit bronze:** `_fetch_one_unit_detail` swallows API exceptions and returns `{}`. The resource-level skip in `development_units()` only filtered `_re_api_stub=True`, NOT empty-detail-from-API-failure, so 150 phantom SCD2 rows were yielded with all-NULL enrichment fields. dlt's SCD2 strategy then closed all 444 prior good rows (2026-05-18 batch) on the way in. Phantoms also exposed a latent type bug: `location_hierarchy: detail.get("location_hierarchy") or {}` defaulted to `{}` (dict) for a column the staging `->> 1`/`->> 2` array-indexing expects to be `[]` (list).
+
+**Fixes shipped** in [pipelines/portals/idealista/source.py](../pipelines/portals/idealista/source.py):
+- `development_units()` (and `plots()` for symmetry) skip when `detail.get("_re_api_stub") or not detail` — empty detail now treated as stub-equivalent; heartbeat sidecar still ticks.
+- `_normalize_unit` / `_normalize_plot` / `_parse_unit_detail_re` defaults: `location_hierarchy or {}` → `or []` (type-correct, consistent with bronze content + every other JSONB-array column).
+
+**SCD2 data restore (one-shot)**: `DELETE` the 150 phantoms then `UPDATE` the 444 prior rows back to `_dlt_valid_to = NULL`. Reverts the 2026-06-04 batch to a "no-op" — the next successful pipeline run reconciles naturally (delisted units close, live ones keep / version normally).
+
+**Verified end-to-end**: rebuilt `stg_portal_developments_idealista` + `silver_properties.unified_developments` + `unified_listings_residential`. 16/21 idealista dev rows now carry concelho (was 0/21); **5 idealista devs now merge cross-portal** (was 0). "The Unique" (idealista) ↔ "Unique" (remax) merges as `n_portal_contributors=2`. The remaining 5 NULL-concelho devs are net-NEW 2026-06-04 discoveries whose units never had real RE-API data — they recover automatically when ZenRows fixes the outage.
+
+**Cross-portal silver-dedup algorithm unchanged**: the dual-signal name match + dropped 1km guard from the imovirtual silver wiring (same session, separate PR) handles these correctly the moment concelho is non-NULL.
+
+**Pending follow-ups**:
+- [ ] ZenRows support ticket — RE-API outage is now ≥48h. Re-running the [[idealista]] dev/units DAG is a no-op while it stays down.
+- [ ] Once RE-API is back: re-run `idealista_developments_units_plots_dag` to refresh the 5 new-discovery devs + any drift since 2026-05-18; the new skip-on-empty guard prevents another phantom batch on transient failures.
+
+**Pages touched**: [[log]] (this entry).
+
+## [2026-06-06] silver wiring | imovirtual 5th UNION arm in unified_developments
+
 ## [2026-06-05] investigate | remax floor-plan + Collection normalizer bugs fixed
 
 A data investigation ("do RE/MAX Collection listings have floor plans?") surfaced two latent bugs in [pipelines/portals/remax/source.py](../pipelines/portals/remax/source.py) `_normalize_listing`, both leaving typed columns dead despite the data being present. (1) **Floor plans**: `hasFloorPlan` / `floorPlanPath` are on the Pass-1 unit (702 of 8,585 current Aveiro listings carry a plan) but were never mapped → `has_floor_plan` / `floor_plan_path` NULL for all 8,735 warehouse rows. (2) **Collection flag**: `is_remax_collection` read `unit.get("isRemaxCollection")`, which RE/MAX leaves `false` on every listing unit — Collection only exists on the development (`remax_developments.is_special`, 93). Now resolved by OR-ing `isSpecial` across a unit's parent developments in `listings()`, so the ~2,114 listings under Collection developments flip true. Regression test at [tests/test_remax_source.py](../tests/test_remax_source.py) (6 cases, fail-without-fix verified). Floor-plan rate confirmed ~2× higher for Collection (20.8%) vs non-Collection (10.1%) detail rows. Backfill of existing rows (non-versioned columns don't re-issue open SCD2 versions) was applied **directly in SQL from the stored `raw_json`** rather than via a re-scrape: 8,585 current `remax_listings` rows updated (`has_floor_plan`/`floor_plan_path` copied from `raw_json`, verified 0 drift vs source; `is_remax_collection` set TRUE for the 2,114 listings under `is_special` developments). Instant, no external API load, SCD2 history preserved. Post-backfill the original question answers from typed columns: Collection listings carry floor plans at 12.7% (268/2,114) vs 6.7% (434/6,471) non-Collection. A `full_refresh` DAG param (dlt `refresh='drop_resources'`) was prototyped as the backfill vehicle then removed once the SQL path was chosen — `remax_dlt` carries no permanent backfill switch. The next normal run reconciles `row_hash` on the 2,114 Collection rows (one fresh SCD2 version each).
@@ -1246,3 +1270,761 @@ Final bronze: **799 developments, 4,443 units, 4,883 plots**. Unit grain coverag
 **Same-day Agras fix**: user found a T3 unit (`apartamento-t3-agras-ID1hFNw` in the VIANOVA dev) where the imovirtual web UI shows a "Planta" but our bronze `floor_plans` was empty. Investigation surfaced a SECOND floor-plan field on the full /anuncio/ detail: `ad.links.localPlanUrl` — advertiser-supplied, on a different CDN (`multimedia.hcpro.pt` vs the `apollo.olxcdn` URLs that fill `ad.floorPlans`). Live sample of 10 random units: **6/10 have `localPlanUrl` (60% coverage)**; only ~30% have the olxcdn `floorPlans`. Capturing both substantially improves the floor-plan surface. Pass-3 augmentation now returns both `additionalInformation` AND `links`; `_normalize_unit` projects `local_plan_url`, `walkaround_url`, `video_url`, `view_3d_url` as scalar text columns alongside the existing jsonb `floor_plans`. 40 offline tests green.
 
 **Pages touched**: [[log]] (this entry), [[imovirtual]] (Acquisition shape: Pass-3 enabled; Quirks: ZenRows transport replaces direct, `Long single-task fragility` quirk obsoleted by concurrent crawl; Last verified: 2026-06-09).
+
+Verified live 2026-06-06: all 12 expected URLs return 200 with bodies above the soft-404 sentinel (22634 bytes). 9ano gap for 2020+2021 is real (COVID — Provas Finais cancelled), not a TODO.
+
+**Files created**:
+- `pipelines/gis/publico_rankings/__init__.py`
+- `pipelines/gis/publico_rankings/publico_rankings_config.py` (resolver table + headers + soft-404 sentinel constant)
+- `pipelines/gis/publico_rankings/publico_rankings_ingestion_dag.py` (custom TaskFlow DAG, dynamic mapping)
+- `dbt/models/staging/education/_staging_education__sources.yml` (new staging domain — first entry)
+- `wiki/sources/publico-rankings.md`
+
+**Pages touched**: [[log]] (this entry), [[index]] (added Education subsection + bumped P1 count 14 → 15, total 24 → 25 — post-[[imovirtual]] merge baseline), [[publico-rankings]] (new).
+
+**Pending follow-ups**:
+- [ ] Bootstrap remaining 4 education sources ([[rede-escolar]], [[dgeec-ens-sup]], [[dges-acesso]], [[infoescolas]]) per design doc §8.
+- [ ] Decide if XCom 1 MB default needs bumping (2022 sec body is 1034 KB).
+- [ ] Decide CAOP-Açores + CAOP-Madeira sourcing (design doc Q6) — needed for Público rows tagged `c='Açores'` / `c='Madeira'` to get DICOFRE.
+- [ ] Author `wiki/decisions/2026-06-06-pt-education-amenity-design.md` ADR capturing the locked decisions from `tests/PT-EDUCATION-DESIGN.md` so the cross-link from [[publico-rankings]] resolves.
+
+## [2026-06-06] add-gis-source | publico-rankings — bronze-loader DAG + end-to-end verification
+
+Follow-up to today's earlier `add-gis-source | publico-rankings` entry. Built the second half of the two-DAG pattern + ran full Phase-0 verification.
+
+**New file**: `pipelines/gis/publico_rankings/publico_rankings_bronze_dag.py` — `publico_rankings_bronze_load` DAG. Discovers MinIO blobs at `s3://raw/publico_rankings/`, applies DDL (idempotent), dynamic-maps `load_one` per blob, upserts JSONB rows keyed on `(year, kind, eid)`. Mirrors [[bgri]]'s `bgri_bronze_dag.py` shape; reuses Airflow Variables `MINIO_*` + `WAREHOUSE_*`.
+
+**Verified end-to-end against live infrastructure** (uv run, worktree-side):
+- Ingestion logic: 12/12 source URLs return 200 with size > floor + valid JSON; soft-404 trap fires correctly on `/files/` era unknown URLs (200 + 22634 bytes); `/s3/` era returns proper 403.
+- MinIO landing: 12 objects written to `s3://raw/publico_rankings/{year}/{kind}.json`, ~5.1 MB total.
+- Bronze DDL: schema + table + partial coduo index materialized in fresh state (table dropped + recreated to prove from-scratch path).
+- Bronze load: 10,288 rows upserted (4,411 sec + 5,877 9ano). PK uniqueness sanity: all 10,288 (year, kind, eid) tuples distinct.
+- Data integrity: `coduo` populated on 921/1161 = 79.3% of 2024 9ano (matches design doc); `coduo` = 0/4,411 sec rows; `mt` populated on 100% of all rows.
+
+**Arithmetic correction**: my prior entry quoted "10,488 rows / 6,077 9ano" — actual is **10,288 / 5,877**. [[publico-rankings]] §Schema row-count table fixed.
+
+**Caveat**: Airflow scheduler container mounts the main repo's `pipelines/`, so neither DAG appears in `airflow dags list` until the worktree merges to main. Verification ran the DAG logic directly via `uv run` against live MinIO + warehouse.
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings]] (added bronze-DAG to Pipeline split, fixed row count to 10,288).
+
+## [2026-06-06] refactor | publico_rankings bronze — unnest raw jsonb into 91 typed columns
+
+Modified `publico_rankings_bronze_load` DAG: bronze table no longer stores a raw jsonb column. Every source key is now promoted to a typed column at load time — 5 text columns (e, id, co, c, coduo) and 86 numeric columns (mt, rt, t, lt, ln, per-disciplina averages mm/mp/mb/…, per-disciplina sample sizes nb/nf/…, per-disciplina ranks rb/rf/…, privado nominal cols nimb..nipp, rolling 5y carryover m17..m21 + r17..r21, derived rsbi/rsec/rsfi/…, composite pde/pdp/pdq/pdr, etc.). Total table width: 95 columns (4 PK/audit + 91 data).
+
+Trade-off: gives up the strict [[bronze-permissive]] "keep raw JSONB, type at silver" invariant in exchange for downstream SQL ergonomics. The MinIO blobs (`s3://raw/publico_rankings/{year}/{kind}.json`) remain the verbatim audit trail, so the permissive property is preserved at the object-store layer.
+
+Per-column coercion: `_coerce_numeric` handles Público's inconsistent JSON typing (string vs number, "" / "null" / unparseable → NULL). NULL means "key absent or unparseable" — expected since sec has 76 keys and 9ano has 40 (union = 91, intersection ≈ 25).
+
+Schema-drift detection built in: every `load_one` task logs a WARNING if any source key falls outside `TEXT_COLS + NUMERIC_COLS`. Verified 2026-06-06 against the full 2018-2024 corpus: **zero unknown keys** — the column tuple covers every key in the wild.
+
+**End-to-end re-verification** (table dropped → DDL applied → 10,288 rows reloaded):
+- Column count: 95 (information_schema.columns).
+- Row count: 10,288 (4,411 sec + 5,877 9ano).
+- `coduo` populated on 921/1161 of 2024 9ano = 79.3%. Sec coduo = 0/4,411. `mt` = 10,288/10,288 = 100%.
+- Sanity sample (top-3 9ano 2024 by mt): Colégio Novo da Maia (mt=4.51), Escola de Música São Teotónio (mt=4.42), Colégio Grande Colégio Universal (mt=4.40) — all privates (t=1, c='PRI'), credible top of the 0-5 scale.
+
+**Bug caught + fixed during verification**: initial UPSERT_SQL listed `source_loaded_at` in the INSERT column list but the VALUES tuples omitted it (relying on `DEFAULT now()`). psycopg2 error: "INSERT has more target columns than expressions". Dropped the `source_loaded_at` column from the INSERT list, kept it in the `ON CONFLICT DO UPDATE SET` so re-loads refresh the timestamp.
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings]] (DDL section rewritten, audit-trail trade-off documented), `dbt/models/staging/education/_staging_education__sources.yml` (columns flipped from `raw` to typed promoted columns).
+
+## [2026-06-06] document | publico-rankings column legend — decoded 91 cryptic columns into 9 families
+
+Decoded all 91 columns of `bronze_education.raw_publico_rankings` into a structured legend at [[publico-rankings-column-legend]]. Público ships no machine-readable codebook (verified — only `data/listas/*.js` + `data/pt_pt.js` are exposed under their S3 prefix; the app bundle that holds UI labels is served from a separate origin). Decoding was empirical: per-column value-envelope analysis on the 10,288-row corpus + sample-size correlations + cross-column rank equalities + two Público article URLs that name the "Ranking da Superação" view.
+
+**Confident decoding** (~75% of columns):
+- Identity & geography: e, eid, id, co, c, coduo, lt, ln, t.
+- Headline principal: mt (Média Total — the score), rt (Ranking Total — position).
+- Per-disciplina principal (1-letter codebook): m{X}/n{X}/r{X} for X ∈ {m,p,b,f,fl,g,h,i,ma} → Mat A / Português / Bio-Geo / FQ / Filosofia / Geografia / História / Inglês / MACS.
+- Histórico: m{YY}, r{YY} (e.g. m21, r21 = 2021 carryover; older years dropped from newer files).
+- Nota Interna (CIF) for privates: nim{X} = média CIF, nip{X} = rank by CIF. Always NULL for públicos and all 9ano.
+- Ranking da Superação (2nd headline view, 2-letter codebook): rs + rs{XX} for XX ∈ {ma,po,bi,fq,ge,fi,ec,mc}. Confirmed distinct from `rt`: only 8/1608 schools tie, avg abs diff ≈ 145 positions.
+- Equivalência à Frequência: eq1, eq2, eq3, eqnaousar, eqnusar quality flags, re = rank in eq cohort. Confirmed 303/303 sample-size overlap with eq family.
+
+**Plausible decoding** (~15%):
+- tx0/tx1/tx2 = three independent taxas (retenção / desistência / classificação-inferior — % range, do not sum to 100 so they're independent rates).
+- pdq = Percursos Diretos Qualidade (Infoescolas-style success metric); pde/pdp/pdr sibling axes mostly NULL in 2024.
+- ac = Aproveitamento (% positive classifications).
+
+**Speculative** (~10%) — flagged in the page:
+- im (per-school scaled index — confirmed NOT concelho-level: Lisboa has 29 distinct values across 37 schools).
+- v (tracks `mt` mean — possibly "Valor esperado" / Variância).
+- hm, hp (histórico médio / percentil — same scale as `mt`).
+
+**Dual-codebook trap documented**: 1-letter codes (`m`, `p`, `b`, `f`, `fl`, `g`, `h`, `i`, `ma`) used in m*/n*/r* prefixes don't 1:1 map to 2-letter codes (`ma`, `po`, `bi`, `fq`, `ge`, `fi`, `ec`, `mc`) used in rs* prefix. Each family picks its own subset of disciplinas; downstream silver models must reference both codebooks.
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (new), [[publico-rankings]] (added cross-link from §Bronze DDL), [[index]] (Concepts count 18 → 19, added entry between [[portal-field-map]] and [[pydantic-not-in-dlt]]).
+
+**Pending follow-ups**:
+- [ ] Confirm `im` / `v` / `hm` / `hp` semantics against Público's interactive page — requires loading the iframe with browser-class JS or browser MCP to read the column-header tooltips.
+- [ ] Verify whether r{X} principal vs rs{XX} Superação per-disciplina are computed on the same school cohort or different (550/550 differ — but is the cohort filtered, or the methodology?). Affects whether silver should publish both as alternative views or pick one.
+
+## [2026-06-06] correct | publico-rankings column legend — ground-truthed against UI screenshots
+
+Reverted ~60% of the empirically-guessed column meanings in [[publico-rankings-column-legend]] after the user shared screenshots of the Público interactive school card. Used eid=1069 (Escola Dr. Ferreira da Silva, Oliveira de Azeméis, 2024 sec) as the ground-truth row — every visible UI label matched one DB column value exactly.
+
+**Corrections** (prior decode → screenshot-verified):
+- `v` = Média Esperada (basis for Superação metric = `mt - v`) ← was "valor/variância"
+- `c` = Contexto agrupamento {D=Desfavorável, F=Favorável, I=Intermédio, PRI, PRI_CA, Açores, Madeira} ← was "region code"
+- `hp` = Habilitações Pais (anos de escolaridade do pai, média) ← was "histórico posição"
+- `hm` = Habilitações Mães ← was "histórico médio"
+- `ac` = % alunos SEM Acção Social Escolar (wealth proxy) ← was "Aproveitamento/Acerto"
+- `im` = Idade Média dos alunos no 12.º ano ← was "índice mediano"
+- `pdq` = % Professores Dos Quadros (tenured docentes) ← was "Percursos Diretos Qualidade"
+- `tx0/tx1/tx2` = Taxa de Retenção no 10º/11º/12º ano specifically ← was "generic taxas"
+- `pde/pdp/pdr` = Equidade family (% ASE concluiram / % país perfil similar / ranking da diferença) ← was "Percursos Diretos axes"
+- `m21/r21` = média/rank do **ano anterior** (not specifically 2021 — the `21` suffix is legacy from when the rolling-history columns were first introduced; in 2024 file these hold 2023 values, matching the UI's "12,60 em 2023" and "100.º em 2023") ← was "literal 2021"
+
+**Disciplina codebook collision discovered + locked**:
+- 1-letter codebook: `m`=Mat A, `p`=Port, `b`=Bio-Geo, `f`=FQ-A, `g`=Geo-A, `fl`=Filo, `h`=His-A, **`ma`=Economia A**, **`i`=MACS**
+- 2-letter codebook: **`ma`=Mat A**, `po`=Port, `bi`=Bio, `fq`=FQ, `ge`=Geo, `fi`=Filo, `ec`=Economia, `mc`=MACS
+- The letter `ma` means *opposite* disciplines across families. Silver promotions MUST disambiguate by prefix.
+
+**Confirmed** (no change from prior decode):
+- `mt`/`rt`/`nt` headline principal triad
+- `rs` Ranking da Superação (distinct from `rt`: 8/1608 ties only)
+- `m{X}`/`n{X}`/`r{X}` per-disciplina principal triad
+- `rs{XX}` Superação per-disciplina (2-letter codebook)
+- `nim{X}`/`nip{X}` Nota Interna CIF + posição (now confirmed populated for *both* públicos and privados, not privados-only as I had thought)
+- `re` Ranking Equivalência + `eq*` family
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (rewritten with screenshot ground-truth + verified row dump at the bottom), [[index]] (concept entry expanded with the `ma` collision warning).
+
+## [2026-06-06] refactor | publico_rankings bronze — rename all cryptic columns to human-readable Portuguese names
+
+Replaced the 91 cryptic source-key column names in `bronze_education.raw_publico_rankings` with verified human-readable names from [[publico-rankings-column-legend]]. The bronze DAG's `TEXT_COLS + NUMERIC_COLS` tuples are now derived from a single `SOURCE_KEY_TO_COLUMN: dict[str, tuple[str, str]]` (source_key → (renamed_column, sql_type)) at the top of `publico_rankings_bronze_dag.py` — DDL, INSERT column list, and UPDATE SET clause all flow from it.
+
+**Naming convention**: Portuguese, snake_case, matches existing convention (`bronze_ine.raw_bgri` uses `n_edificios_classicos`, etc.). Example transformations:
+- `mt` → `media_total_exames`
+- `rt` → `ranking_exames`
+- `rs` → `ranking_superacao`
+- `v` → `media_esperada`
+- `mm` → `media_matematica_a`, **`mma` → `media_economia_a`** (resolves 1-letter `ma` = Economia)
+- `rsma` → `ranking_superacao_matematica_a` (resolves 2-letter `ma` = Mat A)
+- `nimm` → `cif_media_matematica_a`, `nipp` → `cif_ranking_portugues`
+- `hp` → `habilitacoes_pais`, `hm` → `habilitacoes_maes`
+- `ac` → `pct_sem_ase`, `im` → `idade_media_12ano`, `pdq` → `pct_professores_quadros`
+- `tx0/1/2` → `taxa_retencao_ano0/1/2` (10º/11º/12º sec, 7º/8º/9º for 9ano)
+- `pde/pdp/pdr` → `equidade_pct_ase_3anos / equidade_pct_pais_3anos / equidade_ranking_diferenca`
+- `m21/r21` → `media_ano_anterior / ranking_ano_anterior` (the suffix is legacy, meaning is "prior year")
+- `m17..m20/r17..r20` → `media_legacy_y17..y20 / ranking_legacy_y17..y20`
+
+**Disciplina codebook collision resolved**: both `m_` 1-letter (where `ma`=Economia A) and `rs_` 2-letter (where `ma`=Mat A) source families now write to renamed columns whose disciplina suffix matches the actual disciplina, not the source-letter abbreviation. Downstream SQL no longer needs to know about the trap.
+
+**Verified end-to-end** (table dropped, DDL applied, 12 blobs re-loaded from MinIO):
+- 95 columns in `information_schema.columns` (4 PK/audit + 5 text + 86 numeric).
+- 10,288 rows total. Zero schema-drift keys.
+- Screenshot row (eid=1069, 2024 sec, Escola Dr. Ferreira da Silva) verified column-by-column under new names:
+  - `media_total_exames=14.11` ↔ UI "Média nos Exames: 14,11"
+  - `ranking_exames=36`, `num_provas_total=70`, `ranking_superacao=1`, `media_esperada=11.38`
+  - `contexto_agrupamento='I'`, `habilitacoes_pais=7.77`, `habilitacoes_maes=9.32`, `pct_sem_ase=72`, `idade_media_12ano=17`, `pct_professores_quadros=84.9`
+  - `taxa_retencao_ano0=0`, `taxa_retencao_ano1=0`, `taxa_retencao_ano2=8`
+  - `media_ano_anterior=12.6` (matches "12,60 em 2023"), `ranking_ano_anterior=100` (matches "100.º em 2023")
+- Per-disciplina disambiguation verified: `media_economia_a=13.98` (from `mma`, UI Economia=13.98), `media_matematica_a=18.16` (from `mm`, UI Matemática=18.16), `media_macs=15.49` (from `mi`, UI MACS=15.49), `ranking_superacao_matematica_a=1` (from `rsma`, UI Superação Mat A=1.º).
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings]] (DDL section rewritten with renamed columns), `dbt/models/staging/education/_staging_education__sources.yml` (column list rewritten with renamed names + descriptions).
+
+## [2026-06-06] document | dbt source column descriptions — guideline + completed publico_rankings
+
+Two-part follow-up to the publico_rankings unnest+rename work:
+
+**1. Completed dbt source YAML for `publico_rankings`** (`dbt/models/staging/education/_staging_education__sources.yml`):
+- All 95 columns documented (4 partition/audit + 91 renamed data cols).
+- Each entry has a `description:` ≤ 200 chars where possible.
+- Pattern: for renamed-from-cryptic cols, the description ends with `Source key: \`<original>\`` so the bridge to the raw source is one click away.
+- Special call-outs for codebook-collision columns (`media_economia_a` notes `mma` and the 1-letter `ma`=Economia trap; `ranking_superacao_matematica_a` notes `rsma` and the 2-letter `ma`=Mat A meaning).
+- Region/code-letter columns (`contexto_agrupamento`, `tipo`) expand the dictionary inline.
+- Verified: `information_schema` shows 95 cols == YAML has 95 cols == dbt manifest shows 95 cols for `source.house4house.bronze_education.raw_publico_rankings`. dbt parse passes (71 `accepted_values` deprecation warnings — same project-wide pattern as the other 17 sources, not specific to this YAML).
+
+**2. Documented the rule as a project convention**: new concept page [[dbt-source-column-descriptions]] codifies "every bronze column gets a `description:`". Covers: why (dbt-docs is the discovery surface; cryptic sources need disambiguation; drift detection), how (the pattern by column category — renamed-from-cryptic, code-letter encoding, FK column, JSONB blob), the verification triad (`information_schema` ≡ YAML ≡ manifest), and the explicit "what does NOT count as a description" + "when this rule does NOT apply" sections.
+
+**Skill wired**: [[add-gis-source]] SKILL.md step 5 now references the rule + the column-count verification, so future bootstraps remember to document every column at create-time rather than leaving it as a "fix later".
+
+**Pages touched**: [[log]] (this entry), [[dbt-source-column-descriptions]] (new), [[index]] (Concepts 19 → 20, added entry between [[cross-portal-dev-dedup]] and [[heartbeat-sidecar]]), `.claude/skills/add-gis-source/SKILL.md` (step 5 amendment), `dbt/models/staging/education/_staging_education__sources.yml` (completed 95-column documentation).
+
+**Pending follow-ups**:
+- [ ] Audit the other 17 existing dbt source YAMLs for missing column descriptions — sample check shows `[[caop]]` and `[[cos]]` are mostly compliant but I haven't done a full sweep. Track gaps as a `wiki/lint-reports/` finding next time `/wiki-reconcile` runs.
+- [ ] Decide if `wiki_health.py` (Phase 7) should treat missing column descriptions as a BLOCKING finding for new bronze tables (`last_verified` < 30 days) and merely WARNING for older ones.
+
+## [2026-06-06] verify | publico_rankings — ranks are per-partition + ranking_superacao allows ties
+
+User question revealed an under-documented invariant: "why are there 2 1s, 2 2s, 2 3s in ranking_exames?" Investigated and clarified:
+
+**Finding 1 — ranks are per-(year, kind) partition, not global.** Across 12 partitions (7 sec editions + 5 9ano editions), each has its own sequential rank 1..N — so the whole table contains 12 instances of rank=1, 12 of rank=2, etc. Within each partition `ranking_exames` IS strictly unique across the full 2018-2024 corpus (verified empirically: 0 violating partitions). Added a `dbt_utils.unique_combination_of_columns` test on `(year, kind, ranking_exames)` to lock the invariant.
+
+**Finding 2 — ranking_superacao ALLOWS TIES (standard competition ranking).** Initially added the same uniqueness test on `ranking_superacao`; it failed with 16 violations. Investigation showed Público uses standard competition ranking ("1, 2, 2, 4 — skipping"): schools with identical `mt - v` gap share a rank and the next rank skips. Empirical example: 2024 9ano has a 3-way tie at rank 569 → next rank = 572. Ties cluster at the bottom of the distribution where the gap quantizes to limited float precision. Removed the strict test; documented the tie semantics in the column description AND in the legend page.
+
+**Files touched**:
+- `dbt/models/staging/education/_staging_education__sources.yml` — kept the `ranking_exames` composite uniqueness test (PASSES); expanded both `ranking_exames` and `ranking_superacao` descriptions with the per-partition scope + the competition-ranking caveat.
+- [[publico-rankings-column-legend]] — added a "Ranks are per-partition, not global" section above the Headline family explaining the invariant + the tie behavior + the silver consequence ("models that depend on unique rank values must dedup or use a `dense_rank()` re-projection").
+
+**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (per-partition + tie section).
+
+## [2026-06-06] migrate | PT education amenity design → wiki/planning/ + live status dashboard
+
+Moved `tests/PT-EDUCATION-DESIGN.md` into the wiki at [[pt-education-amenity-pillar]] so the doc lives where the rest of the project's planning + tracking lives, with Obsidian backlinks and graph membership.
+
+**What was added on top of the verbatim port**:
+- YAML frontmatter (`type: plan`) + `## For future Claude` preamble.
+- New `## 0. Status` section at the top — a single-page progress dashboard with a 5-row source table (status + PR link per source) and Phase 0 / Phase 1 / Phase 2 / Open-Qs checklists. Source #1 (publico-rankings) checkboxes all ✅ ticked with the verified row counts; sources #2-#5 still 🔲/⏳ pending.
+- Cross-links to the three sibling pages this pillar produced: [[publico-rankings]] (source), [[publico-rankings-column-legend]] (91-col legend), [[dbt-source-column-descriptions]] (convention).
+- Original §7 Phase-0 checklist updated to reflect publico_rankings as shipped (the verbatim items were stale).
+
+**Other touches**:
+- `tests/PT-EDUCATION-DESIGN.md` reduced to a one-screen pointer at the wiki version — single source of truth now lives at [[pt-education-amenity-pillar]], not in `tests/`.
+- [[planning/README|wiki/planning/README]] grew a "Pillar-specific planning pages" subsection so future multi-source pillars (housing supply, regulatory events, etc.) have a documented home.
+- [[index]] Planning section count 4 → 5; added the [[pt-education-amenity-pillar]] entry.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (new), [[planning/README]] (Pillar-specific subsection added), [[index]] (Planning 4 → 5), `tests/PT-EDUCATION-DESIGN.md` (now a pointer stub).
+
+## [2026-06-06] ingest | rede-escolar bootstrap — Phase 0 source #2 of 5
+
+Bootstrapped the second source of the [[pt-education-amenity-pillar]] (the GesEdu paginated ArcGIS REST FeatureServer; canonical PT school register with point geometry). Same custom-DAG shape as [[publico-rankings]] — skipped `pipelines/gis/template/` because the template handles single-URL file downloads, not paginated REST query endpoints.
+
+**Code shipped**:
+- `pipelines/gis/rede_escolar/rede_escolar_config.py` — endpoint URL + `maxRecordCount=2000` page size + count probe + sanity bands + headers.
+- `pipelines/gis/rede_escolar/rede_escolar_ingestion_dag.py` — paginated ingest. `probe_and_fanout` (live `returnCountOnly` probe) → `download_page.expand(spec=offsets)` → `upload_page.expand` → `summarize` reconciles `sum(page features) == probe total`. `@monthly` schedule.
+- `pipelines/gis/rede_escolar/rede_escolar_bronze_dag.py` — `discover_latest_run` picks newest snapshot, `fanout_pages` lists page blobs, `ensure_table` builds dual-CRS PostGIS schema per [[2026-05-10-dual-crs-storage]], `load_page` unnests features + writes geom (4326) + geom_pt (3763), upserts on `(run_date, codigo_escola)`.
+- `dbt/models/staging/education/_staging_education__sources.yml` — appended `raw_rede_escolar` source with 46 column descriptions (3 audit + 41 renamed + 2 geom) + `unique_combination_of_columns: [run_date, codigo_escola]` test. Same column-description convention as [[publico-rankings]] (see [[dbt-source-column-descriptions]]).
+
+**Live verification (2026-06-06)**: count probe = 8,670 features. Pagination verified at offset 0/2000/4000/6000 = 2000 features each (`exceededTransferLimit=True`); offset 8000 = 670 tail features (no flag). Live field set = our `SOURCE_KEY_TO_COLUMN` exactly (zero drift; 42 attribute fields incl. CODESCME PK). 92/670 tail-page features had NULL geometry (handled — row inserts with `geom`/`geom_pt` NULL). Did NOT run the Airflow DAG end-to-end in this worktree because the docker scheduler mounts the main repo's `pipelines/`, not this worktree's — same constraint as the [[publico-rankings]] dev cycle; live trigger will happen after merge.
+
+**Pages touched**: [[log]] (this entry), [[rede-escolar]] (new source page with pagination verification table), [[index]] (Sources 25 → 26; P1 15 → 16; Education subsection (1) → (2)), [[pt-education-amenity-pillar]] (Phase 0 dashboard: source #2 flipped to 🟢 with verification line).
+
+## [2026-06-06] verify | rede-escolar end-to-end Airflow run
+
+Triggered both [[rede-escolar]] DAGs on the live stack (temporarily synced into the main-repo `pipelines/gis/` so the docker scheduler would pick them up; reverted after).
+
+**Ingestion DAG** (`rede_escolar_ingestion`): 9 seconds end-to-end. probe_and_fanout (1s) → 5× download_page parallel (1-2s each) → 5× upload_page parallel → summarize. MinIO blobs: page_000000–006000 at ~2.2 MB each, page_008000 tail at 756 KiB.
+
+**Bronze load DAG** (`rede_escolar_bronze_load`): 5 seconds end-to-end. discover_latest_run → fanout_pages (5 blobs) → ensure_table → 5× load_page parallel → summarize.
+
+**Bronze verification** against `bronze_education.raw_rede_escolar`:
+- 8,670 rows total — matches the live ArcGIS count probe exactly.
+- 8,670 unique `codigo_escola` (no PK duplication).
+- 7,844 rows with geometry (90.47%); 826 NULL (~9.5% — population-wide, vs the ~14% tail-page sample I had earlier).
+- 0 `(run_date, codigo_escola)` PK duplicates → confirms the dbt source uniqueness test would pass.
+- Tipologia distribution: 4,123 EB1, 1,944 JI, 335 EB+S, 313 Sec, 261 Profissional — all plausible.
+- Probed school `614798` (Jardim de Infância de Gandufe, Mangualde) round-trips identically (lon −7.8015, lat 40.5815) and `geom_pt` reprojects to PT-TM06 (28077.1, 101460.9) — confirms `ST_Transform(geom, 3763)` works through the loader.
+
+Initial DAG-import error caught and fixed: `@monthly` schedule needs an explicit `start_date`; the publico_rankings shape used `schedule=None` so the missing-start_date didn't bite. Added `start_date=datetime(2026, 6, 1)` to ingestion DAG, committed in the same PR.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]] (source #2 dashboard flipped to ✅ shipped + end-to-end verified, sub-task tick for live Airflow run added).
+
+## [2026-06-07] ingest | source #3 (`dgeec_ens_sup`) bootstrap + end-to-end verified
+
+PT education pillar — source #3 of 5 shipped. DGEEC's higher-ed register
+(`Estabelecimentos do Ensino Superior`, CC BY 4.0 via DGTerritorio SNIG ATOM):
+shapefile bundle, 321 Unidades Orgânicas (faculdade-grain), point geometry in
+EPSG:4326. New package `pipelines/gis/dgeec_ens_sup/` with config +
+ingestion DAG + bronze loader DAG; new wiki page [[dgeec-ens-sup]]; appended
+`raw_dgeec_ens_sup` to `dbt/models/staging/education/_staging_education__sources.yml`
+with 21 column descriptions + `(run_date, codigo_unidade_organica)` uniqueness test.
+
+**Live probe flipped two assumptions baked into planning §3.5**:
+1. Schema is 16 fields, NOT 14 (`Outro telefone` + `Fax` were missed).
+2. "Estabelecimento" is the parent institution (Universidade), NOT a physical
+   building. `Código do Estabelecimento` is non-unique (101 distinct values
+   across 321 rows); the natural PK is `Código da Unidade Orgânica` (321/321
+   unique). Pillar decision #11 was right after all — but my pre-probe rename
+   plan was wrong (would have PK-violated on first load). Renamed the
+   non-unique column `codigo_instituicao` to surface DGEEC's misleading
+   "Estabelecimento" vocabulary, instead of propagating it into silver/gold.
+
+DBF field names truncate to 10 ASCII chars (`Código do`, `Outro tele`, etc.);
+the bronze loader keys off the truncated label and renames to readable
+snake_case Portuguese, same convention as [[rede-escolar]] and
+[[dbt-source-column-descriptions]]. Both 4-digit codes (`codigo_instituicao`,
+`codigo_unidade_organica`) are stored TEXT zero-padded to width 4 so silver
+joins to DGES rankings work without re-padding.
+
+Custom DAG shape, NOT the GIS template — `pipelines/gis/template/`
+auto-extracts ZIPs to a single inner file and deletes the ZIP, which destroys
+shapefile sidecar bundles. No existing repo source uses
+`expected_format='shp'`; templatising shapefile bundles is a separate refactor
+(deferred until N≥2 sibling shapefile sources). Bronze loader uses
+`pyogrio.raw.read()` to avoid the `geopandas`/`shapely` deps (absent in the
+docker Airflow image) and decodes Point WKB manually with `struct.unpack` to
+build the WKT passed to `ST_GeomFromText` + `ST_Transform` for dual-CRS
+storage per [[2026-05-10-dual-crs-storage]].
+
+End-to-end verified on the live Airflow stack:
+- Ingestion DAG: 40.8 KB ZIP, 7 files inside, MinIO blob at
+  `s3://raw/dgeec_ens_sup/2026-06-07/Estab_Ens_Sup_Portugal.zip` in ~3s.
+- Bronze load DAG: 4 tasks, ~5s end-to-end.
+- `bronze_education.raw_dgeec_ens_sup`: 321 rows, 321 unique
+  `codigo_unidade_organica` (PK), 101 unique `codigo_instituicao`, 0 NULL
+  geometry, `run_date = 2026-06-07`.
+- Sample UO `0100` (Universidade dos Açores) round-trips identically:
+  geom_4326 `POINT(-25.6638055555556 37.7460416666667)`, reprojects to PT-TM06
+  `POINT(-1550907.94 -65519.06)` (Açores is far off the mainland-centric
+  EPSG:3763 origin — large negative-x is expected).
+- Natureza distribution: 118 Pol-Públ / 87 Univ-Públ / 64 Pol-Priv /
+  46 Univ-Priv / 5+1 Militar — matches the probe and the DGEEC catalogue.
+- Top institutions by UO count: Universidade Católica Portuguesa (23 UOs),
+  Universidade de Lisboa (20), Universidade do Porto (15), Universidade de
+  Coimbra (11), Universidade do Algarve (10).
+
+Bug caught + fixed in this session: first bronze run failed with
+`ImportError: geopandas is required to use pyogrio.read_dataframe()` — the
+Airflow image bundles `pyogrio` but not `geopandas`/`shapely`. Switched to
+`pyogrio.raw.read()` (returns numpy ndarrays of WKB bytes + per-field column
+arrays) and added a 12-line `_point_wkb_to_wkt` helper that decodes the
+21-byte Point WKB layout with `struct.unpack`. Loader has zero geo-stack deps
+now — pyogrio + psycopg2 only.
+
+**Pages touched**: [[log]] (this entry), [[index]] (Sources 26→27, P1 16→17,
+Education subsection (2)→(3) + new dgeec-ens-sup bullet),
+[[pt-education-amenity-pillar]] (source #3 dashboard flipped to ✅ shipped +
+end-to-end verified; §3.5 updated to reflect the dual-CRS psycopg2 loader
+actually shipped instead of the "ogr2ogr direct" wording from the planning
+phase). New page [[dgeec-ens-sup]].
+
+## [2026-06-07] bootstrap | dges_acesso — source #4 of the PT education amenity pillar
+
+Bootstrapped the 4th source in the pillar: DGES Concurso Nacional de Acesso
+per-(year, phase, curso, instituição) results. 12 years × 3 phases = 36
+source files (2014–2025) in mixed `.xlsx`/`.xls`/`.ods` formats. Bronze
+loader routes by URL suffix to `openpyxl` / `xlrd` / `odfpy` via
+`pandas.read_excel(engine=...)`. ~40k bronze rows total (36 files × ~1100
+per file). Bronze PK: `(year, phase, codigo_instit, codigo_curso)`.
+
+The probe flipped multiple planning §3.3 assumptions that had to be re-locked
+in the interview before any code:
+
+- **Família A trap**: planning §3.3 sampled the wrong XLSX family. DGES
+  publishes both a "reference card" XLSX (`dges_vagascna_nota_ult_colocado_
+  1afase{Y}_{Y+1}_*.xlsx`, published Feb of each year showing next year's
+  vagas + prior year's nota) and the actual per-phase results files
+  (`fase{n}_{YY}.xlsx`). Família B is the real source; Família A is
+  explicitly NOT ingested (duplicates data + publish-date-axis ambiguity).
+- **URL pattern is a lie**: probed 11 candidate URL patterns, only 1
+  resolved. Filenames mix `fase{n}_{YY}.xlsx`, `cna{YY}_{n}f_resultados.xls`,
+  `site_cna19_{n}f_resultados.{xls,xlsx}`, `cna{YY}_{n}f_resultados.ods`,
+  and one-offs like `fase1a25_site.xlsx`. Even *within* a year files differ
+  (2024: F1=.xlsx, F2=.xls, F3=.xlsx). YEAR_PHASE_URLS is a literal 36-entry
+  dict — there is NO pattern.
+- **Schema drift across phases AND years AND formats**: F1 has 12-13 cols,
+  F2 has 14, F3 has 17; labels rename (`"Sobras para 2ª fase"` → `"Vagas
+  Sobrantes"`; `"Nota do últ. colocado (cont. geral)"` drops the
+  parenthetical in F2/F3). 2022 F1 has an extra `"Vaga adic. (vagas
+  autónomas)"` column. 2018 .ods has a `(1)(2)...(N)` annotation row at
+  idx 5 between header and data. SOURCE_LABEL_TO_COLUMN collapses synonyms
+  to canonical column names; bronze is a superset table with NULL in
+  phase-missing columns (L13). The 2018 annotation row is filtered
+  generically by `codigo_instit ∈ ^[0-9A-Za-z]{2,5}$`.
+- **DGES↔DGEEC code overlap is 95.3% (162/170)**: live join probe across
+  all 3 phases of 2025. DGES `Código Instit.` is a strict subset of
+  [[dgeec-ens-sup]] `codigo_unidade_organica` (the unmatched 4.1% maps to
+  the parent-institution code, NOT UO grain). Silver does a LEFT JOIN with
+  `unmatched_uo` flag for the 8 DGES codes (`0521, 3036, 3124, 3125, 6810,
+  7016, 7240, 7270`) that have no DGEEC match — likely UOs added since
+  DGEEC's 2023-03-15 snapshot.
+- **`Código Curso` can contain letters**: a handful of Música variants ship
+  as `L184`, `L344`. Stored as text — NO zfill, NO integer cast.
+
+Files shipped this session: 5 in `pipelines/gis/dges_acesso/`
+(`__init__.py`, config, ingestion DAG, backfill DAG, bronze_load DAG), 2
+dbt models (`stg_dges_acesso.sql` + `silver_dges_acesso_uo.sql`), 2 dbt
+YAMLs (extended `_staging_education__sources.yml`, new
+`_staging_education__models.yml`), 1 new wiki source page
+([[dges-acesso]]).
+
+Silver model computes vagas-weighted `nota_ult_colocado` per (UO, year,
+phase) — `SUM(vagas_iniciais * nota) / NULLIF(SUM(vagas_iniciais), 0)`
+with NULL-nota cursos excluded from BOTH numerator and denominator (L24).
+No `stg_dgeec_ens_sup` exists yet, so silver inlines the "latest run_date"
+filter as a CTE; swap for a `ref` when DGEEC gets a staging model.
+
+Parser locally verified against 5 representative files (2025 fase 1/2/3
+.xlsx + 2022 fase 1 .xls + 2018 fase 1 .ods); zero unknown labels in any.
+E2E Airflow run deferred to next session (Airflow stack not running in
+this worktree).
+
+**Pages touched**: [[log]] (this entry), [[index]] (Sources 27→28, P1
+17→18, Education (3)→(4) + new dges-acesso bullet),
+[[pt-education-amenity-pillar]] (source #4 dashboard flipped to ✅ shipped).
+New page [[dges-acesso]].
+
+## [2026-06-07] hygiene | codify dges_acesso bronze-loader deps in pyproject.toml + uv.lock
+
+PR #56 landed the [[dges-acesso]] bronze loader on the live Airflow stack
+via direct `pip install pandas openpyxl xlrd odfpy` into the running
+containers — the deps were edited into `pipelines/pyproject.toml` in the
+session worktree but **never committed**. Worktree was cleaned post-merge;
+edit was lost. This entry records the redo: 4 deps added under a
+`# Spreadsheet parsing (dges_acesso bronze loader)` block in
+`pipelines/pyproject.toml`, `uv.lock` regenerated (`uv lock`: adds
+`pandas` already-transitive, `openpyxl 3.1.5`, `xlrd 2.0.2`, `odfpy 1.4.1`,
+`et-xmlfile 2.0.0`), `docker compose build airflow-scheduler` verified the
+image builds cleanly + `python -c "import pandas, openpyxl, xlrd; from odf
+import opendocument"` succeeds inside the rebuilt image. Without this, the
+next `Dockerfile.airflow.uv` rebuild (e.g. via CI image cache invalidation
+or a fresh `docker compose build`) would have produced a container that
+ImportErrors on the dges_acesso bronze DAG.
+
+Also trimmed the now-stale "swap CTE for ref" hint at the tail of the
+file-level docstring in `dbt/models/silver/education/silver_dges_acesso_uo.sql`
+— the architectural rationale for the inline `dgeec_latest_run` CTE
+remains; the directive will return naturally when [[pt-education-amenity-pillar]]
+Phase 1 ships `stg_dgeec_ens_sup`.
+
+Lesson: `uv sync --frozen --package house4house-pipelines` in
+[`Dockerfile.airflow.uv`](../Dockerfile.airflow.uv) reads from `uv.lock`,
+not `pyproject.toml`. Editing only `pyproject.toml` produces a "successful"
+docker build that silently omits the new deps — caught only by an explicit
+in-image `python -c "import …"` check. Future deps additions must include
+`uv lock` in the same commit.
+
+**Pages touched**: [[log]] (this entry).
+
+## [2026-06-09] silver | Phase 1 PR-A — stg_dgeec_ens_sup + stg_rede_escolar + silver_dges_acesso_curso + CTE swap
+
+First half of Phase 1 silver promotions for the [[pt-education-amenity-pillar]].
+Two new staging models + one new silver model + the CTE-swap that this
+unblocks. PR-B will cover the two Público stagings once Open Qs #1 (CAOP-
+Açores/Madeira sourcing) and #2 (Público↔DGEEC fuzzy-join thresholds) are
+resolved.
+
+**New models** (live-verified against the warehouse):
+- `stg_dgeec_ens_sup` — typed view over `raw_dgeec_ens_sup` filtered to
+  `max(run_date)`. 321 rows, 321 unique UOs, 0 NULL geoms. Dual-CRS
+  exposed as `geom_4326` (display) + `geom_3763` (PT-TM06 for metric
+  distance) per [[2026-05-10-dual-crs-storage]].
+- `stg_rede_escolar` — typed view over `raw_rede_escolar`, filtered to
+  (a) `max(run_date)`, (b) `situacao_escola = 'Em funcionamento'`,
+  (c) `flag_extinguir != 'S'`, (d) `geom is not null`. ~14% of bronze
+  rows have NULL geom (tail-page ArcGIS pagination artifact) and are
+  dropped at staging so `not_null(geom_3763)` stays green. Trimmed to
+  ~17 canonical columns; ArcGIS-internal + low-signal contact fields
+  dropped (still accessible in bronze).
+- `silver_dges_acesso_curso` — sibling to [[silver-dges-acesso-uo]] at
+  per-curso grain `(codigo_unidade_organica, year, phase, codigo_curso)`.
+  Keeps `nome_curso` + `nome_instituicao` + `grau` that the UO rollup
+  drops (multi-valued under UO). 38,922 rows (1:1 with bronze grain).
+  LEFT JOIN to `stg_dgeec_ens_sup`; `unmatched_uo` flag carries the same
+  drift-sentinel semantics as the UO silver.
+
+**Pillar convention locked**: staging filters to `max(run_date)`. The
+rede_escolar + dgeec_ens_sup sources are point-in-time registers, not
+trend data, so latest-only at the staging tier is what every downstream
+consumer wants. Historical snapshots remain accessible in bronze. This
+is the first time the pillar made a deliberate run_date-scope decision
+at the staging tier — set as precedent for the upcoming Público
+stagings and any future run_date-keyed bronze.
+
+**CTE swap** in `silver_dges_acesso_uo`: the inline
+`dgeec_latest_run` CTE that was a tactical workaround pre-staging is
+now replaced with `ref('stg_dgeec_ens_sup')`. The TODO hint was
+trimmed in PR #58; now resolved. Verified the model still produces the
+same 5,889 rows + identical top-N medicine UOs (Univ. Porto 184.6,
+Coimbra 178.8, Lisboa 177.2) as the previous chat's verification.
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select stg_dgeec_ens_sup stg_rede_escolar silver_dges_acesso_curso silver_dges_acesso_uo` → 4/4 success in 1.02s
+- `dbt test` over the same 4 → 21/21 PASS (not_null × PK + not_null × dual-CRS geoms + unique × PK + unique combination on curso silver)
+- Spot-check top-8 Medicina (2025 F1) ordered by `nota_ult_colocado` desc returned Porto-FMUP (185.3, 275 vagas), Porto-ICBAS (184.7, 155 vagas), UMinho (183.5), UAveiro (182.8), Nova-FCM (180.3), Coimbra (179.0), Lisboa-FM (178.7), Porto-FMD (178.3 — Medicina Dentária). All with `unmatched_uo = false`, all 3 denormalised name columns populated.
+
+**Test surface** (per L9 lock): unique PK + not_null on PK and dual-CRS
+geoms for both stagings; unique combination + not_null on PK columns +
+not_null on `unmatched_uo` for `silver_dges_acesso_curso`. Standard
+shape; matches the bronze YAML uniqueness tests hardened against the
+latest-only staging filter.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 1 dashboard — flip stg_dgeec_ens_sup + stg_rede_escolar + new
+silver_dges_acesso_curso row to ✅ shipped).
+
+## [2026-06-09] silver | Phase 1 PR-B — stg_publico_rankings_sec + stg_publico_rankings_9ano (closes Phase 1 staging tier)
+
+Second half of Phase 1 silver promotions for the [[pt-education-amenity-pillar]].
+Two new staging models splitting [[publico-rankings]] by `kind` — sec
+(secundário exames nacionais, 0-20 scale) + 9ano (3º ciclo Provas Finais,
+0-5 scale). Closes the Phase 1 staging tier; 5/5 pillar bronzes now have
+a typed staging view.
+
+**Layer-separation decision**: The planning §Phase 1 wording for these
+two stagings literally read "concelho fuzzy DICOFRE join" + "direct join
+on codigo_uo_dgeec + fuzzy fallback". That conflated layers — the CAOP
+DICOFRE join and the Público↔DGEEC bridge are silver/gold concerns, not
+staging. PR-B keeps the stagings 1:1 single-source typed views,
+consistent with the pillar's existing 3 stagings (stg_rede_escolar,
+stg_dgeec_ens_sup, stg_dges_acesso — none of those do cross-source
+joins). Open Qs #1 (CAOP-Açores/Madeira) and #2 (Público↔DGEEC bridge
+thresholds) accordingly do NOT block PR-B; they block the future
+silver_publico_rankings and xref_publico_dgeec models.
+
+**New models** (live-verified against the warehouse):
+- `stg_publico_rankings_sec` — filtered to `kind='sec'`. 4,411 rows
+  across 7 years (2018–2024), 661 unique schools. ~35 canonical columns:
+  headline scores + 9 disciplines × (média, num_provas, ranking) +
+  contexto socioeconómico + retenção + equidade + prior-year carry. 0
+  bad-coord rows. Dropped: cif_* (39% populated, low signal),
+  per-disciplina ranking_superacao_* (low signal), equivalência cluster
+  (small subset), legacy y17-y20 carries (semantics drift across
+  vintages per the bronze YAML).
+- `stg_publico_rankings_9ano` — filtered to `kind='9ano'`. 5,859 rows
+  across 5 years (2018–2019, 2022–2024; the COVID gap 2020+2021 matches
+  source ground truth). ~25 canonical columns: headline scores + only 2
+  disciplines tested (Matemática + Português) + contexto + retenção +
+  prior-year carry. 18 bronze rows dropped: 5 with NULL latitude + 13
+  with lat/lon outside the PT bounding box (one had `latitude=37129` —
+  clear data error). codigo_uo_dgeec passed through (~79% populated;
+  the 21% gap is silver's problem).
+
+**Data-quality discovery**: 13 9ano rows had garbage lat/lon
+(latitude=37129 in one case; others outside lat 32-43 / lon -32 to -6).
+ST_Transform to EPSG:3763 (PT-TM06) refuses these as out-of-bounds —
+caught only when the not_null(geom_3763) test ran. Fixed by tightening
+the staging filter to a PT bounding box (rather than just `not null`).
+Pattern reusable for any other Público-style source with lat/lon
+sourced from a non-canonical pipeline. The PT bounding box used:
+lat 32-43 (Continente 36.9-42.2 + Açores 36.9-39.7 + Madeira 32.4-33.1),
+lon -32 to -6 (Açores -31.3 westernmost).
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select stg_publico_rankings_sec stg_publico_rankings_9ano`
+  → 2/2 success in 0.70s.
+- `dbt test` over the same 2 → **10/10 PASS** (not_null × PK + not_null
+  × dual-CRS geoms + unique combination on (year, eid) for both).
+- Row counts: sec 4,411 (bronze 4,411 — no row drops); 9ano 5,859
+  (bronze 5,877 − 18 bad-coord rows).
+
+**Phase 1 staging tier complete (5/5 sources)**:
+- ✅ `stg_rede_escolar` (PR-A 2026-06-09)
+- ✅ `stg_dgeec_ens_sup` (PR-A 2026-06-09)
+- ✅ `stg_dges_acesso` (PR #56)
+- ✅ `stg_publico_rankings_sec` (PR-B 2026-06-09)
+- ✅ `stg_publico_rankings_9ano` (PR-B 2026-06-09)
+
+Next: Phase 2 gold marts. The natural first move is
+`silver_publico_rankings` (annual-best ranking per school across years)
+and `xref_publico_dgeec` (the bridge table) — both require Open Q #1
+(CAOP-Açores/Madeira sourcing) and Open Q #2 (Público↔DGEEC bridge
+thresholds via 5 manual lookups) to be resolved first.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 1 dashboard — flip both Público stagings ✅; close Phase 1
+staging tier banner).
+
+## [2026-06-09] silver | Phase 2 PR-C — silver_publico_rankings_sec + silver_publico_rankings_9ano (latest-year-per-school rollup)
+
+First Phase 2 increment for the [[pt-education-amenity-pillar]]. Two
+sibling silver models — latest-year-per-school rollup of the Público
+sec + 9ano stagings, mirroring the silver_dges_acesso_{uo,curso} sibling
+pattern (different scales, different column sets → separate tables to
+prevent cross-kind aggregation mistakes downstream).
+
+**Per pillar decision #3** (planning §2): "Per-school média total
+exames nacionais, latest year only (v1)." Implemented with
+`row_number() over (partition by eid order by year desc)` keep-only-rn=1.
+Schools that haven't appeared since 2019 still surface with
+`ranking_year=2019`; consumers wanting fresh-only filter on
+`ranking_year` themselves.
+
+**New models** (live-verified):
+- `silver_publico_rankings_sec` — 661 unique schools (0 dupes), years
+  2018-2024, 624 schools (94%) have a 2024 ranking, avg ranking_score
+  11.50/20. Top-5 2024 ranks 1-5 sequential as expected. All staging
+  columns preserved; `media_total_exames` renamed to `ranking_score`
+  per planning §4.1 lean-gold-schema convention.
+- `silver_publico_rankings_9ano` — 1,313 unique schools, years
+  2018-2019 + 2022-2024 (COVID gap matches source), 1,158 schools (88%)
+  have a 2024 ranking, avg ranking_score 2.94/5. `codigo_uo_dgeec`
+  passthrough preserved for the future xref_publico_dgeec bridge.
+
+**Eid mutual exclusion verified**: empirically 0 eids appear in both
+sec and 9ano (Público assigns separate eids based on cohort tested).
+This locked the "two sibling silvers" design choice over a unified
+table — there's literally no eid that would benefit from being in both.
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select silver_publico_rankings_sec silver_publico_rankings_9ano`
+  → 2/2 success.
+- `dbt test` over the same 2 → **10/10 PASS** (not_null × PK + not_null
+  × ranking_year + not_null × dual-CRS geoms + unique × eid for both).
+
+**Phase 2 prerequisites still pending**:
+- Open Q #1 (CAOP-Açores/Madeira sourcing) — blocks adding DICOFRE to
+  silver_publico_rankings via CAOP spatial join (sec-side, since sec
+  has no codigo_uo_dgeec passthrough).
+- Open Q #2 (Público↔DGEEC bridge thresholds) — gates
+  `xref_publico_dgeec` (the bridge table) and the gold `dim_school`.
+- Open Q #5 (`dim_school` PK strategy) — discriminator col vs split
+  tables for 6-digit basic/sec vs 4-digit higher-ed.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — add `silver_publico_rankings_{sec,9ano}` ✅).
+
+## [2026-06-09] gold | Phase 2 PR-D — xref_publico_dgeec bridge (Open Q #2 resolved)
+
+First gold-tier mart in the [[pt-education-amenity-pillar]] and the
+resolution of Open Q #2 (Público↔DGEEC bridge thresholds). Bridge table
+`gold_analytics.xref_publico_dgeec` maps every Público school id (eid)
+to its DGEEC 6-digit `codigo_escola` (CODESCME), with explicit
+`match_method` provenance and `match_score`/`match_distance_m`
+diagnostics per row.
+
+**Empirical-probe-driven algorithm** (locked 2026-06-09 against the
+live warehouse, not the 5 manual lookups the planning doc anticipated
+— having both Público + DGEEC already in the warehouse let me probe
+the entire 1,974-school corpus directly):
+
+1. **id_publico ↔ DGEEC prefix probe is dead.** Tested
+   `LEFT(codigo_escola, 4) = LPAD(id_publico, 4)` with concelho match
+   on all 661 sec schools → **0 matches**. Público's `id` is its own
+   short code, not a DGEEC prefix. Explicitly NOT in the final
+   algorithm.
+
+2. **Path 1 — `direct_uo_fuzzy` (9ano only)**: when Público's
+   `codigo_uo_dgeec` is populated, restrict rede_escolar candidates to
+   the UO (`r.codigo_uo = p.codigo_uo_dgeec`) and pick the best
+   name-similarity match. The UO scope is sufficient evidence on its
+   own — 921/921 (100%) resolve at avg sim=0.992. No similarity
+   threshold needed.
+
+3. **Path 2 — `fuzzy_spatial` (all sec + 9ano residual)**: ST_DWithin
+   500m + pg_trgm similarity ≥ 0.6 on
+   `unaccent(lower(nome))`. The 0.6 threshold was picked by eyeballing
+   the 0.3-0.6 band: 0.6+ is bulletproof; 0.4-0.6 has ~30% false
+   positives (e.g. "Colégio Liverpool" vs "Grande Colégio Universal"
+   at 0.303). NO concelho-name gate — costs island coverage where
+   Público labels concelhos like "Lagoa (R.A.A)" vs DGEEC's "Lagoa".
+
+4. **Path 3 — superseded by ensemble** (commit 2 → commit 3): the
+   `name_perfect_extended` Path 3 idea (recover sim=1.000 within 2km)
+   was a single-algorithm fix. Replaced by a full ensemble approach
+   that subsumes it.
+
+**Final algorithm — 2-stage ensemble** (locked commit 3 of PR-D
+after a multi-algorithm comparison probe):
+
+- **Stage 1 — `direct_uo_fuzzy`** (9ano with `codigo_uo_dgeec`): UO
+  scope alone is sufficient evidence. 921/921 (100%) at avg sim 0.992.
+  Confidence: 'high'.
+- **Stage 2 — `ensemble`** (sec + 9ano residual): candidate window =
+  same normalized concelho OR within 2km. Four algorithms vote on the
+  best codigo_escola:
+  1. Trigram (pg_trgm) ≥ 0.6
+  2. Levenshtein (1 - lev/maxlen) ≥ 0.5
+  3. Jaccard token-set ≥ 0.3
+  4. Phonetic (dmetaphone first 2 tokens) match
+  
+  Each fails in different ways (trigram is order-sensitive, Levenshtein
+  blows up on length diffs, Jaccard is bag-of-words, phonetic loses
+  non-stem content). When ≥2 converge on the same codigo_escola,
+  false-positive risk drops sharply. `match_confidence` = 'high' (≥3
+  agree), 'medium' (=2), 'unmatched' (<2).
+
+**Single-algorithm coverage probe (candidate window only, 1,971 schools)**:
+| Algorithm | Matched | % |
+|---|---|---|
+| Levenshtein ≥ 0.5 | 1,894 | 96.1% |
+| Jaccard ≥ 0.3 | 1,894 | 96.1% |
+| Phonetic match | 1,893 | 96.0% |
+| Jaccard ≥ 0.5 | 1,842 | 93.5% |
+| **Trigram** ≥ 0.6 (production v1) | 1,839 | 93.3% |
+| Contains (substring) | 1,691 | 85.8% |
+| Exact normalized | 1,642 | 83.3% |
+
+**Final ensemble coverage on full corpus (1,974 schools)**:
+
+| kind | match_method | match_confidence | schools |
+|---|---|---|---|
+| 9ano | direct_uo_fuzzy | high | 921 |
+| 9ano | ensemble_high | high | 296 |
+| 9ano | ensemble_medium | medium | 26 |
+| 9ano | unmatched | unmatched | 70 |
+| sec | ensemble_high | high | 622 |
+| sec | ensemble_medium | medium | 9 |
+| sec | unmatched | unmatched | 30 |
+
+Total: 1,874/1,974 matched = **94.9% coverage** (vs trigram-only
+91.7%, +63 schools). Sec 95.5%, 9ano 94.7%. Confidence tiers:
+high=1,839 (93.2%), medium=35 (1.8%), unmatched=100 (5.1%). The 100
+unmatched are mostly small privados / IPSS not in the rede_escolar
+register at all (genuinely absent).
+
+Spot checks:
+- 9ano #1 Colégio Novo da Maia → `ensemble_high`, **4 votes**, sim
+  1.00, 594m off (would be unmatched at strict 500m).
+- sec #1 Colégio Nossa Senhora do Rosário → `ensemble_high`, 4 votes,
+  sim 1.00, 0m.
+- sec #11 Colégio de S. Tomás → `unmatched` (genuinely ambiguous —
+  trigram, Levenshtein, Jaccard, phonetic each pick a different wrong
+  DGEEC school; no consensus).
+
+**Sanity-guard refinement** (commit 4 of PR-D): top-100 eyeball
+surfaced two false-positive classes that the ensemble vote alone
+missed:
+
+1. **Far-distance trap** — Colégio Mira Rio (Lisboa, 9ano #28) matched
+   another "Mira Rio" 8.1 km away. 4 algorithms all picked it (sim
+   1.00, all tokens identical). Probably wrong school; Lisboa concelho
+   spans wide but 8km within-concelho is suspect.
+2. **Shared-prefix trap** — "Colégio de Nossa Senhora da Esperança"
+   (sec #87 and 9ano #99) matched "Colégio de Nossa Senhora da Paz"
+   at sim 0.66, 1.6 km. The distinguishing saint differs but most
+   tokens agreed → trigram+Levenshtein+Jaccard+phonetic all picked
+   the wrong nearby school.
+
+Added post-vote guards: `sim_ok = match_score ≥ 0.7` AND `dist_ok =
+match_distance_m ≤ 3000`. When ≥3 votes but guards fail, demote to
+`medium`. When 2 votes and guards fail, demote to new `low` tier.
+Stage 1 (`direct_uo_fuzzy`) is unaffected — UO scope is its own
+evidence.
+
+**Final tier breakdown** (1,974 schools):
+
+| kind | high | medium | low | unmatched |
+|---|---|---|---|---|
+| 9ano | 1,193 | 28 | 22 | 70 |
+| sec | 609 | 14 | 8 | 30 |
+| **Total** | **1,802** | **42** | **30** | **100** |
+
+Total matched: 1,874 (94.9%, unchanged). Downstream consumers now
+have a graceful filter:
+- `high` = canonical, trust completely (1,802 = 91.3%)
+- `high + medium` = good coverage with audit trail (1,844 = 93.4%)
+- `high + medium + low` = max recall (1,874 = 94.9%)
+- `unmatched` = explicitly absent (100 = 5.1%)
+
+- `dbt run --select +xref_publico_dgeec` → 1 model built.
+- `dbt test --select xref_publico_dgeec` → **6/6 PASS** (unique +
+  not_null × publico_eid; not_null + accepted_values × kind;
+  not_null + accepted_values × match_method).
+
+**Open Q #2 resolved.** The next gates for `dim_school` are now Open
+Q #5 (PK strategy — discriminator col vs split tables) and Open Q #1
+(CAOP-Açores/Madeira sourcing — only relevant if `dim_school` wants
+DICOFRE for island schools; v1 fallback is leave NULL).
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
+RESOLVED in §9).
+## [2026-06-09] fix | [[jll]] land_area schema-contract freeze (2026-06-04 run failure)
+
+The 2026-06-04 scheduled JLL run failed at `load_facts` with a
+`NormalizeJobFailed`: `land_area__v_double` couldn't be added on
+`jll_listings` because the column was frozen as bigint from row 1 of
+the 2026-05-01 first run. Offending row: `listing_id 24224350`.
+
+Root cause: `LISTINGS_FLOAT_COLUMNS` in [pipelines/portals/jll/source.py](../pipelines/portals/jll/source.py)
+omitted `land_area`. The `e7e2348` commit message claimed it was added
+to the listings hints, but the code only added it to the plots resource
+(later deleted by `420ff8d`). Same bug class as `e7e2348`.
+
+Fix: added `land_area` to `LISTINGS_FLOAT_COLUMNS`. Rebuilt
+`DEVELOPMENTS_FLOAT_COLUMNS` as a full mirror (price_value, gross_area,
+net_area, land_area, gps_lat, gps_lon) so the same gap can't recur on
+the developments resource. Regression test added in
+`TestFloatColumnHints` to assert every polymorphic numeric is in both
+tuples.
+
+State reset: dropped `bronze_listings.jll_{listings,developments,
+listings_state,developments_state}` and cleared
+`/opt/airflow/dlt_state/jll/`. Manual rerun produced 7541 listings
+(up from 7455 current) and 171 developments (up from 169 current);
+both inside validation bands. SCD2 history reset to a new baseline.
+
+**Pages touched**: [[log]] (this entry), [[jll]] (Quirks: land_area gap
+added).

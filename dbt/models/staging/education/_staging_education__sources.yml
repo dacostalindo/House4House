@@ -280,3 +280,322 @@ sources:
             description: "Variante do flag de qualidade (mais recente). Source key: `eqnusar`."
           - name: ranking_equivalencia
             description: "Ranking entre escolas com dados de equivalência. Source key: `re` (100% sample-size overlap com `eq*`)."
+
+      - name: raw_rede_escolar
+        data_tests:
+          # codigo_escola (DGEEC 6-digit CODESCME) is the natural per-school key.
+          # Snapshots are partitioned by run_date, so uniqueness is enforced as
+          # (run_date, codigo_escola). Live verification 2026-06-06 confirmed
+          # unique CODESCME within a single page; cross-page dedup is the loader's
+          # job (ON CONFLICT (run_date, codigo_escola) DO UPDATE).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [run_date, codigo_escola]
+        description: >
+          GesEdu school register (RedeEscolar_mapa FeatureServer layer 0) —
+          one row per school per monthly snapshot. ~8,670 schools mainland +
+          autonomous regions, point geometry in EPSG:4326 + EPSG:3763 (per the
+          dual-CRS storage ADR). All 42 ArcGIS field names renamed to readable
+          Portuguese at bronze (same convention as raw_publico_rankings — see
+          [[dbt-source-column-descriptions]]). Loaded by rede_escolar_bronze_load
+          from MinIO snapshots written by rede_escolar_ingestion (paginated
+          ArcGIS REST, pre-computed offsets at 2000 stride). 92/670 tail-page
+          features had NULL geometry in the 2026-06-06 probe; those rows are
+          retained with geom/geom_pt NULL — silver filters them out.
+        columns:
+          # --- Partition keys / audit ---
+          - name: run_date
+            description: "Monthly snapshot partition. Promoted from the MinIO path raw/rede_escolar/{run_date}/."
+            tests: [not_null]
+          - name: codigo_escola
+            description: "DGEEC 6-digit school code (renamed from `CODESCME`). Natural PK; joins to publico_rankings via this code."
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Esri internal ---
+          - name: arcgis_objectid
+            description: "Esri-internal OBJECTID — not stable across publishes; kept only for traceability."
+          # --- Unidade Orgânica (agrupamento) ---
+          - name: codigo_uo
+            description: "Código da Unidade Orgânica (agrupamento). Source key: `CODUOME`. Joins to publico_rankings.codigo_uo_dgeec."
+          - name: nome_uo
+            description: "Nome do agrupamento. Source key: `NOMEUO`."
+          - name: nif_uo
+            description: "NIF do agrupamento (entidade fiscal). Source key: `NIFUO`."
+          # --- Escola identity ---
+          - name: nome
+            description: "Nome da escola. Source key: `NOME`."
+          - name: sede_flag
+            description: "'S'/'N' — escola é sede do agrupamento. Source key: `SEDE`."
+          - name: data_inicio
+            description: "Data de início de atividade. Source format inconsistent (string, not always parseable as date) — kept as text. Source key: `DTINICIO`."
+          # --- Endereço ---
+          - name: morada
+            description: "Endereço postal completo. Source key: `MORADA`."
+          - name: cp4
+            description: "Código postal 4 dígitos. Source key: `CP4`."
+          - name: cp3
+            description: "Extensão postal 3 dígitos. Source key: `CP3`."
+          - name: localidade
+            description: "Localidade. Source key: `LOCALIDADE`."
+          - name: codigo_concelho
+            description: "Código CAOP do concelho. Source key: `COD_CONCELHO`. Joins to caop.concelhos."
+          - name: concelho
+            description: "Nome do concelho. Source key: `CONCELHO`."
+          - name: codigo_distrito
+            description: "Código CAOP do distrito. Source key: `COD_DISTRITO`."
+          - name: distrito
+            description: "Nome do distrito. Source key: `DISTRITO`."
+          - name: codigo_dsr
+            description: "Código da Direção de Serviços de Região (estrutura desconcentrada AGSE). Source key: `CODDSR`."
+          - name: codigo_qzp
+            description: "Código do Quadro de Zona Pedagógica (zona de colocação de professores). Source key: `CODQZP`."
+          - name: nuts_id
+            description: "Código NUTS (Nomenclatura de Unidades Territoriais). Source key: `IDNUTS`."
+          - name: nuts_desc
+            description: "Descrição NUTS. Source key: `NUTS_DESC`."
+          # --- Coordinates ---
+          - name: latitude
+            description: "Latitude em WGS84. Source key: `LATITUDE`. Redundante com geom.y mas mantido para spot-checks."
+          - name: longitude
+            description: "Longitude em WGS84. Source key: `LONGITUDE`. Redundante com geom.x mas mantido para spot-checks."
+          # --- Tipologia + tutela + natureza ---
+          - name: codigo_grupo_natureza
+            description: "Código do grupo de natureza institucional. Source key: `CODGRUPONATUREZAINST`."
+          - name: grupo_natureza
+            description: "Grupo de natureza institucional (label). Source key: `GRUPONATUREZAINST`."
+          - name: codigo_tipologia
+            description: "Código da tipologia da escola. Source key: `CODTIPOLOGIA`."
+          - name: tipologia
+            description: "Tipologia da escola — ex. 'EB1', 'EB2,3/S', 'JI', 'Sec'. Source key: `TIPOLOGIA`. Usado para filtros por nível de ensino."
+          - name: tutela
+            description: "Tutela administrativa (código). Source key: `TUTELA`."
+          - name: tutela_desc
+            description: "Tutela administrativa (descrição). Source key: `TUTELA_DESC`."
+          - name: ensinos_ministrados
+            description: "Códigos concatenados dos ensinos ministrados. Source key: `ENSINOS_MIN`."
+          - name: ensinos_ministrados_desc
+            description: "Descrição dos ensinos ministrados (lista). Source key: `ENSINOS_MIN_DESC`."
+          - name: natureza_institucional
+            description: "Natureza institucional (código). Source key: `NATUREZAINSTITUCIONAL`."
+          - name: natureza_institucional_desc
+            description: "Natureza institucional (descrição) — 'Pública' vs 'Privada' vs subgrupos. Source key: `NATUREZAINSTITUCIONAL_DESC`."
+          # --- Situação operacional ---
+          - name: codigo_situacao
+            description: "Código da situação operacional. Source key: `CODSITUACAOESCOLA`."
+          - name: situacao_escola
+            description: "Situação operacional — silver filters by 'Em funcionamento'. Source key: `SITUACAOESCOLA`."
+          - name: ciclo
+            description: "Ciclo de ensino (label). Source key: `CICLO`."
+          - name: codigo_ciclo
+            description: "Ciclo de ensino (código). Source key: `CICLO_COD`."
+          - name: dgeec_code
+            description: "Código DGEEC — frequentemente duplica codigo_escola (CODESCME) mas mantido em separado para diagnóstico de drift. Source key: `DGEEC`."
+          - name: flag_extinguir
+            description: "Flag de escola em processo de extinção. Source key: `ESCOLA_EXTINGUIR`."
+          # --- Contacto ---
+          - name: fax
+            description: "Fax (frequentemente NULL ou vazio). Source key: `FAX`."
+          - name: url
+            description: "URL institucional. Source key: `URL`."
+          - name: email
+            description: "Email institucional. Source key: `EMAIL`."
+          - name: telefone
+            description: "Telefone. Source key: `TELEFONE`."
+          # --- Geometria (PostGIS dual-CRS per ADR 2026-05-10) ---
+          - name: geom
+            description: "Geometria do ponto da escola em EPSG:4326 (display + joins). NULL para ~14% das escolas na sondagem 2026-06-06."
+          - name: geom_pt
+            description: "Mesma geometria em EPSG:3763 (PT-TM06) para cálculos de distância/área em metros. ST_Transform aplicado no loader."
+
+      - name: raw_dgeec_ens_sup
+        data_tests:
+          # PK is (run_date, codigo_unidade_organica). The shapefile's grain
+          # is UO (faculdade-level), 321 unique UO codes / 321 rows verified
+          # 2026-06-07. DGEEC's "Estabelecimento" terminology here means the
+          # parent institution (Universidade, Politécnico), NOT a building —
+          # so `Código do Estabelecimento` is non-unique (101 distinct values)
+          # and is stored as `codigo_instituicao` (deliberately renamed from
+          # the DGEEC label to avoid confusion with rede_escolar.codigo_escola).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [run_date, codigo_unidade_organica]
+        description: >
+          DGEEC Estabelecimentos do Ensino Superior — higher-ed (universidade
+          + politécnico + militar) register, one row per Unidade Orgânica per
+          snapshot. 321 UOs across continente + Açores + Madeira, point
+          geometry in EPSG:4326 + EPSG:3763 (per the dual-CRS storage ADR).
+          DBF field names (10-char truncated by the shapefile format) renamed
+          to readable Portuguese snake_case at bronze. Source ZIP downloaded
+          from DGTerritorio ATOM mirror (CC BY 4.0), stored intact in MinIO
+          and re-extracted on bronze load. Loaded by dgeec_ens_sup_bronze_load
+          from MinIO snapshots written by dgeec_ens_sup_ingestion. 0/321 NULL
+          geometry in the 2026-06-07 probe — significantly cleaner than
+          rede_escolar's ~10% gap.
+        columns:
+          # --- Partition keys / audit ---
+          - name: run_date
+            description: "Snapshot partition. Promoted from the MinIO path raw/dgeec_ens_sup/{run_date}/."
+            tests: [not_null]
+          - name: codigo_unidade_organica
+            description: >
+              DGEEC 4-digit Código da Unidade Orgânica (faculdade-level),
+              zero-padded as text ('0100' .. '7730'). Natural PK. DGES join key
+              for the higher-ed acesso/colocações rankings. DBF source field
+              `Código da` (full label: 'Código da Unidade Orgânica').
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Identity ---
+          - name: codigo_instituicao
+            description: >
+              DGEEC 4-digit parent-institution code, zero-padded text. NON-UNIQUE
+              by design (101 distinct values across 321 UOs) — a Universidade
+              owns many UOs. Renamed from the DBF source label `Código do`
+              (full: 'Código do Estabelecimento') because DGEEC's
+              'estabelecimento' here means the parent institution, not a
+              physical building.
+          - name: instituicao_nome
+            description: "Nome da instituição-mãe (e.g. 'Universidade dos Açores'). DBF source: `Estabeleci`."
+          - name: unidade_organica_nome
+            description: "Nome completo da Unidade Orgânica (faculdade/escola/instituto). DBF source: `Unidade Or`."
+          # --- Categorisation ---
+          - name: natureza_tipo
+            description: >
+              Combinação natureza × tipo armazenada verbatim. 6 valores observados:
+              'Ensino Superior {Público|Privado} - {Universitário|Politécnico}',
+              mais 'Ensino Superior Público - Militar e Policial {Universitário|Politécnico}'.
+              Silver pode dividir em (natureza, tipo). DBF source: `Natureza e`
+              (full label: 'Natureza e Tipo').
+          # --- Web/contact ---
+          - name: website
+            description: "URL institucional. DBF source: `Website`."
+          - name: email
+            description: "Email institucional. DBF source: `Email`."
+          - name: telefone
+            description: "Telefone principal. DBF source: `Telefone`."
+          - name: outro_telefone
+            description: "Telefone secundário. DBF source: `Outro tele` (full: 'Outro telefone')."
+          - name: fax
+            description: "Fax (frequentemente igual ao telefone principal). DBF source: `Fax`."
+          # --- Endereço ---
+          - name: morada
+            description: "Rua / arruamento. DBF source: `Morada`."
+          - name: codigo_postal
+            description: "Código postal + localidade concatenados, ex. '9501-801 PONTA DELGADA'. DBF source: `Código Po`."
+          - name: distrito
+            description: >
+              Distrito ou ilha (e.g. 'Lisboa', 'Ilha de São Miguel', 'Ilha Terceira').
+              Inclui rótulos de ilha — silver normaliza para a chave CAOP. DBF source: `Distrito`.
+          - name: concelho
+            description: "Nome do concelho. DBF source: `Concelho`."
+          # --- Coordinates ---
+          - name: latitude
+            description: "Latitude WGS84. Mantido junto a geom para spot-checks. DBF source: `Latitude`."
+          - name: longitude
+            description: "Longitude WGS84. Mantido junto a geom para spot-checks. DBF source: `Longitude`."
+          # --- Geometria (PostGIS dual-CRS per ADR 2026-05-10) ---
+          - name: geom
+            description: "Ponto da Unidade Orgânica em EPSG:4326 (display + joins). 0 NULL na sondagem 2026-06-07."
+          - name: geom_pt
+            description: "Mesma geometria em EPSG:3763 (PT-TM06) para distância/área em metros. ST_Transform aplicado no loader."
+
+      - name: raw_dges_acesso
+        data_tests:
+          # PK is (year, phase, codigo_instit, codigo_curso). Verified
+          # 1132/1132 unique per phase in 2025 probe. Older years (2014-2018)
+          # have similar shape but ~1100 rows; younger years can grow.
+          # codigo_curso can contain letters ('L184' for some Música variants).
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [year, phase, codigo_instit, codigo_curso]
+        description: >
+          DGES Concurso Nacional de Acesso — per-(year, phase, curso/instituição)
+          colocações results. 12 years × 3 phases = 36 source files (2014–2025),
+          ~1100 rows per file = ~40k bronze rows total. Mixed source formats:
+          ~8 .xlsx + ~19 .xls + ~9 .ods, parsed by the bronze loader via
+          openpyxl/xlrd/odfpy with engine routed by URL extension. Column labels
+          drift across phases (F1 has "Nota do últ. colocado (cont. geral)",
+          F2/F3 drop "(cont. geral)"; "Sobras para 2ª fase" becomes "Vagas
+          Sobrantes") and across years (2022 F1 has an extra "Vaga adic. (vagas
+          autónomas)" column); SOURCE_LABEL_TO_COLUMN collapses synonyms to
+          canonical names. Schema is the superset across all phases; columns
+          absent in a phase are NULL. codigo_instit joins to
+          raw_dgeec_ens_sup.codigo_unidade_organica at 95.3% match (162/170 of
+          DGES codes are subset of DGEEC's 321 UOs). NOT INGESTED: the
+          "reference card" XLSX family (dges_vagascna_nota_ult_colocado_...)
+          which duplicates this data with a publish-date-axis ambiguity. See
+          [[dges-acesso]] in the wiki.
+        columns:
+          # --- Partition keys / audit ---
+          - name: year
+            description: "Edition year (2014..2025). Promoted from the MinIO path raw/dges_acesso/{year}/."
+            tests: [not_null]
+          - name: phase
+            description: "Fase do CNA: 1, 2, or 3. Promoted from the MinIO path fase_{phase}/."
+            tests:
+              - not_null
+              - accepted_values: {values: [1, 2, 3]}
+          - name: codigo_instit
+            description: >
+              DGES 4-digit institution/UO code (zero-padded text, '0100'..'7730').
+              Joins to dgeec_ens_sup.codigo_unidade_organica (95.3% match;
+              8 DGES codes have no DGEEC match — likely UOs added since
+              DGEEC's 2023-03-15 snapshot). Source label: 'Código Instit.'.
+            tests: [not_null]
+          - name: codigo_curso
+            description: >
+              DGES curso code, 2-5 chars alphanumeric ('9500', '8086', 'L184').
+              Stored as text — DO NOT cast to integer. Source label: 'Código Curso'.
+            tests: [not_null]
+          - name: source_loaded_at
+            description: "Wall-clock timestamp of the bronze upsert (DEFAULT now())."
+            tests: [not_null]
+          # --- Identity ---
+          - name: nome_instituicao
+            description: "Nome da instituição/UO (e.g. 'Universidade dos Açores - Faculdade de Ciências Agrárias e do Ambiente'). Source label: 'Nome da Instituição'."
+          - name: nome_curso
+            description: "Nome do curso (e.g. 'Medicina Veterinária (Preparatórios)'). Source label: 'Nome do Curso'."
+          - name: grau
+            description: "Grau (curto): 'L1' (Licenciatura), 'PM' (Mestrado Integrado), etc. Source label: 'Grau'."
+          # --- Vagas ---
+          - name: vagas_iniciais
+            description: "Vagas iniciais publicadas para esta fase. Source labels: 'Vagas Iniciais' (F1/F2/older), 'Vagas Iniciais 3F' (F3 2025+)."
+          - name: vagas_recolocacao
+            description: "Vagas resultantes de recolocação (F2/F3 apenas; NULL em F1). Source label: 'Vagas de recolocação'."
+          # --- Colocados ---
+          - name: colocados
+            description: "Número de candidatos colocados nesta fase. Source label: 'Colocados'."
+          - name: colocados_desemp
+            description: "Colocados via desempate. Presente em todas as fases pós-2018. NULL em 2018 e anteriores. Source label: 'Colocados (desemp.)'."
+          - name: colocados_sem_class
+            description: "Colocados sem classificação final (regimes especiais). Pós-2018. Source label: 'Colocados (sem class. final)'."
+          # --- Vaga adicional (varia por fase/ano) ---
+          - name: vaga_adic_sem_class
+            description: "Vaga adicional sem classificação final. Source label: 'Vaga adic. (sem class. final)'."
+          - name: vaga_adic_autonomas
+            description: "Vaga adicional 'vagas autónomas'. Observado apenas em F1-2022. NULL nos restantes. Source label: 'Vaga adic. (vagas autónomas)'."
+          - name: vaga_adic_alineas_c_e
+            description: "Vaga adicional alíneas c) e e) do artº 10º. F2 apenas. Source label: 'Vaga adic. (alíneas c) e e) do artº 10º)'."
+          # --- Nota (sinal principal) ---
+          - name: nota_ult_colocado
+            description: >
+              Nota do último colocado, contingente geral, escala 0-200. NULL
+              quando colocados=0 (curso ficou com vagas por preencher) ou quando
+              a amostra é insuficiente. Source labels colapsam: 'Nota do últ.
+              colocado (cont. geral)' (F1/anos antigos) + 'Nota do últ. colocado'
+              (F2/F3) → mesma coluna.
+          # --- Sobras / vagas sobrantes (concept rename across phases) ---
+          - name: vagas_sobrantes
+            description: >
+              Vagas que sobraram desta fase para a seguinte. Source labels
+              colapsam: 'Sobras para 2ª fase' (F1), 'Vagas Sobrantes' (F2/F3),
+              'Sobras para2ª fase' (2018 .ods typo) → mesma coluna canónica.
+          # --- F3-only sobras-of-prior-phase accounting ---
+          - name: sobras_2f
+            description: "Sobras vindas da 2ª fase (F3 apenas). Source label: 'Sobras 2F'."
+          - name: nao_matric_2f
+            description: "Colocados em 2ª fase que não se matricularam (F3 apenas). Source label: 'Não Matric 2F'."
+          - name: nao_matric_2f_sem_class
+            description: "Não-matriculados 2F sem classificação final (F3 apenas). Source label: 'Não Matric 2F (sem class. final)'."
+          - name: sobras_retiradas
+            description: "Sobras retiradas (F3 apenas). Source label: 'Sobras Retiradas'."
