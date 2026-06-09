@@ -256,4 +256,6 @@ class TestFloatColumnHints:
 
     def test_developments_float_columns_complete(self):
         for col in self._REQUIRED:
-            assert col in DEVELOPMENTS_FLOAT_COLUMNS, f"{col} missing from DEVELOPMENTS_FLOAT_COLUMNS"
+            assert col in DEVELOPMENTS_FLOAT_COLUMNS, (
+                f"{col} missing from DEVELOPMENTS_FLOAT_COLUMNS"
+            )
