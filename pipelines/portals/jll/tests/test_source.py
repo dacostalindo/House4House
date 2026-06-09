@@ -14,8 +14,10 @@ from __future__ import annotations
 import pytest
 
 from pipelines.portals.jll.source import (
+    DEVELOPMENTS_FLOAT_COLUMNS,
     DEVELOPMENTS_JSON_COLUMNS,
     DEVELOPMENTS_VERSION_COLUMNS,
+    LISTINGS_FLOAT_COLUMNS,
     LISTINGS_JSON_COLUMNS,
     LISTINGS_VERSION_COLUMNS,
     _canonicalize,
@@ -240,3 +242,20 @@ class TestVersionColumnLists:
     def test_price_range_in_developments(self):
         assert "min_property_formatted_price" in DEVELOPMENTS_VERSION_COLUMNS
         assert "max_property_formatted_price" in DEVELOPMENTS_VERSION_COLUMNS
+
+
+class TestFloatColumnHints:
+    # Every nullable numeric known to flip int/float across eGO rows must be
+    # pre-typed as double. Regression guard for the 2026-06-04 land_area
+    # contract-freeze failure on listing_id 24224350.
+    _REQUIRED = ("price_value", "gross_area", "net_area", "land_area", "gps_lat", "gps_lon")
+
+    def test_listings_float_columns_complete(self):
+        for col in self._REQUIRED:
+            assert col in LISTINGS_FLOAT_COLUMNS, f"{col} missing from LISTINGS_FLOAT_COLUMNS"
+
+    def test_developments_float_columns_complete(self):
+        for col in self._REQUIRED:
+            assert col in DEVELOPMENTS_FLOAT_COLUMNS, (
+                f"{col} missing from DEVELOPMENTS_FLOAT_COLUMNS"
+            )

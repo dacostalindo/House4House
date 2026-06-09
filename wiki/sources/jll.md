@@ -1,7 +1,7 @@
 ---
 title: JLL Residential PT
 type: source
-last_verified: 2026-05-08
+last_verified: 2026-06-09
 tags: [portal, real-estate, dlt, scd2]
 priority: P1
 ---
@@ -35,6 +35,7 @@ Two SCD2 fact tables + per-entity heartbeat sidecars (per [[heartbeat-sidecar]])
 - **Validation bands**: post-load checks assert `listings_current` ∈ [1000, 30000] and `developments_current` ∈ [50, 500]. Outside bands → fail. Catches both upstream collapses (empty response) and runaway duplicates.
 - **Audit copy**: best-effort raw JSON copy to MinIO under `audit/jll/<date>/` runs as a separate task; failure is non-blocking (load_facts continues on its own dlt-managed fetch).
 - **Three-task DAG topology**: `audit_to_minio` (best-effort) → `load_facts` (hard-fail SCD2 merge) → `validate_facts` (band checks).
+- **Polymorphic numerics must be pre-typed on BOTH resources**: eGO returns `price_value`, `gross_area`, `net_area`, `land_area`, `gps_lat`, `gps_lon` as int OR float across rows. All six must be in `LISTINGS_FLOAT_COLUMNS` AND `DEVELOPMENTS_FLOAT_COLUMNS` as `data_type=double`. The 2026-06-04 run failed because `land_area` was missing from the listings tuple (the `e7e2348` commit message claimed it was there; only the plots resource — later deleted in `420ff8d` — actually had it). Fixed 2026-06-09; regression test in `TestFloatColumnHints`.
 - **Origin agency/agent fields collapsed into JSONB** (per recent refactor `5906fa1`): nested agency/agent objects were originally flattened into many top-level columns by dlt's auto-resolve. The collapse to single JSONB columns simplifies staging (one `properties->>'name'` extract per field) and decouples bronze schema from upstream's nested-object drift.
 
 ## Last verified

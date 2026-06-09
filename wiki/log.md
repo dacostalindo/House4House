@@ -2002,194 +2002,30 @@ DICOFRE for island schools; v1 fallback is leave NULL).
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
 RESOLVED in §9).
+## [2026-06-09] fix | [[jll]] land_area schema-contract freeze (2026-06-04 run failure)
 
-## [2026-06-09] gold | Phase 2 PR-E — dim_school canonical dim (Open Q #5 resolved)
+The 2026-06-04 scheduled JLL run failed at `load_facts` with a
+`NormalizeJobFailed`: `land_area__v_double` couldn't be added on
+`jll_listings` because the column was frozen as bigint from row 1 of
+the 2026-05-01 first run. Offending row: `listing_id 24224350`.
 
-Built the canonical gold dim for every Portuguese school across all 5
-levels (KG → universidade). The keystone for the upcoming
-[[listing-school-features]] mart. Resolves Open Q #5 (planning §9):
-single-table design with `school_type` discriminator + `codigo_dgeec`
-text PK accepting both 4-digit higher-ed UO codes and 6-digit
-basic/sec CODESCME codes.
+Root cause: `LISTINGS_FLOAT_COLUMNS` in [pipelines/portals/jll/source.py](../pipelines/portals/jll/source.py)
+omitted `land_area`. The `e7e2348` commit message claimed it was added
+to the listings hints, but the code only added it to the plots resource
+(later deleted by `420ff8d`). Same bug class as `e7e2348`.
 
-**Why single table over split tables** (Option A from the Open Q #5
-fork):
-- Most consumer queries ("schools near this property") are
-  level-agnostic — a single join to one table is trivial. Per-level
-  filtering becomes a `WHERE school_type = 'higher_ed'` or
-  `WHERE tipologia LIKE '%Secundária%'` clause.
-- The two code spaces are **disjoint by length** (4 vs 6 digits, 0
-  collisions verified empirically across 7,796 + 321 = 8,117 schools),
-  so a single PK column is safe.
-- Per-school business semantics remain pure: basic_sec rows still use
-  the 6-digit codigo_escola (CODESCME); higher_ed rows still use the
-  4-digit codigo_unidade_organica. Only the *physical* PK column name
-  is shared.
+Fix: added `land_area` to `LISTINGS_FLOAT_COLUMNS`. Rebuilt
+`DEVELOPMENTS_FLOAT_COLUMNS` as a full mirror (price_value, gross_area,
+net_area, land_area, gps_lat, gps_lon) so the same gap can't recur on
+the developments resource. Regression test added in
+`TestFloatColumnHints` to assert every polymorphic numeric is in both
+tuples.
 
-**Why dual ranking columns** (sec/9ano/higher_ed as 3 separate column
-families rather than one canonical `ranking_score`): 570 of the 7,796
-basic_sec schools have BOTH a 9ano AND a sec ranking (escolas básicas
-e secundárias serve both 3º ciclo + secundário cohorts). Collapsing
-to one column would lose information for these schools. The planning
-§4.1 "Lean 11+2" schema hint anticipated a single ranking_score but
-the empirics demanded three.
+State reset: dropped `bronze_listings.jll_{listings,developments,
+listings_state,developments_state}` and cleared
+`/opt/airflow/dlt_state/jll/`. Manual rerun produced 7541 listings
+(up from 7455 current) and 171 developments (up from 169 current);
+both inside validation bands. SCD2 history reset to a new baseline.
 
-**Per-school dedup**: when multiple Público eids map to the same
-DGEEC codigo_escola (e.g. "Colégio Novo da Maia" has eid 800394 in
-2024 + eid 913006 from a 2019 vintage, both bridging to codigo_escola
-800394 via xref_publico_dgeec), pick the best ranking with
-`DISTINCT ON (codigo_dgeec)` ordered by (match_confidence,
-ranking_year DESC). Without dedup the gold PK would duplicate (63
-duplicates surfaced on first build — fixed before merge).
-
-**Live verification** on the warehouse:
-
-| school_type | rows | with_sec | with_9ano | with_higher_ed | with_both |
-|---|---|---|---|---|---|
-| basic_sec | 7,796 | 629 | 1,180 | — | 570 |
-| higher_ed | 321 | — | — | 168 | — |
-| **Total** | **8,117** | | | | |
-
-- `dbt run --select dim_school` → 1 model built.
-- `dbt test --select dim_school` → **7/7 PASS** (unique + not_null ×
-  codigo_dgeec; not_null + accepted_values × school_type; not_null ×
-  nome; not_null × geom_3763 + geom_4326).
-
-Spot-checks against well-known top schools:
-- Colégio Novo da Maia (Maia, 800394) — basic_sec, sec 15.06, 9ano
-  4.51, both `high` confidence.
-- Colégio Militar (Lisboa, 800388) — basic_sec, sec 13.01, 9ano 3.48,
-  both `high`.
-- Universidade do Porto - Faculdade de Medicina (1108) — higher_ed,
-  vagas-weighted nota último colocado 184.57 (2025 fase 1).
-- Universidade de Coimbra FM (0506) — higher_ed, 178.79.
-- Universidade de Lisboa FM (1507) — higher_ed, 177.18.
-
-The top-tier medicine schools surface correctly in the higher-ed
-ranking layer; the top-tier privados (Colégio Novo da Maia, Colégio
-Militar) carry both 3º ciclo + secundário rankings as expected.
-
-**Higher-ed coverage gap (168/321 = 52%)**: only 168 of the 321 UOs
-have a higher-ed ranking. The 153 unranked UOs are mostly privates +
-militar/policial institutions that use concursos próprios, not the
-concurso nacional. This is **intentional** per [[dges-acesso]]
-planning §3.3 (DGES tracks ~170 UOs in CNA; the gap = privates).
-
-**Phase 2 dashboard state after PR-E**:
-- ✅ silver_publico_rankings_{sec,9ano} (PR-C)
-- ✅ xref_publico_dgeec (PR-D)
-- ✅ dim_school (this PR)
-- 🔲 listing_school_features (next — the end goal)
-- 🔲 Per-level views (schools_kg / schools_sec / schools_higher_ed)
-  if downstream needs them; for now a WHERE clause suffices.
-
-**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
-(Phase 2 dashboard — flip dim_school ✅; flip Open Q #5 to ✅
-RESOLVED in §9).
-
-## [2026-06-09] gold | dim_school refactor + fact_school_ranking (PR-E commit 2)
-
-Post-build review caught four data-modelling issues:
-
-1. **`instituicao_nome` was 100% redundant** — 321/321 of `nome`
-   (e.g. "Universidade do Porto - Faculdade de Medicina") starts with
-   `instituicao_nome` (e.g. "Universidade do Porto"). Dropped.
-
-2. **`natureza` vocabularies didn't align** across school_types —
-   basic_sec uses MEC's "Redes dos ministérios" / "Particular" / "IPSS
-   ou equiparada" / "Misericórdia de Lisboa"; higher_ed uses CNA's
-   "Ensino Superior {Público|Privado} - {Universitário|Politécnico}".
-   Added harmonized `natureza_publico_privado` ('Pública' / 'Privada'
-   / NULL). Distribution: 5,562 Pública + 2,298 Privada + 257 NULL.
-
-3. **820 tipologias are empty in the source** — these are mostly
-   Pré-escolar (497), Especial (34), Extra-escolar (77), and 31 other
-   small categories. Tipologia is empty but `ciclo` is populated.
-   Added level flags `has_kg`, `has_basic_1..3`, `has_sec`,
-   `has_higher_ed` parsed from `ciclo` (semicolon-separated). 648
-   schools have no level flag at all — they're real Extra-escolar /
-   Especial / Profissional centers that don't fit the standard 5-level
-   taxonomy; downstream consumers can identify them via
-   `WHERE NOT (has_kg OR ...)` if needed.
-
-4. **All-years ranking data wasn't visible** — sec has 7 years
-   (2018-2024), 9ano 5 years (COVID gap), higher_ed 12 × 3 phases.
-   Latest-only ranking columns in dim_school silently dropped 90%+ of
-   the data. Per Kimball, moved to sibling `fact_school_ranking` mart
-   (one row per codigo_dgeec × kind × year × phase, 15,716 rows total).
-   `dim_school` keeps geometry + identity + harmonized categorisation
-   only — strictly a current-snapshot dim.
-
-**Final pillar split** (post-refactor):
-- `dim_school` (8,117 rows): identity + geometry + level flags +
-  harmonized natureza + xref provenance. Trimmed to ~24 columns.
-- `fact_school_ranking` (15,716 rows): the time series across all
-  3 ranking kinds. Joins to dim_school via codigo_dgeec.
-
-**Spot-check time series for Colégio Novo da Maia** (codigo 800394):
-
-| kind | year | score | position |
-|---|---|---|---|
-| 9ano | 2018 | 4.16 | 11 |
-| 9ano | 2019 | 4.09 | 13 |
-| 9ano | 2022 | 4.17 | 6 |
-| 9ano | 2023 | 4.43 | 1 |
-| 9ano | 2024 | 4.51 | 1 |
-| sec | 2018 | 12.98 | 22 |
-| sec | 2024 | 15.06 | 18 |
-
-This trend was completely invisible in the v1 dim — now consumers
-can compute YoY deltas, rolling averages, percentile movement, etc.
-
-**Verification**:
-- `dbt run dim_school fact_school_ranking` → 2/2 built.
-- `dbt test` over both → **19/19 PASS** (unique + not_null + accepted_values
-  on both; unique combination on fact PK).
-
-**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
-(Phase 2 dashboard — add fact_school_ranking ✅).
-
-## [2026-06-09] gold | dim_school natureza_tipo decomposition (PR-E commit 3)
-
-Second review pass: the higher-ed-only `natureza_tipo` column was a
-concatenation of three concepts that the dim already had columns for.
-Decomposed into the existing `tipologia` + `ciclo` + `natureza`
-columns so the schema is now uniform across both school_types (no
-higher-ed-only columns).
-
-**Routing**:
-- `tipologia` ← 'Universidade' / 'Politécnico' / 'Militar e Policial
-  Universitário' / 'Militar e Policial Politécnico' (was the suffix
-  of natureza_tipo). Subsumes the previous `higher_ed_type` column.
-- `ciclo`     ← 'Ensino Superior' (constant for higher_ed; parallel
-  to basic_sec's "Pré-escolar;1º Ciclo" etc.)
-- `natureza`  ← 'Ensino Superior Público' / 'Ensino Superior Privado'
-  (was the prefix of natureza_tipo). basic_sec keeps its raw natureza
-  vocabulary ('Redes dos ministérios', 'Particular', etc.).
-
-**Dropped columns** (now redundant): `natureza_tipo`, `higher_ed_type`.
-
-`natureza_publico_privado` stays as the cross-source harmonized column
-('Pública' / 'Privada' / NULL).
-
-Distribution after decomposition (321 higher_ed rows):
-
-| tipologia | natureza | count |
-|---|---|---|
-| Universidade | Ensino Superior Público | 87 |
-| Universidade | Ensino Superior Privado | 46 |
-| Politécnico | Ensino Superior Público | 118 |
-| Politécnico | Ensino Superior Privado | 64 |
-| Militar e Policial Universitário | Ensino Superior Público | 5 |
-| Militar e Policial Politécnico | Ensino Superior Público | 1 |
-
-Verification:
-- `dbt run dim_school` → built (8,117 rows unchanged).
-- `dbt test dim_school` → **14/14 PASS**.
-
-Net column delta on dim_school: -2 (dropped natureza_tipo +
-higher_ed_type), reducing the schema to a cleaner ~22-column
-single-table-shape dim where every column is meaningful for both
-school_types.
-
-**Pages touched**: [[log]] (this entry).
+**Pages touched**: [[log]] (this entry), [[jll]] (Quirks: land_area gap
+added).
