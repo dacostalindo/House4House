@@ -82,10 +82,12 @@ Sibling reference pages (read these alongside, NOT instead):
 - [x] `silver_dges_acesso_curso.sql` (NEW) — per-curso sibling to `silver_dges_acesso_uo`, keeps `nome_curso` + `nome_instituicao` + `grau`; 38,922 rows ✅ (PR-A 2026-06-09)
 - [x] `silver_dges_acesso_uo` CTE swap — inline `dgeec_latest_run` CTE replaced with `ref('stg_dgeec_ens_sup')` ✅ (PR-A 2026-06-09)
 
-### Phase 2 — gold marts
+### Phase 2 — gold marts (started 2026-06-09)
 
-- [ ] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` PK
-- [ ] `xref_publico_dgeec` — bridge table (sec fuzzy join, 9ano direct)
+- [x] `silver_publico_rankings_sec` — latest-year-per-school rollup, 661 schools, 0-20 score ✅ (PR-C 2026-06-09)
+- [x] `silver_publico_rankings_9ano` — latest-year-per-school rollup, 1,313 schools, 0-5 score ✅ (PR-C 2026-06-09)
+- [ ] `xref_publico_dgeec` — bridge table (sec fuzzy join, 9ano direct) — gated on Open Q #2
+- [ ] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` PK — gated on Open Qs #2 + #5
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
 - [ ] `listing_school_features` — per-listing nearest-school + best-score features
 

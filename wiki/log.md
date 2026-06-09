@@ -1806,3 +1806,52 @@ thresholds via 5 manual lookups) to be resolved first.
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 1 dashboard — flip both Público stagings ✅; close Phase 1
 staging tier banner).
+
+## [2026-06-09] silver | Phase 2 PR-C — silver_publico_rankings_sec + silver_publico_rankings_9ano (latest-year-per-school rollup)
+
+First Phase 2 increment for the [[pt-education-amenity-pillar]]. Two
+sibling silver models — latest-year-per-school rollup of the Público
+sec + 9ano stagings, mirroring the silver_dges_acesso_{uo,curso} sibling
+pattern (different scales, different column sets → separate tables to
+prevent cross-kind aggregation mistakes downstream).
+
+**Per pillar decision #3** (planning §2): "Per-school média total
+exames nacionais, latest year only (v1)." Implemented with
+`row_number() over (partition by eid order by year desc)` keep-only-rn=1.
+Schools that haven't appeared since 2019 still surface with
+`ranking_year=2019`; consumers wanting fresh-only filter on
+`ranking_year` themselves.
+
+**New models** (live-verified):
+- `silver_publico_rankings_sec` — 661 unique schools (0 dupes), years
+  2018-2024, 624 schools (94%) have a 2024 ranking, avg ranking_score
+  11.50/20. Top-5 2024 ranks 1-5 sequential as expected. All staging
+  columns preserved; `media_total_exames` renamed to `ranking_score`
+  per planning §4.1 lean-gold-schema convention.
+- `silver_publico_rankings_9ano` — 1,313 unique schools, years
+  2018-2019 + 2022-2024 (COVID gap matches source), 1,158 schools (88%)
+  have a 2024 ranking, avg ranking_score 2.94/5. `codigo_uo_dgeec`
+  passthrough preserved for the future xref_publico_dgeec bridge.
+
+**Eid mutual exclusion verified**: empirically 0 eids appear in both
+sec and 9ano (Público assigns separate eids based on cohort tested).
+This locked the "two sibling silvers" design choice over a unified
+table — there's literally no eid that would benefit from being in both.
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select silver_publico_rankings_sec silver_publico_rankings_9ano`
+  → 2/2 success.
+- `dbt test` over the same 2 → **10/10 PASS** (not_null × PK + not_null
+  × ranking_year + not_null × dual-CRS geoms + unique × eid for both).
+
+**Phase 2 prerequisites still pending**:
+- Open Q #1 (CAOP-Açores/Madeira sourcing) — blocks adding DICOFRE to
+  silver_publico_rankings via CAOP spatial join (sec-side, since sec
+  has no codigo_uo_dgeec passthrough).
+- Open Q #2 (Público↔DGEEC bridge thresholds) — gates
+  `xref_publico_dgeec` (the bridge table) and the gold `dim_school`.
+- Open Q #5 (`dim_school` PK strategy) — discriminator col vs split
+  tables for 6-digit basic/sec vs 4-digit higher-ed.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — add `silver_publico_rankings_{sec,9ano}` ✅).
