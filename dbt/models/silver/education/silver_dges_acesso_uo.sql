@@ -9,29 +9,11 @@
 -- are excluded from BOTH numerator (sum(vagas*nota)) and denominator
 -- (sum(vagas)) — pure weighted mean over cursos with actual placements.
 --
--- LEFT JOIN to the latest dgeec_ens_sup snapshot. ~5% of DGES codes are not
--- in DGEEC (UOs added since DGEEC's 2023-03-15 snapshot); those rows surface
--- as unmatched_uo=true with NULL codigo_unidade_organica. There is no
--- stg_dgeec_ens_sup yet — we inline the "latest run_date" filter here as a
--- CTE.
+-- LEFT JOIN to stg_dgeec_ens_sup (latest snapshot). ~5% of DGES codes are
+-- not in DGEEC (UOs added since DGEEC's snapshot); those rows surface as
+-- unmatched_uo=true with NULL codigo_unidade_organica.
 
-with dgeec_latest_run as (
-    select max(run_date) as run_date
-    from {{ source('bronze_education', 'raw_dgeec_ens_sup') }}
-),
-
-dgeec_uo as (
-    select
-        d.codigo_unidade_organica,
-        d.unidade_organica_nome,
-        d.codigo_instituicao,
-        d.instituicao_nome,
-        d.natureza_tipo
-    from {{ source('bronze_education', 'raw_dgeec_ens_sup') }} d
-    join dgeec_latest_run r on r.run_date = d.run_date
-),
-
-per_uo_phase as (
+with per_uo_phase as (
     select
         codigo_instit,
         year,
@@ -65,5 +47,5 @@ select
     u.natureza_tipo,
     (u.codigo_unidade_organica is null) as unmatched_uo
 from per_uo_phase p
-left join dgeec_uo u
+left join {{ ref('stg_dgeec_ens_sup') }} u
     on u.codigo_unidade_organica = p.codigo_instit

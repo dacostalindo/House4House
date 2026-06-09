@@ -1677,3 +1677,60 @@ in-image `python -c "import …"` check. Future deps additions must include
 `uv lock` in the same commit.
 
 **Pages touched**: [[log]] (this entry).
+
+## [2026-06-09] silver | Phase 1 PR-A — stg_dgeec_ens_sup + stg_rede_escolar + silver_dges_acesso_curso + CTE swap
+
+First half of Phase 1 silver promotions for the [[pt-education-amenity-pillar]].
+Two new staging models + one new silver model + the CTE-swap that this
+unblocks. PR-B will cover the two Público stagings once Open Qs #1 (CAOP-
+Açores/Madeira sourcing) and #2 (Público↔DGEEC fuzzy-join thresholds) are
+resolved.
+
+**New models** (live-verified against the warehouse):
+- `stg_dgeec_ens_sup` — typed view over `raw_dgeec_ens_sup` filtered to
+  `max(run_date)`. 321 rows, 321 unique UOs, 0 NULL geoms. Dual-CRS
+  exposed as `geom_4326` (display) + `geom_3763` (PT-TM06 for metric
+  distance) per [[2026-05-10-dual-crs-storage]].
+- `stg_rede_escolar` — typed view over `raw_rede_escolar`, filtered to
+  (a) `max(run_date)`, (b) `situacao_escola = 'Em funcionamento'`,
+  (c) `flag_extinguir != 'S'`, (d) `geom is not null`. ~14% of bronze
+  rows have NULL geom (tail-page ArcGIS pagination artifact) and are
+  dropped at staging so `not_null(geom_3763)` stays green. Trimmed to
+  ~17 canonical columns; ArcGIS-internal + low-signal contact fields
+  dropped (still accessible in bronze).
+- `silver_dges_acesso_curso` — sibling to [[silver-dges-acesso-uo]] at
+  per-curso grain `(codigo_unidade_organica, year, phase, codigo_curso)`.
+  Keeps `nome_curso` + `nome_instituicao` + `grau` that the UO rollup
+  drops (multi-valued under UO). 38,922 rows (1:1 with bronze grain).
+  LEFT JOIN to `stg_dgeec_ens_sup`; `unmatched_uo` flag carries the same
+  drift-sentinel semantics as the UO silver.
+
+**Pillar convention locked**: staging filters to `max(run_date)`. The
+rede_escolar + dgeec_ens_sup sources are point-in-time registers, not
+trend data, so latest-only at the staging tier is what every downstream
+consumer wants. Historical snapshots remain accessible in bronze. This
+is the first time the pillar made a deliberate run_date-scope decision
+at the staging tier — set as precedent for the upcoming Público
+stagings and any future run_date-keyed bronze.
+
+**CTE swap** in `silver_dges_acesso_uo`: the inline
+`dgeec_latest_run` CTE that was a tactical workaround pre-staging is
+now replaced with `ref('stg_dgeec_ens_sup')`. The TODO hint was
+trimmed in PR #58; now resolved. Verified the model still produces the
+same 5,889 rows + identical top-N medicine UOs (Univ. Porto 184.6,
+Coimbra 178.8, Lisboa 177.2) as the previous chat's verification.
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select stg_dgeec_ens_sup stg_rede_escolar silver_dges_acesso_curso silver_dges_acesso_uo` → 4/4 success in 1.02s
+- `dbt test` over the same 4 → 21/21 PASS (not_null × PK + not_null × dual-CRS geoms + unique × PK + unique combination on curso silver)
+- Spot-check top-8 Medicina (2025 F1) ordered by `nota_ult_colocado` desc returned Porto-FMUP (185.3, 275 vagas), Porto-ICBAS (184.7, 155 vagas), UMinho (183.5), UAveiro (182.8), Nova-FCM (180.3), Coimbra (179.0), Lisboa-FM (178.7), Porto-FMD (178.3 — Medicina Dentária). All with `unmatched_uo = false`, all 3 denormalised name columns populated.
+
+**Test surface** (per L9 lock): unique PK + not_null on PK and dual-CRS
+geoms for both stagings; unique combination + not_null on PK columns +
+not_null on `unmatched_uo` for `silver_dges_acesso_curso`. Standard
+shape; matches the bronze YAML uniqueness tests hardened against the
+latest-only staging filter.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 1 dashboard — flip stg_dgeec_ens_sup + stg_rede_escolar + new
+silver_dges_acesso_curso row to ✅ shipped).
