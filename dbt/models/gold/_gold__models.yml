@@ -66,11 +66,8 @@ models:
       CODESCME codes (disjoint by length, 0 collisions). Resolves
       [[pt-education-amenity-pillar]] Open Q #5. UNION ALL of
       stg_rede_escolar (~7,796 schools) + stg_dgeec_ens_sup (321 UOs).
-      Rankings exposed as 3 separate column families (sec / 9ano /
-      higher_ed) since ~570 schools have BOTH 9ano + sec rankings —
-      collapsing to one canonical ranking_score would lose info.
-      Higher-ed ranking from silver_dges_acesso_uo, latest year + fase 1
-      (most discriminating).
+      Time-series rankings live in sibling [[fact-school-ranking]] —
+      dim_school is a current-snapshot dim per Kimball.
     columns:
       - name: codigo_dgeec
         description: "DGEEC code — 6-digit CODESCME for basic_sec (e.g. '800394'); 4-digit codigo_unidade_organica for higher_ed (e.g. '0100'). Text, zero-padded. PK."
@@ -78,37 +75,95 @@ models:
           - not_null
           - unique
       - name: school_type
-        description: "Discriminator: 'basic_sec' (KG → secundário, from rede_escolar) or 'higher_ed' (UO from dgeec_ens_sup)."
+        description: "Discriminator: 'basic_sec' or 'higher_ed'."
         tests:
           - not_null
           - accepted_values: {values: ['basic_sec', 'higher_ed']}
       - name: nome
-        description: "School name (basic_sec) or Unidade Orgânica name (higher_ed). Trimmed."
+        description: "School name (basic_sec) or full Unidade Orgânica name including parent institution (higher_ed, e.g. 'Universidade do Porto - Faculdade de Medicina'). Trimmed."
         tests: [not_null]
       - name: tipologia
-        description: "rede_escolar tipologia — 'Escola Básica', 'Escola Básica e Secundária', 'Escola Secundária', 'Jardim de Infância', 'Escola Profissional', etc. NULL for higher_ed. Use this for fine-grained level filtering."
+        description: "rede_escolar tipologia — 'Escola Básica', 'Escola Básica e Secundária', etc. NULL for higher_ed AND for 820 basic_sec rows where source is empty (typically Pré-escolar/Especial/Extra-escolar; level info still derivable from `ciclo` and the `has_*` flags)."
       - name: ciclo
-        description: "rede_escolar ciclo label. NULL for higher_ed."
+        description: "rede_escolar ciclo label, semicolon-separated for multi-level schools (e.g. 'Pré-escolar;1º Ciclo'). NULL for higher_ed."
       - name: natureza
-        description: "'Pública' / 'Privada' (basic_sec). NULL for higher_ed — see natureza_tipo instead."
+        description: "Raw rede_escolar natureza_institucional ('Redes dos ministérios', 'Particular', 'IPSS ou equiparada', 'Misericórdia de Lisboa'). NULL for higher_ed — see natureza_tipo."
       - name: natureza_tipo
-        description: "Higher-ed combination 'Ensino Superior {Público|Privado} - {Universitário|Politécnico}'. NULL for basic_sec."
-      - name: ranking_sec_score
-        description: "Secundário ranking score (0-20 média total exames). NULL if school has no sec ranking. From silver_publico_rankings_sec via xref_publico_dgeec."
-      - name: ranking_9ano_score
-        description: "3º ciclo Provas Finais ranking score (0-5). NULL if no 9ano ranking. From silver_publico_rankings_9ano via xref_publico_dgeec."
-      - name: ranking_higher_ed_score
-        description: "Higher-ed vagas-weighted nota último colocado (0-200). NULL for basic_sec. From silver_dges_acesso_uo (latest year, fase 1)."
+        description: "Raw higher-ed combination 'Ensino Superior {Público|Privado} - {Universitário|Politécnico}' (+ Militar/Policial variants). NULL for basic_sec."
+      - name: natureza_publico_privado
+        description: "Harmonized 'Pública' / 'Privada' / NULL across both school_types. Derived from natureza (basic_sec: 'Redes dos ministérios'→Pública; Particular/IPSS/Misericórdia→Privada) and natureza_tipo (higher_ed: 'Ensino Superior Público%'→Pública, 'Ensino Superior Privado%'→Privada). Use this for school-type-agnostic filtering."
+        tests:
+          - accepted_values: {values: ['Pública', 'Privada']}
+      - name: has_kg
+        description: "Boolean: school serves pré-escolar (kindergarten). Parsed from ciclo for basic_sec; false for higher_ed."
+        tests: [not_null]
+      - name: has_basic_1
+        description: "Boolean: school serves 1º ciclo. Parsed from ciclo. False for higher_ed."
+        tests: [not_null]
+      - name: has_basic_2
+        description: "Boolean: school serves 2º ciclo."
+        tests: [not_null]
+      - name: has_basic_3
+        description: "Boolean: school serves 3º ciclo (where 9ano Provas Finais are taken). Use with fact_school_ranking.kind='9ano' for ranking trends."
+        tests: [not_null]
+      - name: has_sec
+        description: "Boolean: school serves secundário (where exames nacionais are taken). Use with fact_school_ranking.kind='sec' for ranking trends."
+        tests: [not_null]
+      - name: has_higher_ed
+        description: "Boolean: true for all higher_ed rows; false for basic_sec. Symmetric companion to has_kg/has_basic_*/has_sec."
+        tests: [not_null]
+      - name: higher_ed_type
+        description: "Higher-ed sub-type: 'universidade' / 'politecnico' / 'militar_universitario' / 'militar_politecnico'. NULL for basic_sec."
+      - name: publico_eid_sec
+        description: "For audit: the Público eid that bridges to this school for sec ranking (best confidence tier when multiple eids exist). NULL if no sec ranking link."
       - name: match_confidence_sec
-        description: "xref_publico_dgeec confidence tier for the sec ranking match ('high'/'medium'/'low'). NULL if school has no sec ranking. Downstream gold should typically filter on 'high' or 'high'+'medium' for canonical reporting."
+        description: "xref_publico_dgeec confidence tier for the sec match ('high'/'medium'/'low'). NULL if no sec link. Downstream filters strict joins by ('high')."
+      - name: publico_eid_9ano
+        description: "For audit: the Público eid that bridges to this school for 9ano ranking."
       - name: match_confidence_9ano
-        description: "xref_publico_dgeec confidence tier for the 9ano ranking match."
+        description: "xref confidence tier for the 9ano match."
       - name: geom_3763
         description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance to listings."
         tests: [not_null]
       - name: geom_4326
         description: "Point geometry in EPSG:4326 for display + WGS84 joins."
         tests: [not_null]
+
+  - name: fact_school_ranking
+    description: >
+      Time-series ranking fact across all 3 signals (Público sec + Público
+      9ano + DGES higher-ed). One row per (codigo_dgeec, kind, year, phase).
+      Join to [[dim-school]] via codigo_dgeec for spatial + identity.
+      kind='sec' carries Público secundário (0-20 scale, 2018-2024);
+      kind='9ano' carries Público 3º ciclo Provas Finais (0-5 scale,
+      2018-19 + 2022-24); kind='higher_ed' carries DGES vagas-weighted
+      nota último colocado per UO (0-200 scale, 2014-2025 × 3 fases).
+      Counter-part to [[dim-school]] which holds current snapshot only.
+    columns:
+      - name: codigo_dgeec
+        description: "FK to dim_school.codigo_dgeec. 6-digit CODESCME for sec/9ano; 4-digit UO code for higher_ed."
+        tests: [not_null]
+      - name: kind
+        description: "Ranking kind: 'sec' / '9ano' / 'higher_ed'."
+        tests:
+          - not_null
+          - accepted_values: {values: ['sec', '9ano', 'higher_ed']}
+      - name: year
+        description: "Ranking year. Sec: 2018-2024. 9ano: 2018-2019 + 2022-2024 (COVID gap). higher_ed: 2014-2025."
+        tests: [not_null]
+      - name: phase
+        description: "Higher-ed CNA phase (1/2/3). NULL for sec/9ano (single-phase rankings)."
+      - name: ranking_score
+        description: "Score on the kind's native scale: 0-20 for sec, 0-5 for 9ano, 0-200 for higher_ed (nota último colocado weighted by vagas)."
+      - name: ranking_position
+        description: "National rank by the score within (year, kind). 1 = best in that cohort. NULL for higher_ed (DGES doesn't publish UO-level position rankings)."
+      - name: match_confidence
+        description: "xref_publico_dgeec confidence tier for sec/9ano rows ('high'/'medium'/'low'). NULL for higher_ed (DGES codes ARE DGEEC UO codes, no bridge needed)."
+      - name: publico_eid
+        description: "For audit: Público's internal school id (sec/9ano rows). NULL for higher_ed."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [codigo_dgeec, kind, year, phase]
 
   - name: dim_geography
     description: >

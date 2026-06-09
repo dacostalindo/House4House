@@ -87,7 +87,8 @@ Sibling reference pages (read these alongside, NOT instead):
 - [x] `silver_publico_rankings_sec` — latest-year-per-school rollup, 661 schools, 0-20 score ✅ (PR-C 2026-06-09)
 - [x] `silver_publico_rankings_9ano` — latest-year-per-school rollup, 1,313 schools, 0-5 score ✅ (PR-C 2026-06-09)
 - [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,874/1,974 matched (94.9%); 2-stage ensemble algorithm with sim+distance sanity guards: Stage 1 direct_uo_fuzzy (9ano UO-restricted, 921) + Stage 2 ensemble (sec + 9ano residual; trigram + Levenshtein + Jaccard + phonetic vote within concelho-or-2km window). Post-vote guards: sim≥0.7 AND dist≤3km. Tier breakdown: high=1,802, medium=42, low=30, unmatched=100. ✅ (PR-D 2026-06-09 commits 3+4)
-- [x] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` text PK accepting both 4-digit higher-ed UO + 6-digit basic/sec CODESCME (disjoint code spaces, 0 collisions). 8,117 rows = 7,796 basic_sec + 321 higher_ed. Three ranking families (sec / 9ano / higher_ed) — 570 schools have both 9ano + sec. ✅ (PR-E 2026-06-09)
+- [x] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` text PK accepting both 4-digit higher-ed UO + 6-digit basic/sec CODESCME (disjoint code spaces, 0 collisions). 8,117 rows = 7,796 basic_sec + 321 higher_ed. Identity + geometry + harmonized `natureza_publico_privado` + level flags (`has_kg`/`has_basic_1..3`/`has_sec`/`has_higher_ed`). Rankings moved to sibling fact. ✅ (PR-E 2026-06-09)
+- [x] `fact_school_ranking` — time-series ranking mart, 15,716 rows (sec 4,257 over 2018-2024 + 9ano 5,639 over 2018-19/2022-24 + higher_ed 5,820 over 2014-2025 × 3 fases). PK = (codigo_dgeec, kind, year, phase). Joins to dim_school on codigo_dgeec. ✅ (PR-E commit 2 / 2026-06-09)
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
 - [ ] `listing_school_features` — per-listing nearest-school + best-score features
 

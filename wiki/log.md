@@ -2086,3 +2086,65 @@ planning §3.3 (DGES tracks ~170 UOs in CNA; the gap = privates).
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — flip dim_school ✅; flip Open Q #5 to ✅
 RESOLVED in §9).
+
+## [2026-06-09] gold | dim_school refactor + fact_school_ranking (PR-E commit 2)
+
+Post-build review caught four data-modelling issues:
+
+1. **`instituicao_nome` was 100% redundant** — 321/321 of `nome`
+   (e.g. "Universidade do Porto - Faculdade de Medicina") starts with
+   `instituicao_nome` (e.g. "Universidade do Porto"). Dropped.
+
+2. **`natureza` vocabularies didn't align** across school_types —
+   basic_sec uses MEC's "Redes dos ministérios" / "Particular" / "IPSS
+   ou equiparada" / "Misericórdia de Lisboa"; higher_ed uses CNA's
+   "Ensino Superior {Público|Privado} - {Universitário|Politécnico}".
+   Added harmonized `natureza_publico_privado` ('Pública' / 'Privada'
+   / NULL). Distribution: 5,562 Pública + 2,298 Privada + 257 NULL.
+
+3. **820 tipologias are empty in the source** — these are mostly
+   Pré-escolar (497), Especial (34), Extra-escolar (77), and 31 other
+   small categories. Tipologia is empty but `ciclo` is populated.
+   Added level flags `has_kg`, `has_basic_1..3`, `has_sec`,
+   `has_higher_ed` parsed from `ciclo` (semicolon-separated). 648
+   schools have no level flag at all — they're real Extra-escolar /
+   Especial / Profissional centers that don't fit the standard 5-level
+   taxonomy; downstream consumers can identify them via
+   `WHERE NOT (has_kg OR ...)` if needed.
+
+4. **All-years ranking data wasn't visible** — sec has 7 years
+   (2018-2024), 9ano 5 years (COVID gap), higher_ed 12 × 3 phases.
+   Latest-only ranking columns in dim_school silently dropped 90%+ of
+   the data. Per Kimball, moved to sibling `fact_school_ranking` mart
+   (one row per codigo_dgeec × kind × year × phase, 15,716 rows total).
+   `dim_school` keeps geometry + identity + harmonized categorisation
+   only — strictly a current-snapshot dim.
+
+**Final pillar split** (post-refactor):
+- `dim_school` (8,117 rows): identity + geometry + level flags +
+  harmonized natureza + xref provenance. Trimmed to ~24 columns.
+- `fact_school_ranking` (15,716 rows): the time series across all
+  3 ranking kinds. Joins to dim_school via codigo_dgeec.
+
+**Spot-check time series for Colégio Novo da Maia** (codigo 800394):
+
+| kind | year | score | position |
+|---|---|---|---|
+| 9ano | 2018 | 4.16 | 11 |
+| 9ano | 2019 | 4.09 | 13 |
+| 9ano | 2022 | 4.17 | 6 |
+| 9ano | 2023 | 4.43 | 1 |
+| 9ano | 2024 | 4.51 | 1 |
+| sec | 2018 | 12.98 | 22 |
+| sec | 2024 | 15.06 | 18 |
+
+This trend was completely invisible in the v1 dim — now consumers
+can compute YoY deltas, rolling averages, percentile movement, etc.
+
+**Verification**:
+- `dbt run dim_school fact_school_ranking` → 2/2 built.
+- `dbt test` over both → **19/19 PASS** (unique + not_null + accepted_values
+  on both; unique combination on fact PK).
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — add fact_school_ranking ✅).
