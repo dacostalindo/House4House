@@ -2233,3 +2233,36 @@ range; no semantic correctness loss for the few island listings in
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard).
+
+## [2026-06-09] revert | listing_school_features dropped — polygon-draw is the v1 surface (PR-F #66 closed)
+
+Built listing_school_features earlier today (3,482 rows / 120s,
+coverage verified) but deprecated it the same day after surfacing the
+actual use case via a Leaflet POC for Aveiro: **interactive polygon
+draw against `dim_school` + `fact_school_ranking` directly**, not
+per-listing pre-materialized columns.
+
+Why dropped:
+- The user-facing question is "tell me about THIS area" (drawn on a
+  map), not "tell me about this listing". Pre-computing 15 columns ×
+  every listing duplicates state with no downstream consumer.
+- A polygon-draw HTML (Leaflet + leaflet-draw + client-side
+  point-in-polygon) reads all 8,117 schools from dim_school once and
+  reduces server-side. Adding the mart adds a refresh dependency for
+  every listing update with no win.
+- If a non-interactive consumer ever needs the columns (search
+  ranking, lead scoring, batch enrichment), the mart can be revived —
+  the 130-line SQL stands on its own.
+
+Actions:
+- `drop table gold_analytics.listing_school_features` (was 3,482 rows).
+- Deleted `dbt/models/gold/listing_school_features.sql`.
+- Removed `listing_school_features` entry from `_gold__models.yml`.
+- PR-F #66 closed as obsolete (the commit serves as a record of what
+  was built + verified, retrievable via git log if revived).
+- Phase 2 of the pillar now closes at fact_school_ranking. The pillar
+  is shipped through its query-time spatial surface — the polygon-draw
+  POC, plus any future per-listing lookups doing the joins inline.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(§0 Phase 2 dashboard — flipped listing_school_features to ~ dropped).
