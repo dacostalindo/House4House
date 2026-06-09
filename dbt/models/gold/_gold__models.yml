@@ -32,17 +32,23 @@ models:
       - name: match_method
         description: >
           'direct_uo_fuzzy' (Stage 1 — 9ano UO-restricted, ~921 rows, implicit confidence=high);
-          'ensemble_high' (Stage 2 — ≥3 of 4 algorithms agree);
-          'ensemble_medium' (Stage 2 — exactly 2 algorithms agree);
+          'ensemble_high' (Stage 2 — ≥3 of 4 algorithms agree AND guards passed: sim≥0.7 AND dist≤3km);
+          'ensemble_medium' (Stage 2 — ≥3 votes with guards failed, OR 2 votes with guards passed);
+          'ensemble_low' (Stage 2 — exactly 2 votes with guards failed; weak vote + weak evidence);
           'unmatched' (no consensus).
         tests:
           - not_null
-          - accepted_values: {values: ['direct_uo_fuzzy', 'ensemble_high', 'ensemble_medium', 'unmatched']}
+          - accepted_values: {values: ['direct_uo_fuzzy', 'ensemble_high', 'ensemble_medium', 'ensemble_low', 'unmatched']}
       - name: match_confidence
-        description: "'high' (Stage 1 OR ≥3 ensemble votes); 'medium' (exactly 2 votes); 'unmatched'. Downstream gold (dim_school) filters on this — typically high+medium for canonical, high-only for strict joins."
+        description: >
+          'high' (Stage 1 OR ≥3 ensemble votes with sim≥0.7 + dist≤3km guards passed);
+          'medium' (≥3 votes but guards failed [shared-prefix or far-distance trap], OR exactly 2 votes with guards passed);
+          'low' (exactly 2 votes with guards failed — eyeball before trusting);
+          'unmatched' (no consensus).
+          Downstream gold (dim_school) filters on this — typically high-only for strict joins, high+medium for canonical coverage, all-but-unmatched for max recall.
         tests:
           - not_null
-          - accepted_values: {values: ['high', 'medium', 'unmatched']}
+          - accepted_values: {values: ['high', 'medium', 'low', 'unmatched']}
       - name: votes
         description: "Number of algorithms (out of 4: trigram + Levenshtein + Jaccard + phonetic) that picked the chosen codigo_dgeec. 4 for Stage 1 (all agree by construction). 0 for unmatched."
         tests: [not_null]

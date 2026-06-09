@@ -86,7 +86,7 @@ Sibling reference pages (read these alongside, NOT instead):
 
 - [x] `silver_publico_rankings_sec` — latest-year-per-school rollup, 661 schools, 0-20 score ✅ (PR-C 2026-06-09)
 - [x] `silver_publico_rankings_9ano` — latest-year-per-school rollup, 1,313 schools, 0-5 score ✅ (PR-C 2026-06-09)
-- [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,874/1,974 matched (94.9%); 2-stage ensemble algorithm: Stage 1 direct_uo_fuzzy (9ano UO-restricted, 921) + Stage 2 ensemble (sec + 9ano residual; trigram + Levenshtein + Jaccard + phonetic vote within concelho-or-2km window; high=≥3 agree, medium=2 agree). Coverage breakdown: high=1,839, medium=35, unmatched=100 ✅ (PR-D 2026-06-09 commit 3)
+- [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,874/1,974 matched (94.9%); 2-stage ensemble algorithm with sim+distance sanity guards: Stage 1 direct_uo_fuzzy (9ano UO-restricted, 921) + Stage 2 ensemble (sec + 9ano residual; trigram + Levenshtein + Jaccard + phonetic vote within concelho-or-2km window). Post-vote guards: sim≥0.7 AND dist≤3km. Tier breakdown: high=1,802, medium=42, low=30, unmatched=100. ✅ (PR-D 2026-06-09 commits 3+4)
 - [ ] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` PK — gated on Open Qs #2 + #5
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
 - [ ] `listing_school_features` — per-listing nearest-school + best-score features

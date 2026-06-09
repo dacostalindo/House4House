@@ -1954,6 +1954,41 @@ Spot checks:
   trigram, Levenshtein, Jaccard, phonetic each pick a different wrong
   DGEEC school; no consensus).
 
+**Sanity-guard refinement** (commit 4 of PR-D): top-100 eyeball
+surfaced two false-positive classes that the ensemble vote alone
+missed:
+
+1. **Far-distance trap** — Colégio Mira Rio (Lisboa, 9ano #28) matched
+   another "Mira Rio" 8.1 km away. 4 algorithms all picked it (sim
+   1.00, all tokens identical). Probably wrong school; Lisboa concelho
+   spans wide but 8km within-concelho is suspect.
+2. **Shared-prefix trap** — "Colégio de Nossa Senhora da Esperança"
+   (sec #87 and 9ano #99) matched "Colégio de Nossa Senhora da Paz"
+   at sim 0.66, 1.6 km. The distinguishing saint differs but most
+   tokens agreed → trigram+Levenshtein+Jaccard+phonetic all picked
+   the wrong nearby school.
+
+Added post-vote guards: `sim_ok = match_score ≥ 0.7` AND `dist_ok =
+match_distance_m ≤ 3000`. When ≥3 votes but guards fail, demote to
+`medium`. When 2 votes and guards fail, demote to new `low` tier.
+Stage 1 (`direct_uo_fuzzy`) is unaffected — UO scope is its own
+evidence.
+
+**Final tier breakdown** (1,974 schools):
+
+| kind | high | medium | low | unmatched |
+|---|---|---|---|---|
+| 9ano | 1,193 | 28 | 22 | 70 |
+| sec | 609 | 14 | 8 | 30 |
+| **Total** | **1,802** | **42** | **30** | **100** |
+
+Total matched: 1,874 (94.9%, unchanged). Downstream consumers now
+have a graceful filter:
+- `high` = canonical, trust completely (1,802 = 91.3%)
+- `high + medium` = good coverage with audit trail (1,844 = 93.4%)
+- `high + medium + low` = max recall (1,874 = 94.9%)
+- `unmatched` = explicitly absent (100 = 5.1%)
+
 - `dbt run --select +xref_publico_dgeec` → 1 model built.
 - `dbt test --select xref_publico_dgeec` → **6/6 PASS** (unique +
   not_null × publico_eid; not_null + accepted_values × kind;

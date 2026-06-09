@@ -37,10 +37,20 @@
 -- phonetic loses non-name-stem content). When ≥2 of them converge on
 -- the same codigo_escola, false-positive risk drops sharply.
 --
--- `match_confidence`:
---   - 'high'   = ≥3 algorithms agree (or Stage 1)
---   - 'medium' = exactly 2 algorithms agree
---   - 'unmatched' = no consensus
+-- `match_confidence` (Stage 2 only — Stage 1 always 'high'):
+--   - 'high'    = ≥3 algorithms agree AND match_score≥0.7 AND match_distance_m≤3km
+--   - 'medium'  = ≥3 algorithms agree BUT guards failed (algorithms agreed
+--                 on a suspect candidate — e.g. shared prefix, far distance),
+--                 OR exactly 2 algorithms agree with guards passed
+--   - 'low'     = exactly 2 algorithms agree with guards failed (weak vote +
+--                 weak evidence; eyeball before trusting)
+--   - 'unmatched' = no consensus (<2 votes)
+-- The guards catch failure modes the votes alone miss:
+--   - Far-distance trap: "Colégio Mira Rio" (Lisboa) matched another
+--     "Mira Rio" 8 km away — 4 votes, sim 1.00, but probably wrong school.
+--   - Shared-prefix trap: "Colégio de Nossa Senhora da Esperança" matched
+--     "Colégio de Nossa Senhora da Paz" at sim 0.66, 1.6 km — most words
+--     agreed but the distinguishing saint differs.
 --
 -- ──────────────────────────────────────────────────────────────────────
 -- Algorithm comparison (per 2026-06-09 probe over 1,974 schools):
@@ -184,18 +194,33 @@ ensemble as (
     join publico_all p on p.eid = v.eid
 ),
 
+ensemble_guarded as (
+    select *,
+        (coalesce(match_score, 0) >= 0.7
+         and coalesce(match_distance_m, 1e9) <= 3000) as guards_passed
+    from ensemble
+),
+
 ensemble_classified as (
     select publico_eid, kind, codigo_dgeec,
-        case when votes >= 3 then 'ensemble_high'
-             when votes  = 2 then 'ensemble_medium'
-             else 'unmatched' end as match_method,
-        case when votes >= 3 then 'high'
-             when votes  = 2 then 'medium'
-             else null end as match_confidence,
+        case
+            when votes >= 3 and     guards_passed then 'ensemble_high'
+            when votes >= 3 and not guards_passed then 'ensemble_medium'
+            when votes  = 2 and     guards_passed then 'ensemble_medium'
+            when votes  = 2 and not guards_passed then 'ensemble_low'
+            else 'unmatched'
+        end as match_method,
+        case
+            when votes >= 3 and     guards_passed then 'high'
+            when votes >= 3 and not guards_passed then 'medium'
+            when votes  = 2 and     guards_passed then 'medium'
+            when votes  = 2 and not guards_passed then 'low'
+            else null
+        end as match_confidence,
         votes,
         match_score,
         match_distance_m
-    from ensemble
+    from ensemble_guarded
 ),
 
 -- Union Stage 1 winners + Stage 2 classified results.
