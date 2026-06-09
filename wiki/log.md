@@ -1855,3 +1855,150 @@ table — there's literally no eid that would benefit from being in both.
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — add `silver_publico_rankings_{sec,9ano}` ✅).
+
+## [2026-06-09] gold | Phase 2 PR-D — xref_publico_dgeec bridge (Open Q #2 resolved)
+
+First gold-tier mart in the [[pt-education-amenity-pillar]] and the
+resolution of Open Q #2 (Público↔DGEEC bridge thresholds). Bridge table
+`gold_analytics.xref_publico_dgeec` maps every Público school id (eid)
+to its DGEEC 6-digit `codigo_escola` (CODESCME), with explicit
+`match_method` provenance and `match_score`/`match_distance_m`
+diagnostics per row.
+
+**Empirical-probe-driven algorithm** (locked 2026-06-09 against the
+live warehouse, not the 5 manual lookups the planning doc anticipated
+— having both Público + DGEEC already in the warehouse let me probe
+the entire 1,974-school corpus directly):
+
+1. **id_publico ↔ DGEEC prefix probe is dead.** Tested
+   `LEFT(codigo_escola, 4) = LPAD(id_publico, 4)` with concelho match
+   on all 661 sec schools → **0 matches**. Público's `id` is its own
+   short code, not a DGEEC prefix. Explicitly NOT in the final
+   algorithm.
+
+2. **Path 1 — `direct_uo_fuzzy` (9ano only)**: when Público's
+   `codigo_uo_dgeec` is populated, restrict rede_escolar candidates to
+   the UO (`r.codigo_uo = p.codigo_uo_dgeec`) and pick the best
+   name-similarity match. The UO scope is sufficient evidence on its
+   own — 921/921 (100%) resolve at avg sim=0.992. No similarity
+   threshold needed.
+
+3. **Path 2 — `fuzzy_spatial` (all sec + 9ano residual)**: ST_DWithin
+   500m + pg_trgm similarity ≥ 0.6 on
+   `unaccent(lower(nome))`. The 0.6 threshold was picked by eyeballing
+   the 0.3-0.6 band: 0.6+ is bulletproof; 0.4-0.6 has ~30% false
+   positives (e.g. "Colégio Liverpool" vs "Grande Colégio Universal"
+   at 0.303). NO concelho-name gate — costs island coverage where
+   Público labels concelhos like "Lagoa (R.A.A)" vs DGEEC's "Lagoa".
+
+4. **Path 3 — superseded by ensemble** (commit 2 → commit 3): the
+   `name_perfect_extended` Path 3 idea (recover sim=1.000 within 2km)
+   was a single-algorithm fix. Replaced by a full ensemble approach
+   that subsumes it.
+
+**Final algorithm — 2-stage ensemble** (locked commit 3 of PR-D
+after a multi-algorithm comparison probe):
+
+- **Stage 1 — `direct_uo_fuzzy`** (9ano with `codigo_uo_dgeec`): UO
+  scope alone is sufficient evidence. 921/921 (100%) at avg sim 0.992.
+  Confidence: 'high'.
+- **Stage 2 — `ensemble`** (sec + 9ano residual): candidate window =
+  same normalized concelho OR within 2km. Four algorithms vote on the
+  best codigo_escola:
+  1. Trigram (pg_trgm) ≥ 0.6
+  2. Levenshtein (1 - lev/maxlen) ≥ 0.5
+  3. Jaccard token-set ≥ 0.3
+  4. Phonetic (dmetaphone first 2 tokens) match
+  
+  Each fails in different ways (trigram is order-sensitive, Levenshtein
+  blows up on length diffs, Jaccard is bag-of-words, phonetic loses
+  non-stem content). When ≥2 converge on the same codigo_escola,
+  false-positive risk drops sharply. `match_confidence` = 'high' (≥3
+  agree), 'medium' (=2), 'unmatched' (<2).
+
+**Single-algorithm coverage probe (candidate window only, 1,971 schools)**:
+| Algorithm | Matched | % |
+|---|---|---|
+| Levenshtein ≥ 0.5 | 1,894 | 96.1% |
+| Jaccard ≥ 0.3 | 1,894 | 96.1% |
+| Phonetic match | 1,893 | 96.0% |
+| Jaccard ≥ 0.5 | 1,842 | 93.5% |
+| **Trigram** ≥ 0.6 (production v1) | 1,839 | 93.3% |
+| Contains (substring) | 1,691 | 85.8% |
+| Exact normalized | 1,642 | 83.3% |
+
+**Final ensemble coverage on full corpus (1,974 schools)**:
+
+| kind | match_method | match_confidence | schools |
+|---|---|---|---|
+| 9ano | direct_uo_fuzzy | high | 921 |
+| 9ano | ensemble_high | high | 296 |
+| 9ano | ensemble_medium | medium | 26 |
+| 9ano | unmatched | unmatched | 70 |
+| sec | ensemble_high | high | 622 |
+| sec | ensemble_medium | medium | 9 |
+| sec | unmatched | unmatched | 30 |
+
+Total: 1,874/1,974 matched = **94.9% coverage** (vs trigram-only
+91.7%, +63 schools). Sec 95.5%, 9ano 94.7%. Confidence tiers:
+high=1,839 (93.2%), medium=35 (1.8%), unmatched=100 (5.1%). The 100
+unmatched are mostly small privados / IPSS not in the rede_escolar
+register at all (genuinely absent).
+
+Spot checks:
+- 9ano #1 Colégio Novo da Maia → `ensemble_high`, **4 votes**, sim
+  1.00, 594m off (would be unmatched at strict 500m).
+- sec #1 Colégio Nossa Senhora do Rosário → `ensemble_high`, 4 votes,
+  sim 1.00, 0m.
+- sec #11 Colégio de S. Tomás → `unmatched` (genuinely ambiguous —
+  trigram, Levenshtein, Jaccard, phonetic each pick a different wrong
+  DGEEC school; no consensus).
+
+**Sanity-guard refinement** (commit 4 of PR-D): top-100 eyeball
+surfaced two false-positive classes that the ensemble vote alone
+missed:
+
+1. **Far-distance trap** — Colégio Mira Rio (Lisboa, 9ano #28) matched
+   another "Mira Rio" 8.1 km away. 4 algorithms all picked it (sim
+   1.00, all tokens identical). Probably wrong school; Lisboa concelho
+   spans wide but 8km within-concelho is suspect.
+2. **Shared-prefix trap** — "Colégio de Nossa Senhora da Esperança"
+   (sec #87 and 9ano #99) matched "Colégio de Nossa Senhora da Paz"
+   at sim 0.66, 1.6 km. The distinguishing saint differs but most
+   tokens agreed → trigram+Levenshtein+Jaccard+phonetic all picked
+   the wrong nearby school.
+
+Added post-vote guards: `sim_ok = match_score ≥ 0.7` AND `dist_ok =
+match_distance_m ≤ 3000`. When ≥3 votes but guards fail, demote to
+`medium`. When 2 votes and guards fail, demote to new `low` tier.
+Stage 1 (`direct_uo_fuzzy`) is unaffected — UO scope is its own
+evidence.
+
+**Final tier breakdown** (1,974 schools):
+
+| kind | high | medium | low | unmatched |
+|---|---|---|---|---|
+| 9ano | 1,193 | 28 | 22 | 70 |
+| sec | 609 | 14 | 8 | 30 |
+| **Total** | **1,802** | **42** | **30** | **100** |
+
+Total matched: 1,874 (94.9%, unchanged). Downstream consumers now
+have a graceful filter:
+- `high` = canonical, trust completely (1,802 = 91.3%)
+- `high + medium` = good coverage with audit trail (1,844 = 93.4%)
+- `high + medium + low` = max recall (1,874 = 94.9%)
+- `unmatched` = explicitly absent (100 = 5.1%)
+
+- `dbt run --select +xref_publico_dgeec` → 1 model built.
+- `dbt test --select xref_publico_dgeec` → **6/6 PASS** (unique +
+  not_null × publico_eid; not_null + accepted_values × kind;
+  not_null + accepted_values × match_method).
+
+**Open Q #2 resolved.** The next gates for `dim_school` are now Open
+Q #5 (PK strategy — discriminator col vs split tables) and Open Q #1
+(CAOP-Açores/Madeira sourcing — only relevant if `dim_school` wants
+DICOFRE for island schools; v1 fallback is leave NULL).
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
+RESOLVED in §9).
