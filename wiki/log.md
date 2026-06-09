@@ -2265,3 +2265,27 @@ Actions:
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (§0 Phase 2 dashboard — flipped listing_school_features to ~ dropped).
+
+## [2026-06-09] feat | imovirtual as 5th UNION arm of unified_listings_residential
+
+Added `dbt/models/staging/portals/stg_portal_listings_imovirtual.sql` and wired it into [[unified-listings-residential|unified_listings_residential]] as the 5th portal arm. Grain: `imovirtual_development_units` only (national, ~4,440 rows). Plots (Aveiro terreno, non-residential) and developments-as-listings explicitly out of scope; imovirtual has no resale-listing table by construction.
+
+**Empirical findings** (recorded in [[2026-06-09-imovirtual-listings-silver]]):
+- Unit-level floor plans: **68.83% combined coverage** — UNION of two disjoint per-unit feeds: (a) the native `floor_plans` JSONB array @ olxcdn (29.62%) + (b) `raw_json->'links'->>'localPlanUrl'` scalar @ egorealestate/agency hosts (44.82%); only 5.6% URL overlap. Lifting only feed (a) — the initial cut — would have silently dropped 1,741 unit plans (39% of the corpus). Final ranking: imovirtual now second-best plan source after [[jll]] (92.72%), ahead of [[idealista]] (32.59%).
+- **Zero URL overlap** between unit-level plans and dev-level plans (2,141 distinct unit URLs, 0 appear in any dev's `floor_plans` array) — confirms unit plans are per-unit layouts while dev plans are separate master/site plans. Dev plans stay on `unified_developments`, NOT this silver.
+- 100% `unified_development_id` linkage — every imovirtual unit links to a unified dev (the dual-signal dedup from #54 captured all of them).
+- Total silver rows: 7,500 → **11,967** across 5 portals; imovirtual now the largest single contributor at 4,413 rows.
+
+**Bronze normalizer extension** (separate work, 2026-06-09): unit table gained `bathrooms_num`, `build_year`, `floor_plans`, `terrain_area_m`, `extras_types`, `security_types`, `advertiser_type`, `building_material`, `building_ownership`, `remote_services`, `free_from`. Staging derives amenities (`has_elevator`/`has_parking`/`has_terrace`/`has_garden`/`has_pool`) via JSONB containment over the `extras_types` enum — cleaner than the regex-on-description pattern jll uses.
+
+**Quirks landed**: `bathrooms_num` is mixed `"1"/"2"/"3"` digits + `"bathrooms_num::4_or_more"` enum (725 rows = 16%); CASE floors the latter at 4. `construction_status` (`to_completion`/`ready_to_use`) is build-status, not condition — lands in `property_subtype`; `condition` stays NULL. `agency_name`, `listing_title`, `listing_status_raw` all NULL (promoter unreliable; bronze `title` and `status` columns dlt-dropped as all-NULL).
+
+**Files touched**:
+- `dbt/models/staging/portals/stg_portal_listings_imovirtual.sql` (new)
+- `dbt/models/staging/portals/_staging_portals__models.yml` (new model block + tests)
+- `dbt/models/silver/properties/unified_listings_residential.sql` (5th UNION arm + header comment update)
+- [[imovirtual]] — Silver section expanded with listing-silver paragraph; Last verified bumped 2026-06-06 → 2026-06-09
+- [[2026-06-09-imovirtual-listings-silver]] — new decision record (confidence: high)
+- [[log]] (this entry), [[index]] (Decisions section)
+
+**Pages touched**: [[imovirtual]], [[2026-06-09-imovirtual-listings-silver]], [[log]], [[index]].
