@@ -86,7 +86,7 @@ Sibling reference pages (read these alongside, NOT instead):
 
 - [x] `silver_publico_rankings_sec` — latest-year-per-school rollup, 661 schools, 0-20 score ✅ (PR-C 2026-06-09)
 - [x] `silver_publico_rankings_9ano` — latest-year-per-school rollup, 1,313 schools, 0-5 score ✅ (PR-C 2026-06-09)
-- [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,786/1,974 matched (90.5%); two paths: direct_uo_fuzzy (9ano, 921) + fuzzy_spatial (sec+9ano residual, 865); 0.6 sim threshold ✅ (PR-D 2026-06-09)
+- [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,811/1,974 matched (91.7%); three paths: direct_uo_fuzzy (9ano, 921) + fuzzy_spatial (sec+9ano residual within 500m, 865) + name_perfect_extended (sim≥0.95 within 2km, 25 incl. Colégio Novo da Maia / 9ano #1) ✅ (PR-D 2026-06-09)
 - [ ] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` PK — gated on Open Qs #2 + #5
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
 - [ ] `listing_school_features` — per-listing nearest-school + best-score features
@@ -567,7 +567,7 @@ Four invocations of the skill, with all params pre-filled here.
 ## 9. Open questions for the next session
 
 1. ✅ **RESOLVED** — Público 3º ciclo file is `rankings9ano.js` (not `rankings3c.js`). 1,161 schools, 79.3% have `coduo` agrupamento código.
-2. ✅ **RESOLVED 2026-06-09** — Público `id` is its own short code, unrelated to any DGEEC key. Tested `LEFT(codigo_escola, 4) = LPAD(id_publico, 4)` with concelho match on all 661 sec schools → 0 matches. Bridge algorithm uses two empirical paths instead: (a) `direct_uo_fuzzy` for 9ano with `codigo_uo_dgeec` (921 schools, avg sim 0.992), (b) `fuzzy_spatial` ST_DWithin(500m) + pg_trgm sim ≥ 0.6 for sec + 9ano residual. Bridge lives at `gold_analytics.xref_publico_dgeec`; 1,786/1,974 (90.5%) matched. See [[log#2026-06-09 gold | Phase 2 PR-D]].
+2. ✅ **RESOLVED 2026-06-09** — Público `id` is its own short code, unrelated to any DGEEC key. Tested `LEFT(codigo_escola, 4) = LPAD(id_publico, 4)` with concelho match on all 661 sec schools → 0 matches. Bridge algorithm uses three empirical paths instead: (a) `direct_uo_fuzzy` for 9ano with `codigo_uo_dgeec` (921 schools, avg sim 0.992), (b) `fuzzy_spatial` ST_DWithin(500m) + pg_trgm sim ≥ 0.6 for sec + 9ano residual (865 schools), (c) `name_perfect_extended` ST_DWithin(2km) + sim ≥ 0.95 fallback for coordinate-disagreement misses (25 schools, recovered the 9ano #1 Colégio Novo da Maia). Bridge lives at `gold_analytics.xref_publico_dgeec`; 1,811/1,974 (91.7%) matched. See [[log#2026-06-09 gold | Phase 2 PR-D]].
 3. ✅ **PARTIALLY RESOLVED** — CAOP is **continente-only** (confirmed by user). For Açores/Madeira schools (Público 9ano: 56 rows; secundário: 35 rows; ArcGIS: many more), we need:
    - **Option A (recommended)**: ingest CAOP-Açores (DRRT/SREA) + CAOP-Madeira (DRIGOT) as **separate sibling sources**, union into a single `freguesias_pt` view.
    - **Option B**: leave `dicofre` NULL for non-continente schools, keep only `distrito` + `concelho`. Acceptable for v1 if Açores/Madeira listings are a small share.

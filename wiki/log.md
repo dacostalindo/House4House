@@ -1891,18 +1891,32 @@ the entire 1,974-school corpus directly):
    at 0.303). NO concelho-name gate — costs island coverage where
    Público labels concelhos like "Lagoa (R.A.A)" vs DGEEC's "Lagoa".
 
-**Live verification** on the warehouse:
+4. **Path 3 — `name_perfect_extended` (Path 2 fallback)**: when Path 2
+   misses because Público and DGEEC have slightly disagreeing
+   coordinates (typically 500m–2km off), try `ST_DWithin(2000m)` AND
+   similarity ≥ 0.95. Caught by eyeballing top-ranked unmatched schools
+   — the 9ano #1 nationally (Colégio Novo da Maia) was unmatched at v1
+   despite a sim=1.000 candidate just 594m away. Path 3 recovered 25
+   schools (17 9ano + 8 sec), all sim=1.000, avg distance ~1km. Notable
+   recoveries: **Colégio Novo da Maia** (the top-ranked 9ano school
+   nationally), Colégio Militar, Externato "Capitão Santiago de
+   Carvalho", Escola Secundária de Amarante, Academia de Música de
+   Cantanhede.
+
+**Live verification** on the warehouse (final 3-path algorithm):
 
 | kind | match_method | schools | avg_score | avg_dist_m |
 |---|---|---|---|---|
-| 9ano | direct_uo_fuzzy | 921 | 0.992 | 64.9 m |
-| 9ano | fuzzy_spatial | 259 | 0.957 | 58.2 m |
-| 9ano | unmatched | 133 | — | — |
-| sec | fuzzy_spatial | 606 | 0.982 | 31.7 m |
-| sec | unmatched | 55 | — | — |
+| 9ano | direct_uo_fuzzy | 921 | 0.992 | 65 m |
+| 9ano | fuzzy_spatial | 259 | 0.957 | 58 m |
+| 9ano | name_perfect_extended | 17 | 1.000 | 1003 m |
+| 9ano | unmatched | 116 | — | — |
+| sec | fuzzy_spatial | 606 | 0.982 | 32 m |
+| sec | name_perfect_extended | 8 | 1.000 | 945 m |
+| sec | unmatched | 47 | — | — |
 
-Total: 1,786/1,974 matched = **90.5% coverage** (sec 91.7%, 9ano
-89.9%). Beats planning §3.2's ~80-90% expectation. Unmatched ~9.5%
+Total: 1,811/1,974 matched = **91.7% coverage** (sec 92.9%, 9ano
+91.2%). Beats planning §3.2's ~80-90% expectation. Unmatched ~8.3%
 are mostly small privados / IPSS not in the rede_escolar register at
 all.
 
