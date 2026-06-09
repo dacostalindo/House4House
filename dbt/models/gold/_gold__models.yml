@@ -83,13 +83,26 @@ models:
         description: "School name (basic_sec) or full Unidade Orgânica name including parent institution (higher_ed, e.g. 'Universidade do Porto - Faculdade de Medicina'). Trimmed."
         tests: [not_null]
       - name: tipologia
-        description: "rede_escolar tipologia — 'Escola Básica', 'Escola Básica e Secundária', etc. NULL for higher_ed AND for 820 basic_sec rows where source is empty (typically Pré-escolar/Especial/Extra-escolar; level info still derivable from `ciclo` and the `has_*` flags)."
+        description: >
+          Institution shape. For basic_sec: rede_escolar tipologia — 'Escola Básica',
+          'Escola Básica e Secundária', 'Jardim de Infância', 'Escola Profissional', etc.
+          (820 basic_sec rows have NULL tipologia where the source field is empty —
+          mostly Pré-escolar/Especial/Extra-escolar; level still derivable from `has_*`
+          flags). For higher_ed: 'Universidade' / 'Politécnico' / 'Militar e Policial
+          Universitário' / 'Militar e Policial Politécnico' (decomposed from the source
+          natureza_tipo).
       - name: ciclo
-        description: "rede_escolar ciclo label, semicolon-separated for multi-level schools (e.g. 'Pré-escolar;1º Ciclo'). NULL for higher_ed."
+        description: >
+          Level of teaching. For basic_sec: rede_escolar ciclo label, semicolon-separated
+          for multi-level schools (e.g. 'Pré-escolar;1º Ciclo'). For higher_ed: constant
+          'Ensino Superior'. Use `has_*` flags for filtering rather than parsing this.
       - name: natureza
-        description: "Raw rede_escolar natureza_institucional ('Redes dos ministérios', 'Particular', 'IPSS ou equiparada', 'Misericórdia de Lisboa'). NULL for higher_ed — see natureza_tipo."
-      - name: natureza_tipo
-        description: "Raw higher-ed combination 'Ensino Superior {Público|Privado} - {Universitário|Politécnico}' (+ Militar/Policial variants). NULL for basic_sec."
+        description: >
+          Institutional nature. For basic_sec: rede_escolar natureza_institucional —
+          'Redes dos ministérios', 'Particular', 'IPSS ou equiparada', 'Misericórdia de
+          Lisboa'. For higher_ed: 'Ensino Superior Público' / 'Ensino Superior Privado'
+          (decomposed from natureza_tipo). Use natureza_publico_privado for cross-source
+          public/private comparison.
       - name: natureza_publico_privado
         description: "Harmonized 'Pública' / 'Privada' / NULL across both school_types. Derived from natureza (basic_sec: 'Redes dos ministérios'→Pública; Particular/IPSS/Misericórdia→Privada) and natureza_tipo (higher_ed: 'Ensino Superior Público%'→Pública, 'Ensino Superior Privado%'→Privada). Use this for school-type-agnostic filtering."
         tests:

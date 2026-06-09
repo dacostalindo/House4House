@@ -2148,3 +2148,48 @@ can compute YoY deltas, rolling averages, percentile movement, etc.
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — add fact_school_ranking ✅).
+
+## [2026-06-09] gold | dim_school natureza_tipo decomposition (PR-E commit 3)
+
+Second review pass: the higher-ed-only `natureza_tipo` column was a
+concatenation of three concepts that the dim already had columns for.
+Decomposed into the existing `tipologia` + `ciclo` + `natureza`
+columns so the schema is now uniform across both school_types (no
+higher-ed-only columns).
+
+**Routing**:
+- `tipologia` ← 'Universidade' / 'Politécnico' / 'Militar e Policial
+  Universitário' / 'Militar e Policial Politécnico' (was the suffix
+  of natureza_tipo). Subsumes the previous `higher_ed_type` column.
+- `ciclo`     ← 'Ensino Superior' (constant for higher_ed; parallel
+  to basic_sec's "Pré-escolar;1º Ciclo" etc.)
+- `natureza`  ← 'Ensino Superior Público' / 'Ensino Superior Privado'
+  (was the prefix of natureza_tipo). basic_sec keeps its raw natureza
+  vocabulary ('Redes dos ministérios', 'Particular', etc.).
+
+**Dropped columns** (now redundant): `natureza_tipo`, `higher_ed_type`.
+
+`natureza_publico_privado` stays as the cross-source harmonized column
+('Pública' / 'Privada' / NULL).
+
+Distribution after decomposition (321 higher_ed rows):
+
+| tipologia | natureza | count |
+|---|---|---|
+| Universidade | Ensino Superior Público | 87 |
+| Universidade | Ensino Superior Privado | 46 |
+| Politécnico | Ensino Superior Público | 118 |
+| Politécnico | Ensino Superior Privado | 64 |
+| Militar e Policial Universitário | Ensino Superior Público | 5 |
+| Militar e Policial Politécnico | Ensino Superior Público | 1 |
+
+Verification:
+- `dbt run dim_school` → built (8,117 rows unchanged).
+- `dbt test dim_school` → **14/14 PASS**.
+
+Net column delta on dim_school: -2 (dropped natureza_tipo +
+higher_ed_type), reducing the schema to a cleaner ~22-column
+single-table-shape dim where every column is meaningful for both
+school_types.
+
+**Pages touched**: [[log]] (this entry).

@@ -69,7 +69,6 @@ basic_sec as (
         r.tipologia,
         r.ciclo,
         r.natureza,
-        null::text                         as natureza_tipo,
         -- Harmonized
         case
             when r.natureza = 'Redes dos ministérios'           then 'Pública'
@@ -83,7 +82,6 @@ basic_sec as (
         position('3º Ciclo'    in coalesce(r.ciclo, '')) > 0    as has_basic_3,
         position('Secundário'  in coalesce(r.ciclo, '')) > 0    as has_sec,
         false                              as has_higher_ed,
-        null::text                         as higher_ed_type,
         -- Geography
         r.distrito,
         r.concelho,
@@ -113,11 +111,21 @@ higher_ed as (
         u.unidade_organica_nome            as nome,
         null::text                         as agrupamento_codigo,
         null::text                         as agrupamento_nome,
-        null::text                         as tipologia,
-        null::text                         as ciclo,
-        null::text                         as natureza,
-        u.natureza_tipo,
-        -- Harmonized: parse 'Ensino Superior {Público|Privado} - ...'
+        -- natureza_tipo decomposed across the existing columns so the
+        -- schema is uniform with basic_sec rows (no higher-ed-only columns).
+        case
+            when u.natureza_tipo ilike '%Militar e Policial Universitário%' then 'Militar e Policial Universitário'
+            when u.natureza_tipo ilike '%Militar e Policial Politécnico%'   then 'Militar e Policial Politécnico'
+            when u.natureza_tipo ilike '%Universitário%'                     then 'Universidade'
+            when u.natureza_tipo ilike '%Politécnico%'                       then 'Politécnico'
+            else null
+        end                                as tipologia,
+        'Ensino Superior'::text            as ciclo,
+        case
+            when u.natureza_tipo ilike 'Ensino Superior Público%'  then 'Ensino Superior Público'
+            when u.natureza_tipo ilike 'Ensino Superior Privado%' then 'Ensino Superior Privado'
+            else null
+        end                                as natureza,
         case
             when u.natureza_tipo ilike 'Ensino Superior Público%'  then 'Pública'
             when u.natureza_tipo ilike 'Ensino Superior Privado%' then 'Privada'
@@ -129,13 +137,6 @@ higher_ed as (
         false                              as has_basic_3,
         false                              as has_sec,
         true                               as has_higher_ed,
-        case
-            when u.natureza_tipo ilike '%Militar e Policial Universitário%' then 'militar_universitario'
-            when u.natureza_tipo ilike '%Militar e Policial Politécnico%'   then 'militar_politecnico'
-            when u.natureza_tipo ilike '%Universitário%'                     then 'universidade'
-            when u.natureza_tipo ilike '%Politécnico%'                       then 'politecnico'
-            else null
-        end                                as higher_ed_type,
         u.distrito,
         u.concelho,
         u.morada,
