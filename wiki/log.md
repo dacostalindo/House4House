@@ -2002,3 +2002,30 @@ DICOFRE for island schools; v1 fallback is leave NULL).
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
 RESOLVED in §9).
+## [2026-06-09] fix | [[jll]] land_area schema-contract freeze (2026-06-04 run failure)
+
+The 2026-06-04 scheduled JLL run failed at `load_facts` with a
+`NormalizeJobFailed`: `land_area__v_double` couldn't be added on
+`jll_listings` because the column was frozen as bigint from row 1 of
+the 2026-05-01 first run. Offending row: `listing_id 24224350`.
+
+Root cause: `LISTINGS_FLOAT_COLUMNS` in [pipelines/portals/jll/source.py](../pipelines/portals/jll/source.py)
+omitted `land_area`. The `e7e2348` commit message claimed it was added
+to the listings hints, but the code only added it to the plots resource
+(later deleted by `420ff8d`). Same bug class as `e7e2348`.
+
+Fix: added `land_area` to `LISTINGS_FLOAT_COLUMNS`. Rebuilt
+`DEVELOPMENTS_FLOAT_COLUMNS` as a full mirror (price_value, gross_area,
+net_area, land_area, gps_lat, gps_lon) so the same gap can't recur on
+the developments resource. Regression test added in
+`TestFloatColumnHints` to assert every polymorphic numeric is in both
+tuples.
+
+State reset: dropped `bronze_listings.jll_{listings,developments,
+listings_state,developments_state}` and cleared
+`/opt/airflow/dlt_state/jll/`. Manual rerun produced 7541 listings
+(up from 7455 current) and 171 developments (up from 169 current);
+both inside validation bands. SCD2 history reset to a new baseline.
+
+**Pages touched**: [[log]] (this entry), [[jll]] (Quirks: land_area gap
+added).
