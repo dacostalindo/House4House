@@ -436,3 +436,38 @@ models:
       - name: portal_dev_id
         description: "JLL development_id (bigint cast to TEXT); 100% populated."
         tests: [not_null]
+
+  - name: stg_portal_listings_imovirtual
+    description: >
+      Canonical-schema staging for imovirtual development units. 5th UNION arm
+      of unified_listings_residential. Bronze grain: imovirtual_development_units
+      (national, ~4,440 rows; 4,421 SELL + 19 RENT). Plots (Aveiro terreno,
+      non-residential) and developments-as-listings out of scope; no resale-listing
+      table exists for imovirtual. Coords inherited from parent dev (units have
+      (0,0) own pin). Floor plans lifted from the native unit-level floor_plans
+      column (29.60% coverage, unit-specific; 0% URL overlap with dev-level
+      master plans). Amenities derived via JSONB containment over the structured
+      extras_types enum (no description regex needed). Areas: area_m → useful;
+      terrain_area_m → land (4.6% coverage). build_year → construction_year.
+      construction_status (to_completion/ready_to_use) lands in property_subtype,
+      not condition. agency_name and listing_title NULL: imovirtual promoter is
+      dev-level + unreliable; the unit-level title bronze column was dropped by
+      dlt as all-NULL.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['imovirtual']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "imovirtual development_id (bigint cast to TEXT); 100% populated — every unit has a parent dev FK."
+        tests: [not_null]
+      - name: listing_url
+        tests: [not_null]
+      - name: operation_type
+        description: "Mapped from adcategory_type. SELL→sale (4,421), RENT→rent (19), else NULL."
+        tests:
+          - accepted_values:
+              values: ['sale', 'rent']
+              quote: true

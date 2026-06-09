@@ -1,7 +1,7 @@
 ---
 title: imovirtual PT
 type: source
-last_verified: 2026-06-05
+last_verified: 2026-06-09
 tags: [portal, real-estate, dlt, scd2, next-data]
 priority: P1
 ---
@@ -32,6 +32,8 @@ No ref/lookup tables (the Nexus payload is self-describing via `localizedValue`)
 
 Silver: imovirtual is the 5th `UNION ALL` arm of [[cross-portal-dev-dedup|unified_developments]], geometry-priority rank **JLL > imovirtual > Zome > RE/MAX > idealista** (genuine dev-level pin + official reverse-geocode).
 
+Listing silver (shipped 2026-06-09 via `stg_portal_listings_imovirtual`): 5th `UNION ALL` arm of [[unified-listings-residential|unified_listings_residential]]. Grain: dev_units only (~4,440 units national, 4,421 SELL + 19 RENT). Plots (Aveiro terreno, non-residential) and developments-as-listings out of scope; imovirtual has no resale-listing table by construction. Unit coords inherited from the parent dev via JOIN on `development_id`. Amenities derived via JSONB containment over the structured `extras_types` enum (no description regex needed). **Floor plans 68.83% coverage** — UNION of two disjoint per-unit feeds: (a) the native `floor_plans` JSONB array (olxcdn JPGs, 29.62%) + (b) the `raw_json->'links'->>'localPlanUrl'` scalar (egorealestate PDFs + agency hosts, 44.82%); only 5.6% URL overlap between the two. Verified zero URL overlap with dev-level `floor_plans` which carry separate master/site plans. Sits between [[jll]] (92.72%) and [[idealista]] (32.59%) in the cross-portal coverage table — the second-best plan signal we have. First end-to-end run: **4,413 silver rows, 100% coords, 100% `unified_development_id` linkage** via the dual-signal dedup (see [[2026-06-09-imovirtual-listings-silver]]).
+
 ## Quirks
 
 - **`buildId` rotation**: the `_next/data` path embeds a Next.js build hash that changes on every deploy. The pipeline scrapes it fresh per run from a page's `__NEXT_DATA__` and refreshes it once on a 404 mid-run. Never hardcode it.
@@ -56,3 +58,5 @@ Silver: imovirtual is the 5th `UNION ALL` arm of [[cross-portal-dev-dedup|unifie
 2026-06-07 — dev + plot grain extension: extended the audit to developments + plots. Both carry a rich `additionalInformation` block that the original normalizers ignored. Added new `_addtl_info(ad, label)` helper + plucks in `_normalize_development` (`extra_spaces` 50.9%, `security` 100%, `project_amenities` 11.8%, `rooms_number_range` 97.9%, `advertiser_type` 100%) and `_normalize_plot` (`access_types` 9.6%, `media_types` 6.4%, `vicinity_types` 5.2%, `advertiser_type` 100%). Multi-value fields kept as jsonb arrays via `DEVELOPMENTS_JSON_COLUMNS` / `PLOTS_JSON_COLUMNS` extensions. Zero crawl cost (dev detail + plot detail already fetched). 37 offline tests green.
 
 2026-06-09 — Pass-3 (bathrooms etc.) + ZenRows transport + concurrent phased crawl. `_normalize_unit` now captures `bathrooms_num` / `extras_types` / `security_types` / `advertiser_type` at unit grain via per-unit `/anuncio/{slug}` fetch (these live in `additionalInformation`, empty in the embedded view). All HTTP routed through ZenRows Universal Scraper basic 1× mode (`$0.0001/req`, verified bypasses DataDome on the previously-failing dev-list page 13/23). Crawl refactored into phased concurrent shape (`CRAWL_CONCURRENCY=20` via env, gated on `ZENROWS_API_KEY`; direct fallback keeps `max_workers=1` + 1 req/s). Secret bridged via `_set_zenrows_env()` task-hook in the DAG, mirroring [[idealista]]'s pattern (no docker-compose env duplication). **End-to-end live re-ingest in 20m 11s** (down from ~3h 30m best case): 799 devs / 4,443 units (93.5% with bathrooms) / 4,883 plots. ~$1.05/run = $54/year at weekly cadence. 39 offline tests green.
+
+2026-06-09 — `stg_portal_listings_imovirtual` + 5th `unified_listings_residential` UNION arm shipped (see [[2026-06-09-imovirtual-listings-silver]]). Grain: dev_units only (4,413 silver rows, 100% coords, 100% `unified_development_id` linkage). Floor plans 68.83% combined coverage via UNION of two disjoint per-unit feeds (`floor_plans` array @ olxcdn 29.62% + `localPlanUrl` scalar @ egorealestate 44.82%; 5.6% URL overlap) — second-best plan source after [[jll]]. Silver total now 11,967 rows across 5 portals; imovirtual largest contributor.

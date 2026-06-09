@@ -136,7 +136,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 - [[pt-education-amenity-pillar]] — live Phase 0/1/2 tracking dashboard for the 5-source education ingest (KG → university, públicos + privados); source #1 [[publico-rankings]] shipped in [PR #52](https://github.com/dacostalindo/House4House/pull/52).
 
-## Decisions (18 ADRs)
+## Decisions (19 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -166,6 +166,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
 - [[2026-05-12-phase-6-ty-advisory]] — Astral's `ty` (beta) ships as advisory CI check via Phase 4 annotation-grouping pattern; 3 concrete graduation triggers to BLOCKING.
 - [[2026-06-05-imovirtual-portal-onboarding]] — 5th listing portal; direct Next.js `_next/data` JSON (no ZenRows, DataDome-resilient via retry/backoff); devs/units national + plots Aveiro; built, run & verified (801 devs / 4,465 units / 4,894 plots). `confidence: high`.
+- [[2026-06-09-imovirtual-listings-silver]] — imovirtual as 5th UNION arm of [[unified-listings-residential|unified_listings_residential]]; dev_units only (4,413 silver rows, 100% udev linkage); unit-level floor plans **68.83%** via UNION of two disjoint feeds (`floor_plans` array @ olxcdn 29.62% + `localPlanUrl` scalar @ egorealestate 44.82%) — second-best plan source after [[jll]]; zero URL overlap with dev-level master plans; amenities via `extras_types` JSONB containment. `confidence: high`.
 
 **Use cases** (UC-3 reframe — gstack /office-hours + /plan-eng-review surfaced):
 
