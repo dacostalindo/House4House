@@ -2002,3 +2002,87 @@ DICOFRE for island schools; v1 fallback is leave NULL).
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
 RESOLVED in §9).
+
+## [2026-06-09] gold | Phase 2 PR-E — dim_school canonical dim (Open Q #5 resolved)
+
+Built the canonical gold dim for every Portuguese school across all 5
+levels (KG → universidade). The keystone for the upcoming
+[[listing-school-features]] mart. Resolves Open Q #5 (planning §9):
+single-table design with `school_type` discriminator + `codigo_dgeec`
+text PK accepting both 4-digit higher-ed UO codes and 6-digit
+basic/sec CODESCME codes.
+
+**Why single table over split tables** (Option A from the Open Q #5
+fork):
+- Most consumer queries ("schools near this property") are
+  level-agnostic — a single join to one table is trivial. Per-level
+  filtering becomes a `WHERE school_type = 'higher_ed'` or
+  `WHERE tipologia LIKE '%Secundária%'` clause.
+- The two code spaces are **disjoint by length** (4 vs 6 digits, 0
+  collisions verified empirically across 7,796 + 321 = 8,117 schools),
+  so a single PK column is safe.
+- Per-school business semantics remain pure: basic_sec rows still use
+  the 6-digit codigo_escola (CODESCME); higher_ed rows still use the
+  4-digit codigo_unidade_organica. Only the *physical* PK column name
+  is shared.
+
+**Why dual ranking columns** (sec/9ano/higher_ed as 3 separate column
+families rather than one canonical `ranking_score`): 570 of the 7,796
+basic_sec schools have BOTH a 9ano AND a sec ranking (escolas básicas
+e secundárias serve both 3º ciclo + secundário cohorts). Collapsing
+to one column would lose information for these schools. The planning
+§4.1 "Lean 11+2" schema hint anticipated a single ranking_score but
+the empirics demanded three.
+
+**Per-school dedup**: when multiple Público eids map to the same
+DGEEC codigo_escola (e.g. "Colégio Novo da Maia" has eid 800394 in
+2024 + eid 913006 from a 2019 vintage, both bridging to codigo_escola
+800394 via xref_publico_dgeec), pick the best ranking with
+`DISTINCT ON (codigo_dgeec)` ordered by (match_confidence,
+ranking_year DESC). Without dedup the gold PK would duplicate (63
+duplicates surfaced on first build — fixed before merge).
+
+**Live verification** on the warehouse:
+
+| school_type | rows | with_sec | with_9ano | with_higher_ed | with_both |
+|---|---|---|---|---|---|
+| basic_sec | 7,796 | 629 | 1,180 | — | 570 |
+| higher_ed | 321 | — | — | 168 | — |
+| **Total** | **8,117** | | | | |
+
+- `dbt run --select dim_school` → 1 model built.
+- `dbt test --select dim_school` → **7/7 PASS** (unique + not_null ×
+  codigo_dgeec; not_null + accepted_values × school_type; not_null ×
+  nome; not_null × geom_3763 + geom_4326).
+
+Spot-checks against well-known top schools:
+- Colégio Novo da Maia (Maia, 800394) — basic_sec, sec 15.06, 9ano
+  4.51, both `high` confidence.
+- Colégio Militar (Lisboa, 800388) — basic_sec, sec 13.01, 9ano 3.48,
+  both `high`.
+- Universidade do Porto - Faculdade de Medicina (1108) — higher_ed,
+  vagas-weighted nota último colocado 184.57 (2025 fase 1).
+- Universidade de Coimbra FM (0506) — higher_ed, 178.79.
+- Universidade de Lisboa FM (1507) — higher_ed, 177.18.
+
+The top-tier medicine schools surface correctly in the higher-ed
+ranking layer; the top-tier privados (Colégio Novo da Maia, Colégio
+Militar) carry both 3º ciclo + secundário rankings as expected.
+
+**Higher-ed coverage gap (168/321 = 52%)**: only 168 of the 321 UOs
+have a higher-ed ranking. The 153 unranked UOs are mostly privates +
+militar/policial institutions that use concursos próprios, not the
+concurso nacional. This is **intentional** per [[dges-acesso]]
+planning §3.3 (DGES tracks ~170 UOs in CNA; the gap = privates).
+
+**Phase 2 dashboard state after PR-E**:
+- ✅ silver_publico_rankings_{sec,9ano} (PR-C)
+- ✅ xref_publico_dgeec (PR-D)
+- ✅ dim_school (this PR)
+- 🔲 listing_school_features (next — the end goal)
+- 🔲 Per-level views (schools_kg / schools_sec / schools_higher_ed)
+  if downstream needs them; for now a WHERE clause suffices.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — flip dim_school ✅; flip Open Q #5 to ✅
+RESOLVED in §9).

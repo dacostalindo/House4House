@@ -57,6 +57,59 @@ models:
       - name: match_distance_m
         description: "Geodesic distance in meters (EPSG:3763) between Público and DGEEC school points. NULL when unmatched. For direct_uo_fuzzy rows the distance can be >2km because the UO scope, not spatial, gates the match."
 
+  - name: dim_school
+    description: >
+      Canonical gold dim of every Portuguese school across all 5 levels
+      (KG → universidade), feeds listing_school_features. Single-table
+      design with `school_type` discriminator + `codigo_dgeec` PK
+      accepting both 4-digit higher-ed UO codes and 6-digit basic/sec
+      CODESCME codes (disjoint by length, 0 collisions). Resolves
+      [[pt-education-amenity-pillar]] Open Q #5. UNION ALL of
+      stg_rede_escolar (~7,796 schools) + stg_dgeec_ens_sup (321 UOs).
+      Rankings exposed as 3 separate column families (sec / 9ano /
+      higher_ed) since ~570 schools have BOTH 9ano + sec rankings —
+      collapsing to one canonical ranking_score would lose info.
+      Higher-ed ranking from silver_dges_acesso_uo, latest year + fase 1
+      (most discriminating).
+    columns:
+      - name: codigo_dgeec
+        description: "DGEEC code — 6-digit CODESCME for basic_sec (e.g. '800394'); 4-digit codigo_unidade_organica for higher_ed (e.g. '0100'). Text, zero-padded. PK."
+        tests:
+          - not_null
+          - unique
+      - name: school_type
+        description: "Discriminator: 'basic_sec' (KG → secundário, from rede_escolar) or 'higher_ed' (UO from dgeec_ens_sup)."
+        tests:
+          - not_null
+          - accepted_values: {values: ['basic_sec', 'higher_ed']}
+      - name: nome
+        description: "School name (basic_sec) or Unidade Orgânica name (higher_ed). Trimmed."
+        tests: [not_null]
+      - name: tipologia
+        description: "rede_escolar tipologia — 'Escola Básica', 'Escola Básica e Secundária', 'Escola Secundária', 'Jardim de Infância', 'Escola Profissional', etc. NULL for higher_ed. Use this for fine-grained level filtering."
+      - name: ciclo
+        description: "rede_escolar ciclo label. NULL for higher_ed."
+      - name: natureza
+        description: "'Pública' / 'Privada' (basic_sec). NULL for higher_ed — see natureza_tipo instead."
+      - name: natureza_tipo
+        description: "Higher-ed combination 'Ensino Superior {Público|Privado} - {Universitário|Politécnico}'. NULL for basic_sec."
+      - name: ranking_sec_score
+        description: "Secundário ranking score (0-20 média total exames). NULL if school has no sec ranking. From silver_publico_rankings_sec via xref_publico_dgeec."
+      - name: ranking_9ano_score
+        description: "3º ciclo Provas Finais ranking score (0-5). NULL if no 9ano ranking. From silver_publico_rankings_9ano via xref_publico_dgeec."
+      - name: ranking_higher_ed_score
+        description: "Higher-ed vagas-weighted nota último colocado (0-200). NULL for basic_sec. From silver_dges_acesso_uo (latest year, fase 1)."
+      - name: match_confidence_sec
+        description: "xref_publico_dgeec confidence tier for the sec ranking match ('high'/'medium'/'low'). NULL if school has no sec ranking. Downstream gold should typically filter on 'high' or 'high'+'medium' for canonical reporting."
+      - name: match_confidence_9ano
+        description: "xref_publico_dgeec confidence tier for the 9ano ranking match."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance to listings."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display + WGS84 joins."
+        tests: [not_null]
+
   - name: dim_geography
     description: >
       Geography dimension at the freguesia (parish) level.

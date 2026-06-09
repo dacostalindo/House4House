@@ -87,7 +87,7 @@ Sibling reference pages (read these alongside, NOT instead):
 - [x] `silver_publico_rankings_sec` — latest-year-per-school rollup, 661 schools, 0-20 score ✅ (PR-C 2026-06-09)
 - [x] `silver_publico_rankings_9ano` — latest-year-per-school rollup, 1,313 schools, 0-5 score ✅ (PR-C 2026-06-09)
 - [x] `xref_publico_dgeec` — Público eid → DGEEC codigo_escola bridge, 1,874/1,974 matched (94.9%); 2-stage ensemble algorithm with sim+distance sanity guards: Stage 1 direct_uo_fuzzy (9ano UO-restricted, 921) + Stage 2 ensemble (sec + 9ano residual; trigram + Levenshtein + Jaccard + phonetic vote within concelho-or-2km window). Post-vote guards: sim≥0.7 AND dist≤3km. Tier breakdown: high=1,802, medium=42, low=30, unmatched=100. ✅ (PR-D 2026-06-09 commits 3+4)
-- [ ] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` PK — gated on Open Qs #2 + #5
+- [x] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` text PK accepting both 4-digit higher-ed UO + 6-digit basic/sec CODESCME (disjoint code spaces, 0 collisions). 8,117 rows = 7,796 basic_sec + 321 higher_ed. Three ranking families (sec / 9ano / higher_ed) — 570 schools have both 9ano + sec. ✅ (PR-E 2026-06-09)
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
 - [ ] `listing_school_features` — per-listing nearest-school + best-score features
 
@@ -573,7 +573,7 @@ Four invocations of the skill, with all params pre-filled here.
    - **Option B**: leave `dicofre` NULL for non-continente schools, keep only `distrito` + `concelho`. Acceptable for v1 if Açores/Madeira listings are a small share.
    - Defer to dedicated open question — see Q6.
 4. ✅ **RESOLVED** — historical Público **in scope** per user. Add `YEAR ∈ {2020..2024}` backfill to bronze DAG.
-5. **`dim_school` PK conflict for higher-ed** — basic/sec keys on DGEEC 6-digit; higher-ed on 4-digit Código UO. Need a `codigo_type` discriminator column, or split into `dim_school_basic_sec` + `dim_school_higher_ed`.
+5. ✅ **RESOLVED 2026-06-09** — single-table design with `school_type` discriminator + `codigo_dgeec` text PK accepting both code spaces. Empirically verified the 6-digit basic/sec codes and 4-digit higher-ed UO codes are disjoint by length (0 collisions across 8,117 rows). Lives at `gold_analytics.dim_school`. See [[log#2026-06-09 gold | Phase 2 PR-E]].
 6. **CAOP-Açores + CAOP-Madeira sourcing** — find the canonical DRRT/SREA + DRIGOT freguesia datasets (or fall back to OSM admin boundaries). Roughly: 156 freguesias on Açores, 54 on Madeira. Confirm with user before bootstrapping a 4th `add-gis-source`.
 
 ---
