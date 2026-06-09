@@ -586,7 +586,10 @@ def _iter_dev_units(slug: str, ad: dict) -> Iterable[dict]:
         except Exception as exc:
             log.warning(
                 "[imovirtual] dev %s page %d failed after retries — yielding %d units, skipping rest: %s",
-                slug, page, len(seen), exc,
+                slug,
+                page,
+                len(seen),
+                exc,
             )
             return
         more = ((pp.get("ad") or {}).get("paginatedUnits") or {}).get("items") or []
@@ -656,12 +659,13 @@ def _ensure_dev_payload() -> dict[str, list[dict]]:
     with cf.ThreadPoolExecutor(max_workers=CRAWL_CONCURRENCY) as pool:
         ads = list(pool.map(_fetch_dev_detail, [c["slug"] for c in cards]))
     dev_pairs: list[tuple[str, dict]] = [
-        (cards[i]["slug"], ad)
-        for i, ad in enumerate(ads)
-        if ad is not None and ad.get("id")
+        (cards[i]["slug"], ad) for i, ad in enumerate(ads) if ad is not None and ad.get("id")
     ]
-    log.info("[imovirtual] Phase 2 done: %d dev details (%d skipped)",
-             len(dev_pairs), len(cards) - len(dev_pairs))
+    log.info(
+        "[imovirtual] Phase 2 done: %d dev details (%d skipped)",
+        len(dev_pairs),
+        len(cards) - len(dev_pairs),
+    )
 
     # Phase 3: per-dev embedded-units + page-2+ unit pagination. Kept sequential
     # PER DEV — page-2+ is small (most devs ≤10 units → page 1 only); going
@@ -725,7 +729,9 @@ def _ensure_plot_payload() -> list[dict]:
     skipped = sum(1 for ad in ads if ad is None)
     log.info(
         "[imovirtual] plots crawl complete: seen=%d collected=%d skipped=%d",
-        len(cards), len(rows), skipped,
+        len(cards),
+        len(rows),
+        skipped,
     )
     _PLOT_CACHE = rows
     return _PLOT_CACHE
