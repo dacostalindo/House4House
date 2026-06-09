@@ -72,13 +72,15 @@ Sibling reference pages (read these alongside, NOT instead):
   - [ ] E2E Airflow run on the live stack (deferred to next session — Airflow not running in this worktree)
 - [ ] Bootstrap source #5 (`infoescolas`) — XLSX as fallback for 3º ciclo
 
-### Phase 1 — silver promotions (next)
+### Phase 1 — silver promotions (in progress — PR-A shipped 2026-06-09, PR-B next)
 
-- [ ] `stg_publico_rankings_sec.sql` — type promotions, geom 3763, concelho fuzzy DICOFRE join
-- [ ] `stg_publico_rankings_9ano.sql` — same + direct join on `codigo_uo_dgeec` (79% coverage) + fuzzy fallback (21%)
-- [ ] `stg_rede_escolar.sql` — typed register, filter `activa = true`
-- [ ] `stg_dgeec_ens_sup.sql` — typed higher-ed register
-- [ ] `stg_dges_acesso.sql` — vagas-weighted nota último colocado aggregation per UO
+- [ ] `stg_publico_rankings_sec.sql` — type promotions, geom 3763, concelho fuzzy DICOFRE join (PR-B, blocked on Open Qs #1+#2)
+- [ ] `stg_publico_rankings_9ano.sql` — same + direct join on `codigo_uo_dgeec` (79% coverage) + fuzzy fallback (21%) (PR-B, blocked on Open Qs #1+#2)
+- [x] `stg_rede_escolar.sql` — typed register, filter `situacao = 'Em funcionamento'` + drop NULL geoms, ~17 canonical cols + dual-CRS geoms ✅ (PR-A 2026-06-09)
+- [x] `stg_dgeec_ens_sup.sql` — typed higher-ed register, latest-snapshot filter, dual-CRS geoms ✅ (PR-A 2026-06-09)
+- [x] `stg_dges_acesso.sql` — vagas-weighted nota último colocado aggregation per UO ✅ (already shipped with source #4 / PR #56)
+- [x] `silver_dges_acesso_curso.sql` (NEW) — per-curso sibling to `silver_dges_acesso_uo`, keeps `nome_curso` + `nome_instituicao` + `grau`; 38,922 rows ✅ (PR-A 2026-06-09)
+- [x] `silver_dges_acesso_uo` CTE swap — inline `dgeec_latest_run` CTE replaced with `ref('stg_dgeec_ens_sup')` ✅ (PR-A 2026-06-09)
 
 ### Phase 2 — gold marts
 

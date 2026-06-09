@@ -1,6 +1,62 @@
 version: 2
 
 models:
+  - name: stg_dgeec_ens_sup
+    description: >
+      Typed view over bronze_education.raw_dgeec_ens_sup, filtered to the
+      latest run_date. Higher-ed register at Unidade Orgânica grain — 321
+      UOs (universidade + politécnico + militar) across continente +
+      Açores + Madeira. Sets the pillar's "staging filters to latest
+      snapshot" convention (see [[pt-education-amenity-pillar]] §Phase 1).
+      Dual-CRS geom exposed as `geom_4326` (display/joins) + `geom_3763`
+      (PT-TM06 for metric distance). Downstream: [[silver-dges-acesso-uo]]
+      + [[silver-dges-acesso-curso]] join on codigo_unidade_organica.
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC 4-digit UO code, zero-padded text. PK after latest-snapshot filter."
+        tests:
+          - not_null
+          - unique
+      - name: codigo_instituicao
+        description: "Parent-institution code (NON-UNIQUE — a Universidade owns many UOs)."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance/area."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display + WGS84 joins."
+        tests: [not_null]
+
+  - name: stg_rede_escolar
+    description: >
+      Typed view over bronze_education.raw_rede_escolar, filtered to the
+      latest monthly snapshot, active schools only ('Em funcionamento' +
+      not flagged for extinction), with non-NULL geometry. Trimmed to ~15
+      canonical columns for downstream gold marts; ArcGIS-internal +
+      low-signal contact fields dropped (still accessible in bronze).
+      Roughly 7,500 rows of the bronze ~8,670 survive the activa+geom
+      filters. Dual-CRS geom exposed as `geom_4326` + `geom_3763`.
+      Downstream: gold dim_school + listing_school_features.
+    columns:
+      - name: codigo_escola
+        description: "DGEEC 6-digit school code (CODESCME). PK after filters."
+        tests:
+          - not_null
+          - unique
+      - name: codigo_uo
+        description: "Agrupamento code (CODUOME). Joins to stg_publico_rankings_9ano.codigo_uo_dgeec."
+      - name: ciclo
+        description: "Ciclo de ensino (label)."
+      - name: tipologia
+        description: "Tipologia — 'EB1', 'EB2,3/S', 'JI', 'Sec'."
+      - name: natureza
+        description: "Natureza institucional (descrição) — 'Pública' / 'Privada' / subgrupos."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance/area."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display + WGS84 joins."
+        tests: [not_null]
+
   - name: stg_dges_acesso
     description: >
       1:1 typed staging of bronze_education.raw_dges_acesso — DGES CNA acesso
@@ -67,3 +123,41 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [codigo_instit, year, phase]
+
+  - name: silver_dges_acesso_curso
+    description: >
+      Per-curso grain — (codigo_unidade_organica, year, phase, codigo_curso).
+      Sibling to [[silver-dges-acesso-uo]] (UO-level rollup); keeps the
+      denormalised names (nome_curso, nome_instituicao, grau) that the UO
+      rollup has to drop. LEFT JOIN to stg_dgeec_ens_sup on codigo_instit;
+      ~5% of DGES codes are unmatched (UOs added since DGEEC's snapshot) and
+      surface as unmatched_uo=true with NULL codigo_unidade_organica.
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC UO code (NULL when unmatched_uo=true)."
+      - name: codigo_instit
+        description: "DGES 4-digit institution/UO code (always present)."
+        tests: [not_null]
+      - name: codigo_curso
+        description: "DGES curso code, text (2-5 chars alphanumeric)."
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: nome_curso
+        description: "Nome do curso (trimmed)."
+      - name: nome_instituicao
+        description: "Nome da instituição/UO as it appears in DGES (trimmed)."
+      - name: grau
+        description: "Grau curto — 'L1' (Licenciatura), 'PM' (Mestrado Integrado), etc."
+      - name: nota_ult_colocado
+        description: "0-200 scale; NULL when colocados=0."
+      - name: unmatched_uo
+        description: "TRUE when codigo_instit has no DGEEC.codigo_unidade_organica match. Drift sentinel."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, phase, codigo_instit, codigo_curso]
