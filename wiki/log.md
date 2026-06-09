@@ -2265,3 +2265,149 @@ Actions:
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (§0 Phase 2 dashboard — flipped listing_school_features to ~ dropped).
+
+## [2026-06-09] design | silver orchestration locked — wall-clock cron + append-only dev_uid map
+
+Interview-driven design session: how to orchestrate the 5 portal scrapers
+through `silver_unified_developments` + `silver_unified_listings` and into
+enrichment ([[UC-4]] LLM dev-actor search + CV image classification). The
+interview started by adopting Airflow Datasets + a persistent dev_uid
+registry with oldest-wins + alias table + Python pre-step DAG; a
+senior-data-eng review (mid-interview) showed both layers were
+over-engineering and collapsed them.
+
+Locks:
+- **Trigger**: wall-clock daily silver `0 11 * * *`, NO Airflow Datasets.
+  Portal scrapers stay on their existing per-portal crons. Silver builds
+  whatever bronze + heartbeat-alive rows it finds. New ADR
+  [[2026-06-09-silver-wall-clock-not-datasets]].
+- **Identity**: append-only `silver_dev_uid_map(portal, portal_dev_id) →
+  dev_uid` (dbt incremental append). `silver_unified_developments` carries
+  `dev_uids UUID[]` for enrichment FKs (stable) + `component_id INT`
+  (volatile runtime grouping). New concept page [[dev-uid-stability]].
+- **Listings dedup**: DROPPED entirely. `silver_unified_listings` = pure
+  UNION ALL + dev_uid via JOIN + full SCD2 history. No listing_uid, no
+  Phase 2/3 dedup from [[sprint-04.5]]. Hedonic (sprint-05) gets its own
+  `fact_market_observations` later with its own dedup policy.
+- **Materialization**: both silver models full-rebuild tables (~3 min
+  total today, ~15 min projected at 5M listings — revisit incremental
+  when crossing ~20 min).
+- **Enrichment FKs**: `dev_uid` for dev-grain (UC-4 LLM dev-actor),
+  `(portal, portal_listing_id)` for listing-grain (CV). Both naturally
+  stable; no extra machinery.
+- **Validate**: schema-contract = hard fail (dlt freeze); statistical
+  drift = soft fail / alert-and-continue.
+- **Retries**: uniform `retries=2`, exponential backoff, max 1h.
+- **Concurrency**: `max_active_runs=1` all portals; `zenrows_pool slots=2`;
+  `ZENROWS_DAILY_BUDGET_USD=20` soft cap in source.
+
+Rejected (named here so future-Claude doesn't re-propose):
+- Airflow Datasets for silver triggering — over-engineering for cron-driven
+  upstreams.
+- Persistent registry + alias table + Python pre-step DAG
+  (`dag_dev_uid_resolver`) + manual `dag_dev_uid_full_reeval` — the append-only
+  map covers the same stability requirement with one dbt model.
+- Content-hash `dev_uid` based on highest-priority-portal anchor — unstable
+  when anchor portals appear/disappear, AND connected components are
+  non-monotonic so no stateless content key is stable in general (senior-eng
+  call-out).
+- Cross-portal listing-level dedup — only UC-3 matters for v1 and UC-3
+  doesn't need it.
+
+Pre-implementation verification (must complete before writing code):
+- C2: verify SCD2 close path uses heartbeat absence, NOT row absence
+  (full-rebuild silver would otherwise produce phantom valid_to closes on
+  validate-failure days). See [[scd2-row-hash]] + [[heartbeat-sidecar]].
+- C3: profile recursive CTE on worst-case concelho (Lisboa) — confirm
+  scale projection that 5M listings → ~15 min. If the CTE itself blows
+  up past ~10 min at projected dev counts in dense concelhos, revisit
+  materialization (incremental) or matching framework (Python pre-step).
+- C4: verify CAOP `geo_concelho_name` propagates through all 5 portal
+  staging models — the dev_uid stable key relies on CAOP-resolved
+  concelho, NOT portal-text concelho.
+
+Deferred:
+- Gold gate (silver → gold trigger): revisit when gold design lands.
+  Current placeholder is wall-clock `0 12 * * *` per [[orchestration]].
+
+**Pages touched**: [[log]] (this entry),
+[[2026-06-09-silver-wall-clock-not-datasets]] (new ADR),
+[[dev-uid-stability]] (new concept), [[cross-portal-dev-dedup]]
+(2026-06-09 addendum + dev_uids[] surface + See also), [[index]]
+(new concept + ADR cataloged under Concepts + Decisions §Orchestration +
+By-area-of-code §pipelines + §dbt).
+
+## [2026-06-09] verify | C2/C3/C4 pre-implementation checks for the 2026-06-09 orchestration design
+
+Ran the three verification checks the senior-data-eng review flagged
+during the 2026-06-09 silver-orchestration interview. Outcomes:
+
+**C2 — SCD2 closure path heartbeat-gated**: ❌ FAILS.
+- dlt's default `disposition=merge, strategy=scd2` closes `_dlt_valid_to`
+  on **row absence from the current scrape**, NOT on heartbeat age.
+- Confirmed in `pipelines/portals/jll/source.py:418-437`,
+  `pipelines/portals/remax/source.py:768-817`; same pattern in zome +
+  idealista + imovirtual sources.
+- Heartbeat sidecars (`*_state` tables) ARE upserted correctly, but the
+  bronze SCD2 closure ignores them.
+- Real incident already happened — the 2026-06-04 idealista one-shot
+  SQL restore (`DELETE` 150 phantoms + `UPDATE` 444 rows
+  `_dlt_valid_to = NULL`) was caused by this exact pattern with partial
+  unit payloads.
+- Silver has a 3-day `is_active` grace post-hook in
+  `dbt/models/silver/properties/unified_listings_residential.sql:38`
+  that masks the symptom downstream, but bronze is still wrong and the
+  damage is irreversible without manual restore.
+- **Promotes to blocker workstream A in [[sprint-04.6]]** — must
+  implement portal-side heartbeat-driven closure before the wall-clock
+  daily silver lock can ship safely.
+
+**C3 — Recursive CTE scale projection**: ⚠️ BORDERLINE.
+- Concelho blocking IS enforced before edge generation (good — caps
+  cost per-concelho). Edge expression is at line 120 of the silver
+  model:
+  `WHERE a.token = b.token AND a.concelho = b.concelho AND a.member_id < b.member_id`.
+- Recursive CTE uses `UNION` (deduplicating) not `UNION ALL` — hashtable
+  bottleneck under large edge counts; work_mem matters.
+- Today only **token-Jaccard is live**; the char-trigram Jaccard claimed
+  in [[cross-portal-dev-dedup]] is NOT implemented yet — the concept
+  doc is ahead of the code.
+- Today's national rebuild ~3min; Lisboa concelho today estimated
+  3-5min in isolation.
+- Conservative 5M-listings scenario (sparse name collisions): ~8min,
+  within SLA. Pessimistic scenario (dense collisions, deeper recursion):
+  ~40min, exceeds SLA.
+- **Action**: empirical measurement query (provided by senior-eng
+  review) runs as deliverable B.5 of [[sprint-04.6]] before merging the
+  wall-clock cron change. If real worst-case concelho >10min today,
+  escalate to incremental materialization decision.
+
+**C4 — CAOP geo_concelho_name in all 5 portals**: ✅ PASSES.
+- All 5 staging models expose `geo_concelho_name` via `LATERAL
+  ST_Contains` PIP on `dim_geography.freguesia_geom_pt` against
+  `geom_3763`:
+  - `dbt/models/staging/portals/stg_portal_developments_idealista.sql:92,100`
+  - `…stg_portal_developments_remax.sql:71,79`
+  - `…stg_portal_developments_zome.sql:70,78`
+  - `…stg_portal_developments_jll.sql:70,78`
+  - `…stg_portal_developments_imovirtual.sql:74,82`
+- COALESCE happens in `silver_unified_developments.sql:234`:
+  `COALESCE(dg.concelho_name, pd.concelho_text) AS concelho` — silver
+  re-runs PIP on the unified geom (geom-priority hierarchy promotion
+  case) before falling back to portal-text.
+- Critical for idealista where portal-text `concelho` is often NULL due
+  to the broken `location_hierarchy` (per staging schema docstring
+  line 171); CAOP signal is what unlocked the "The Unique" idealista ↔
+  RE/MAX merge.
+- **No action**. The dev_uid stability design (matching on `(geo_concelho_name,
+  normalize_dev_name(canonical_name))`) is safe to ship.
+
+**New sprint declared**: [[sprint-04.6]] — Silver orchestration + dev_uid
+stability + SCD2 heartbeat closure. Four workstreams: WS-A (SCD2 fix,
+blocker per C2), WS-B (silver_dev_uid_map + wall-clock chain, includes
+C3 measurement), WS-C (retries/pools/budget cap), WS-D (wiki + runbook
+updates). Exit criteria + risk register in the sprint page.
+
+**Pages touched**: [[log]] (this entry), [[sprint-04.6]] (new), [[index]]
+(sprint-04.6 added to Data-product sprints; sprint-04.5 note added
+about scope reduction).
