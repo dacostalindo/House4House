@@ -31,18 +31,25 @@ models:
         description: "DGEEC 6-digit codigo_escola (CODESCME) — the per-school code from rede_escolar. NULL when match_method='unmatched' (school is in Público but not in the rede_escolar register, typically small privates / IPSS)."
       - name: match_method
         description: >
-          'direct_uo_fuzzy' (9ano, UO-restricted, ~921 rows);
-          'fuzzy_spatial' (sec or 9ano residual, ST_DWithin 500m + name sim≥0.6, ~865 rows);
-          'name_perfect_extended' (Path 2 fallback for coordinate-disagreement misses,
-            ST_DWithin 2km + name sim≥0.95, ~25 rows incl. Colégio Novo da Maia / 9ano #1);
-          'unmatched' (no candidate found, ~163 rows).
+          'direct_uo_fuzzy' (Stage 1 — 9ano UO-restricted, ~921 rows, implicit confidence=high);
+          'ensemble_high' (Stage 2 — ≥3 of 4 algorithms agree);
+          'ensemble_medium' (Stage 2 — exactly 2 algorithms agree);
+          'unmatched' (no consensus).
         tests:
           - not_null
-          - accepted_values: {values: ['direct_uo_fuzzy', 'fuzzy_spatial', 'name_perfect_extended', 'unmatched']}
+          - accepted_values: {values: ['direct_uo_fuzzy', 'ensemble_high', 'ensemble_medium', 'unmatched']}
+      - name: match_confidence
+        description: "'high' (Stage 1 OR ≥3 ensemble votes); 'medium' (exactly 2 votes); 'unmatched'. Downstream gold (dim_school) filters on this — typically high+medium for canonical, high-only for strict joins."
+        tests:
+          - not_null
+          - accepted_values: {values: ['high', 'medium', 'unmatched']}
+      - name: votes
+        description: "Number of algorithms (out of 4: trigram + Levenshtein + Jaccard + phonetic) that picked the chosen codigo_dgeec. 4 for Stage 1 (all agree by construction). 0 for unmatched."
+        tests: [not_null]
       - name: match_score
-        description: "Trigram similarity (pg_trgm) of unaccent(lower(publico.nome)) vs unaccent(lower(dgeec.nome)). NULL when unmatched. Range 0-1."
+        description: "Trigram similarity (pg_trgm) of unaccent(lower(publico.nome)) vs unaccent(lower(dgeec.nome)). The 'audit' algorithm — even when other algorithms drove the ensemble decision, this column lets you eyeball name closeness. NULL when unmatched."
       - name: match_distance_m
-        description: "Geodesic distance in meters (EPSG:3763) between Público and DGEEC school points. NULL when unmatched. For direct_uo_fuzzy rows the distance can be >500m because the UO scope, not the spatial filter, gates the match."
+        description: "Geodesic distance in meters (EPSG:3763) between Público and DGEEC school points. NULL when unmatched. For direct_uo_fuzzy rows the distance can be >2km because the UO scope, not spatial, gates the match."
 
   - name: dim_geography
     description: >
