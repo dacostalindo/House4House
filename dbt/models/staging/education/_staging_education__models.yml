@@ -192,6 +192,63 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [codigo_instit, year, phase]
 
+  - name: silver_publico_rankings_sec
+    description: >
+      Latest-year-per-school rollup of stg_publico_rankings_sec — one row
+      per eid, picking the most recent year that school appeared in
+      Público's secundário ranking corpus. Per pillar decision #3
+      (planning §2): latest year only for v1. All staging columns
+      preserved; downstream gold (dim_school) will project to the lean
+      11+2 schema. Used as the canonical sec ranking signal for the
+      future xref_publico_dgeec bridge (Open Q #2) and listing_school_features.
+    columns:
+      - name: eid
+        description: "Público internal school id. PK."
+        tests:
+          - not_null
+          - unique
+      - name: ranking_year
+        description: "The most recent year this school appeared in the sec corpus (2018-2024 window). Use this for staleness filters."
+        tests: [not_null]
+      - name: ranking_score
+        description: "Headline 0-20 score (média total exames). Renamed from media_total_exames per planning §4.1 gold-schema convention."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+
+  - name: silver_publico_rankings_9ano
+    description: >
+      Latest-year-per-school rollup of stg_publico_rankings_9ano — one
+      row per eid, picking the most recent year that school appeared in
+      Público's 3º ciclo Provas Finais ranking corpus. Per pillar
+      decision #3: latest year only for v1. All staging columns preserved
+      including codigo_uo_dgeec passthrough (~79% populated). The COVID
+      gap (2020+2021 cancelled Provas Finais) means some schools'
+      "latest" year is 2019. Used as the canonical 9ano ranking signal
+      for listing_school_features.
+    columns:
+      - name: eid
+        description: "Público internal school id. PK."
+        tests:
+          - not_null
+          - unique
+      - name: ranking_year
+        description: "The most recent year this school appeared in the 9ano corpus (2018-19, 2022-24 window). Use this for staleness filters."
+        tests: [not_null]
+      - name: ranking_score
+        description: "Headline 0-5 score (Provas Finais média). Renamed from media_total_exames per planning §4.1 gold-schema convention."
+      - name: codigo_uo_dgeec
+        description: "DGEEC 6-digit agrupamento code. ~79% populated; 21% NULL. Direct join to silver_rede_escolar (future) / stg_rede_escolar.codigo_uo when present."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+
   - name: silver_dges_acesso_curso
     description: >
       Per-curso grain — (codigo_unidade_organica, year, phase, codigo_curso).
