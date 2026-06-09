@@ -116,6 +116,12 @@ UNIT_ITEM = {
         {"label": "security_types", "values": ["monitoring"], "unit": ""},
         {"label": "advertiser_type", "values": ["developer"], "unit": ""},
     ],
+    "links": {
+        "localPlanUrl": "https://multimedia.hcpro.pt/x/planta/abc.jpg",
+        "walkaroundUrl": "",
+        "videoUrl": "https://video.example/abc",
+        "view3dUrl": "",
+    },
 }
 
 PLOT_AD = {
@@ -308,16 +314,30 @@ class TestNormalizeUnit:
         assert rec["security_types"] == ["monitoring"]
         assert rec["advertiser_type"] == "developer"
 
+    def test_pass3_links_plucked(self):
+        # links.localPlanUrl is the advertiser-supplied floor plan — different
+        # CDN from `floorPlans`. ~60% coverage at unit grain (Agras finding).
+        rec = _normalize_unit(UNIT_ITEM, development_id=1)
+        assert rec["local_plan_url"] == "https://multimedia.hcpro.pt/x/planta/abc.jpg"
+        assert rec["video_url"] == "https://video.example/abc"
+        # empty-string links are normalized to None
+        assert rec["walkaround_url"] is None
+        assert rec["view_3d_url"] is None
+
     def test_pass3_fields_none_when_no_additional_info(self):
         # When _ensure_dev_payload's Pass-3 fetch fails, the embedded item never
-        # gets `additionalInformation` merged in — fields should be None, not crash.
+        # gets `additionalInformation` / `links` merged in — fields should be
+        # None, not crash.
         bare = {**UNIT_ITEM}
         bare.pop("additionalInformation", None)
+        bare.pop("links", None)
         rec = _normalize_unit(bare, development_id=1)
         assert rec["bathrooms_num"] is None
         assert rec["extras_types"] is None
         assert rec["security_types"] is None
         assert rec["advertiser_type"] is None
+        assert rec["local_plan_url"] is None
+        assert rec["video_url"] is None
 
 
 class TestNormalizePlot:

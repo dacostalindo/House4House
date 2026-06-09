@@ -1243,4 +1243,6 @@ Historical bronze rows backfill via full re-ingest of the imovirtual DAG (operat
 
 Final bronze: **799 developments, 4,443 units, 4,883 plots**. Unit grain coverage: **93.5% have `bathrooms_num`**, 88% have `extras_types`. Cost: ~10,460 ZenRows credits ≈ **$1.05/run = $54/year at weekly cadence**.
 
+**Same-day Agras fix**: user found a T3 unit (`apartamento-t3-agras-ID1hFNw` in the VIANOVA dev) where the imovirtual web UI shows a "Planta" but our bronze `floor_plans` was empty. Investigation surfaced a SECOND floor-plan field on the full /anuncio/ detail: `ad.links.localPlanUrl` — advertiser-supplied, on a different CDN (`multimedia.hcpro.pt` vs the `apollo.olxcdn` URLs that fill `ad.floorPlans`). Live sample of 10 random units: **6/10 have `localPlanUrl` (60% coverage)**; only ~30% have the olxcdn `floorPlans`. Capturing both substantially improves the floor-plan surface. Pass-3 augmentation now returns both `additionalInformation` AND `links`; `_normalize_unit` projects `local_plan_url`, `walkaround_url`, `video_url`, `view_3d_url` as scalar text columns alongside the existing jsonb `floor_plans`. 40 offline tests green.
+
 **Pages touched**: [[log]] (this entry), [[imovirtual]] (Acquisition shape: Pass-3 enabled; Quirks: ZenRows transport replaces direct, `Long single-task fragility` quirk obsoleted by concurrent crawl; Last verified: 2026-06-09).

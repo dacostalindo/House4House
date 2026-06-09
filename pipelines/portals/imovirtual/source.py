@@ -493,12 +493,21 @@ def _normalize_unit(item: dict, development_id: Any) -> dict:
         "roofing": chars.get("roofing"),
         "free_from": chars.get("free_from"),
         # Pass-3 fields (None unless _ensure_dev_payload merged detail).
-        # additionalInformation is absent from embedded paginatedUnits.items[]
-        # and only appears on the full /pt/anuncio/{slug} unit detail page.
+        # `additionalInformation` and `links` are both absent from the embedded
+        # paginatedUnits.items[] view; only the full /pt/anuncio/{slug} unit
+        # detail page has them.
         "bathrooms_num": (_addtl_info(item, "bathrooms_num") or [None])[0],
         "extras_types": _addtl_info(item, "extras_types"),
         "security_types": _addtl_info(item, "security_types"),
         "advertiser_type": (_addtl_info(item, "advertiser_type") or [None])[0],
+        # `links.localPlanUrl` is the advertiser-supplied floor plan (different
+        # CDN from `ad.floorPlans` — multimedia.hcpro.pt vs apollo.olxcdn).
+        # Empirically ~60% of units carry localPlanUrl; only ~30% carry the
+        # olxcdn `floorPlans` array. Capturing BOTH covers the full surface.
+        "local_plan_url": (item.get("links") or {}).get("localPlanUrl") or None,
+        "walkaround_url": (item.get("links") or {}).get("walkaroundUrl") or None,
+        "video_url": (item.get("links") or {}).get("videoUrl") or None,
+        "view_3d_url": (item.get("links") or {}).get("view3dUrl") or None,
         # JSON columns
         "images": item.get("images"),
         "floor_plans": item.get("floorPlans"),
@@ -587,10 +596,17 @@ def _iter_dev_units(slug: str, ad: dict) -> Iterable[dict]:
                 yield item
 
 
-def _fetch_unit_detail_additional_info(unit_url: str) -> list | None:
-    """Pass 3: fetch full /pt/anuncio/{slug} unit detail and return its
-    `additionalInformation` array. Returns None on any failure (the embedded-view
-    data is still good; this just leaves the Pass-3 fields NULL for that unit)."""
+def _fetch_unit_detail_extras(unit_url: str) -> dict | None:
+    """Pass 3: fetch full /pt/anuncio/{slug} unit detail and return the fields
+    that exist ONLY on the full detail (NOT in the embedded `paginatedUnits.items[]`):
+
+      - `additionalInformation` (list) — bathrooms_num / extras_types / security_types
+      - `links` (dict) — localPlanUrl (advertiser-served floor plan, different CDN
+        from `ad.floorPlans`; 60% coverage at unit grain), videoUrl, walkaroundUrl,
+        view3dUrl
+
+    Returns None on persistent failure (Pass-3 fields stay NULL for that unit;
+    embedded-view data is still good)."""
     if not unit_url:
         return None
     unit_slug = unit_url.rstrip("/").rsplit("/", 1)[-1]
@@ -599,7 +615,10 @@ def _fetch_unit_detail_additional_info(unit_url: str) -> list | None:
     try:
         time.sleep(RATE_LIMIT_S)
         ad = _next_data(f"/pt/anuncio/{unit_slug}").get("ad") or {}
-        return ad.get("additionalInformation")
+        return {
+            "additionalInformation": ad.get("additionalInformation"),
+            "links": ad.get("links"),
+        }
     except Exception as exc:
         log.warning("[imovirtual] unit Pass-3 skipped (slug=%s): %s", unit_slug, exc)
         return None
@@ -658,9 +677,13 @@ def _ensure_dev_payload() -> dict[str, list[dict]]:
     # subsequent normalize step sees it via `_addtl_info`.
     def _augment_one(pair: tuple[Any, dict]) -> None:
         _, item = pair
-        addtl = _fetch_unit_detail_additional_info(item.get("url"))
-        if addtl is not None:
-            item["additionalInformation"] = addtl
+        extras = _fetch_unit_detail_extras(item.get("url"))
+        if extras is None:
+            return
+        if extras.get("additionalInformation") is not None:
+            item["additionalInformation"] = extras["additionalInformation"]
+        if extras.get("links") is not None:
+            item["links"] = extras["links"]
 
     with cf.ThreadPoolExecutor(max_workers=CRAWL_CONCURRENCY) as pool:
         list(pool.map(_augment_one, all_unit_pairs))
