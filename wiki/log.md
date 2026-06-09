@@ -1187,253 +1187,60 @@ FROM gold_analytics.dim_constraint_severity GROUP BY 1;
 
 **Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).
 
-## [2026-06-06] add-portal-source + first load | imovirtual (P1) — Next.js _next/data JSON
+## [2026-06-05] update | zome tab_listing_view enrichment folded into zome_listings
 
-Onboarded [[imovirtual]] as the 5th listing portal (after [[idealista]] / [[remax]] / [[zome]] / [[jll]]) per [[2026-06-05-imovirtual-portal-onboarding]], then ran it end-to-end. Created `pipelines/portals/imovirtual/` (source.py + imovirtual_dlt_dag.py + README + 33 offline tests), the [[imovirtual]] source page, and 6 bronze source declarations in [_staging_listings__sources.yml](../dbt/models/staging/listings/_staging_listings__sources.yml). Acquisition is direct Next.js `_next/data` JSON — no scraping vendor. Aligns with [[scd2-row-hash]], [[heartbeat-sidecar]], [[portal-naming-conventions]], [[portal-plot-conventions]]; mirrors [[zome]]'s single-file dlt skeleton + [[idealista]]'s dev→units FK-at-parse-time.
+Zome's website detail page reads `tab_listing_view`, which carries ~19 columns the ingested base table `tab_listing_list` lacks — notably `aplantsgallery` (floor plans / plantas, ~79% coverage), the energy certificate (~82%), full description, and extra attributes. These were absent from the warehouse (the "plantas on the site but not in the DB" gap). Folded them **into** `zome_listings` (no sidecar table, per user's anti-sprawl preference) as OUT-of-`row_hash` enrichment columns; SCD2 spine unchanged. Also: bumped `LISTINGS_MAX_OFFSET` 10k→15k (view has ~10.6k rows), added `tab_listing_view` to the MinIO audit, and an enrichment-coverage tripwire to `validate_facts`. Verified end-to-end against the warehouse (10,604 rows, 1:1 grain, target listing ZMPT589319 floor plan materialized). See [[zome]], [[scd2-row-hash]].
 
-**First load (verified in `bronze_listings`)**: developments **801** (national, 64 concelhos), development_units **4,465** (0 orphans), plots **4,894** (Aveiro, 100% with coords; 4,759 distinct — pagination overlap dups collapse at staging via `DISTINCT ON`). All within validation bands. imovirtual exposes BOTH `number_of_units_in_project` (true total) and listed count — better than [[idealista]] (listed-subset only).
+**Pages touched**: [[log]] (this entry), [[zome]] (Schema + Quirks + Last verified).
 
-**Two operational findings baked into the pipeline + the [[2026-06-05-imovirtual-portal-onboarding]] ADR**: (1) the load task is a single 30+ min synchronous crawl, so Airflow's default 300s `scheduler_zombie_task_threshold` killed the live task when its heartbeat lapsed under CPU contention — raised to 3600s in [docker-compose.yml](../docker-compose.yml) and the two loads serialized; (2) DataDome throws short 403 bursts under sustained load (~every few hundred plots) — the crawl's retry/backoff rides them out (first full run: 19 retries, **0 plots dropped**). Confirm-at-build items resolved: unit `?page=N` pagination works; terreno `characteristics.type` enum = {building, habitat, agricultural, other, commercial, agricultural_building, woodland} + nullable.
+## [2026-06-05] query | portal listing scope (new-build bias) documented
 
-**Pages touched**: [[log]] (this entry), new [[2026-06-05-imovirtual-portal-onboarding]], new [[imovirtual]], [[index.md|index]] (Real-estate portals 4→5, Sources 23→24, Decisions 17→18, P1 13→14). **Deferred** (follow-up PR): `stg_portal_developments_imovirtual.sql` + the 5th `unified_developments` UNION arm + geo-priority rank; [[portal-field-map]] imovirtual columns.
+A code investigation across the four portal `source.py` files established a non-obvious coverage asymmetry: [[idealista]] (`idealista_development_units`), [[jll]] (`jll_listings`), and [[remax]] (`remax_listings`, housing) only ingest listings discovered *through* a development/empreendimento — they are structurally **new-build-only**. [[zome]] (`zome_listings`) is the lone outlier that reads the full `tab_listing_list` relation (resale + new-build). Plots are a separate axis (RE/MAX sitemap walk, Zome type filter) and not development-gated. The risk: downstream models treating `*_listings` as full market coverage inherit a new-build bias. Wrote new concept [[portal-listing-scope]] capturing the per-portal scope table + how to verify scope from the discovery step. Idealista's resale stock remains only in the separate legacy `raw_idealista` catalog.
 
-## [2026-06-06] silver wiring | imovirtual 5th UNION arm in unified_developments
+**Pages touched**: [[log]] (this entry), [[portal-listing-scope]] (new), [[index]] (Concepts catalog 18→19 + by-area pipelines concepts line), [[idealista]] / [[jll]] / [[remax]] / [[zome]] (Quirks/Schema scope notes).
 
-Landed the deferred follow-up from the [2026-06-06 imovirtual onboarding entry above](#2026-06-06-add-portal-source-first-load-imovirtual-p1-nextjs-_next_data-json). Created [stg_portal_developments_imovirtual](../dbt/models/staging/portals/stg_portal_developments_imovirtual.sql) (13-col canonical schema, typed `reverseGeocoding` admin geography, dev-level GPS, TRUE-total unit count), added the matching test block to [_staging_portals__models.yml](../dbt/models/staging/portals/_staging_portals__models.yml) at JLL/Zome depth, and added the 5th `UNION ALL` arm to [unified_developments](../dbt/models/silver/properties/unified_developments.sql).
+## [2026-06-05] investigate | remax floor-plan + Collection normalizer bugs fixed
 
-**Geometry-priority demotion**: original ADR locked imovirtual at slot 2 (just below JLL). Demoted to **slot 4** (`JLL > Zome > RE/MAX > imovirtual > idealista`) because coordinate coverage was unverified at silver-build time — Zome's ~98% coverage is proven, imovirtual's isn't. Conservative slot until a coverage spot-check clears a promotion. Reversibility = 4 lines in the priority CASE. Rationale captured as a 2026-06-06 addendum on [[2026-06-05-imovirtual-portal-onboarding]].
+A data investigation ("do RE/MAX Collection listings have floor plans?") surfaced two latent bugs in [pipelines/portals/remax/source.py](../pipelines/portals/remax/source.py) `_normalize_listing`, both leaving typed columns dead despite the data being present. (1) **Floor plans**: `hasFloorPlan` / `floorPlanPath` are on the Pass-1 unit (702 of 8,585 current Aveiro listings carry a plan) but were never mapped → `has_floor_plan` / `floor_plan_path` NULL for all 8,735 warehouse rows. (2) **Collection flag**: `is_remax_collection` read `unit.get("isRemaxCollection")`, which RE/MAX leaves `false` on every listing unit — Collection only exists on the development (`remax_developments.is_special`, 93). Now resolved by OR-ing `isSpecial` across a unit's parent developments in `listings()`, so the ~2,114 listings under Collection developments flip true. Regression test at [tests/test_remax_source.py](../tests/test_remax_source.py) (6 cases, fail-without-fix verified). Floor-plan rate confirmed ~2× higher for Collection (20.8%) vs non-Collection (10.1%) detail rows. Backfill of existing rows (non-versioned columns don't re-issue open SCD2 versions) was applied **directly in SQL from the stored `raw_json`** rather than via a re-scrape: 8,585 current `remax_listings` rows updated (`has_floor_plan`/`floor_plan_path` copied from `raw_json`, verified 0 drift vs source; `is_remax_collection` set TRUE for the 2,114 listings under `is_special` developments). Instant, no external API load, SCD2 history preserved. Post-backfill the original question answers from typed columns: Collection listings carry floor plans at 12.7% (268/2,114) vs 6.7% (434/6,471) non-Collection. A `full_refresh` DAG param (dlt `refresh='drop_resources'`) was prototyped as the backfill vehicle then removed once the SQL path was chosen — `remax_dlt` carries no permanent backfill switch. The next normal run reconciles `row_hash` on the 2,114 Collection rows (one fresh SCD2 version each).
 
-**Unit-count semantics**: `total_units` carries `number_of_units_in_project` (TRUE project size), not the listed subset — imovirtual's data-quality edge over [[idealista]] survives through silver. `listed_units_count` lives in `raw_meta` for consumers that want both.
+**Pages touched**: [[log]] (this entry), [[remax]] (Quirks: Collection + floor-plan corrections, SQL backfill note, Last verified).
 
-**Pages touched**: [[log]] (this entry), [[2026-06-05-imovirtual-portal-onboarding]] (addendum), [[imovirtual]] (silver wiring marked done), [[cross-portal-dev-dedup]] (4 portals → 5, new geom ladder, imovirtual unit-count semantics). **Out of scope**: units/plots staging + `unified_listings_residential` integration (no cross-portal consumer for those grains yet).
+## [2026-06-05] refactor | unified developments relocated silver_regulatory → silver_properties + renamed
 
-## [2026-06-06] dual-signal dedup + drop 1km guardrail | unified_developments
+`silver_unified_developments` moved from `dbt/models/silver/regulatory/` (schema `silver_regulatory`) to `dbt/models/silver/properties/` (schema `silver_properties`) and **renamed to `unified_developments`** to match its sibling [[unified_listings|unified_listings]] (the properties-folder convention drops the `silver_` prefix). The model is about marketed property developments, not regulation; PR-C originally filed it under regulatory because `fn_assess_polygon` queries it alongside regulatory layers. **Dedup logic is byte-identical** — pure relocation. Safe because nothing `ref()`s it (only doc-comment mentions across the 4 `stg_portal_developments_*` + CI). Rebuilt clean: `silver_properties.unified_developments` = 1,000 rows (fresh snapshot vs the stale 1,050 in the dropped table), 8 dbt schema tests green, 5 pgTAP Phase-1 dedup invariants green ([tests/sql/unified_developments_phase1.sql](../tests/sql/unified_developments_phase1.sql)). Orphan `silver_regulatory.silver_unified_developments` dropped. Updated the CI Tier-1 selector ([.github/workflows/ci.yml](../.github/workflows/ci.yml) `--select +unified_developments`), the 4 staging doc comments, and `tests/ci_bootstrap/bronze_geography.sql`.
 
-Audit of [[imovirtual]] Aveiro merges (user review) exposed three dedup blockers, all algorithmic not portal-specific:
+Pre-existing drift spotted but NOT fixed (out of scope, not caused by this move): [[UC-3]] line 91 and [[milestones]] still describe the model as "SCE + idealista spatial proximity ≤50m + Levenshtein" — that's the **rejected Phase-2 design**, not the shipped name-driven Jaccard dedup. Worth a separate wiki cleanup.
 
-1. **1km distance ceiling vetoing correct merges.** Portal pins disagree by **3-4km** on identical-named devs in the same concelho (Ethula remax↔imovirtual = 3,949m; JC Barrocas zome↔imovirtual = 3,412m; UNIQUE Matosinhos = 4,697m) — worse than the original 200-300m audit. **Dropped the ceiling entirely**: same name + same concelho is sufficient.
-2. **Token-Jaccard structurally blind to whitespace collapse.** "VIANOVA" tokens = {vianova}; "Via Nova" tokens = {via, nova}; Jaccard = 0.0. **Added a parallel char-trigram-Jaccard edge generator** on the whitespace-stripped clean_name; ≥ 0.6 threshold. UNION'd with the existing token-Jaccard edges before connected components.
+**Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (name + schema location, last_verified), [[index.md|index]] / [[portal-field-map]] / [[silver-dq-baseline]] / [[UC-3]] / [[milestones]] (name refs). Historical pages left as-is ([[sprint-09]], [[2026-05-12-uc3-expanded-scope]], the 2026-05-22 lint report).
 
-   Why UNION not replace: pure char-trigrams regress subset matches ("jcbarrocas" vs "jcbarrocasapartments" trigram-Jaccard = 0.44, below 0.6). Tokens handle subsets; trigrams handle collapses. Either signal is sufficient.
+## [2026-06-07] fix | imovirtual unit-grain floor_plans + 9 extended characteristics
 
-3. **[[idealista]] has NULL concelho on every dev** (21/21 active, bronze `idealista_development_units.location_hierarchy = {}` on 150/150 rows). The dedup join requires `a.concelho = b.concelho` — NULL=NULL is FALSE, so every idealista dev fails to merge across portals. "The Unique" (idealista) ↔ "Unique" (remax/Aveiro) stays split for this reason. **Out of scope here** — bronze regression, separate task.
+`_normalize_unit` at [pipelines/portals/imovirtual/source.py](../pipelines/portals/imovirtual/source.py) plucked `images` + `characteristics` from each embedded `paginatedUnits.items[]` but dropped `floorPlans` — so `imovirtual_development_units` shipped without per-unit floor plans even though imovirtual.com displays them on every unit row (one floor-plan icon per listing). Verified live against `345-alagoa-living-flats-ID1irDW` via `_next/data`: 10/10 embedded units carry a populated `floorPlans` array. No Pass-3 unit detail required — the embedded view already has them. Fix: added `"floor_plans": item.get("floorPlans")` to the unit dict and `"floor_plans"` to `UNITS_JSON_COLUMNS` (kept as `json`, not auto-flattened, per [[dlt-nested-tables]]).
 
-**Verification (post-rebuild)**: 1,511 → **1,435** unified rows (-76 from new cross-portal merges); 197 → **243** multi-portal rows. All four user-reported pairs (Ethula/ETHULA, JC Barrocas variants, Via Nova/VIANOVA, UNIQUE Matosinhos) now merge correctly. No over-merges observed in 3+ portal rows.
+**Follow-up same day**: a full audit of `characteristics` keys across the 4,455 already-loaded units surfaced **9 more keys present in the embedded view but not pivoted** — biggest wins `build_year` (29.8% coverage, 1,329 units) and `terrain_area` (4.6%, 204 units; renamed to `terrain_area_m` for consistency with `area_m`). Also added: `building_material`, `remote_services`, `building_ownership`, `floors_num` (distinct from already-plucked `building_floors_num`), `roof_type`, `roofing`, `free_from`. All zero-cost — same embedded view, just additional `chars.get()` lookups. Bathrooms (`bathrooms_num`) + amenity flags (`extras_types`: garage/lift/AC) were also surveyed; these live in `additionalInformation` on the full `/anuncio/` unit detail and would require Pass 3 (~74 min added crawl at 1 req/s × 4,455 units) — deferred. Verified via warehouse-wide grep: **0/4,455 units** carry `additionalInformation` in the embedded view.
 
-**Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (dual-signal section + dropped-ceiling rationale), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (algorithm + header comment), [_silver_properties__models.yml](../dbt/models/silver/properties/_silver_properties__models.yml) (model description).
+**Dev + plot grain extension (same day)**: same audit shape ran against developments + plots. Both grains carry a `additionalInformation` block that the original normalizers ignored entirely. Added a new `_addtl_info(ad, label)` helper that returns the values array (or `None`), used by both `_normalize_development` and `_normalize_plot`. **Dev grain** adds (zero-cost, already in the dev-detail payload): `extra_spaces` (50.9% — terrace/balcony/garage as jsonb array), `security` (100% — alarm/monitoring/etc.), `project_amenities` (11.8% — pool/gym), `rooms_number_range` (97.9% — T0–T4 distribution), `advertiser_type` (100% scalar — developer/agency). **Plot grain** adds (zero-cost, plots are already Pass-3 fetches): `access_types` (9.6% — paved/dirt/private), `media_types` (6.4% — water/electricity/gas), `vicinity_types` (5.2% — forest/lake), `advertiser_type` (100% scalar). Multi-value columns added to `DEVELOPMENTS_JSON_COLUMNS` + `PLOTS_JSON_COLUMNS` so dlt keeps them as jsonb (no auto-nesting). Regression tests `test_additional_info_plucked` on both `TestNormalizeDevelopment` + `TestNormalizePlot` (37 offline tests green).
 
-## [2026-06-06] macroize name normalize + CAOP geo in dev staging
+Historical bronze rows backfill via full re-ingest of the imovirtual DAG (operator to run; SCD2 row-hash will not change since new columns are all non-version — pivoted scalars + the floor_plans JSON column).
 
-Pushed name-matching normalization into each portal dev-staging model and added CAOP-resolved admin geography there too — per the user's "for geography, should we check against CAOP? for the developments names should it be at staging?" review. Originally planned as a follow-up PR; bundled into this PR because the CAOP signal **fixes the idealista cross-portal merge problem** without waiting for the bronze `location_hierarchy` fix.
+**Pages touched**: [[log]] (this entry), [[imovirtual]] (Schema: unit grain captures floorPlans + 9 extended characteristics; dev + plot grains pluck additionalInformation block; Last verified: 2026-06-07).
 
-**What shipped:**
+## [2026-06-09] feat | imovirtual Pass-3 (bathrooms etc.) + ZenRows transport + concurrent crawl
 
-1. New macro [normalize_dev_name.sql](../dbt/macros/normalize_dev_name.sql) — encapsulates the lowercase + deaccent + strip-typology + strip-boilerplate + punct-to-space pipeline previously inline in [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql). The cross-cutting trailing-concelho strip stays in silver because it needs `join_concelho`.
-2. All 5 dev-staging models (`stg_portal_developments_{idealista,remax,zome,jll,imovirtual}.sql`) gain four columns:
-   - `match_name` — `normalize_dev_name(canonical_name)`.
-   - `geo_concelho_name`, `geo_parish_name`, `geo_key` — point-in-polygon against `dim_geography.freguesia_geom_pt` (`is_current`), NULL when geom is NULL.
-3. Silver `unified_developments` refactored:
-   - `portal_pre` CTE dropped (normalization is upstream).
-   - Same-concelho join uses `join_concelho = lower+deaccent of COALESCE(geo_concelho_name, concelho)` — CAOP-first.
-   - `portal_dev_concelho` MODEs `COALESCE(geo_concelho_name, concelho)` and `geo_key` across contributors (≤8 boundary disagreements total, audited).
-   - Final SELECT drops its own LATERAL CAOP lookup — already resolved upstream.
+`_normalize_unit` now plucks **`bathrooms_num`, `extras_types`, `security_types`, `advertiser_type`** from each unit's full `/pt/anuncio/{slug}` detail — these live in `additionalInformation` which is empty in the embedded `paginatedUnits.items[]` view (verified 0/4,455 units), so the original "no Pass 3" assumption left them NULL forever. New `_fetch_unit_detail_additional_info(unit_url)` does the fetch with graceful-skip on persistent failure; `_ensure_dev_payload` augments each embedded unit item with the returned array before normalizing. Cost in HTTP terms: ~4,455 extra requests per run.
 
-**CAOP-vs-portal-text disagreement audit (post-staging build, case+accent normalized)**: idealista 0/16, imovirtual 0/800, jll 0/169, **remax 5/591**, **zome 3/309**. Only 8 real-data disagreements across 1,885 staging rows — driving a 1,435 → 1,430 row shift in silver.
+**Transport: ZenRows Universal Scraper (basic 1× mode) for ALL imovirtual HTTP**. Direct calls were dying at dev-list page 13/23 under DataDome once Pass-3 pushed the per-run request count past ~5k (truncating to 426 devs vs the band [500, 1500]). ZenRows test on the failing page: 200 OK, full `__NEXT_DATA__` returned, ~$0.0001/request — way cheaper than [[idealista]]'s 25× tier because imovirtual's DataDome posture is lighter (no `js_render` / `premium_proxy` needed). Added `_http_get(url, params, headers)` indirection in [pipelines/portals/imovirtual/source.py](../pipelines/portals/imovirtual/source.py): routes through ZenRows when `ZENROWS_API_KEY` is present (read via `os.environ.get`), falls back to direct otherwise. Secret access matches the [[idealista]] pattern — `_set_zenrows_env()` task-hook in [pipelines/portals/imovirtual/imovirtual_dlt_dag.py](../pipelines/portals/imovirtual/imovirtual_dlt_dag.py) bridges `Variable.get("ZENROWS_API_KEY") → os.environ`, no docker-compose env duplication.
 
-**Idealista breakthrough**: bronze `idealista_development_units.location_hierarchy = '{}'` leaves portal-text concelho NULL on every active idealista dev (separate spawned task). But 16/21 idealista devs have non-NULL `geom_3763` from the AVG-of-unit-geocodes path, and CAOP resolves concelho for all 16. After the refactor, **5 idealista devs now merge cross-portal** (was 0) — including the user-reported pairing **"The Unique" (idealista) ↔ "Unique" (remax/Aveiro)**, and **"JC Barrocas Apartments" (idealista) joining the existing zome+imovirtual merge** for a 3-portal row.
+**Concurrent phased crawl**. Refactored `_ensure_dev_payload` from a single sequential loop into 5 phases: Phase 1 sequential dev-list paginate (depends on prior page), Phase 2 concurrent dev-detail fetch (20 workers), Phase 3 sequential per-dev unit pagination (page-2+ is small, complexity not worth it), Phase 4 concurrent Pass-3 unit-detail fetch (20 workers), Phase 5 sequential normalize. `_ensure_plot_payload` follows the same shape (sequential list → concurrent detail). Concurrency is gated on `ZENROWS_API_KEY` — without it, workers default to 1 and the 1 req/s rate limit returns (direct calls would burst DataDome otherwise). Env-overridable via `IMOVIRTUAL_CONCURRENCY` (default 20). Diverges from [[idealista]]'s `max_workers=8` + `as_completed`-with-progress-logging; we use a simpler `pool.map` since imovirtual phases are fast enough that progress logging is not load-bearing.
 
-**Pages touched**: [[log]] (this entry), [[cross-portal-dev-dedup]] (normalize-in-staging + CAOP geo sections), [unified_developments.sql](../dbt/models/silver/properties/unified_developments.sql) (refactor), [_silver_properties__models.yml](../dbt/models/silver/properties/_silver_properties__models.yml), [_staging_portals__models.yml](../dbt/models/staging/portals/_staging_portals__models.yml) (4 new columns per dev-staging model). Out of scope: the idealista `location_hierarchy = {}` bronze regression — still tracked as a separate task; CAOP now papers over it for merge purposes but the bronze should still be fixed.
+**Live verification 2026-06-09** (clean re-ingest after dropping bronze unit + plot tables):
 
-## [2026-06-06] add-gis-source | publico-rankings (P1) — Público school rankings custom DAG
+- audit_to_minio: 6s
+- load_facts: **13m 39s** (was 1h 17m with sequential direct Pass-3; was 26m without Pass-3)
+- load_plots: **6m 19s** (was 1h 27m direct sequential)
+- validate_facts: 0.2s ✓ (all bands respected)
+- **Total wall-clock: 20m 11s** (was ~3h 30m best case)
 
-Bootstrapped a new education-pillar source per the [[2026-06-06-pt-education-amenity-design|PT education amenity design]] (design doc at `tests/PT-EDUCATION-DESIGN.md`).
+Final bronze: **799 developments, 4,443 units, 4,883 plots**. Unit grain coverage: **93.5% have `bathrooms_num`**, 88% have `extras_types`. Cost: ~10,460 ZenRows credits ≈ **$1.05/run = $54/year at weekly cadence**.
 
-Chose a custom DAG (skip the GIS ingestion template) because the source fans out across 12 (year × kind) tuples spanning three hosting eras (2018-2020 `static.publicocdn.com/files/`, 2021-2023 `static.publico.pt/files/`, 2024+ `static.publico.pt/s3/`), the template's single-URL `download_url: str` field doesn't fit. DAG uses Airflow dynamic task mapping over the resolver table; download → soft-404 + size-floor + JSON-parse validation → MinIO upload at `raw/publico_rankings/{year}/{kind}.json`. Sibling sources ([[rede-escolar]] paginated ArcGIS REST, [[dgeec-ens-sup]] shapefile, [[dges-acesso]] XLSX, [[infoescolas]] XLSX) still pending bootstrap.
-
-Verified live 2026-06-06: all 12 expected URLs return 200 with bodies above the soft-404 sentinel (22634 bytes). 9ano gap for 2020+2021 is real (COVID — Provas Finais cancelled), not a TODO.
-
-**Files created**:
-- `pipelines/gis/publico_rankings/__init__.py`
-- `pipelines/gis/publico_rankings/publico_rankings_config.py` (resolver table + headers + soft-404 sentinel constant)
-- `pipelines/gis/publico_rankings/publico_rankings_ingestion_dag.py` (custom TaskFlow DAG, dynamic mapping)
-- `dbt/models/staging/education/_staging_education__sources.yml` (new staging domain — first entry)
-- `wiki/sources/publico-rankings.md`
-
-**Pages touched**: [[log]] (this entry), [[index]] (added Education subsection + bumped P1 count 14 → 15, total 24 → 25 — post-[[imovirtual]] merge baseline), [[publico-rankings]] (new).
-
-**Pending follow-ups**:
-- [ ] Bootstrap remaining 4 education sources ([[rede-escolar]], [[dgeec-ens-sup]], [[dges-acesso]], [[infoescolas]]) per design doc §8.
-- [ ] Decide if XCom 1 MB default needs bumping (2022 sec body is 1034 KB).
-- [ ] Decide CAOP-Açores + CAOP-Madeira sourcing (design doc Q6) — needed for Público rows tagged `c='Açores'` / `c='Madeira'` to get DICOFRE.
-- [ ] Author `wiki/decisions/2026-06-06-pt-education-amenity-design.md` ADR capturing the locked decisions from `tests/PT-EDUCATION-DESIGN.md` so the cross-link from [[publico-rankings]] resolves.
-
-## [2026-06-06] add-gis-source | publico-rankings — bronze-loader DAG + end-to-end verification
-
-Follow-up to today's earlier `add-gis-source | publico-rankings` entry. Built the second half of the two-DAG pattern + ran full Phase-0 verification.
-
-**New file**: `pipelines/gis/publico_rankings/publico_rankings_bronze_dag.py` — `publico_rankings_bronze_load` DAG. Discovers MinIO blobs at `s3://raw/publico_rankings/`, applies DDL (idempotent), dynamic-maps `load_one` per blob, upserts JSONB rows keyed on `(year, kind, eid)`. Mirrors [[bgri]]'s `bgri_bronze_dag.py` shape; reuses Airflow Variables `MINIO_*` + `WAREHOUSE_*`.
-
-**Verified end-to-end against live infrastructure** (uv run, worktree-side):
-- Ingestion logic: 12/12 source URLs return 200 with size > floor + valid JSON; soft-404 trap fires correctly on `/files/` era unknown URLs (200 + 22634 bytes); `/s3/` era returns proper 403.
-- MinIO landing: 12 objects written to `s3://raw/publico_rankings/{year}/{kind}.json`, ~5.1 MB total.
-- Bronze DDL: schema + table + partial coduo index materialized in fresh state (table dropped + recreated to prove from-scratch path).
-- Bronze load: 10,288 rows upserted (4,411 sec + 5,877 9ano). PK uniqueness sanity: all 10,288 (year, kind, eid) tuples distinct.
-- Data integrity: `coduo` populated on 921/1161 = 79.3% of 2024 9ano (matches design doc); `coduo` = 0/4,411 sec rows; `mt` populated on 100% of all rows.
-
-**Arithmetic correction**: my prior entry quoted "10,488 rows / 6,077 9ano" — actual is **10,288 / 5,877**. [[publico-rankings]] §Schema row-count table fixed.
-
-**Caveat**: Airflow scheduler container mounts the main repo's `pipelines/`, so neither DAG appears in `airflow dags list` until the worktree merges to main. Verification ran the DAG logic directly via `uv run` against live MinIO + warehouse.
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings]] (added bronze-DAG to Pipeline split, fixed row count to 10,288).
-
-## [2026-06-06] refactor | publico_rankings bronze — unnest raw jsonb into 91 typed columns
-
-Modified `publico_rankings_bronze_load` DAG: bronze table no longer stores a raw jsonb column. Every source key is now promoted to a typed column at load time — 5 text columns (e, id, co, c, coduo) and 86 numeric columns (mt, rt, t, lt, ln, per-disciplina averages mm/mp/mb/…, per-disciplina sample sizes nb/nf/…, per-disciplina ranks rb/rf/…, privado nominal cols nimb..nipp, rolling 5y carryover m17..m21 + r17..r21, derived rsbi/rsec/rsfi/…, composite pde/pdp/pdq/pdr, etc.). Total table width: 95 columns (4 PK/audit + 91 data).
-
-Trade-off: gives up the strict [[bronze-permissive]] "keep raw JSONB, type at silver" invariant in exchange for downstream SQL ergonomics. The MinIO blobs (`s3://raw/publico_rankings/{year}/{kind}.json`) remain the verbatim audit trail, so the permissive property is preserved at the object-store layer.
-
-Per-column coercion: `_coerce_numeric` handles Público's inconsistent JSON typing (string vs number, "" / "null" / unparseable → NULL). NULL means "key absent or unparseable" — expected since sec has 76 keys and 9ano has 40 (union = 91, intersection ≈ 25).
-
-Schema-drift detection built in: every `load_one` task logs a WARNING if any source key falls outside `TEXT_COLS + NUMERIC_COLS`. Verified 2026-06-06 against the full 2018-2024 corpus: **zero unknown keys** — the column tuple covers every key in the wild.
-
-**End-to-end re-verification** (table dropped → DDL applied → 10,288 rows reloaded):
-- Column count: 95 (information_schema.columns).
-- Row count: 10,288 (4,411 sec + 5,877 9ano).
-- `coduo` populated on 921/1161 of 2024 9ano = 79.3%. Sec coduo = 0/4,411. `mt` = 10,288/10,288 = 100%.
-- Sanity sample (top-3 9ano 2024 by mt): Colégio Novo da Maia (mt=4.51), Escola de Música São Teotónio (mt=4.42), Colégio Grande Colégio Universal (mt=4.40) — all privates (t=1, c='PRI'), credible top of the 0-5 scale.
-
-**Bug caught + fixed during verification**: initial UPSERT_SQL listed `source_loaded_at` in the INSERT column list but the VALUES tuples omitted it (relying on `DEFAULT now()`). psycopg2 error: "INSERT has more target columns than expressions". Dropped the `source_loaded_at` column from the INSERT list, kept it in the `ON CONFLICT DO UPDATE SET` so re-loads refresh the timestamp.
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings]] (DDL section rewritten, audit-trail trade-off documented), `dbt/models/staging/education/_staging_education__sources.yml` (columns flipped from `raw` to typed promoted columns).
-
-## [2026-06-06] document | publico-rankings column legend — decoded 91 cryptic columns into 9 families
-
-Decoded all 91 columns of `bronze_education.raw_publico_rankings` into a structured legend at [[publico-rankings-column-legend]]. Público ships no machine-readable codebook (verified — only `data/listas/*.js` + `data/pt_pt.js` are exposed under their S3 prefix; the app bundle that holds UI labels is served from a separate origin). Decoding was empirical: per-column value-envelope analysis on the 10,288-row corpus + sample-size correlations + cross-column rank equalities + two Público article URLs that name the "Ranking da Superação" view.
-
-**Confident decoding** (~75% of columns):
-- Identity & geography: e, eid, id, co, c, coduo, lt, ln, t.
-- Headline principal: mt (Média Total — the score), rt (Ranking Total — position).
-- Per-disciplina principal (1-letter codebook): m{X}/n{X}/r{X} for X ∈ {m,p,b,f,fl,g,h,i,ma} → Mat A / Português / Bio-Geo / FQ / Filosofia / Geografia / História / Inglês / MACS.
-- Histórico: m{YY}, r{YY} (e.g. m21, r21 = 2021 carryover; older years dropped from newer files).
-- Nota Interna (CIF) for privates: nim{X} = média CIF, nip{X} = rank by CIF. Always NULL for públicos and all 9ano.
-- Ranking da Superação (2nd headline view, 2-letter codebook): rs + rs{XX} for XX ∈ {ma,po,bi,fq,ge,fi,ec,mc}. Confirmed distinct from `rt`: only 8/1608 schools tie, avg abs diff ≈ 145 positions.
-- Equivalência à Frequência: eq1, eq2, eq3, eqnaousar, eqnusar quality flags, re = rank in eq cohort. Confirmed 303/303 sample-size overlap with eq family.
-
-**Plausible decoding** (~15%):
-- tx0/tx1/tx2 = three independent taxas (retenção / desistência / classificação-inferior — % range, do not sum to 100 so they're independent rates).
-- pdq = Percursos Diretos Qualidade (Infoescolas-style success metric); pde/pdp/pdr sibling axes mostly NULL in 2024.
-- ac = Aproveitamento (% positive classifications).
-
-**Speculative** (~10%) — flagged in the page:
-- im (per-school scaled index — confirmed NOT concelho-level: Lisboa has 29 distinct values across 37 schools).
-- v (tracks `mt` mean — possibly "Valor esperado" / Variância).
-- hm, hp (histórico médio / percentil — same scale as `mt`).
-
-**Dual-codebook trap documented**: 1-letter codes (`m`, `p`, `b`, `f`, `fl`, `g`, `h`, `i`, `ma`) used in m*/n*/r* prefixes don't 1:1 map to 2-letter codes (`ma`, `po`, `bi`, `fq`, `ge`, `fi`, `ec`, `mc`) used in rs* prefix. Each family picks its own subset of disciplinas; downstream silver models must reference both codebooks.
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (new), [[publico-rankings]] (added cross-link from §Bronze DDL), [[index]] (Concepts count 18 → 19, added entry between [[portal-field-map]] and [[pydantic-not-in-dlt]]).
-
-**Pending follow-ups**:
-- [ ] Confirm `im` / `v` / `hm` / `hp` semantics against Público's interactive page — requires loading the iframe with browser-class JS or browser MCP to read the column-header tooltips.
-- [ ] Verify whether r{X} principal vs rs{XX} Superação per-disciplina are computed on the same school cohort or different (550/550 differ — but is the cohort filtered, or the methodology?). Affects whether silver should publish both as alternative views or pick one.
-
-## [2026-06-06] correct | publico-rankings column legend — ground-truthed against UI screenshots
-
-Reverted ~60% of the empirically-guessed column meanings in [[publico-rankings-column-legend]] after the user shared screenshots of the Público interactive school card. Used eid=1069 (Escola Dr. Ferreira da Silva, Oliveira de Azeméis, 2024 sec) as the ground-truth row — every visible UI label matched one DB column value exactly.
-
-**Corrections** (prior decode → screenshot-verified):
-- `v` = Média Esperada (basis for Superação metric = `mt - v`) ← was "valor/variância"
-- `c` = Contexto agrupamento {D=Desfavorável, F=Favorável, I=Intermédio, PRI, PRI_CA, Açores, Madeira} ← was "region code"
-- `hp` = Habilitações Pais (anos de escolaridade do pai, média) ← was "histórico posição"
-- `hm` = Habilitações Mães ← was "histórico médio"
-- `ac` = % alunos SEM Acção Social Escolar (wealth proxy) ← was "Aproveitamento/Acerto"
-- `im` = Idade Média dos alunos no 12.º ano ← was "índice mediano"
-- `pdq` = % Professores Dos Quadros (tenured docentes) ← was "Percursos Diretos Qualidade"
-- `tx0/tx1/tx2` = Taxa de Retenção no 10º/11º/12º ano specifically ← was "generic taxas"
-- `pde/pdp/pdr` = Equidade family (% ASE concluiram / % país perfil similar / ranking da diferença) ← was "Percursos Diretos axes"
-- `m21/r21` = média/rank do **ano anterior** (not specifically 2021 — the `21` suffix is legacy from when the rolling-history columns were first introduced; in 2024 file these hold 2023 values, matching the UI's "12,60 em 2023" and "100.º em 2023") ← was "literal 2021"
-
-**Disciplina codebook collision discovered + locked**:
-- 1-letter codebook: `m`=Mat A, `p`=Port, `b`=Bio-Geo, `f`=FQ-A, `g`=Geo-A, `fl`=Filo, `h`=His-A, **`ma`=Economia A**, **`i`=MACS**
-- 2-letter codebook: **`ma`=Mat A**, `po`=Port, `bi`=Bio, `fq`=FQ, `ge`=Geo, `fi`=Filo, `ec`=Economia, `mc`=MACS
-- The letter `ma` means *opposite* disciplines across families. Silver promotions MUST disambiguate by prefix.
-
-**Confirmed** (no change from prior decode):
-- `mt`/`rt`/`nt` headline principal triad
-- `rs` Ranking da Superação (distinct from `rt`: 8/1608 ties only)
-- `m{X}`/`n{X}`/`r{X}` per-disciplina principal triad
-- `rs{XX}` Superação per-disciplina (2-letter codebook)
-- `nim{X}`/`nip{X}` Nota Interna CIF + posição (now confirmed populated for *both* públicos and privados, not privados-only as I had thought)
-- `re` Ranking Equivalência + `eq*` family
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (rewritten with screenshot ground-truth + verified row dump at the bottom), [[index]] (concept entry expanded with the `ma` collision warning).
-
-## [2026-06-06] refactor | publico_rankings bronze — rename all cryptic columns to human-readable Portuguese names
-
-Replaced the 91 cryptic source-key column names in `bronze_education.raw_publico_rankings` with verified human-readable names from [[publico-rankings-column-legend]]. The bronze DAG's `TEXT_COLS + NUMERIC_COLS` tuples are now derived from a single `SOURCE_KEY_TO_COLUMN: dict[str, tuple[str, str]]` (source_key → (renamed_column, sql_type)) at the top of `publico_rankings_bronze_dag.py` — DDL, INSERT column list, and UPDATE SET clause all flow from it.
-
-**Naming convention**: Portuguese, snake_case, matches existing convention (`bronze_ine.raw_bgri` uses `n_edificios_classicos`, etc.). Example transformations:
-- `mt` → `media_total_exames`
-- `rt` → `ranking_exames`
-- `rs` → `ranking_superacao`
-- `v` → `media_esperada`
-- `mm` → `media_matematica_a`, **`mma` → `media_economia_a`** (resolves 1-letter `ma` = Economia)
-- `rsma` → `ranking_superacao_matematica_a` (resolves 2-letter `ma` = Mat A)
-- `nimm` → `cif_media_matematica_a`, `nipp` → `cif_ranking_portugues`
-- `hp` → `habilitacoes_pais`, `hm` → `habilitacoes_maes`
-- `ac` → `pct_sem_ase`, `im` → `idade_media_12ano`, `pdq` → `pct_professores_quadros`
-- `tx0/1/2` → `taxa_retencao_ano0/1/2` (10º/11º/12º sec, 7º/8º/9º for 9ano)
-- `pde/pdp/pdr` → `equidade_pct_ase_3anos / equidade_pct_pais_3anos / equidade_ranking_diferenca`
-- `m21/r21` → `media_ano_anterior / ranking_ano_anterior` (the suffix is legacy, meaning is "prior year")
-- `m17..m20/r17..r20` → `media_legacy_y17..y20 / ranking_legacy_y17..y20`
-
-**Disciplina codebook collision resolved**: both `m_` 1-letter (where `ma`=Economia A) and `rs_` 2-letter (where `ma`=Mat A) source families now write to renamed columns whose disciplina suffix matches the actual disciplina, not the source-letter abbreviation. Downstream SQL no longer needs to know about the trap.
-
-**Verified end-to-end** (table dropped, DDL applied, 12 blobs re-loaded from MinIO):
-- 95 columns in `information_schema.columns` (4 PK/audit + 5 text + 86 numeric).
-- 10,288 rows total. Zero schema-drift keys.
-- Screenshot row (eid=1069, 2024 sec, Escola Dr. Ferreira da Silva) verified column-by-column under new names:
-  - `media_total_exames=14.11` ↔ UI "Média nos Exames: 14,11"
-  - `ranking_exames=36`, `num_provas_total=70`, `ranking_superacao=1`, `media_esperada=11.38`
-  - `contexto_agrupamento='I'`, `habilitacoes_pais=7.77`, `habilitacoes_maes=9.32`, `pct_sem_ase=72`, `idade_media_12ano=17`, `pct_professores_quadros=84.9`
-  - `taxa_retencao_ano0=0`, `taxa_retencao_ano1=0`, `taxa_retencao_ano2=8`
-  - `media_ano_anterior=12.6` (matches "12,60 em 2023"), `ranking_ano_anterior=100` (matches "100.º em 2023")
-- Per-disciplina disambiguation verified: `media_economia_a=13.98` (from `mma`, UI Economia=13.98), `media_matematica_a=18.16` (from `mm`, UI Matemática=18.16), `media_macs=15.49` (from `mi`, UI MACS=15.49), `ranking_superacao_matematica_a=1` (from `rsma`, UI Superação Mat A=1.º).
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings]] (DDL section rewritten with renamed columns), `dbt/models/staging/education/_staging_education__sources.yml` (column list rewritten with renamed names + descriptions).
-
-## [2026-06-06] document | dbt source column descriptions — guideline + completed publico_rankings
-
-Two-part follow-up to the publico_rankings unnest+rename work:
-
-**1. Completed dbt source YAML for `publico_rankings`** (`dbt/models/staging/education/_staging_education__sources.yml`):
-- All 95 columns documented (4 partition/audit + 91 renamed data cols).
-- Each entry has a `description:` ≤ 200 chars where possible.
-- Pattern: for renamed-from-cryptic cols, the description ends with `Source key: \`<original>\`` so the bridge to the raw source is one click away.
-- Special call-outs for codebook-collision columns (`media_economia_a` notes `mma` and the 1-letter `ma`=Economia trap; `ranking_superacao_matematica_a` notes `rsma` and the 2-letter `ma`=Mat A meaning).
-- Region/code-letter columns (`contexto_agrupamento`, `tipo`) expand the dictionary inline.
-- Verified: `information_schema` shows 95 cols == YAML has 95 cols == dbt manifest shows 95 cols for `source.house4house.bronze_education.raw_publico_rankings`. dbt parse passes (71 `accepted_values` deprecation warnings — same project-wide pattern as the other 17 sources, not specific to this YAML).
-
-**2. Documented the rule as a project convention**: new concept page [[dbt-source-column-descriptions]] codifies "every bronze column gets a `description:`". Covers: why (dbt-docs is the discovery surface; cryptic sources need disambiguation; drift detection), how (the pattern by column category — renamed-from-cryptic, code-letter encoding, FK column, JSONB blob), the verification triad (`information_schema` ≡ YAML ≡ manifest), and the explicit "what does NOT count as a description" + "when this rule does NOT apply" sections.
-
-**Skill wired**: [[add-gis-source]] SKILL.md step 5 now references the rule + the column-count verification, so future bootstraps remember to document every column at create-time rather than leaving it as a "fix later".
-
-**Pages touched**: [[log]] (this entry), [[dbt-source-column-descriptions]] (new), [[index]] (Concepts 19 → 20, added entry between [[cross-portal-dev-dedup]] and [[heartbeat-sidecar]]), `.claude/skills/add-gis-source/SKILL.md` (step 5 amendment), `dbt/models/staging/education/_staging_education__sources.yml` (completed 95-column documentation).
-
-**Pending follow-ups**:
-- [ ] Audit the other 17 existing dbt source YAMLs for missing column descriptions — sample check shows `[[caop]]` and `[[cos]]` are mostly compliant but I haven't done a full sweep. Track gaps as a `wiki/lint-reports/` finding next time `/wiki-reconcile` runs.
-- [ ] Decide if `wiki_health.py` (Phase 7) should treat missing column descriptions as a BLOCKING finding for new bronze tables (`last_verified` < 30 days) and merely WARNING for older ones.
-
-## [2026-06-06] verify | publico_rankings — ranks are per-partition + ranking_superacao allows ties
-
-User question revealed an under-documented invariant: "why are there 2 1s, 2 2s, 2 3s in ranking_exames?" Investigated and clarified:
-
-**Finding 1 — ranks are per-(year, kind) partition, not global.** Across 12 partitions (7 sec editions + 5 9ano editions), each has its own sequential rank 1..N — so the whole table contains 12 instances of rank=1, 12 of rank=2, etc. Within each partition `ranking_exames` IS strictly unique across the full 2018-2024 corpus (verified empirically: 0 violating partitions). Added a `dbt_utils.unique_combination_of_columns` test on `(year, kind, ranking_exames)` to lock the invariant.
-
-**Finding 2 — ranking_superacao ALLOWS TIES (standard competition ranking).** Initially added the same uniqueness test on `ranking_superacao`; it failed with 16 violations. Investigation showed Público uses standard competition ranking ("1, 2, 2, 4 — skipping"): schools with identical `mt - v` gap share a rank and the next rank skips. Empirical example: 2024 9ano has a 3-way tie at rank 569 → next rank = 572. Ties cluster at the bottom of the distribution where the gap quantizes to limited float precision. Removed the strict test; documented the tie semantics in the column description AND in the legend page.
-
-**Files touched**:
-- `dbt/models/staging/education/_staging_education__sources.yml` — kept the `ranking_exames` composite uniqueness test (PASSES); expanded both `ranking_exames` and `ranking_superacao` descriptions with the per-partition scope + the competition-ranking caveat.
-- [[publico-rankings-column-legend]] — added a "Ranks are per-partition, not global" section above the Headline family explaining the invariant + the tie behavior + the silver consequence ("models that depend on unique rank values must dedup or use a `dense_rank()` re-projection").
-
-**Pages touched**: [[log]] (this entry), [[publico-rankings-column-legend]] (per-partition + tie section).
+**Pages touched**: [[log]] (this entry), [[imovirtual]] (Acquisition shape: Pass-3 enabled; Quirks: ZenRows transport replaces direct, `Long single-task fragility` quirk obsoleted by concurrent crawl; Last verified: 2026-06-09).

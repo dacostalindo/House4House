@@ -40,6 +40,7 @@ from tempfile import TemporaryDirectory
 import dlt
 from airflow import DAG
 from airflow.decorators import task
+from airflow.models import Variable
 
 from pipelines.portals.imovirtual.source import (
     DEV_SCOPE,
@@ -82,6 +83,13 @@ def _alert_on_failure(context: dict) -> None:
         context.get("run_id"),
         context.get("exception"),
     )
+
+
+def _set_zenrows_env() -> None:
+    """Bridge Airflow Variable → os.environ so source.py picks up the key at
+    module load and flips into ZenRows-transport mode (concurrent crawl).
+    Mirrors the [[idealista]] pattern — no docker-compose env duplication."""
+    os.environ["ZENROWS_API_KEY"] = Variable.get("ZENROWS_API_KEY")
 
 
 default_args = {
@@ -153,6 +161,7 @@ with DAG(
     @task()
     def load_facts() -> dict:
         """Developments + units SCD2 + heartbeats (national). Hard fail on error."""
+        _set_zenrows_env()  # bridge Airflow Variable → os.environ for source.py
         pipeline = dlt.pipeline(
             pipeline_name="imovirtual_developments_facts",
             destination=dlt.destinations.postgres(credentials=_postgres_credentials()),
@@ -166,6 +175,7 @@ with DAG(
     @task()
     def load_plots() -> dict:
         """Plots SCD2 + heartbeat (Aveiro). Separate dlt pipeline."""
+        _set_zenrows_env()  # bridge Airflow Variable → os.environ for source.py
         pipeline = dlt.pipeline(
             pipeline_name="imovirtual_plots_facts",
             destination=dlt.destinations.postgres(credentials=_postgres_credentials()),

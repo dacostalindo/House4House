@@ -19,12 +19,24 @@ Two facts sources with DIFFERENT geographic scope (mixed-scope decision):
   - imovirtual_developments_facts_source → developments + units, NATIONAL
   - imovirtual_plots_facts_source        → terreno plots, AVEIRO only
 
-Acquisition shape (no per-unit Pass 3 — the embedded `paginatedUnits` view's
-`characteristics` are identical to the full /anuncio/ unit detail, verified):
-  Developments: Pass 1 list (36/page) → Pass 2 dev detail (= dev row + its units).
+Acquisition shape (Pass 3 added 2026-06-09 for bathrooms / extras_types /
+security_types / advertiser_type — these live in `additionalInformation` which
+is empty in the embedded `paginatedUnits.items[]` view; characteristics ARE
+identical between embedded view and full detail, verified):
+  Developments: Pass 1 list (36/page) → Pass 2 dev detail (= dev row + its
+                units) → Pass 3 per-unit /anuncio/ detail (additionalInformation).
   Plots:        list (36/page) → per-plot /anuncio/ detail (for coords +
                 canonical classification, which the list lacks; affordable at
                 Aveiro scope ~4.8k).
+
+Transport: when ZENROWS_API_KEY is set, ALL HTTP is routed through ZenRows
+Universal Scraper basic 1x mode (~$0.0001/req — bypasses DataDome that
+otherwise truncates the dev-list at page 12/23 under Pass-3's request volume).
+Crawl phases run concurrently (CRAWL_CONCURRENCY=20 default, env-overridable
+via IMOVIRTUAL_CONCURRENCY); without ZenRows the source falls back to direct
+calls at 1 req/s with concurrency=1. Secret bridged from Airflow Variable into
+os.environ at task entry — see imovirtual_dlt_dag.py:_set_zenrows_env, mirrors
+the idealista pattern.
 
 SCD2 row versioning is driven by an explicit `row_hash` over a curated column
 subset — same policy as zome/remax/idealista (wiki/concepts/scd2-row-hash.md).
@@ -40,14 +52,17 @@ CONFIRM-AT-BUILD (two small unknowns flagged in the decision record):
 
 from __future__ import annotations
 
+import concurrent.futures as cf
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 from collections.abc import Iterable
 from datetime import date
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import dlt
 from dlt.sources.helpers import requests
@@ -66,9 +81,23 @@ PLOT_SCOPE = "aveiro"  # plots: Aveiro only (per-plot detail affordable here)
 
 SEARCH_PAGE_SIZE = 36  # searchAds itemsPerPage
 UNITS_PAGE_SIZE = 10  # paginatedUnits itemsPerPage
-RATE_LIMIT_S = 1.0  # ~1 req/s + jitter; DataDome-friendly (canary clean at this rate)
 REQUEST_TIMEOUT_S = 30
 MAX_SEARCH_PAGES = 2000  # hard backstop (national plots ~1,188 pages)
+
+# Transport: when ZENROWS_API_KEY is set, all requests go through ZenRows
+# Universal Scraper (basic mode = 1x credit — empirically bypasses imovirtual's
+# DataDome at ~$0.0001/req; verified 2026-06-09 on the previously-failing
+# /pt/resultados/comprar/empreendimento page 13). Without the key, falls back
+# to direct calls with the historical 1 req/s rate limit.
+ZENROWS_API_KEY = os.environ.get("ZENROWS_API_KEY", "").strip()
+ZENROWS_ENDPOINT = "https://api.zenrows.com/v1/"
+# Rate limit: skip when going through ZenRows (their proxy pool handles fan-out);
+# keep 1 req/s for direct mode (DataDome-friendly canary rate).
+RATE_LIMIT_S = 0.0 if ZENROWS_API_KEY else 1.0
+# Concurrent worker count for parallelizable phases (dev detail + unit Pass-3 +
+# plot detail). Only meaningful when going through ZenRows — direct calls keep
+# the 1 req/s pacing, so concurrency would burst DataDome.
+CRAWL_CONCURRENCY = int(os.environ.get("IMOVIRTUAL_CONCURRENCY", "20")) if ZENROWS_API_KEY else 1
 
 _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(\{.*?\})</script>', re.DOTALL)
 
@@ -125,10 +154,28 @@ DEVELOPMENTS_JSON_COLUMNS = (
     "target",
     "unit_groups",
     "promoter",
+    "extra_spaces",
+    "security",
+    "project_amenities",
+    "rooms_number_range",
     "raw_json",
 )
-UNITS_JSON_COLUMNS = ("images", "characteristics", "raw_json")
-PLOTS_JSON_COLUMNS = ("images", "characteristics", "raw_json")
+UNITS_JSON_COLUMNS = (
+    "images",
+    "floor_plans",
+    "characteristics",
+    "extras_types",
+    "security_types",
+    "raw_json",
+)
+PLOTS_JSON_COLUMNS = (
+    "images",
+    "characteristics",
+    "access_types",
+    "media_types",
+    "vicinity_types",
+    "raw_json",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +219,26 @@ def _headers(json_data: bool = False) -> dict[str, str]:
     return h
 
 
+def _http_get(
+    url: str,
+    params: list[tuple[str, str]] | None = None,
+    headers: dict[str, str] | None = None,
+) -> requests.Response:
+    """Single GET — routed through ZenRows Universal Scraper when configured,
+    direct otherwise. Folds `params` into the target URL when proxying (ZenRows
+    needs the FULL target URL in its `url` query param)."""
+    if not ZENROWS_API_KEY:
+        return requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT_S)
+    if params:
+        u = urlparse(url)
+        merged = list(parse_qsl(u.query)) + list(params)
+        url = urlunparse(u._replace(query=urlencode(merged)))
+    zr_params = {"apikey": ZENROWS_API_KEY, "url": url}
+    return requests.get(
+        ZENROWS_ENDPOINT, params=zr_params, headers=headers, timeout=REQUEST_TIMEOUT_S * 2
+    )
+
+
 _BUILD_ID: str | None = None
 
 
@@ -180,10 +247,9 @@ def _get_build_id() -> str:
     global _BUILD_ID
     if _BUILD_ID:
         return _BUILD_ID
-    resp = requests.get(
+    resp = _http_get(
         f"{SITE_BASE}/pt/empreendimento/jc-barrocas-ID1hFvB",
         headers=_headers(),
-        timeout=REQUEST_TIMEOUT_S,
     )
     resp.raise_for_status()
     m = _NEXT_DATA_RE.search(resp.text)
@@ -210,9 +276,7 @@ def _next_data(path: str, params: list[tuple[str, str]] | None = None) -> dict:
     for attempt in range(_MAX_REQUEST_ATTEMPTS):
         try:
             url = f"{SITE_BASE}/_next/data/{_get_build_id()}{path}.json"
-            resp = requests.get(
-                url, params=params, headers=_headers(json_data=True), timeout=REQUEST_TIMEOUT_S
-            )
+            resp = _http_get(url, params=params, headers=_headers(json_data=True))
             if resp.status_code == 404:  # buildId likely rotated — refresh + retry
                 _BUILD_ID = None
                 continue
@@ -327,6 +391,16 @@ def _top_info(ad: dict, label: str) -> Any:
     return None
 
 
+def _addtl_info(ad: dict, label: str) -> list | None:
+    """Pull the full `values` array from additionalInformation by label. Returns
+    None when the label is absent. Caller takes [0] for single-value enums or
+    keeps the whole list for multi-value fields (extras / amenities / security)."""
+    for x in ad.get("additionalInformation") or []:
+        if x.get("label") == label:
+            return x.get("values") or None
+    return None
+
+
 def _normalize_development(ad: dict) -> dict:
     """Development row from /pt/empreendimento/{slug} → pageProps.ad."""
     loc = ad.get("location") or {}
@@ -361,6 +435,13 @@ def _normalize_development(ad: dict) -> dict:
         "promoter_id": owner.get("id"),
         "promoter_name": owner.get("name"),
         "promoter_type": owner.get("type"),
+        # additionalInformation pulls (zero-cost — already in dev-detail payload).
+        # Multi-value enum lists kept as jsonb arrays; scalar enums as text.
+        "extra_spaces": _addtl_info(ad, "extra_spaces"),
+        "security": _addtl_info(ad, "security"),
+        "project_amenities": _addtl_info(ad, "project_amenities"),
+        "rooms_number_range": _addtl_info(ad, "rooms_number_range"),
+        "advertiser_type": (_addtl_info(ad, "advertiser_type") or [None])[0],
         # JSON columns
         "images": ad.get("images"),
         "floor_plans": ad.get("floorPlans"),
@@ -400,8 +481,27 @@ def _normalize_unit(item: dict, development_id: Any) -> dict:
         "market": chars.get("market"),
         "heating": chars.get("heating"),
         "windows_type": chars.get("windows_type"),
+        # additional characteristics pivoted (zero-cost — already in embedded view).
+        # bathrooms_num + extras_types (garage/lift/AC) require Pass 3; see below.
+        "build_year": chars.get("build_year"),
+        "terrain_area_m": chars.get("terrain_area"),
+        "building_material": chars.get("building_material"),
+        "remote_services": chars.get("remote_services"),
+        "building_ownership": chars.get("building_ownership"),
+        "floors_num": chars.get("floors_num"),
+        "roof_type": chars.get("roof_type"),
+        "roofing": chars.get("roofing"),
+        "free_from": chars.get("free_from"),
+        # Pass-3 fields (None unless _ensure_dev_payload merged detail).
+        # additionalInformation is absent from embedded paginatedUnits.items[]
+        # and only appears on the full /pt/anuncio/{slug} unit detail page.
+        "bathrooms_num": (_addtl_info(item, "bathrooms_num") or [None])[0],
+        "extras_types": _addtl_info(item, "extras_types"),
+        "security_types": _addtl_info(item, "security_types"),
+        "advertiser_type": (_addtl_info(item, "advertiser_type") or [None])[0],
         # JSON columns
         "images": item.get("images"),
+        "floor_plans": item.get("floorPlans"),
         "characteristics": item.get("characteristics"),
         "raw_json": item,
     }
@@ -431,6 +531,11 @@ def _normalize_plot(ad: dict) -> dict:
         # CONFIRM-AT-BUILD: terreno characteristics.type enum (agricultural/urban/…)
         "classification": chars.get("type"),
         "is_private_owner": (ad.get("owner") or {}).get("type") == "private",
+        # additionalInformation pulls (zero-cost — plot detail already fetched).
+        "access_types": _addtl_info(ad, "access_types"),
+        "media_types": _addtl_info(ad, "media_types"),
+        "vicinity_types": _addtl_info(ad, "vicinity_types"),
+        "advertiser_type": (_addtl_info(ad, "advertiser_type") or [None])[0],
         # JSON columns
         "images": ad.get("images"),
         "characteristics": ad.get("characteristics"),
@@ -464,7 +569,17 @@ def _iter_dev_units(slug: str, ad: dict) -> Iterable[dict]:
     total_pages = (pu.get("pagination") or {}).get("totalPages") or 1
     for page in range(2, total_pages + 1):
         time.sleep(RATE_LIMIT_S)
-        pp = _next_data(f"/pt/empreendimento/{slug}", params=[("page", str(page))])
+        # A persistently-failing unit-page fetch must not abort the whole crawl
+        # (DataDome 403 bursts under sustained load — same pattern as plots).
+        # Yield whatever we have for this dev and let the outer loop continue.
+        try:
+            pp = _next_data(f"/pt/empreendimento/{slug}", params=[("page", str(page))])
+        except Exception as exc:
+            log.warning(
+                "[imovirtual] dev %s page %d failed after retries — yielding %d units, skipping rest: %s",
+                slug, page, len(seen), exc,
+            )
+            return
         more = ((pp.get("ad") or {}).get("paginatedUnits") or {}).get("items") or []
         for item in more:
             if item.get("id") not in seen:
@@ -472,62 +587,122 @@ def _iter_dev_units(slug: str, ad: dict) -> Iterable[dict]:
                 yield item
 
 
+def _fetch_unit_detail_additional_info(unit_url: str) -> list | None:
+    """Pass 3: fetch full /pt/anuncio/{slug} unit detail and return its
+    `additionalInformation` array. Returns None on any failure (the embedded-view
+    data is still good; this just leaves the Pass-3 fields NULL for that unit)."""
+    if not unit_url:
+        return None
+    unit_slug = unit_url.rstrip("/").rsplit("/", 1)[-1]
+    if not unit_slug:
+        return None
+    try:
+        time.sleep(RATE_LIMIT_S)
+        ad = _next_data(f"/pt/anuncio/{unit_slug}").get("ad") or {}
+        return ad.get("additionalInformation")
+    except Exception as exc:
+        log.warning("[imovirtual] unit Pass-3 skipped (slug=%s): %s", unit_slug, exc)
+        return None
+
+
+def _fetch_dev_detail(slug: str) -> dict | None:
+    """Single dev-detail fetch with graceful-skip on persistent failure."""
+    try:
+        return _next_data(f"/pt/empreendimento/{slug}").get("ad") or {}
+    except Exception as exc:
+        log.warning("[imovirtual] dev detail skipped (slug=%s): %s", slug, exc)
+        return None
+
+
 def _ensure_dev_payload() -> dict[str, list[dict]]:
-    """Pass 1 (national dev list) → Pass 2 (per-dev detail = dev row + its units)."""
+    """Pass 1 (national dev list) → Pass 2 (per-dev detail = dev row + its units)
+    → Pass 3 (per-unit /anuncio/ detail for additionalInformation: bathrooms,
+    extras_types, security_types, advertiser_type — absent from the embedded view).
+
+    Phased so the ZenRows transport can amortize latency: Phase 1 is sequential
+    (search pagination depends on prior page), Phase 2 fans dev-detail across
+    `CRAWL_CONCURRENCY` workers, Phase 3 walks page-2+ unit lists sequentially
+    per dev (small fan-in, simpler), Phase 4 fans Pass-3 unit-detail fetches
+    across `CRAWL_CONCURRENCY` workers. With CRAWL_CONCURRENCY=1 (no ZenRows),
+    behavior is identical to the historical sequential crawl plus rate-limit."""
     global _DEV_CACHE
     if _DEV_CACHE is not None:
         return _DEV_CACHE
-    dev_rows: list[dict] = []
-    unit_rows: list[dict] = []
-    for card in _iter_search("empreendimento", DEV_SCOPE):
-        slug = card.get("slug")
-        if not slug:
-            continue
-        time.sleep(RATE_LIMIT_S)
-        ad = _next_data(f"/pt/empreendimento/{slug}").get("ad") or {}
-        if not ad.get("id"):
-            continue
-        dev_rows.append(_normalize_development(ad))
+
+    # Phase 1: sequential dev list (each page tells us totalPages → next).
+    cards = [c for c in _iter_search("empreendimento", DEV_SCOPE) if c.get("slug")]
+    log.info("[imovirtual] Phase 1 done: %d dev cards", len(cards))
+
+    # Phase 2: concurrent dev-detail fetch (CRAWL_CONCURRENCY workers).
+    with cf.ThreadPoolExecutor(max_workers=CRAWL_CONCURRENCY) as pool:
+        ads = list(pool.map(_fetch_dev_detail, [c["slug"] for c in cards]))
+    dev_pairs: list[tuple[str, dict]] = [
+        (cards[i]["slug"], ad)
+        for i, ad in enumerate(ads)
+        if ad is not None and ad.get("id")
+    ]
+    log.info("[imovirtual] Phase 2 done: %d dev details (%d skipped)",
+             len(dev_pairs), len(cards) - len(dev_pairs))
+
+    # Phase 3: per-dev embedded-units + page-2+ unit pagination. Kept sequential
+    # PER DEV — page-2+ is small (most devs ≤10 units → page 1 only); going
+    # concurrent here adds complexity for marginal gain.
+    all_unit_pairs: list[tuple[Any, dict]] = []  # (development_id, raw_item)
+    for slug, ad in dev_pairs:
         for item in _iter_dev_units(slug, ad):
-            unit_rows.append(_normalize_unit(item, development_id=ad.get("id")))
+            all_unit_pairs.append((ad.get("id"), item))
+    log.info("[imovirtual] Phase 3 done: %d raw unit items", len(all_unit_pairs))
+
+    # Phase 4: concurrent Pass-3 (CRAWL_CONCURRENCY workers). Mutates items
+    # in place — the worker writes `item["additionalInformation"]` so the
+    # subsequent normalize step sees it via `_addtl_info`.
+    def _augment_one(pair: tuple[Any, dict]) -> None:
+        _, item = pair
+        addtl = _fetch_unit_detail_additional_info(item.get("url"))
+        if addtl is not None:
+            item["additionalInformation"] = addtl
+
+    with cf.ThreadPoolExecutor(max_workers=CRAWL_CONCURRENCY) as pool:
+        list(pool.map(_augment_one, all_unit_pairs))
+    log.info("[imovirtual] Phase 4 done: Pass-3 augmentation complete")
+
+    # Phase 5: sequential normalize (CPU-only).
+    dev_rows = [_normalize_development(ad) for _, ad in dev_pairs]
+    unit_rows = [_normalize_unit(item, development_id=dev_id) for dev_id, item in all_unit_pairs]
+
     _DEV_CACHE = {"developments": dev_rows, "units": unit_rows}
     return _DEV_CACHE
 
 
+def _fetch_plot_detail(slug: str) -> dict | None:
+    """Single plot-detail fetch with graceful-skip on persistent failure."""
+    try:
+        return _next_data(f"/pt/anuncio/{slug}").get("ad") or {}
+    except Exception as exc:
+        log.warning("[imovirtual] plot detail skipped (slug=%s): %s", slug, exc)
+        return None
+
+
 def _ensure_plot_payload() -> list[dict]:
-    """Terreno list (Aveiro) → per-plot /anuncio/ detail (coords + classification)."""
+    """Terreno list (Aveiro) → per-plot /anuncio/ detail (coords + classification).
+    Same phased shape as `_ensure_dev_payload`: Phase 1 sequential list, Phase 2
+    concurrent per-plot detail (via `CRAWL_CONCURRENCY` workers when ZenRows is on)."""
     global _PLOT_CACHE
     if _PLOT_CACHE is not None:
         return _PLOT_CACHE
-    rows: list[dict] = []
-    seen = skipped = 0
-    for card in _iter_search("terreno", PLOT_SCOPE):
-        slug = card.get("slug")
-        if not slug:
-            continue
-        seen += 1
-        time.sleep(RATE_LIMIT_S)
-        try:
-            ad = _next_data(f"/pt/anuncio/{slug}").get("ad") or {}
-        except Exception as exc:
-            # A persistently-failing plot detail must not abort the whole crawl.
-            skipped += 1
-            log.warning("[imovirtual] plot detail skipped (slug=%s): %s", slug, exc)
-            continue
-        if ad.get("id"):
-            rows.append(_normalize_plot(ad))
-        if seen % 50 == 0:
-            log.info(
-                "[imovirtual] plots progress: seen=%d collected=%d skipped=%d",
-                seen,
-                len(rows),
-                skipped,
-            )
+
+    # Phase 1: sequential plot list pagination.
+    cards = [c for c in _iter_search("terreno", PLOT_SCOPE) if c.get("slug")]
+    log.info("[imovirtual] plots Phase 1 done: %d plot cards", len(cards))
+
+    # Phase 2: concurrent per-plot detail fetch.
+    with cf.ThreadPoolExecutor(max_workers=CRAWL_CONCURRENCY) as pool:
+        ads = list(pool.map(_fetch_plot_detail, [c["slug"] for c in cards]))
+    rows = [_normalize_plot(ad) for ad in ads if ad is not None and ad.get("id")]
+    skipped = sum(1 for ad in ads if ad is None)
     log.info(
         "[imovirtual] plots crawl complete: seen=%d collected=%d skipped=%d",
-        seen,
-        len(rows),
-        skipped,
+        len(cards), len(rows), skipped,
     )
     _PLOT_CACHE = rows
     return _PLOT_CACHE

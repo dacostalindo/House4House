@@ -69,6 +69,13 @@ DEV_AD = {
         {"label": "number_of_adverts", "values": ["11"], "unit": ""},
         {"label": "number_of_units_in_project", "values": ["20"], "unit": ""},
     ],
+    "additionalInformation": [
+        {"label": "advertiser_type", "values": ["developer"], "unit": ""},
+        {"label": "security", "values": ["alarm", "monitoring"], "unit": ""},
+        {"label": "extra_spaces", "values": ["terrace", "garage"], "unit": ""},
+        {"label": "project_amenities", "values": ["pool"], "unit": ""},
+        {"label": "rooms_number_range", "values": ["T0", "T1", "T2"], "unit": ""},
+    ],
     "paginatedUnits": {"pagination": {"page": 1, "totalPages": 2, "totalResults": 11}},
     "owner": {"id": 5227621, "name": "Sucesso Acontece - Unipessoal Limitada", "type": "developer"},
     "images": [{"thumbnail": "https://x/y.jpg"}],
@@ -96,8 +103,19 @@ UNIT_ITEM = {
         {"key": "heating", "value": "urban"},
         {"key": "rooms_num", "value": "4"},
         {"key": "building_floors_num", "value": "6"},
+        {"key": "build_year", "value": "2024"},
+        {"key": "terrain_area", "value": "1011"},
+        {"key": "free_from", "value": "2027-09-30"},
     ],
     "images": [{"thumbnail": "https://x/u.jpg"}],
+    "floorPlans": ["https://x/p.jpg"],
+    # Pass-3 fields merged into the embedded item by _ensure_dev_payload.
+    "additionalInformation": [
+        {"label": "bathrooms_num", "values": ["2"], "unit": ""},
+        {"label": "extras_types", "values": ["garage", "lift", "air_conditioning"], "unit": ""},
+        {"label": "security_types", "values": ["monitoring"], "unit": ""},
+        {"label": "advertiser_type", "values": ["developer"], "unit": ""},
+    ],
 }
 
 PLOT_AD = {
@@ -125,6 +143,12 @@ PLOT_AD = {
     ],
     "owner": {"type": "agency"},
     "images": [],
+    "additionalInformation": [
+        {"label": "advertiser_type", "values": ["agency"], "unit": ""},
+        {"label": "access_types", "values": ["paved", "private"], "unit": ""},
+        {"label": "media_types", "values": ["water", "electricity"], "unit": ""},
+        {"label": "vicinity_types", "values": ["forest"], "unit": ""},
+    ],
 }
 
 
@@ -240,6 +264,14 @@ class TestNormalizeDevelopment:
         assert rec["promoter_id"] == 5227621
         assert rec["raw_json"] is DEV_AD
 
+    def test_additional_info_plucked(self):
+        rec = _normalize_development(DEV_AD)
+        assert rec["advertiser_type"] == "developer"
+        assert rec["security"] == ["alarm", "monitoring"]
+        assert rec["extra_spaces"] == ["terrace", "garage"]
+        assert rec["project_amenities"] == ["pool"]
+        assert rec["rooms_number_range"] == ["T0", "T1", "T2"]
+
 
 class TestNormalizeUnit:
     def test_pk_and_fk(self):
@@ -259,6 +291,34 @@ class TestNormalizeUnit:
         assert rec["title"] is None
         assert rec["status"] is None
 
+    def test_floor_plans_plucked(self):
+        rec = _normalize_unit(UNIT_ITEM, development_id=1)
+        assert rec["floor_plans"] == ["https://x/p.jpg"]
+
+    def test_extended_characteristics_plucked(self):
+        rec = _normalize_unit(UNIT_ITEM, development_id=1)
+        assert rec["build_year"] == "2024"
+        assert rec["terrain_area_m"] == "1011"
+        assert rec["free_from"] == "2027-09-30"
+
+    def test_pass3_additional_info_plucked(self):
+        rec = _normalize_unit(UNIT_ITEM, development_id=1)
+        assert rec["bathrooms_num"] == "2"
+        assert rec["extras_types"] == ["garage", "lift", "air_conditioning"]
+        assert rec["security_types"] == ["monitoring"]
+        assert rec["advertiser_type"] == "developer"
+
+    def test_pass3_fields_none_when_no_additional_info(self):
+        # When _ensure_dev_payload's Pass-3 fetch fails, the embedded item never
+        # gets `additionalInformation` merged in — fields should be None, not crash.
+        bare = {**UNIT_ITEM}
+        bare.pop("additionalInformation", None)
+        rec = _normalize_unit(bare, development_id=1)
+        assert rec["bathrooms_num"] is None
+        assert rec["extras_types"] is None
+        assert rec["security_types"] is None
+        assert rec["advertiser_type"] is None
+
 
 class TestNormalizePlot:
     def test_pk_and_classification(self):
@@ -275,6 +335,13 @@ class TestNormalizePlot:
     def test_admin_geography(self):
         rec = _normalize_plot(PLOT_AD)
         assert rec["concelho"] == "Oliveira de Azeméis"
+
+    def test_additional_info_plucked(self):
+        rec = _normalize_plot(PLOT_AD)
+        assert rec["advertiser_type"] == "agency"
+        assert rec["access_types"] == ["paved", "private"]
+        assert rec["media_types"] == ["water", "electricity"]
+        assert rec["vicinity_types"] == ["forest"]
 
 
 # ---------------------------------------------------------------------------
