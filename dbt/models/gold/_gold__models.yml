@@ -1,6 +1,47 @@
 version: 2
 
 models:
+  - name: xref_publico_dgeec
+    description: >
+      Bridge table: Público school id (`eid`) ↔ DGEEC 6-digit
+      `codigo_escola` (CODESCME). Resolves Open Q #2 from
+      [[pt-education-amenity-pillar]]. One row per `publico_eid`;
+      unmatched Público schools surface with `codigo_dgeec` NULL and
+      `match_method='unmatched'`. Powered by two empirically-tuned
+      paths (probe locked 2026-06-09): (1) `direct_uo_fuzzy` for 9ano
+      schools with `codigo_uo_dgeec` populated — UO-restricted name
+      similarity, 100% confident at avg sim=0.992 across 921 schools;
+      (2) `fuzzy_spatial` for all sec + 9ano-without-coduo — ST_DWithin
+      500m + name similarity ≥ 0.6. The `id_publico ↔ DGEEC` prefix
+      probe was tested and matches 0/661 sec schools (Público's `id` is
+      its own short code, unrelated to DGEEC); explicitly NOT in the
+      algorithm.
+    columns:
+      - name: publico_eid
+        description: "Público internal school id. PK."
+        tests:
+          - not_null
+          - unique
+      - name: kind
+        description: "'sec' (secundário) or '9ano' (3º ciclo). Sec rows are always 'fuzzy_spatial' or 'unmatched' (codigo_uo_dgeec is always NULL for sec)."
+        tests:
+          - not_null
+          - accepted_values: {values: ['sec', '9ano']}
+      - name: codigo_dgeec
+        description: "DGEEC 6-digit codigo_escola (CODESCME) — the per-school code from rede_escolar. NULL when match_method='unmatched' (school is in Público but not in the rede_escolar register, typically small privates / IPSS)."
+      - name: match_method
+        description: >
+          'direct_uo_fuzzy' (9ano, UO-restricted, ~921 rows),
+          'fuzzy_spatial' (sec or 9ano residual, ST_DWithin 500m + name sim≥0.6, ~865 rows),
+          'unmatched' (no candidate found, ~188 rows).
+        tests:
+          - not_null
+          - accepted_values: {values: ['direct_uo_fuzzy', 'fuzzy_spatial', 'unmatched']}
+      - name: match_score
+        description: "Trigram similarity (pg_trgm) of unaccent(lower(publico.nome)) vs unaccent(lower(dgeec.nome)). NULL when unmatched. Range 0-1."
+      - name: match_distance_m
+        description: "Geodesic distance in meters (EPSG:3763) between Público and DGEEC school points. NULL when unmatched. For direct_uo_fuzzy rows the distance can be >500m because the UO scope, not the spatial filter, gates the match."
+
   - name: dim_geography
     description: >
       Geography dimension at the freguesia (parish) level.

@@ -1855,3 +1855,67 @@ table — there's literally no eid that would benefit from being in both.
 
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 2 dashboard — add `silver_publico_rankings_{sec,9ano}` ✅).
+
+## [2026-06-09] gold | Phase 2 PR-D — xref_publico_dgeec bridge (Open Q #2 resolved)
+
+First gold-tier mart in the [[pt-education-amenity-pillar]] and the
+resolution of Open Q #2 (Público↔DGEEC bridge thresholds). Bridge table
+`gold_analytics.xref_publico_dgeec` maps every Público school id (eid)
+to its DGEEC 6-digit `codigo_escola` (CODESCME), with explicit
+`match_method` provenance and `match_score`/`match_distance_m`
+diagnostics per row.
+
+**Empirical-probe-driven algorithm** (locked 2026-06-09 against the
+live warehouse, not the 5 manual lookups the planning doc anticipated
+— having both Público + DGEEC already in the warehouse let me probe
+the entire 1,974-school corpus directly):
+
+1. **id_publico ↔ DGEEC prefix probe is dead.** Tested
+   `LEFT(codigo_escola, 4) = LPAD(id_publico, 4)` with concelho match
+   on all 661 sec schools → **0 matches**. Público's `id` is its own
+   short code, not a DGEEC prefix. Explicitly NOT in the final
+   algorithm.
+
+2. **Path 1 — `direct_uo_fuzzy` (9ano only)**: when Público's
+   `codigo_uo_dgeec` is populated, restrict rede_escolar candidates to
+   the UO (`r.codigo_uo = p.codigo_uo_dgeec`) and pick the best
+   name-similarity match. The UO scope is sufficient evidence on its
+   own — 921/921 (100%) resolve at avg sim=0.992. No similarity
+   threshold needed.
+
+3. **Path 2 — `fuzzy_spatial` (all sec + 9ano residual)**: ST_DWithin
+   500m + pg_trgm similarity ≥ 0.6 on
+   `unaccent(lower(nome))`. The 0.6 threshold was picked by eyeballing
+   the 0.3-0.6 band: 0.6+ is bulletproof; 0.4-0.6 has ~30% false
+   positives (e.g. "Colégio Liverpool" vs "Grande Colégio Universal"
+   at 0.303). NO concelho-name gate — costs island coverage where
+   Público labels concelhos like "Lagoa (R.A.A)" vs DGEEC's "Lagoa".
+
+**Live verification** on the warehouse:
+
+| kind | match_method | schools | avg_score | avg_dist_m |
+|---|---|---|---|---|
+| 9ano | direct_uo_fuzzy | 921 | 0.992 | 64.9 m |
+| 9ano | fuzzy_spatial | 259 | 0.957 | 58.2 m |
+| 9ano | unmatched | 133 | — | — |
+| sec | fuzzy_spatial | 606 | 0.982 | 31.7 m |
+| sec | unmatched | 55 | — | — |
+
+Total: 1,786/1,974 matched = **90.5% coverage** (sec 91.7%, 9ano
+89.9%). Beats planning §3.2's ~80-90% expectation. Unmatched ~9.5%
+are mostly small privados / IPSS not in the rede_escolar register at
+all.
+
+- `dbt run --select +xref_publico_dgeec` → 1 model built.
+- `dbt test --select xref_publico_dgeec` → **6/6 PASS** (unique +
+  not_null × publico_eid; not_null + accepted_values × kind;
+  not_null + accepted_values × match_method).
+
+**Open Q #2 resolved.** The next gates for `dim_school` are now Open
+Q #5 (PK strategy — discriminator col vs split tables) and Open Q #1
+(CAOP-Açores/Madeira sourcing — only relevant if `dim_school` wants
+DICOFRE for island schools; v1 fallback is leave NULL).
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 2 dashboard — flip xref_publico_dgeec ✅; flip Open Q #2 to ✅
+RESOLVED in §9).
