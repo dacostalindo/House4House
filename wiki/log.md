@@ -1734,3 +1734,75 @@ latest-only staging filter.
 **Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
 (Phase 1 dashboard — flip stg_dgeec_ens_sup + stg_rede_escolar + new
 silver_dges_acesso_curso row to ✅ shipped).
+
+## [2026-06-09] silver | Phase 1 PR-B — stg_publico_rankings_sec + stg_publico_rankings_9ano (closes Phase 1 staging tier)
+
+Second half of Phase 1 silver promotions for the [[pt-education-amenity-pillar]].
+Two new staging models splitting [[publico-rankings]] by `kind` — sec
+(secundário exames nacionais, 0-20 scale) + 9ano (3º ciclo Provas Finais,
+0-5 scale). Closes the Phase 1 staging tier; 5/5 pillar bronzes now have
+a typed staging view.
+
+**Layer-separation decision**: The planning §Phase 1 wording for these
+two stagings literally read "concelho fuzzy DICOFRE join" + "direct join
+on codigo_uo_dgeec + fuzzy fallback". That conflated layers — the CAOP
+DICOFRE join and the Público↔DGEEC bridge are silver/gold concerns, not
+staging. PR-B keeps the stagings 1:1 single-source typed views,
+consistent with the pillar's existing 3 stagings (stg_rede_escolar,
+stg_dgeec_ens_sup, stg_dges_acesso — none of those do cross-source
+joins). Open Qs #1 (CAOP-Açores/Madeira) and #2 (Público↔DGEEC bridge
+thresholds) accordingly do NOT block PR-B; they block the future
+silver_publico_rankings and xref_publico_dgeec models.
+
+**New models** (live-verified against the warehouse):
+- `stg_publico_rankings_sec` — filtered to `kind='sec'`. 4,411 rows
+  across 7 years (2018–2024), 661 unique schools. ~35 canonical columns:
+  headline scores + 9 disciplines × (média, num_provas, ranking) +
+  contexto socioeconómico + retenção + equidade + prior-year carry. 0
+  bad-coord rows. Dropped: cif_* (39% populated, low signal),
+  per-disciplina ranking_superacao_* (low signal), equivalência cluster
+  (small subset), legacy y17-y20 carries (semantics drift across
+  vintages per the bronze YAML).
+- `stg_publico_rankings_9ano` — filtered to `kind='9ano'`. 5,859 rows
+  across 5 years (2018–2019, 2022–2024; the COVID gap 2020+2021 matches
+  source ground truth). ~25 canonical columns: headline scores + only 2
+  disciplines tested (Matemática + Português) + contexto + retenção +
+  prior-year carry. 18 bronze rows dropped: 5 with NULL latitude + 13
+  with lat/lon outside the PT bounding box (one had `latitude=37129` —
+  clear data error). codigo_uo_dgeec passed through (~79% populated;
+  the 21% gap is silver's problem).
+
+**Data-quality discovery**: 13 9ano rows had garbage lat/lon
+(latitude=37129 in one case; others outside lat 32-43 / lon -32 to -6).
+ST_Transform to EPSG:3763 (PT-TM06) refuses these as out-of-bounds —
+caught only when the not_null(geom_3763) test ran. Fixed by tightening
+the staging filter to a PT bounding box (rather than just `not null`).
+Pattern reusable for any other Público-style source with lat/lon
+sourced from a non-canonical pipeline. The PT bounding box used:
+lat 32-43 (Continente 36.9-42.2 + Açores 36.9-39.7 + Madeira 32.4-33.1),
+lon -32 to -6 (Açores -31.3 westernmost).
+
+**Live verification** on the warehouse via the running docker stack:
+- `dbt run --select stg_publico_rankings_sec stg_publico_rankings_9ano`
+  → 2/2 success in 0.70s.
+- `dbt test` over the same 2 → **10/10 PASS** (not_null × PK + not_null
+  × dual-CRS geoms + unique combination on (year, eid) for both).
+- Row counts: sec 4,411 (bronze 4,411 — no row drops); 9ano 5,859
+  (bronze 5,877 − 18 bad-coord rows).
+
+**Phase 1 staging tier complete (5/5 sources)**:
+- ✅ `stg_rede_escolar` (PR-A 2026-06-09)
+- ✅ `stg_dgeec_ens_sup` (PR-A 2026-06-09)
+- ✅ `stg_dges_acesso` (PR #56)
+- ✅ `stg_publico_rankings_sec` (PR-B 2026-06-09)
+- ✅ `stg_publico_rankings_9ano` (PR-B 2026-06-09)
+
+Next: Phase 2 gold marts. The natural first move is
+`silver_publico_rankings` (annual-best ranking per school across years)
+and `xref_publico_dgeec` (the bridge table) — both require Open Q #1
+(CAOP-Açores/Madeira sourcing) and Open Q #2 (Público↔DGEEC bridge
+thresholds via 5 manual lookups) to be resolved first.
+
+**Pages touched**: [[log]] (this entry), [[pt-education-amenity-pillar]]
+(Phase 1 dashboard — flip both Público stagings ✅; close Phase 1
+staging tier banner).

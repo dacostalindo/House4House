@@ -57,6 +57,74 @@ models:
         description: "Point geometry in EPSG:4326 for display + WGS84 joins."
         tests: [not_null]
 
+  - name: stg_publico_rankings_9ano
+    description: >
+      Typed view over bronze_education.raw_publico_rankings filtered to
+      kind='9ano' (3º ciclo Provas Finais). 1:1 single-source cleanup;
+      joins to DGEEC / CAOP live in downstream silver/gold (the pillar's
+      single-source staging convention, see [[pt-education-amenity-pillar]]).
+      ~25 canonical columns: headline scores (0-5 scale) + Matemática +
+      Português (only 2 disciplines tested at 9ano) + contexto
+      socioeconómico + retenção + prior-year carry + dual-CRS geom from
+      lat/lon. 5/5877 bronze rows with NULL lat are dropped at staging.
+      codigo_uo_dgeec populated for ~79% of rows; remaining 21% will need
+      fuzzy fallback in the future silver_publico_rankings (Open Q #2).
+    columns:
+      - name: year
+        tests: [not_null]
+      - name: eid
+        description: "Público internal school id. PK component."
+        tests: [not_null]
+      - name: id_publico
+        description: "Público 4-digit short code, zero-padded. Always present in 9ano."
+      - name: codigo_uo_dgeec
+        description: "DGEEC 6-digit agrupamento code. ~79% populated; 21% NULL (mostly privados/IPSS). Direct join to stg_rede_escolar.codigo_uo when present; fuzzy fallback in silver."
+      - name: media_total_exames
+        description: "Headline 0-5 score (Provas Finais média). The amenity-tier ranking signal for 9ano."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, eid]
+
+  - name: stg_publico_rankings_sec
+    description: >
+      Typed view over bronze_education.raw_publico_rankings filtered to
+      kind='sec' (secundário exames nacionais). 1:1 single-source cleanup;
+      joins to DGEEC / CAOP live in downstream silver/gold. ~35 canonical
+      columns: headline scores (0-20 scale) + 9 disciplines ×
+      (média, num_provas, ranking) + contexto socioeconómico + retenção
+      + equidade + prior-year carry + dual-CRS geom from lat/lon.
+      codigo_uo_dgeec is ALWAYS NULL for sec (per the bronze YAML) — the
+      DGEEC join in silver must use fuzzy (nome + concelho + ST_DWithin)
+      per Open Q #2. Dropped from bronze: cif_* (39% populated, low
+      signal), per-disciplina ranking_superacao_* (low signal),
+      equivalência cluster (small subset), legacy y17-y20 carries
+      (semantics drift across vintages).
+    columns:
+      - name: year
+        tests: [not_null]
+      - name: eid
+        description: "Público internal school id. PK component."
+        tests: [not_null]
+      - name: id_publico
+        description: "Público 4-digit short code, zero-padded. Used as the LEFT(DGEEC,4) prefix probe candidate in the fuzzy join (Open Q #2)."
+      - name: media_total_exames
+        description: "Headline 0-20 score (média total exames). The amenity-tier ranking signal for sec."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, eid]
+
   - name: stg_dges_acesso
     description: >
       1:1 typed staging of bronze_education.raw_dges_acesso — DGES CNA acesso
