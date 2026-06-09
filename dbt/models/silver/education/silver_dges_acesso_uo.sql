@@ -13,7 +13,7 @@
 -- in DGEEC (UOs added since DGEEC's 2023-03-15 snapshot); those rows surface
 -- as unmatched_uo=true with NULL codigo_unidade_organica. There is no
 -- stg_dgeec_ens_sup yet — we inline the "latest run_date" filter here as a
--- CTE. When dgeec_ens_sup gains a staging model, swap the CTE for a ref.
+-- CTE.
 
 with dgeec_latest_run as (
     select max(run_date) as run_date

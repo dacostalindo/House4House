@@ -1645,3 +1645,35 @@ this worktree).
 17→18, Education (3)→(4) + new dges-acesso bullet),
 [[pt-education-amenity-pillar]] (source #4 dashboard flipped to ✅ shipped).
 New page [[dges-acesso]].
+
+## [2026-06-07] hygiene | codify dges_acesso bronze-loader deps in pyproject.toml + uv.lock
+
+PR #56 landed the [[dges-acesso]] bronze loader on the live Airflow stack
+via direct `pip install pandas openpyxl xlrd odfpy` into the running
+containers — the deps were edited into `pipelines/pyproject.toml` in the
+session worktree but **never committed**. Worktree was cleaned post-merge;
+edit was lost. This entry records the redo: 4 deps added under a
+`# Spreadsheet parsing (dges_acesso bronze loader)` block in
+`pipelines/pyproject.toml`, `uv.lock` regenerated (`uv lock`: adds
+`pandas` already-transitive, `openpyxl 3.1.5`, `xlrd 2.0.2`, `odfpy 1.4.1`,
+`et-xmlfile 2.0.0`), `docker compose build airflow-scheduler` verified the
+image builds cleanly + `python -c "import pandas, openpyxl, xlrd; from odf
+import opendocument"` succeeds inside the rebuilt image. Without this, the
+next `Dockerfile.airflow.uv` rebuild (e.g. via CI image cache invalidation
+or a fresh `docker compose build`) would have produced a container that
+ImportErrors on the dges_acesso bronze DAG.
+
+Also trimmed the now-stale "swap CTE for ref" hint at the tail of the
+file-level docstring in `dbt/models/silver/education/silver_dges_acesso_uo.sql`
+— the architectural rationale for the inline `dgeec_latest_run` CTE
+remains; the directive will return naturally when [[pt-education-amenity-pillar]]
+Phase 1 ships `stg_dgeec_ens_sup`.
+
+Lesson: `uv sync --frozen --package house4house-pipelines` in
+[`Dockerfile.airflow.uv`](../Dockerfile.airflow.uv) reads from `uv.lock`,
+not `pyproject.toml`. Editing only `pyproject.toml` produces a "successful"
+docker build that silently omits the new deps — caught only by an explicit
+in-image `python -c "import …"` check. Future deps additions must include
+`uv lock` in the same commit.
+
+**Pages touched**: [[log]] (this entry).
