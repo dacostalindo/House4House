@@ -90,7 +90,7 @@ Sibling reference pages (read these alongside, NOT instead):
 - [x] `dim_school` — canonical school dim, all 5 levels, `codigo_dgeec` text PK accepting both 4-digit higher-ed UO + 6-digit basic/sec CODESCME (disjoint code spaces, 0 collisions). 8,117 rows = 7,796 basic_sec + 321 higher_ed. Identity + geometry + harmonized `natureza_publico_privado` + level flags (`has_kg`/`has_basic_1..3`/`has_sec`/`has_higher_ed`). Rankings moved to sibling fact. ✅ (PR-E 2026-06-09)
 - [x] `fact_school_ranking` — time-series ranking mart, 15,716 rows (sec 4,257 over 2018-2024 + 9ano 5,639 over 2018-19/2022-24 + higher_ed 5,820 over 2014-2025 × 3 fases). PK = (codigo_dgeec, kind, year, phase). Joins to dim_school on codigo_dgeec. ✅ (PR-E commit 2 / 2026-06-09)
 - [ ] `schools_kg|primary|middle|secondary|higher_ed` — per-level views
-- [ ] `listing_school_features` — per-listing nearest-school + best-score features
+- [x] `listing_school_features` — per-listing nearest-school + best-score features. 3,482 rows / 120s build (~35ms/listing, well under §0 success criterion of <50ms). 9 PostGIS laterals: 6 KNN+ST_DWithin(5km) for nearest-by-level + 3 ST_DWithin(2km) for best-score-by-kind (latest year). Coverage: 99.7-99.8% KG/basic_1 @5km, 91% sec, 73% higher_ed; rankings 79% sec, 85% 9ano, 47% higher_ed @2km. **Closes Phase 2.** ✅ (PR-F 2026-06-09)
 
 ### Open Qs to resolve before silver
 
