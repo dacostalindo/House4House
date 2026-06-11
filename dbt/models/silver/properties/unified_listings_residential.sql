@@ -47,11 +47,11 @@
 -- (DEV-grain, shipped 2026-05-22) and unified_listings_idealista_legacy
 -- (the prior Idealista-only listing silver, renamed alongside this commit).
 --
--- Portal scope: idealista (resale), RE/MAX, Zome, JLL. UNION ALL across the
--- 4 portal-listing staging models. NO cross-portal listing-level dedup in v1
--- (decision 2026-06-05 D2: a single physical property listed on 3 portals
--- yields 3 rows — consumers see the per-portal price variance which is itself
--- a signal). Listing-level dedup deferred to v1.5.
+-- Portal scope: idealista (resale), RE/MAX, Zome, JLL, imovirtual (dev_units).
+-- UNION ALL across the 5 portal-listing staging models. NO cross-portal
+-- listing-level dedup in v1 (decision 2026-06-05 D2: a single physical
+-- property listed on 3 portals yields 3 rows — consumers see the per-portal
+-- price variance which is itself a signal). Listing-level dedup deferred to v1.5.
 --
 -- Grain: 1 row per (source, source_listing_id). listing_hash is the deterministic
 -- merge key = MD5(source || '|' || source_listing_id) — same portal+id always
@@ -59,10 +59,17 @@
 --
 -- Floor plans (decision L7): floor_plan_urls TEXT[] + has_floor_plan +
 -- floor_plan_count + floor_plan_source. Coverage by source:
---   jll_blueprints   = 92.72% (PDF on egorealestate CDN — best quality)
---   idealista_tagged = 32.59% (JPG/WEBP on idealista CDN — tag='plan' index)
---   zome_aplants     = 26.76% (JPG on zome.pt — filename 'planta' match)
---   remax_path       =  8.18% (PDF on i.maxwork.pt/bb — may 404 if session-gated)
+--   jll_blueprints    = 92.72% (PDF on egorealestate CDN — best quality)
+--   imovirtual_units  = 68.83% (UNION of two disjoint per-unit feeds:
+--                       (a) raw_json->'floorPlans' array @ olxcdn JPGs = 29.62%,
+--                       (b) raw_json->'links'->>'localPlanUrl' scalar @
+--                           egorealestate PDFs + agency hosts = 44.82%;
+--                       only 5.6% overlap. Verified 0% overlap with dev-level
+--                       floor_plans which carry separate master/site plans —
+--                       those belong on unified_developments, not here.)
+--   idealista_tagged  = 32.59% (JPG/WEBP on idealista CDN — tag='plan' index)
+--   zome_aplants      = 26.76% (JPG on zome.pt — filename 'planta' match)
+--   remax_path        =  8.18% (PDF on i.maxwork.pt/bb — may 404 if session-gated)
 --
 -- Incremental merge by listing_hash: every portal pipeline run safely re-merges
 -- without duplicates. Same hash + same row_hash → UPDATE no-op. New SCD2 version
@@ -80,6 +87,8 @@ WITH unioned AS (
     SELECT * FROM {{ ref('stg_portal_listings_zome') }}
     UNION ALL
     SELECT * FROM {{ ref('stg_portal_listings_jll') }}
+    UNION ALL
+    SELECT * FROM {{ ref('stg_portal_listings_imovirtual') }}
 ),
 
 with_geom AS (
