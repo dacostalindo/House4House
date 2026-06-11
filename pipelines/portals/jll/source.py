@@ -118,11 +118,19 @@ LISTINGS_VERSION_COLUMNS: tuple[str, ...] = (
 # and reject a variant column for the other shape. Pre-declaring locks
 # them to float-compatible storage from row #1.
 # ---------------------------------------------------------------------------
-DEVELOPMENTS_FLOAT_COLUMNS = ("gps_lat", "gps_lon")
+DEVELOPMENTS_FLOAT_COLUMNS = (
+    "price_value",
+    "gross_area",
+    "net_area",
+    "land_area",
+    "gps_lat",
+    "gps_lon",
+)
 LISTINGS_FLOAT_COLUMNS = (
     "price_value",
     "gross_area",
     "net_area",
+    "land_area",
     "gps_lat",
     "gps_lon",
 )

@@ -14,6 +14,10 @@ Four pages from README §14-§17, each a focused planning artifact:
 - [[milestones]] — README §17 partial (Go/No-Go criteria for M1 / M2 / M3 + MVP hedonic feature coverage) — the explicit hard-fail / soft-fail gates per use-case MVP.
 - [[pt-education-amenity-design]] — v1 design for the education geo-amenity layer (dual signal: point-proximity + area-quality); resolved decision tree, surfacing spec, and 6-gate verification. Sources [[gesedu]] + [[infoescolas]]. `status: scoped-not-built`.
 
+Pillar-specific planning pages (one per major multi-source pillar in flight):
+
+- [[pt-education-amenity-pillar]] — 5-source PT education ingest (KG → university, públicos + privados); live Phase 0/1/2 dashboard; ground-truths the column-legend + the column-description convention conventions.
+
 Plus one paired concept page (lives in concepts/):
 
 - [[spatial-strategy]] — README §9 — CRS dual-storage convention (geom in 4326 + geom_pt in 3763), spatial indexing patterns (GIST + H3), common spatial query templates, location-score computation logic. Concept-shaped (rule + pattern), not planning-shaped.

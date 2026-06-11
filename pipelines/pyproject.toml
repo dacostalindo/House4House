@@ -37,6 +37,13 @@ dependencies = [
     "apache-airflow==2.10.4",
     "apache-airflow-providers-postgres>=5.10",
     "astronomer-cosmos[dbt-postgres]>=1.6,<1.7",
+    # Spreadsheet parsing (dges_acesso bronze loader): 8 .xlsx + 19 .xls +
+    # 9 .ods files across 2014–2025 × 3 phases; engines routed by URL suffix
+    # via pandas.read_excel(engine=openpyxl|xlrd|odf).
+    "pandas",
+    "openpyxl",
+    "xlrd",
+    "odfpy",
 ]
 
 [tool.uv]

@@ -1,0 +1,288 @@
+version: 2
+
+models:
+  - name: stg_dgeec_ens_sup
+    description: >
+      Typed view over bronze_education.raw_dgeec_ens_sup, filtered to the
+      latest run_date. Higher-ed register at Unidade Orgânica grain — 321
+      UOs (universidade + politécnico + militar) across continente +
+      Açores + Madeira. Sets the pillar's "staging filters to latest
+      snapshot" convention (see [[pt-education-amenity-pillar]] §Phase 1).
+      Dual-CRS geom exposed as `geom_4326` (display/joins) + `geom_3763`
+      (PT-TM06 for metric distance). Downstream: [[silver-dges-acesso-uo]]
+      + [[silver-dges-acesso-curso]] join on codigo_unidade_organica.
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC 4-digit UO code, zero-padded text. PK after latest-snapshot filter."
+        tests:
+          - not_null
+          - unique
+      - name: codigo_instituicao
+        description: "Parent-institution code (NON-UNIQUE — a Universidade owns many UOs)."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance/area."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display + WGS84 joins."
+        tests: [not_null]
+
+  - name: stg_rede_escolar
+    description: >
+      Typed view over bronze_education.raw_rede_escolar, filtered to the
+      latest monthly snapshot, active schools only ('Em funcionamento' +
+      not flagged for extinction), with non-NULL geometry. Trimmed to ~15
+      canonical columns for downstream gold marts; ArcGIS-internal +
+      low-signal contact fields dropped (still accessible in bronze).
+      Roughly 7,500 rows of the bronze ~8,670 survive the activa+geom
+      filters. Dual-CRS geom exposed as `geom_4326` + `geom_3763`.
+      Downstream: gold dim_school + listing_school_features.
+    columns:
+      - name: codigo_escola
+        description: "DGEEC 6-digit school code (CODESCME). PK after filters."
+        tests:
+          - not_null
+          - unique
+      - name: codigo_uo
+        description: "Agrupamento code (CODUOME). Joins to stg_publico_rankings_9ano.codigo_uo_dgeec."
+      - name: ciclo
+        description: "Ciclo de ensino (label)."
+      - name: tipologia
+        description: "Tipologia — 'EB1', 'EB2,3/S', 'JI', 'Sec'."
+      - name: natureza
+        description: "Natureza institucional (descrição) — 'Pública' / 'Privada' / subgrupos."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance/area."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display + WGS84 joins."
+        tests: [not_null]
+
+  - name: stg_publico_rankings_9ano
+    description: >
+      Typed view over bronze_education.raw_publico_rankings filtered to
+      kind='9ano' (3º ciclo Provas Finais). 1:1 single-source cleanup;
+      joins to DGEEC / CAOP live in downstream silver/gold (the pillar's
+      single-source staging convention, see [[pt-education-amenity-pillar]]).
+      ~25 canonical columns: headline scores (0-5 scale) + Matemática +
+      Português (only 2 disciplines tested at 9ano) + contexto
+      socioeconómico + retenção + prior-year carry + dual-CRS geom from
+      lat/lon. 5/5877 bronze rows with NULL lat are dropped at staging.
+      codigo_uo_dgeec populated for ~79% of rows; remaining 21% will need
+      fuzzy fallback in the future silver_publico_rankings (Open Q #2).
+    columns:
+      - name: year
+        tests: [not_null]
+      - name: eid
+        description: "Público internal school id. PK component."
+        tests: [not_null]
+      - name: id_publico
+        description: "Público 4-digit short code, zero-padded. Always present in 9ano."
+      - name: codigo_uo_dgeec
+        description: "DGEEC 6-digit agrupamento code. ~79% populated; 21% NULL (mostly privados/IPSS). Direct join to stg_rede_escolar.codigo_uo when present; fuzzy fallback in silver."
+      - name: media_total_exames
+        description: "Headline 0-5 score (Provas Finais média). The amenity-tier ranking signal for 9ano."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, eid]
+
+  - name: stg_publico_rankings_sec
+    description: >
+      Typed view over bronze_education.raw_publico_rankings filtered to
+      kind='sec' (secundário exames nacionais). 1:1 single-source cleanup;
+      joins to DGEEC / CAOP live in downstream silver/gold. ~35 canonical
+      columns: headline scores (0-20 scale) + 9 disciplines ×
+      (média, num_provas, ranking) + contexto socioeconómico + retenção
+      + equidade + prior-year carry + dual-CRS geom from lat/lon.
+      codigo_uo_dgeec is ALWAYS NULL for sec (per the bronze YAML) — the
+      DGEEC join in silver must use fuzzy (nome + concelho + ST_DWithin)
+      per Open Q #2. Dropped from bronze: cif_* (39% populated, low
+      signal), per-disciplina ranking_superacao_* (low signal),
+      equivalência cluster (small subset), legacy y17-y20 carries
+      (semantics drift across vintages).
+    columns:
+      - name: year
+        tests: [not_null]
+      - name: eid
+        description: "Público internal school id. PK component."
+        tests: [not_null]
+      - name: id_publico
+        description: "Público 4-digit short code, zero-padded. Used as the LEFT(DGEEC,4) prefix probe candidate in the fuzzy join (Open Q #2)."
+      - name: media_total_exames
+        description: "Headline 0-20 score (média total exames). The amenity-tier ranking signal for sec."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, eid]
+
+  - name: stg_dges_acesso
+    description: >
+      1:1 typed staging of bronze_education.raw_dges_acesso — DGES CNA acesso
+      per-(year, phase, instituição, curso) results, 2014–2025, ~40k rows.
+      Filters out PK-incomplete rows (no codigo_instit OR no codigo_curso),
+      trims name whitespace, preserves NULL nota_ult_colocado. Downstream:
+      [[silver-dges-acesso-uo]] aggregates this per (UO, year, phase) with
+      vagas-weighted mean and a LEFT JOIN to dgeec_ens_sup.
+    columns:
+      - name: year
+        tests:
+          - not_null
+          - accepted_values:
+              values: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: codigo_instit
+        tests: [not_null]
+      - name: codigo_curso
+        tests: [not_null]
+      - name: nota_ult_colocado
+        description: "0-200 scale; NULL when colocados=0 for that curso/phase."
+      - name: vagas_iniciais
+        description: "Weight for silver's nota aggregation."
+
+  - name: silver_dges_acesso_uo
+    description: >
+      Per (codigo_unidade_organica, year, phase) — vagas-weighted nota último
+      colocado plus totals. Aggregation: SUM(vagas_iniciais * nota) /
+      NULLIF(SUM(vagas_iniciais), 0) over cursos with non-NULL nota only (NULL
+      cursos excluded from both numerator AND denominator). LEFT JOIN to the
+      latest dgeec_ens_sup snapshot keeps DGES rows whose codigo_instit has no
+      DGEEC match (≈5% in 2025) with unmatched_uo=true and NULL UO fields.
+      Use unmatched_uo as a drift sentinel — when DGEEC refreshes its
+      snapshot, this should drop toward 0%. See [[dges-acesso]].
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC UO code (joined from dgeec_ens_sup). NULL when unmatched_uo=true."
+      - name: codigo_instit
+        description: "DGES institution code (always present; same value as codigo_unidade_organica when unmatched_uo=false)."
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: nota_ult_colocado_weighted
+        description: "Vagas-weighted mean of nota_ult_colocado across cursos with placements this phase. NULL if UO had 0 placed cursos."
+      - name: vagas_total
+        description: "SUM(vagas_iniciais) across all cursos this UO offered this phase (including NULL-nota cursos)."
+      - name: colocados_total
+        description: "SUM(colocados) across all cursos this UO had this phase."
+      - name: n_cursos
+        description: "Distinct cursos offered by this UO in this phase."
+      - name: n_cursos_with_placement
+        description: "Distinct cursos that had ≥1 placed candidate (used as weight basis for nota_ult_colocado_weighted)."
+      - name: unmatched_uo
+        description: "TRUE when codigo_instit has no DGEEC.codigo_unidade_organica match (≈5% of DGES codes per 2026-06-07 probe). Drift sentinel."
+        tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [codigo_instit, year, phase]
+
+  - name: silver_publico_rankings_sec
+    description: >
+      Latest-year-per-school rollup of stg_publico_rankings_sec — one row
+      per eid, picking the most recent year that school appeared in
+      Público's secundário ranking corpus. Per pillar decision #3
+      (planning §2): latest year only for v1. All staging columns
+      preserved; downstream gold (dim_school) will project to the lean
+      11+2 schema. Used as the canonical sec ranking signal for the
+      future xref_publico_dgeec bridge (Open Q #2) and listing_school_features.
+    columns:
+      - name: eid
+        description: "Público internal school id. PK."
+        tests:
+          - not_null
+          - unique
+      - name: ranking_year
+        description: "The most recent year this school appeared in the sec corpus (2018-2024 window). Use this for staleness filters."
+        tests: [not_null]
+      - name: ranking_score
+        description: "Headline 0-20 score (média total exames). Renamed from media_total_exames per planning §4.1 gold-schema convention."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+
+  - name: silver_publico_rankings_9ano
+    description: >
+      Latest-year-per-school rollup of stg_publico_rankings_9ano — one
+      row per eid, picking the most recent year that school appeared in
+      Público's 3º ciclo Provas Finais ranking corpus. Per pillar
+      decision #3: latest year only for v1. All staging columns preserved
+      including codigo_uo_dgeec passthrough (~79% populated). The COVID
+      gap (2020+2021 cancelled Provas Finais) means some schools'
+      "latest" year is 2019. Used as the canonical 9ano ranking signal
+      for listing_school_features.
+    columns:
+      - name: eid
+        description: "Público internal school id. PK."
+        tests:
+          - not_null
+          - unique
+      - name: ranking_year
+        description: "The most recent year this school appeared in the 9ano corpus (2018-19, 2022-24 window). Use this for staleness filters."
+        tests: [not_null]
+      - name: ranking_score
+        description: "Headline 0-5 score (Provas Finais média). Renamed from media_total_exames per planning §4.1 gold-schema convention."
+      - name: codigo_uo_dgeec
+        description: "DGEEC 6-digit agrupamento code. ~79% populated; 21% NULL. Direct join to silver_rede_escolar (future) / stg_rede_escolar.codigo_uo when present."
+      - name: geom_3763
+        description: "Point geometry in EPSG:3763 (PT-TM06) for metric distance."
+        tests: [not_null]
+      - name: geom_4326
+        description: "Point geometry in EPSG:4326 for display."
+        tests: [not_null]
+
+  - name: silver_dges_acesso_curso
+    description: >
+      Per-curso grain — (codigo_unidade_organica, year, phase, codigo_curso).
+      Sibling to [[silver-dges-acesso-uo]] (UO-level rollup); keeps the
+      denormalised names (nome_curso, nome_instituicao, grau) that the UO
+      rollup has to drop. LEFT JOIN to stg_dgeec_ens_sup on codigo_instit;
+      ~5% of DGES codes are unmatched (UOs added since DGEEC's snapshot) and
+      surface as unmatched_uo=true with NULL codigo_unidade_organica.
+    columns:
+      - name: codigo_unidade_organica
+        description: "DGEEC UO code (NULL when unmatched_uo=true)."
+      - name: codigo_instit
+        description: "DGES 4-digit institution/UO code (always present)."
+        tests: [not_null]
+      - name: codigo_curso
+        description: "DGES curso code, text (2-5 chars alphanumeric)."
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: phase
+        tests:
+          - not_null
+          - accepted_values: {values: [1, 2, 3]}
+      - name: nome_curso
+        description: "Nome do curso (trimmed)."
+      - name: nome_instituicao
+        description: "Nome da instituição/UO as it appears in DGES (trimmed)."
+      - name: grau
+        description: "Grau curto — 'L1' (Licenciatura), 'PM' (Mestrado Integrado), etc."
+      - name: nota_ult_colocado
+        description: "0-200 scale; NULL when colocados=0."
+      - name: unmatched_uo
+        description: "TRUE when codigo_instit has no DGEEC.codigo_unidade_organica match. Drift sentinel."
+        tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [year, phase, codigo_instit, codigo_curso]

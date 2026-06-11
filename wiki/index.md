@@ -22,6 +22,8 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 - **Concepts**: [[pydantic-not-in-dlt]] (configs Pydantic, dlt resources not) · [[bronze-permissive]] (bronze accepts whatever the source returns) · [[scd2-row-hash]] (curated version-column policy) · [[heartbeat-sidecar]] (UPSERT-only "still-alive" companion) · [[portal-naming-conventions]] (structural uniformity vs source-faithful leaf names) · [[portal-plot-conventions]] (plots in separate `*_plots` tables) · [[portal-field-map]] (cross-portal column correspondence matrix) · [[zenrows-universal-vs-re-api]] (mixed scrape strategy) · [[payload-cache-lifecycle]] (`_payload_cache` reuse) · [[airflow-home-isolation]] (`~/airflow/airflow.cfg` bleed gotcha) · [[ingest-flows]] (six-flow taxonomy + decision tree) · [[spatial-strategy]] (CRS, GIST, H3 for GIS pipelines)
 - **Sources**: choose the relevant page under [Sources](#sources-25-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[gesedu]] / [[infoescolas]] for education amenity; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
 - **Decisions**: [[2026-05-10-airflow-2-not-3]] (orchestrator pin) · [[2026-05-05-cosmos-pin]] (dbt-DAG generator pin) · [[2026-05-10-minio-not-s3]] (raw landing) · [[2026-05-10-nominatim-osrm-self-hosted]] (geocoding/routing) · [[2026-05-08-idealista-enrichment-architecture]] (three coexisting streams) · [[2026-05-08-sqla-1.4-concession]] (SQLA pin from Airflow)
+- **Sources**: choose the relevant page under [Sources](#sources-24-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5) — e.g. [[idealista]] / [[imovirtual]] / [[remax]] / [[jll]] / [[zome]] for portals; [[sce]] for the only nodriver scraper; [[caop]] / [[bgri]] / [[bupi]] / [[cadastro]] / [[cos]] / [[crus]] / [[crus-ogc]] / [[srup]] / [[srup-ogc]] / [[apa]] / [[lneg]] / [[lidar]] / [[osm]] / [[aveiro-pmot]] for GIS; [[ine]] / [[bpstat]] / [[ecb]] / [[eurostat]] for stats APIs.
+- **Decisions**: [[2026-05-10-airflow-2-not-3]] (orchestrator pin) · [[2026-05-05-cosmos-pin]] (dbt-DAG generator pin) · [[2026-05-10-minio-not-s3]] (raw landing) · [[2026-05-10-nominatim-osrm-self-hosted]] (geocoding/routing) · [[2026-05-08-idealista-enrichment-architecture]] (three coexisting streams) · [[2026-05-08-sqla-1.4-concession]] (SQLA pin from Airflow) · [[2026-06-09-silver-wall-clock-not-datasets]] (silver wall-clock trigger; rejected Datasets after senior-eng review)
 - **Architecture**: [[orchestration]] (DAG taxonomy + schedule map) · [[infra]] (Compose service map) · [[data-quality]] (Great Expectations + `metadata.pipeline_runs` audit)
 - **Sprints (currently relevant)**: [[sprint-04]] (Image Classification + Location Scores, `in_progress`) · [[sprint-04.5]] (Listings + Developments Cross-Portal Dedup) · [[sprint-08]] (UC-3 v1 wedge Part 1, GIS + SCE foundations)
 
@@ -29,6 +31,8 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 
 - **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models + the new 15th APA ARPSI layer) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`) · [[cross-portal-dev-dedup]] (name-driven Jaccard dedup of the 4 portals into `silver_unified_developments`; SCE deliberately not merged) · [[silver-dq-baseline]] (4 universal silver-layer invariants + statistical-source topology; established by sprint-09 WS4)
 - **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-25-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
+- **Concepts**: [[medallion-layering]] (bronze → silver → gold + per-source-bronze-schema + transformation-placement rules) · [[bronze-permissive]] (validation belongs in dbt staging, not bronze) · [[spatial-strategy]] (dual-CRS storage + GIST + H3 indexing patterns for silver_geo / gold_geo models) · [[srup-constraint-model]] (the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + the `stg_srup_*` staging models + the new 15th APA ARPSI layer) · [[srup-properties-schema]] (per-key `properties` JSONB breakdown for the `stg_srup_*` models) · [[sce-buildings-clustering]] (DBSCAN + GROUP BY normalized_address roll-up of SCE certificates into `silver_sce_buildings`) · [[cross-portal-dev-dedup]] (name-driven Jaccard dedup of the 4 portals into `silver_unified_developments`; SCE deliberately not merged) · [[dev-uid-stability]] (append-only `silver_dev_uid_map` giving stable `dev_uid` for enrichment FKs) · [[silver-dq-baseline]] (4 universal silver-layer invariants + statistical-source topology; established by sprint-09 WS4)
+- **Sources**: only relevant when adding/extending the corresponding staging model — pick from [Sources](#sources-24-pages-with-priority-p0p1p2-frontmatter--added-in-pr-5).
 - **Decisions**: [[2026-05-10-postgis-as-warehouse]] (PostgreSQL 16 + PostGIS 3.4 chosen over Snowflake/BigQuery/RDS) · [[2026-05-10-dbt-not-sqlmodel]] (dbt Core for transformations) · [[2026-05-10-dual-crs-storage]] (`geom` 4326 + `geom_pt` 3763 invariant for spatial tables)
 - **Architecture**: [[data-quality]] (dbt tests + Great Expectations layering) · [[infra]] (PostgreSQL schema organization: `bronze_*`, `silver_*`, `gold_*`, `metadata`)
 - **Sprints (currently relevant)**: [[sprint-03]] (Silver Layer + UC-3 GIS Foundation, `mostly_done`) · [[sprint-05]] (Hedonic Model & Valuation) · [[sprint-08]] / [[sprint-09]] (UC-3 v1 wedge silver + gold)
@@ -48,10 +52,14 @@ When editing files in a specific area of the repo, read the wiki pages listed fo
 ## Sources (25 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
 P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, cos, crus, crus-ogc, eurostat, gesedu, infoescolas, jll, lidar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+## Sources (28 pages, with `priority: P0|P1|P2` frontmatter — added in PR 5)
 
-### Real-estate portals (4)
+P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (18): bupi, cadastro, cos, crus, crus-ogc, dgeec-ens-sup, dges-acesso, eurostat, imovirtual, jll, lidar, publico-rankings, rede-escolar, remax, sce, srup, srup-ogc, zome. P2 (3): apa, aveiro-pmot, lneg.
+
+### Real-estate portals (5)
 
 - [[idealista]] — largest PT real-estate portal; ZenRows RE API + Universal Scraper mix; three coexisting streams (resale, developments+units, plots); SCD2 + heartbeat sidecars.
+- [[imovirtual]] — OLX/Adevinta Nexus portal; direct Next.js `_next/data` JSON (no vendor); devs+units national (801/4,465) + plots Aveiro (4,894); SCD2 + heartbeat; retry/backoff rides out DataDome 403 bursts. See [[2026-06-05-imovirtual-portal-onboarding]].
 - [[jll]] — JLL Residential PT; dlt-driven SCD2 from imoguia.com proxy; plots deliberately excluded.
 - [[remax]] — RE/MAX Portugal; unified dlt SCD2 (replaces legacy 3-DAG); Pass 2 enrichment pre-fetched in source.py; plots via sitemap walk.
 - [[zome]] — Zome PT; dlt SCD2 from Supabase REST; soft-fail refs / hard-fail facts; curated row_hash to fix JSONB-array reorder.
@@ -66,6 +74,13 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, c
 ### Scraping (1)
 
 - [[sce]] — SCE energy-certificate registry; only nodriver scraper; Cloudflare Turnstile; current scope Aveiro distrito.
+
+### Education (4)
+
+- [[publico-rankings]] — Público annual school rankings (sec + 9ano Provas Finais); 2018-latest backfill via per-year URL resolver (3 hosting eras); soft-404 trap; the primary `mt` score signal for the [[2026-06-06-pt-education-amenity-design|education amenity pillar]].
+- [[rede-escolar]] — GesEdu paginated ArcGIS FeatureServer; canonical PT school register (~8,670 schools, point geometry in 4326+3763 dual-CRS); master location layer the other education sources join against via `codigo_escola` (CODESCME).
+- [[dgeec-ens-sup]] — DGEEC higher-ed register (universidades + politécnicos + militar); 321 Unidades Orgânicas, point geometry 4326+3763; shapefile via DGTerritorio SNIG ATOM (CC BY 4.0). Two traps: 10-char DBF truncation + DGEEC's "Estabelecimento" = parent institution (NOT building); PK is `codigo_unidade_organica` (4-digit zfill text).
+- [[dges-acesso]] — DGES Concurso Nacional de Acesso per-(year, phase, curso, instituição) results; 12 years × 3 phases = 36 source files (2014–2025) in mixed .xlsx/.xls/.ods; bronze loader routes by URL suffix. Joins to [[dgeec-ens-sup]] on `codigo_unidade_organica` at 95.3% match; silver computes vagas-weighted `nota_ult_colocado` per (UO, year, phase) with LEFT JOIN + unmatched_uo drift sentinel. Família A "reference card" XLSX explicitly NOT ingested.
 
 ### Regulatory + spatial GIS (14)
 
@@ -90,8 +105,12 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, c
 - [[infoescolas]] — DGEEC per-school exam-avg + equity quality indicators; bulk XLSX; código-joined (`Código Escola DGEEC`) onto [[gesedu]] points; pairs with [[bgri]] resident attainment.
 
 ## Concepts (18 pages)
+## Concepts (20 pages)
+
+
 
 - [[bronze-permissive]] — bronze accepts whatever the source returns; validation lives in dbt staging; never-delete invariant.
+- [[publico-rankings-column-legend]] — ground-truthed legend for the 91 cryptic columns in `bronze_education.raw_publico_rankings`; matched UI-label-to-DB-value against the Público school card for Escola Dr. Ferreira da Silva (eid=1069); 9 families (identity / headline / Superação / per-disciplina / Nota Interna CIF / prior-year carry / contexto socioeconómico / taxa retenção / equidade-equivalência); collision trap: 1-letter `ma` = Economia A, 2-letter `ma` = Matemática A.
 - [[pydantic-not-in-dlt]] — Pydantic in configs YES, in dlt resources NO; the strict guardrail protecting [[bronze-permissive]].
 - [[scd2-row-hash]] — curated `*_VERSION_COLUMNS` policy for SCD2 row versioning; include real business events, exclude noisy proxies.
 - [[heartbeat-sidecar]] — UPSERT-only companion table answering "is this entity still in the source?"; the 21-day silver-layer floor.
@@ -106,7 +125,9 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (15): bupi, cadastro, c
 - [[srup-constraint-model]] — how the 14 SRUP regulatory layers gate construction on a drawn polygon; the `(constraint_code, zone_type)` → severity model behind `dim_constraint_severity` + sprint-09's `fn_assess_polygon`.
 - [[srup-properties-schema]] — per-key breakdown of the 16 `raw_srup_*` `properties` JSONB blobs (OGC lowercase vs WFS UPPERCASE conventions) → typed `stg_srup_*` columns.
 - [[sce-buildings-clustering]] — DBSCAN(30m) + GROUP BY normalized_address roll-up of geocoded [[sce]] certificates into `silver_sce_buildings` rows; documents Decisions 1-5 (Nominatim-only filter, exact-match over Levenshtein, no parcel_id, no Splink, address-grouping vs coord-only).
-- [[cross-portal-dev-dedup]] — name-driven word-set Jaccard dedup of the 4 listing portals into `silver_unified_developments`; documents why proximity-first failed, the normalization pipeline (typology + boilerplate + trailing-concelho strip), the geo hierarchy (JLL > Zome > RE/MAX > idealista), and why SCE is *not* merged here.
+- [[cross-portal-dev-dedup]] — name-driven word-set Jaccard dedup of the 4 listing portals into `silver_unified_developments`; documents why proximity-first failed, the normalization pipeline (typology + boilerplate + trailing-concelho strip), the geo hierarchy (JLL > Zome > RE/MAX > idealista), and why SCE is *not* merged here. **2026-06-09 addendum**: identity now carries stable `dev_uids[]` from [[dev-uid-stability]] in addition to the volatile `component_id`.
+- [[dev-uid-stability]] — the append-only `silver_dev_uid_map` `(portal, portal_dev_id) → dev_uid` that gives `silver_unified_developments` rows a stable identifier for enrichment FKs (UC-4 LLM dev-actor, CV); explicitly NOT the registry/alias machinery rejected during the 2026-06-09 interview.
+- [[dbt-source-column-descriptions]] — every column in every `_staging_<domain>__sources.yml` carries a `description:`; one line, names unit/scale, cites original source key when renamed, expands codebook letters inline; verification triad: `information_schema` ≡ YAML ≡ dbt manifest column counts must agree.
 - [[silver-dq-baseline]] — 4 universal invariants every silver model follows (dual-CRS, surrogate PK, bronze→silver row-count parity, FK denorm integrity); deliberate exclusion of `accepted_values`; statistical-source silver topology mapping (macro_timeseries vs ine_indicators_long boundary). Established by sprint-09 WS4 quick-wins batch.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
 
@@ -120,6 +141,7 @@ The as-built / as-designed architecture, decomposed from README §3 + §4 + §11
 - [[data-quality]] — dbt tests + Great Expectations + `metadata.pipeline_runs` audit trail.
 
 ## Planning (5 pages — 4 from PR 7 seed)
+## Planning (5 pages — PR 7 seed + pillar trackers)
 
 Forward-looking project planning content (vs. as-built [[architecture/README|architecture]]). See [[planning/README|planning orientation]] for how each page gets maintained.
 
@@ -128,8 +150,9 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 - [[pt-education-amenity-design]] — v1 design for the education geo-amenity layer (point-proximity + area-quality); decision tree + surfacing spec + 6-gate verification; sources [[gesedu]] + [[infoescolas]]. Scoped, not built.
+- [[pt-education-amenity-pillar]] — live Phase 0/1/2 tracking dashboard for the 5-source education ingest (KG → university, públicos + privados); source #1 [[publico-rankings]] shipped in [PR #52](https://github.com/dacostalindo/House4House/pull/52).
 
-## Decisions (17 ADRs)
+## Decisions (19 ADRs)
 
 **Foundational** (Phase 1-3 dev-tooling, surfaced via gstack reviews):
 
@@ -158,10 +181,16 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[2026-05-12-wiki-linter-deferred-to-phase-7]] — mechanical `wiki_health.py` moves to Phase 7 to co-design with structured `wiki/_schema.yaml` (single source of truth).
 - [[2026-05-12-pre-commit-local-hook]] — pre-commit uses `language: system` + `uv run ruff` to eliminate version drift vs CI/Makefile.
 - [[2026-05-12-phase-6-ty-advisory]] — Astral's `ty` (beta) ships as advisory CI check via Phase 4 annotation-grouping pattern; 3 concrete graduation triggers to BLOCKING.
+- [[2026-06-05-imovirtual-portal-onboarding]] — 5th listing portal; direct Next.js `_next/data` JSON (no ZenRows, DataDome-resilient via retry/backoff); devs/units national + plots Aveiro; built, run & verified (801 devs / 4,465 units / 4,894 plots). `confidence: high`.
+- [[2026-06-09-imovirtual-listings-silver]] — imovirtual as 5th UNION arm of [[unified-listings-residential|unified_listings_residential]]; dev_units only (4,413 silver rows, 100% udev linkage); unit-level floor plans **68.83%** via UNION of two disjoint feeds (`floor_plans` array @ olxcdn 29.62% + `localPlanUrl` scalar @ egorealestate 44.82%) — second-best plan source after [[jll]]; zero URL overlap with dev-level master plans; amenities via `extras_types` JSONB containment. `confidence: high`.
 
 **Use cases** (UC-3 reframe — gstack /office-hours + /plan-eng-review surfaced):
 
 - [[2026-05-12-uc3-expanded-scope]] — UC-3 reframed from national spatial-overlay into end-to-end 7-stage plot economic-value pipeline; v1 wedge = Aveiro Stages 1-4 + SCE + idealista LLM + dev dedup; `confidence: speculation`, gated on 3 PT developer interviews.
+
+**Orchestration** (silver-layer trigger model — 2026-06-09 interview + senior-data-eng review surfaced):
+
+- [[2026-06-09-silver-wall-clock-not-datasets]] — silver daily wall-clock cron `0 11 * * *`, no Airflow Datasets. Adopted append-only [[dev-uid-stability]] map instead of registry+alias machinery. `confidence: medium` — built consciously, not yet battle-tested.
 
 ## Sprints (13 pages — PR 3 seed)
 
@@ -174,7 +203,8 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 - [[sprint-03]] — Silver Layer + UC-3 GIS Foundation (Weeks 5-6) — `mostly_done`
 - [[sprint-04]] — Image Classification + Location Scores (Weeks 7-8) — `in_progress`
 - [[sprint-04.4]] — Pre-Sprint-4.5 Preparation (Week 8.5) — `done` (audit-corrected: shipped 2026-04-30)
-- [[sprint-04.5]] — Listings + Developments Cross-Portal Dedup (Week 9) — `planned`
+- [[sprint-04.5]] — Listings + Developments Cross-Portal Dedup (Week 9) — `planned` (scope reduced 2026-06-09: listing-level dedup dropped; silver orchestration parts absorbed into 4.6)
+- [[sprint-04.6]] — Silver orchestration + dev_uid stability + SCD2 heartbeat closure — `planned` (gates UC-4; blocker for daily wall-clock silver due to C2 SCD2 incident)
 - [[sprint-05]] — Hedonic Model & Valuation (Weeks 10-11) — `planned`
 - [[sprint-06]] — UC-1 MVP Investment Opportunities (Weeks 12-13) — `planned` 🏁 M1
 - [[sprint-07]] — UC-2 MVP Pricing Strategy (Weeks 14-15) — `planned` 🏁 M2

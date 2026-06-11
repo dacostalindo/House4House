@@ -5,12 +5,12 @@ models:
     description: >
       Canonical RE/MAX development staging — normalizes
       `bronze_listings.remax_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Coords are
       parish-centroid-precision (per [[portal-field-map]] audit 2026-05-18):
       ~51% of nationwide rows have NULL coords; the rest often share lat/lng
       across distinct developments in the same parish. Downstream PR-C
-      (`silver_unified_developments`) compensates via Levenshtein
+      (`unified_developments`) compensates via Levenshtein
       name-similarity disambiguation. RE/MAX `_dlt_valid_to IS NULL` filter
       excludes superseded SCD2 versions.
     columns:
@@ -47,6 +47,14 @@ models:
         description: "RE/MAX detail URL derived from slug."
       - name: raw_meta
         description: "JSONB escape hatch: region_name1, minimum_price, agent_name, office_name, publish_date."
+      - name: match_name
+        description: "Deaccented + boilerplate-stripped lowercase name produced by the `normalize_dev_name()` macro. The dedup-ready form consumed by `unified_developments`; also reusable by any future search or fuzzy-join consumer."
+      - name: geo_concelho_name
+        description: "Concelho derived by point-in-polygon against `dim_geography.freguesia_geom_pt` (`is_current`). NULL when `geom_3763` is NULL or falls outside every current freguesia. CAOP-authoritative; `unified_developments` joins on `COALESCE(geo_concelho_name, concelho)`."
+      - name: geo_parish_name
+        description: "Freguesia derived the same way as `geo_concelho_name`."
+      - name: geo_key
+        description: "FK to `dim_geography` (the freguesia containing `geom_3763`). NULL when geom is NULL or outside every polygon."
       - name: _loaded_at
         description: "`NOW()` at staging-view evaluation."
         tests:
@@ -56,7 +64,7 @@ models:
     description: >
       Canonical Zome development staging — normalizes
       `bronze_listings.zome_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Zome stores
       geocoords as VARCHAR (cast via `NULLIF + ::FLOAT`); `regiao` is a JSONB
       int-array of region codes so address_text is composed from the
@@ -96,6 +104,14 @@ models:
         description: "Zome public URL (`url_user_link`)."
       - name: raw_meta
         description: "JSONB escape hatch: emid, precosemformatacao, tipologiagrupos, per-state unit counts, idestado, deschub."
+      - name: match_name
+        description: "Deaccented + boilerplate-stripped lowercase name produced by the `normalize_dev_name()` macro. The dedup-ready form consumed by `unified_developments`."
+      - name: geo_concelho_name
+        description: "Concelho derived by point-in-polygon against `dim_geography.freguesia_geom_pt`. NULL when geom is NULL."
+      - name: geo_parish_name
+        description: "Freguesia derived the same way as `geo_concelho_name`."
+      - name: geo_key
+        description: "FK to `dim_geography`."
       - name: _loaded_at
         description: "`NOW()` at staging-view evaluation."
         tests:
@@ -105,7 +121,7 @@ models:
     description: >
       Canonical Idealista development staging — normalizes
       `bronze_listings.idealista_developments` to the 13-column cross-portal
-      schema consumed by sprint-09 Slice B-prime's `silver_unified_developments`.
+      schema consumed by sprint-09 Slice B-prime's `unified_developments`.
       View. Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). Idealista
       exposes coords AND admin geography only at unit grain — the unit_agg CTE
       rolls `idealista_development_units` up per development: `geom_*` is the
@@ -149,6 +165,14 @@ models:
         description: "Idealista development detail URL (`development_url`)."
       - name: raw_meta
         description: "JSONB escape hatch: title_raw, location_hierarchy, area_slug, min_price, typology_summary, is_completed, promoter_name, n_geocoded_units."
+      - name: match_name
+        description: "Deaccented + boilerplate-stripped lowercase name from the `normalize_dev_name()` macro."
+      - name: geo_concelho_name
+        description: "Concelho via point-in-polygon against `dim_geography.freguesia_geom_pt`. CAOP-authoritative; the dedup join uses `COALESCE(geo_concelho_name, concelho)` — important here because bronze's broken `location_hierarchy` leaves portal-text `concelho` NULL on every active dev (separate task), so CAOP is the only signal that produces idealista cross-portal merges."
+      - name: geo_parish_name
+        description: "Freguesia via the same lookup."
+      - name: geo_key
+        description: "FK to `dim_geography`."
       - name: _loaded_at
         description: "`NOW()` at staging-view evaluation."
         tests:
@@ -158,7 +182,7 @@ models:
     description: >
       Canonical JLL development staging — normalizes
       `bronze_listings.jll_developments` to the 13-column cross-portal schema
-      consumed by sprint-09 Slice B-prime's `silver_unified_developments`. View.
+      consumed by sprint-09 Slice B-prime's `unified_developments`. View.
       Filtered to active SCD2 rows (`_dlt_valid_to IS NULL`). JLL is the
       cleanest of the 4 portals: typed `municipality`/`parish`/`district` +
       double-precision `gps_lat`/`gps_lon` (no casts). `has_gps_location` is an
@@ -202,6 +226,76 @@ models:
         description: "Always NULL — JLL's API exposes no public listing URL."
       - name: raw_meta
         description: "JSONB escape hatch: uid, district, status, availability, condition, year, total_available_fractions, min/max formatted price."
+      - name: match_name
+        description: "Deaccented + boilerplate-stripped lowercase name from the `normalize_dev_name()` macro."
+      - name: geo_concelho_name
+        description: "Concelho via point-in-polygon against `dim_geography.freguesia_geom_pt`."
+      - name: geo_parish_name
+        description: "Freguesia via the same lookup."
+      - name: geo_key
+        description: "FK to `dim_geography`."
+      - name: _loaded_at
+        description: "`NOW()` at staging-view evaluation."
+        tests:
+          - not_null
+
+  - name: stg_portal_developments_imovirtual
+    description: >
+      Canonical imovirtual development staging — normalizes
+      `bronze_listings.imovirtual_developments` to the 13-column cross-portal
+      schema consumed by `unified_developments`. View. Filtered to active SCD2
+      rows (`_dlt_valid_to IS NULL`). imovirtual is the cleanest of the 5
+      portals on admin geography: `concelho`/`parish`/`distrito` are typed and
+      come straight from `location.reverseGeocoding` — no parsing, no
+      composition. Dev-level GPS is double-precision (no VARCHAR cast like
+      Zome). `total_units` exposes the TRUE project size
+      (`number_of_units_in_project`), NOT the listed subset — imovirtual is
+      the only portal that distinguishes the two; the listed count is kept in
+      `raw_meta.listed_units_count` for inspection. Geometry-priority slot 4
+      (above idealista, below RE/MAX) — conservative pending a coverage
+      spot-check (see the 2026-06-06 addendum on the onboarding decision).
+    columns:
+      - name: portal
+        description: "Literal 'imovirtual'."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['imovirtual']
+      - name: portal_dev_id
+        description: "imovirtual `development_id` (numeric ad.id) cast to TEXT — stable across runs; PK on this view."
+        tests:
+          - unique
+          - not_null
+      - name: canonical_name
+        description: "imovirtual project name (`name` ← `ad.title`)."
+      - name: address_text
+        description: "Street name from `location.address.street.name`."
+      - name: concelho
+        description: "Concelho from `reverseGeocoding` (level=council), UPPER+TRIM normalised."
+      - name: parish
+        description: "Freguesia from `reverseGeocoding` (level=parish), typed varchar."
+      - name: postal_code
+        description: "Always NULL — imovirtual `reverseGeocoding` stops at parish."
+      - name: geom_3763
+        description: "Development centroid in EPSG:3763 (PT-TM06) from typed `gps_lat`/`gps_lon`. NULL when either coord is absent."
+      - name: geom_4326
+        description: "Same in EPSG:4326 (WGS84)."
+      - name: total_units
+        description: "TRUE project size (`number_of_units_in_project` from topInformation), NOT the listed subset. imovirtual's data-quality edge over idealista."
+        tests:
+          - not_null
+      - name: listing_url
+        description: "imovirtual public URL — bronze `url` (full `/pt/empreendimento/{slug}/` path)."
+      - name: raw_meta
+        description: "JSONB escape hatch: slug, status, category_type, distrito, listed_units_count, price_per_m_from, area_from, area_to, state, offered_estates_type, promoter_id, promoter_name, created_at, modified_at."
+      - name: match_name
+        description: "Deaccented + boilerplate-stripped lowercase name from the `normalize_dev_name()` macro."
+      - name: geo_concelho_name
+        description: "Concelho via point-in-polygon against `dim_geography.freguesia_geom_pt`. ~14.5% of imovirtual devs disagree with portal-text `concelho` after case+accent normalization — almost all are case-only differences; ~0 real concelho-level mismatches (2026-06-06 audit)."
+      - name: geo_parish_name
+        description: "Freguesia via the same lookup."
+      - name: geo_key
+        description: "FK to `dim_geography`."
       - name: _loaded_at
         description: "`NOW()` at staging-view evaluation."
         tests:
@@ -253,3 +347,127 @@ models:
         description: "`NOW()` at staging-view evaluation."
         tests:
           - not_null
+
+  - name: stg_portal_listings_idealista
+    description: >
+      Canonical-schema staging for Idealista DEVELOPMENT UNITS. Consumes
+      `bronze_listings.idealista_development_units` — Pass 3 RE API
+      enrichment per unit, discovered via Pass 1+2 of the developments DAG
+      over /comprar-empreendimentos/. Each row carries a typed development_id
+      linking back to the parent project. Filters Pass 3 stubs
+      (_has_detail = FALSE) so the silver waits for the next clean Pass 3
+      to populate. Floor plans extracted via parallel-array indexing:
+      property_images[i] is a plan when property_image_tags[i] = 'plan'.
+      **Refactor 2026-06-06**: previously consumed `bronze_listings.raw_idealista`
+      (LEGACY append-only resale catalog, NOT dev-linked) — wrong scope.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['idealista']}}]
+      - name: source_listing_id
+        description: "Idealista unit_id (text)."
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "Idealista development_id (varchar) — links unit to parent dev page; 100% populated by API design."
+        tests: [not_null]
+
+  - name: stg_portal_listings_remax
+    description: >
+      Canonical-schema staging for RE/MAX listings. Filters to active SCD2
+      version (_dlt_valid_to IS NULL). Dev-linked by API design — all
+      listings come from POST /api/Development/PaginatedSearch traversal.
+      Floor plans: single PDF from floor_plan_path, prefixed with
+      https://i.maxwork.pt/bb. PDFs may 404 on direct fetch (likely
+      session-gated).
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['remax']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "RE/MAX development_id (bigint cast to TEXT); 100% populated."
+        tests: [not_null]
+
+  - name: stg_portal_listings_zome
+    description: >
+      Canonical-schema staging for Zome listings. SCD2 latest filter +
+      empreendimento scope filter on typed idemp (bigint). ~12.2% of bronze
+      have a dev link (~1,140 rows); the remaining 87.8% are individual
+      resale listings, out of scope for unified_listings_residential. Floor
+      plans extracted from aplantsgallery.hres[] — column literally means
+      "a plantas gallery", any non-empty hres entry is a plan (filenames
+      like planta_, planta1, plantapiso1, or bare unit numbers).
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['zome']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: >
+          Zome idemp (bigint) cast to TEXT — same identifier
+          unified_developments uses for Zome (venture_id::TEXT in the
+          dev-grain bronze table). Co-populated alongside emid (text code
+          like EMPT194625) but idemp is used for FK uniformity with
+          unified_developments. 100% populated within filtered scope.
+        tests: [not_null]
+
+  - name: stg_portal_listings_jll
+    description: >
+      Canonical-schema staging for JLL listings. Dev-linked by API design —
+      all units come from /v1/Developments/{id}/Fractions traversal. Zero
+      Aveiro coverage (Lisboa/Porto/Faro/Setúbal only) — included for v2
+      national rollout. Floor plans extracted as blue_prints[].Original
+      (PDF URLs on egorealestate CDN, 92.72% coverage — best across portals).
+      Areas: useful = bronze.gross_area (Área Bruta Privativa, interior);
+      canonical gross = useful + sum of AREA_BALCONY/TERRACE/GARDEN/PATIO
+      from features.Areas.Childs JSONB.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['jll']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "JLL development_id (bigint cast to TEXT); 100% populated."
+        tests: [not_null]
+
+  - name: stg_portal_listings_imovirtual
+    description: >
+      Canonical-schema staging for imovirtual development units. 5th UNION arm
+      of unified_listings_residential. Bronze grain: imovirtual_development_units
+      (national, ~4,440 rows; 4,421 SELL + 19 RENT). Plots (Aveiro terreno,
+      non-residential) and developments-as-listings out of scope; no resale-listing
+      table exists for imovirtual. Coords inherited from parent dev (units have
+      (0,0) own pin). Floor plans lifted from the native unit-level floor_plans
+      column (29.60% coverage, unit-specific; 0% URL overlap with dev-level
+      master plans). Amenities derived via JSONB containment over the structured
+      extras_types enum (no description regex needed). Areas: area_m → useful;
+      terrain_area_m → land (4.6% coverage). build_year → construction_year.
+      construction_status (to_completion/ready_to_use) lands in property_subtype,
+      not condition. agency_name and listing_title NULL: imovirtual promoter is
+      dev-level + unreliable; the unit-level title bronze column was dropped by
+      dlt as all-NULL.
+    columns:
+      - name: source
+        tests: [not_null, {accepted_values: {values: ['imovirtual']}}]
+      - name: source_listing_id
+        tests: [unique, not_null]
+      - name: listing_hash
+        tests: [unique, not_null]
+      - name: portal_dev_id
+        description: "imovirtual development_id (bigint cast to TEXT); 100% populated — every unit has a parent dev FK."
+        tests: [not_null]
+      - name: listing_url
+        tests: [not_null]
+      - name: operation_type
+        description: "Mapped from adcategory_type. SELL→sale (4,421), RENT→rent (19), else NULL."
+        tests:
+          - accepted_values:
+              values: ['sale', 'rent']
+              quote: true

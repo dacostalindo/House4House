@@ -668,7 +668,7 @@ def _parse_unit_detail_re(payload: dict) -> dict:
         "location_hierarchy",
     ):
         if k in out and out[k] is None:
-            out[k] = [] if k != "location_hierarchy" else {}
+            out[k] = []
     return out
 
 
@@ -898,7 +898,7 @@ def _normalize_unit(unit_link: dict, detail: dict) -> dict:
         "energy_certificate": detail.get("energy_certificate"),
         "address": detail.get("address"),
         "location_name": detail.get("location_name"),
-        "location_hierarchy": detail.get("location_hierarchy") or {},
+        "location_hierarchy": detail.get("location_hierarchy") or [],
         "latitude": detail.get("latitude"),
         "longitude": detail.get("longitude"),
         "country": detail.get("country"),
@@ -998,9 +998,14 @@ def development_units() -> Iterable[dict]:
     for _dev_id, dev_detail in dev_details.items():
         for unit_link in dev_detail.get("unit_links") or []:
             detail = unit_details.get(unit_link["unit_id"], {})
-            # Skip stubs entirely — heartbeat sidecar still ticks below.
-            # Avoids phantom SCD2 versions on stub↔full oscillation.
-            if detail.get("_re_api_stub"):
+            # Skip stubs AND API-failure empties — heartbeat sidecar still
+            # ticks below. Stubs (`_re_api_stub=True`) are thin RE-API responses;
+            # empty `detail` means the RE-API call failed (HTTP 5xx / timeout /
+            # exception). Both would otherwise create phantom SCD2 versions with
+            # all-NULL enrichment fields, closing valid prior versions on the
+            # way in — the 2026-06-04 ZenRows RE-API outage did exactly that to
+            # 444 rows. See [[portal-field-map]] / wiki/log.md 2026-06-06.
+            if detail.get("_re_api_stub") or not detail:
                 continue
             rec = _normalize_unit(unit_link, detail)
             rec["row_hash"] = _stable_hash(rec, UNITS_VERSION_COLUMNS)
@@ -1180,7 +1185,7 @@ def _normalize_plot(stub: dict, detail: dict) -> dict:
         "energy_certificate": detail.get("energy_certificate"),
         "address": detail.get("address"),
         "location_name": detail.get("location_name"),
-        "location_hierarchy": detail.get("location_hierarchy") or {},
+        "location_hierarchy": detail.get("location_hierarchy") or [],
         "latitude": detail.get("latitude"),
         "longitude": detail.get("longitude"),
         "country": detail.get("country"),
@@ -1231,8 +1236,10 @@ def plots() -> Iterable[dict]:
     for stub in stubs:
         pid = str(stub.get("property_id"))
         detail = details.get(pid, {})
-        if detail.get("_re_api_stub"):
-            continue  # skip SCD2 row; heartbeat below still ticks
+        # Skip stubs AND API-failure empties (same regression class as units —
+        # 2026-06-04 outage). Heartbeat below still ticks.
+        if detail.get("_re_api_stub") or not detail:
+            continue
         rec = _normalize_plot(stub, detail)
         rec["row_hash"] = _stable_hash(rec, PLOTS_VERSION_COLUMNS)
         yield rec
