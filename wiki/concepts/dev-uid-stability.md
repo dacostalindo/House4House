@@ -7,7 +7,7 @@ tags: [silver, cross_portal, dev_uid, stability, dbt, incremental, enrichment]
 
 ## For future Claude
 
-This note is a concept about how `silver_unified_developments` keeps a **stable per-development identifier (`dev_uid`)** across wall-clock-triggered rebuilds, without the heavy registry/alias machinery first proposed and rejected during the 2026-06-09 orchestration interview. The mechanism is a single append-only dbt incremental table — `silver_dev_uid_map(portal, portal_dev_id) → dev_uid` — written once on first sight, never updated. Read this before extending enrichment pipelines that FK to `dev_uid` ([[UC-4]] LLM dev-actor search; future hedonic features that need per-dev identity), before tuning the `normalize_dev_name` macro, or before any change that would alter `silver_unified_developments` row identity.
+This note is a concept about how `silver_unified_developments` keeps a **stable per-development identifier (`dev_uid`)** across wall-clock-triggered rebuilds, without the heavy registry/alias machinery first proposed and rejected during the 2026-06-09 orchestration interview. The mechanism is a single append-only dbt incremental table — `silver_dev_uid_map(portal, portal_dev_id) → dev_uid` — written once on first sight, never updated. Read this before extending enrichment pipelines that FK to `dev_uid` (LLM dev-actor search — originally [[use-cases/archive/UC-4|UC-4]]-scoped, now owned by the Knowledge-graph-PoC; future hedonic features that need per-dev identity), before tuning the `normalize_dev_name` macro, or before any change that would alter `silver_unified_developments` row identity.
 
 ## What it is
 
@@ -33,7 +33,7 @@ Scale: ~3k rows today (one per portal contributor across 5 portals); projected ~
 
 The interview leading to this design rejected three alternatives in order:
 
-1. **Live with `dev_key = MIN(member_id)` churn.** Rejected because [[UC-4]] LLM web-search for promoter+architect runs once per real-world dev, costs money per call, and writes back to a `silver_dev_actors` enrichment table. If the FK churns every rebuild, the LLM either re-runs daily (expensive) or its outputs orphan (worse).
+1. **Live with `dev_key = MIN(member_id)` churn.** Rejected because LLM web-search for promoter+architect (the use-case that justified this design, originally [[use-cases/archive/UC-4|UC-4]] — archived 2026-06-11, the Project Actors track moved to the Knowledge-graph-PoC) runs once per real-world dev, costs money per call, and writes back to a `silver_dev_actors` enrichment table. If the FK churns every rebuild, the LLM either re-runs daily (expensive) or its outputs orphan (worse). The design is independent of who exactly the consumer is — any per-dev LLM enrichment has the same churn-vs-cost tradeoff.
 
 2. **Persistent registry with oldest-wins + alias table + Python pre-step DAG.** Rejected as over-engineering: implied a `dag_dev_uid_resolver` DAG, a `silver_matching.dev_uid_aliases` table, and a `dag_dev_uid_full_reeval` manual DAG. The senior-data-eng review (consulted mid-interview) named the simpler form below.
 
@@ -76,7 +76,7 @@ The append-only invariant is what guarantees stability: once a tuple is mapped, 
 | `component_id` | INT | Volatile per run (just the recursive-CTE row number) | Runtime grouping label only; never persisted externally |
 | `dev_uids` | UUID[] | Stable; each element is permanent | The FK target for enrichment |
 
-Enrichment tables ([[UC-4]] `silver_dev_actors`, future hedonic features) FK on `dev_uid` (singular UUID, PK on those tables). They JOIN to `silver_unified_developments` via `WHERE silver_unified_developments.dev_uids @> ARRAY[silver_dev_actors.dev_uid]` or unnest equivalents.
+Enrichment tables (the `silver_dev_actors` LLM-enrichment table originally scoped under [[use-cases/archive/UC-4|UC-4]], future hedonic features, any forthcoming per-dev enrichment) FK on `dev_uid` (singular UUID, PK on those tables). They JOIN to `silver_unified_developments` via `WHERE silver_unified_developments.dev_uids @> ARRAY[silver_dev_actors.dev_uid]` or unnest equivalents.
 
 For listings, see [[cross-portal-dev-dedup]] — `silver_unified_listings.dev_uid` is a single UUID populated via a LEFT JOIN on `(concelho, match_name)` against `silver_unified_developments` at silver build time. CV enrichment ([[silver_image_features]]) FKs on `(portal, portal_listing_id)` — naturally stable from bronze, independent of `dev_uid` mechanics.
 
@@ -108,6 +108,6 @@ Deliberately not automated. Macro flushes are rare and high-stakes; each one is 
 - [[cross-portal-dev-dedup]] — the connected-components matching that produces the input to this map.
 - [[2026-06-09-silver-wall-clock-not-datasets]] — the orchestration decision under which this design works.
 - [[heartbeat-sidecar]] — the 21-day floor that defines "bronze + heartbeat-alive."
-- [[UC-4]] — the LLM dev-actor enrichment that is the primary consumer of stable `dev_uid`.
+- [[use-cases/archive/UC-4|UC-4 (archived)]] — the planning artifact that originally justified this design; LLM dev-actor enrichment now lives in the Knowledge-graph-PoC.
 - [[medallion-layering]] — silver layering principles this design respects.
 - [[silver-dq-baseline]] — the universal silver invariants `silver_unified_developments` and the map satisfy.

@@ -423,12 +423,12 @@ deliver value before (1) ships.
 
 Per project CLAUDE.md rules ("after every commit, update the wiki"):
 
-- [`wiki/log.md`](../../log.md) — one-line entries per merged sprint.
-- [`wiki/sources/zome.md`](../../sources/zome.md) — add note: `areas_extras`
+- [`wiki/log.md`](../../../log.md) — one-line entries per merged sprint.
+- [`wiki/sources/zome.md`](../../../sources/zome.md) — add note: `areas_extras`
   is the ground-truth anchor for floor-plan CV (cross-link this page).
-- [`wiki/sources/idealista.md`](../../sources/idealista.md) — legacy
+- [`wiki/sources/idealista.md`](../../../sources/idealista.md) — legacy
   `floor_plan_extractions` deprecation note.
-- [`wiki/index.md`](../../index.md) §"By area of code" — add
+- [`wiki/index.md`](../../../index.md) §"By area of code" — add
   `pipelines/enrichment/floor_plan_cv/` and `dbt/models/silver/properties/unified_listing_spaces.sql`
   rows.
 - New concept pages (optional but recommended):
@@ -482,7 +482,7 @@ Per project CLAUDE.md rules ("after every commit, update the wiki"):
 ## Glossary (for future Claude reading cold)
 
 - **`areas_extras`**: Zome bronze JSONB column; per-space area breakdown.
-  See [`wiki/sources/zome.md`](../../sources/zome.md).
+  See [`wiki/sources/zome.md`](../../../sources/zome.md).
 - **`aplantsgallery`**: Zome bronze JSONB column; floor plan image URLs.
   Same source page.
 - **Suite (PT real estate)**: a bedroom with a private bathroom inside.
