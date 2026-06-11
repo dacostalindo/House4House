@@ -12,12 +12,12 @@ status: design-approved
 
 This is a plan-folder index — the entry point for the 5-sprint execution
 breakdown of the floor-plan CV project. The architectural decisions live
-in the sibling [[planning/PoCs/floor-plan-cv|floor-plan-cv plan doc]];
+in the sibling [[planning/PoCs/floor-plan-cv/design|floor-plan-cv design doc]];
 this folder holds the per-sprint task lists. Read this README first when
 picking up the project mid-flight; it routes you to the right sprint file.
 
 Task-level decomposition of the 5 sprints sized in
-[[planning/PoCs/floor-plan-cv]]. That plan doc holds the
+[[planning/PoCs/floor-plan-cv/design]]. That plan doc holds the
 **architectural decisions** (Q1–Q13 interview). This folder holds the
 **execution breakdown** — one file per sprint, tasks numbered
 T<sprint>.<n>, each with files touched + acceptance criteria +
@@ -41,11 +41,11 @@ Don't read this when:
 
 | Sprint | Theme | File | Depends on | Effort |
 |---|---|---|---|---|
-| S+1 | Surface Zome native data | [[planning/floor-plan-cv-sprints/s1-surface]] | — | ~1 week |
-| S+2 | Archive plans to MinIO | [[planning/floor-plan-cv-sprints/s2-archive]] | — (parallel-safe with S+1) | ~1.5 weeks |
-| S+3 | Experiments (OCR + bake-off) | [[planning/floor-plan-cv-sprints/s3-experiments]] | S+2 (needs blobs) | ~3 days |
-| S+4 | CV production pipeline | [[planning/floor-plan-cv-sprints/s4-cv]] | S+3 (gated decisions) | ~1.5 weeks |
-| S+5 | Migrate legacy + retire old DAG | [[planning/floor-plan-cv-sprints/s5-migration]] | S+1, S+4 | ~1 week |
+| S+1 | Surface Zome native data | [[planning/PoCs/floor-plan-cv/sprints/s1-surface]] | — | ~1 week |
+| S+2 | Archive plans to MinIO | [[planning/PoCs/floor-plan-cv/sprints/s2-archive]] | — (parallel-safe with S+1) | ~1.5 weeks |
+| S+3 | Experiments (OCR + bake-off) | [[planning/PoCs/floor-plan-cv/sprints/s3-experiments]] | S+2 (needs blobs) | ~3 days |
+| S+4 | CV production pipeline | [[planning/PoCs/floor-plan-cv/sprints/s4-cv]] | S+3 (gated decisions) | ~1.5 weeks |
+| S+5 | Migrate legacy + retire old DAG | [[planning/PoCs/floor-plan-cv/sprints/s5-migration]] | S+1, S+4 | ~1 week |
 
 **Parallelism note:** S+1 and S+2 share no files and can run concurrently
 if you have two pairs of hands. S+3, S+4, S+5 are strictly sequential.

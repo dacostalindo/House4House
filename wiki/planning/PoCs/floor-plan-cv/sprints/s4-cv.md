@@ -16,7 +16,7 @@ This is a plan page for **Sprint 4** of the floor-plan CV project — ships
 the production Airflow DAG running OCR + vision-LLM extraction over
 floor-plan blobs, landing rows in `bronze_listings.floor_plan_cv_prediction`.
 Architecture + model are gated on S+3 outcomes. Architectural background:
-[[planning/PoCs/floor-plan-cv]]. Status: planned.
+[[planning/PoCs/floor-plan-cv/design]]. Status: planned.
 
 **Goal:** Ship `floor_plan_cv_dag` running the architecture + model picked
 in S+3. Output lands in `bronze_listings.floor_plan_cv_prediction`.

@@ -15,7 +15,7 @@ estimated_effort: 1 week
 This is a plan page for **Sprint 1** of the floor-plan CV project — pure
 SQL work that unpivots [[zome]]'s `areas_extras` JSONB into a long-format
 silver model. Architectural background lives in
-[[planning/PoCs/floor-plan-cv]]; this file holds the task breakdown.
+[[planning/PoCs/floor-plan-cv/design]]; this file holds the task breakdown.
 Status: planned. Read when picking up S+1 or planning a PR that touches
 `unified_listing_spaces`.
 
@@ -167,7 +167,7 @@ the right wiki cross-refs.
 
 **Files:**
 - `wiki/log.md` — one-line entry on commit
-- `wiki/sources/zome.md` — add cross-link section: "`areas_extras` is now surfaced in silver via `unified_listing_spaces`. See [planning/PoCs/floor-plan-cv.md]."
+- `wiki/sources/zome.md` — add cross-link section: "`areas_extras` is now surfaced in silver via `unified_listing_spaces`. See [planning/PoCs/floor-plan-cv/design.md]."
 - `wiki/index.md` §"By area of code" — add `dbt/models/silver/properties/unified_listing_spaces.sql` row
 - `wiki/concepts/per-room-areas.md` (new, optional) — concept page explaining the 9-enum, suite vs bedroom distinction, and the long-format silver shape
 

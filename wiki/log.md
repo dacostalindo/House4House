@@ -940,7 +940,7 @@ Full session report: [`wiki/lint-reports/2026-05-22T180000.md`](lint-reports/202
 
 ## [2026-05-29] seed | UC-4 folder added — qualitative signal layer (agentic news / project actors / regulatory)
 
-New use case for the warehouse's qualitative-signal layer. UC-4 is the first multi-document UC: lives as `wiki/use-cases/UC-4/` containing [[UC-4|README]] + [[UC-4/problem-statement]] + [[UC-4/project-plan]] + [[UC-4/sprint-plan]]. Decision output: per-entity qualitative signal (developer, press mentions, regulatory events). Absorbs [[planning/PoCs/agentic-pipeline]] (project-actors strategy already validated PoC). Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type — extends [[ingest-flows]] in PR 1. Schema additions: `bronze_news` + `agentic_cache` (correction to PoC's `news_bronze` recommendation; H4H convention is `bronze_<domain>`).
+New use case for the warehouse's qualitative-signal layer. UC-4 is the first multi-document UC: lives as `wiki/use-cases/UC-4/` containing [[UC-4|README]] + [[UC-4/problem-statement]] + [[UC-4/project-plan]] + [[UC-4/sprint-plan]]. Decision output: per-entity qualitative signal (developer, press mentions, regulatory events). Absorbs [[planning/PoCs/agentic-pipeline/design]] (project-actors strategy already validated PoC). Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type — extends [[ingest-flows]] in PR 1. Schema additions: `bronze_news` + `agentic_cache` (correction to PoC's `news_bronze` recommendation; H4H convention is `bronze_<domain>`).
 
 Strategy delivery order: Articles (PR 1) → Project Actors (PR 2) → Regulatory (PR 4). Rationale: Articles is greenfield, stress-tests the Strategy ABC, and lets prompt-iteration happen on the easier signal before the lifted-from-PoC code locks the shape. Full 6-PR roster in [[UC-4/sprint-plan]].
 
@@ -2465,12 +2465,25 @@ Captured the full design for per-room area extraction across the 4 listing porta
 **Sprint sizing**: ~5–6 weeks calendar across S+1..S+5 (surface → archive → experiments → CV → migrate + retire).
 
 **Files touched**:
-- [[planning/PoCs/floor-plan-cv]] — full plan doc, 503 lines, Q1..Q13 decision log with user-confirmed answers.
-- [[planning/floor-plan-cv-sprints/README]] + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration — 6 files, 1,367 lines, 29 numbered tasks (T1.0..T5.6).
+- [[planning/PoCs/floor-plan-cv/design]] — full plan doc, 503 lines, Q1..Q13 decision log with user-confirmed answers.
+- [[planning/PoCs/floor-plan-cv/sprints/README]] + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration — 6 files, 1,367 lines, 29 numbered tasks (T1.0..T5.6).
 - `dbt/models/staging/listings/_staging_listings__sources.yml` — expanded [[zome]]'s `areas_extras` description from one-liner to full spec (9-key JSONB shape, 1,447/10,628 populated coverage, role as CV ground-truth anchor).
 
 **Post-merge data-quality findings** (caught running candidate S+1 SQL against the live warehouse, will land with the S+1 PR):
 - `listing_uid` text key in the plan doc conflicts with the canonical `listing_hash = MD5(source || '|' || source_listing_id)` convention from [[unified-listings-residential|unified_listings_residential]]. Spec amendment needed before S+1 code lands.
 - ~0.06% of `areas_extras` values are malformed (semicolons-as-decimals like `"18;65"`, unit suffixes like `"35 m²"`, trailing punctuation, leading-dot decimals). A `REGEXP_MATCH('^(0?\.[0-9]+|[0-9]+\.?[0-9]*)')` after light cleanup salvages 8,191 / 8,192 (99.99%) candidate space rows; the single survivor (`"70.00;20.00"` — two areas in one cell) NULLs out + logged via dbt singular test.
 
-**Pages touched**: [[planning/PoCs/floor-plan-cv]], [[planning/floor-plan-cv-sprints/README]], [[log]], [[index]].
+**Pages touched**: [[planning/PoCs/floor-plan-cv/design]], [[planning/PoCs/floor-plan-cv/sprints/README]], [[log]], [[index]].
+
+## [2026-06-11] reorg | PoCs/ collapsed into per-project folders
+
+Standardised the `wiki/planning/PoCs/` shape so every PoC owns one folder containing a `design.md` + a `sprints/` subfolder. Two reorgs in one pass:
+
+- `wiki/planning/PoCs/floor-plan-cv.md` → `wiki/planning/PoCs/floor-plan-cv/design.md`; `wiki/planning/floor-plan-cv-sprints/` → `wiki/planning/PoCs/floor-plan-cv/sprints/` (README + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration moved verbatim).
+- `wiki/planning/PoCs/agentic-pipeline.md` → `wiki/planning/PoCs/agentic-pipeline/design.md`; new `wiki/planning/PoCs/agentic-pipeline/sprints/README.md` scaffolded with `status: not-yet-decomposed` frontmatter pointing at [[UC-4]] (which currently owns the integration sprints) and at the floor-plan-cv sprints README as the template for when standalone sprint files eventually land.
+
+Discrepancy check between `floor-plan-cv/design.md` and its `sprints/` folder: the two are complementary, not duplicative — design holds the Q1..Q13 architectural decision log; sprints hold the T<sprint>.<n> task breakdown with files-touched + acceptance + dependencies. Neither dominates the other, so design.md is kept (not deleted).
+
+All wikilinks + relative paths inside moved files were rewritten in-place (`[[planning/PoCs/floor-plan-cv]]` → `[[planning/PoCs/floor-plan-cv/design]]`; `[[planning/floor-plan-cv-sprints/sN-...]]` → `[[planning/PoCs/floor-plan-cv/sprints/sN-...]]`; design.md relative paths deepened by one segment; agentic-pipeline `poc_repo` frontmatter path deepened by one segment).
+
+**Pages touched**: [[index]], [[log]], [[planning/PoCs/floor-plan-cv/design]] + sprints/*, [[planning/PoCs/agentic-pipeline/design]] + sprints/README.
