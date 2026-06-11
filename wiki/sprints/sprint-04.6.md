@@ -13,6 +13,8 @@ last_status_update: 2026-06-09
 
 This is the **Sprint 4.6** page — the implementation sprint for the 2026-06-09 orchestration interview output. Two interlocking workstreams: (WS-A) replace dlt's row-gated SCD2 closure with heartbeat-gated closure for all 5 portals (blocker — current behavior caused a real incident 2026-06-04); (WS-B) wire `silver_dev_uid_map` + the wall-clock daily silver chain per [[2026-06-09-silver-wall-clock-not-datasets]] + [[dev-uid-stability]]. Scope deliberately excludes anything not load-bearing for these two outcomes — gold gate, hedonic readiness, and listing-level cross-portal dedup all stay deferred. Read this when starting implementation, picking up after an interruption, or scoping a follow-up sprint.
 
+> **2026-06-11 supersession note**: WS-A (heartbeat-gated SCD2 closure) is **superseded by [[planning/PoCs/portal-orchestration/design|the portal-orchestration PoC]]** — empirical audit found hash-collision data-loss + UC-3-only priority lock together justified dropping SCD2 entirely (Shape B) rather than fixing the closure semantics (Shape A). See [[planning/PoCs/portal-orchestration/sprint-plan|the PoC sprint plan]] for the 6-PR migration. WS-B (`silver_dev_uid_map`) is deferred per [[use-cases/archive/UC-4|UC-4 archive]] — the dev_uid infrastructure remains load-bearing for whichever consumer takes over per-dev enrichment, but no sprint slot needs it before that consumer materializes. This page is preserved as historical context for the Shape A reasoning.
+
 ## Goal
 
 Land the orchestration design locked on 2026-06-09: a daily wall-clock silver build at `0 11 * * *` that consumes bronze + heartbeat-alive rows from all 5 portals and produces `silver_unified_developments` with a stable `dev_uids[]` surface (via the append-only `silver_dev_uid_map`) plus `silver_unified_listings` (pure UNION + full SCD2 history). Replace the broken row-gated SCD2 closure with heartbeat-gated closure so phantom gaps from validate failures stop reaching downstream. Deliver this scope without touching gold, hedonic, or the deferred gold gate.
@@ -20,7 +22,7 @@ Land the orchestration design locked on 2026-06-09: a daily wall-clock silver bu
 ## Why now (sprint priority)
 
 - **Real incident already happened.** Wiki log shows a 2026-06-04 idealista one-shot SQL restore (`DELETE` 150 phantoms + `UPDATE` 444 rows back to `valid_to = NULL`) because dlt closed SCD2 on partial-payload-row-absence. Same failure mode is present in all 4 (now 5 with imovirtual) portals; ticking time bomb.
-- **Blocks UC-4.** The [[UC-4]] LLM dev-actor enrichment (planned post-sprint-04.5) FKs to `dev_uid`. Without the append-only map, every silver rebuild orphans the LLM outputs. Sprint 4.6 must land before UC-4 starts.
+- **Blocks UC-4.** The [[use-cases/archive/UC-4|UC-4 (archived 2026-06-11)]] LLM dev-actor enrichment (planned post-sprint-04.5) FKs to `dev_uid`. Without the append-only map, every silver rebuild orphans the LLM outputs. Sprint 4.6 must land before UC-4 starts. (Historical context: UC-4 was archived 2026-06-11 after Sprint 4.6 shipped — the `dev_uid` work remains load-bearing for whichever consumer takes over per-dev LLM enrichment; the Project Actors track moved to the Knowledge-graph-PoC.)
 - **Unblocks UC-3 v1 production runs.** UC-3 Atlas Inspector queries `silver_unified_developments` + `silver_unified_listings` directly. Today's daily rebuild already works; what's missing is the stable `dev_uids[]` surface and the SCD2 fix. Sprint 4.6 closes both gaps.
 
 ## Pre-implementation verification outcomes (2026-06-09)
@@ -125,4 +127,4 @@ D.4 — **New runbook page** `wiki/runbooks/macro-flush-dev-uid.md` describing t
 - [[scd2-row-hash]], [[heartbeat-sidecar]] — to be updated as part of D.2/D.3.
 - [[sprint-04.5]] — predecessor (scope reduced 2026-06-09; this sprint absorbs the silver-orchestration parts).
 - [[sprint-05]] — successor (hedonic model; not blocked by 4.6 except for the `fact_market_observations` boundary call).
-- [[UC-4]] — primary consumer of the stable `dev_uid` exit criterion.
+- [[use-cases/archive/UC-4|UC-4 (archived 2026-06-11)]] — primary consumer of the stable `dev_uid` exit criterion.

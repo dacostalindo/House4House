@@ -940,7 +940,7 @@ Full session report: [`wiki/lint-reports/2026-05-22T180000.md`](lint-reports/202
 
 ## [2026-05-29] seed | UC-4 folder added — qualitative signal layer (agentic news / project actors / regulatory)
 
-New use case for the warehouse's qualitative-signal layer. UC-4 is the first multi-document UC: lives as `wiki/use-cases/UC-4/` containing [[UC-4|README]] + [[UC-4/problem-statement]] + [[UC-4/project-plan]] + [[UC-4/sprint-plan]]. Decision output: per-entity qualitative signal (developer, press mentions, regulatory events). Absorbs [[planning/PoCs/agentic-pipeline]] (project-actors strategy already validated PoC). Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type — extends [[ingest-flows]] in PR 1. Schema additions: `bronze_news` + `agentic_cache` (correction to PoC's `news_bronze` recommendation; H4H convention is `bronze_<domain>`).
+New use case for the warehouse's qualitative-signal layer. UC-4 is the first multi-document UC: lives as `wiki/use-cases/UC-4/` containing [[UC-4|README]] + [[UC-4/problem-statement]] + [[UC-4/project-plan]] + [[UC-4/sprint-plan]]. Decision output: per-entity qualitative signal (developer, press mentions, regulatory events). Absorbs [[planning/PoCs/agentic-pipeline/design]] (project-actors strategy already validated PoC). Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type — extends [[ingest-flows]] in PR 1. Schema additions: `bronze_news` + `agentic_cache` (correction to PoC's `news_bronze` recommendation; H4H convention is `bronze_<domain>`).
 
 Strategy delivery order: Articles (PR 1) → Project Actors (PR 2) → Regulatory (PR 4). Rationale: Articles is greenfield, stress-tests the Strategy ABC, and lets prompt-iteration happen on the easier signal before the lifted-from-PoC code locks the shape. Full 6-PR roster in [[UC-4/sprint-plan]].
 
@@ -1187,6 +1187,21 @@ FROM gold_analytics.dim_constraint_severity GROUP BY 1;
 
 **Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).
 
+## [2026-06-06] ingest | PT education amenity — gesedu + infoescolas sources (P1)
+
+Scoped the Portuguese-education geo-amenity layer (dual signal: point-proximity to schools + area quality) from an interview + a 6-gate verification pass. Created two source pages: [[gesedu]] (national school register via AGSE's **public ArcGIS REST FeatureServer** — `RedeEscolar_mapa/FeatureServer/0`, ~8,670 schools with `CODESCME` código + address + native lat/lon; **no scrape, no geocode**) and [[infoescolas]] (DGEEC per-school exam-avg + equity, bulk XLSX from `bds.asp`, código-joined on `Código Escola DGEEC`). Pairs with [[bgri]] (resident attainment). Build template = [[crus-ogc]]: the unified template already ships an `ArcgisRestAdapter` (`protocol="arcgis_rest"`), so the lead pipeline is config + two thin DAGs, no new fetch code. Bronze `bronze_location.raw_gesedu_schools` + `bronze_location.raw_infoescolas_quality`; dual-CRS per [[2026-05-10-dual-crs-storage]]; catchment mart uses `ST_DWithin(geom_pt, …, {1000,3000})` in EPSG:3763.
+
+**Verification (2026-06-06)**: all 6 gates closed — Infoescolas carries the DGEEC código (clean join, not fuzzy); GesEdu FeatureServer ships geometry (kills geocoding); código grain aligns escola/agrupamento; reorg confirmed (AGSE/DL 99/2025 owns GesEdu, EduQA/DL 105/2025 absorbed IAVE) — all endpoints live, `.medu.pt` drift-prone so add liveness checks. Endpoint + field maps saved to project memory.
+
+**Pages touched**: [[log]] (this entry), new [[gesedu]] + [[infoescolas]], [[index.md|index]] (Sources 23→25, P1 13→15, new "Education amenity (2)" section, area-routing line + anchors).
+
+**Decisions deferred from v1**: retention/dropout (Regiões em Números — drops the last scraper + concelho-name crosswalk); higher-ed proximity; OSM school points (superseded by the authoritative FeatureServer, kept as coverage cross-check). Full design: `Personal-Wiki/New developments/PT-education-ingest-design.md`. **NOT built** — these are scoped specs, no pipeline run yet.
+
+## [2026-06-06] ingest | move PT-education design into wiki (planning/)
+
+Moved the education-ingest design doc from the Personal-Wiki vault into the House4House wiki as [[pt-education-amenity-design]] (`type: plan`, `status: scoped-not-built`) — adapted to wiki conventions (frontmatter, `## For future Claude`, `[[wikilinks]]`) and reconciled the catchment CRS note to `geom_pt`/EPSG:3763 per [[2026-05-10-dual-crs-storage]] (was "geography"). Original deleted from `Personal-Wiki/New developments/`.
+
+**Pages touched**: [[log]] (this entry), new [[pt-education-amenity-design]], [[index.md|index]] (Planning 4→5), [[planning/README]], [[gesedu]] + [[infoescolas]] (design-doc link repointed from the vault path to [[pt-education-amenity-design]]).
 ## [2026-06-05] update | zome tab_listing_view enrichment folded into zome_listings
 
 Zome's website detail page reads `tab_listing_view`, which carries ~19 columns the ingested base table `tab_listing_list` lacks — notably `aplantsgallery` (floor plans / plantas, ~79% coverage), the energy certificate (~82%), full description, and extra attributes. These were absent from the warehouse (the "plantas on the site but not in the DB" gap). Folded them **into** `zome_listings` (no sidecar table, per user's anti-sprawl preference) as OUT-of-`row_hash` enrichment columns; SCD2 spine unchanged. Also: bumped `LISTINGS_MAX_OFFSET` 10k→15k (view has ~10.6k rows), added `tab_listing_view` to the MinIO audit, and an enrichment-coverage tripwire to `validate_facts`. Verified end-to-end against the warehouse (10,604 rows, 1:1 grain, target listing ZMPT589319 floor plan materialized). See [[zome]], [[scd2-row-hash]].
@@ -2434,3 +2449,105 @@ Added `dbt/models/staging/portals/stg_portal_listings_imovirtual.sql` and wired 
 - [[log]] (this entry), [[index]] (Decisions section)
 
 **Pages touched**: [[imovirtual]], [[2026-06-09-imovirtual-listings-silver]], [[log]], [[index]].
+
+## [2026-06-07] plan | floor-plan CV — design doc + sprint task breakdown
+
+Captured the full design for per-room area extraction across the 4 listing portals, validated by [[zome]]'s `areas_extras` ground truth (1,447 labelled listings) and intersected with `aplantsgallery` floor plans (1,230 plans-with-areas eval set). Plan replaces the [[idealista]]-only `floor_plan_extractions` pipeline (1,473 production rows) via Path A — migrate to a new bronze CV-prediction table + retire the legacy DAG.
+
+**Architecture locked** (interview-driven, 13 question rounds):
+- Silver shape: long/EAV `unified_listing_spaces`, one row per (listing_hash, space_type, ordinal, source).
+- Taxonomy: closed 9-enum English snake_case (`bedroom, bedroom_suite, bathroom, kitchen, living_room, balcony, terrace, garden, garage`); `bedroom_suite` defined as a bedroom containing a WC inside.
+- Storage: MinIO blob layer at `s3://raw/floor-plans/by-hash/{sha[:2]}/{sha[2:4]}/{sha}.{ext}`; three roles — `pdf_source` + `image_full` (CV input, WebP-lossless 3000 px) + `image_preview` (UI verify, WebP-lossy q80 1024 px).
+- Inference: per-blob (sha256-cached); OCR-first hybrid gated on E1 yield; vision model gated on E2 Sonnet 4.5 vs Gemini 2.5 Pro bake-off.
+- Production CV explicitly skips the 1,230 labelled listings; a separate benchmark CV scores a 200-blob stratified sample → `metadata.cv_floor_plan_benchmark`.
+- Pydantic + plain `anthropic` SDK (no pydantic-ai); mirror `pipelines/enrichment/plot_listing_extraction/schema.py`.
+
+**Sprint sizing**: ~5–6 weeks calendar across S+1..S+5 (surface → archive → experiments → CV → migrate + retire).
+
+**Files touched**:
+- [[planning/PoCs/floor-plan-cv/design]] — full plan doc, 503 lines, Q1..Q13 decision log with user-confirmed answers.
+- [[planning/PoCs/floor-plan-cv/sprints/README]] + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration — 6 files, 1,367 lines, 29 numbered tasks (T1.0..T5.6).
+- `dbt/models/staging/listings/_staging_listings__sources.yml` — expanded [[zome]]'s `areas_extras` description from one-liner to full spec (9-key JSONB shape, 1,447/10,628 populated coverage, role as CV ground-truth anchor).
+
+**Post-merge data-quality findings** (caught running candidate S+1 SQL against the live warehouse, will land with the S+1 PR):
+- `listing_uid` text key in the plan doc conflicts with the canonical `listing_hash = MD5(source || '|' || source_listing_id)` convention from [[unified-listings-residential|unified_listings_residential]]. Spec amendment needed before S+1 code lands.
+- ~0.06% of `areas_extras` values are malformed (semicolons-as-decimals like `"18;65"`, unit suffixes like `"35 m²"`, trailing punctuation, leading-dot decimals). A `REGEXP_MATCH('^(0?\.[0-9]+|[0-9]+\.?[0-9]*)')` after light cleanup salvages 8,191 / 8,192 (99.99%) candidate space rows; the single survivor (`"70.00;20.00"` — two areas in one cell) NULLs out + logged via dbt singular test.
+
+**Pages touched**: [[planning/PoCs/floor-plan-cv/design]], [[planning/PoCs/floor-plan-cv/sprints/README]], [[log]], [[index]].
+
+## [2026-06-11] reorg | PoCs/ collapsed into per-project folders
+
+Standardised the `wiki/planning/PoCs/` shape so every PoC owns one folder containing a `design.md` + a `sprints/` subfolder. Two reorgs in one pass:
+
+- `wiki/planning/PoCs/floor-plan-cv.md` → `wiki/planning/PoCs/floor-plan-cv/design.md`; `wiki/planning/floor-plan-cv-sprints/` → `wiki/planning/PoCs/floor-plan-cv/sprints/` (README + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration moved verbatim).
+- `wiki/planning/PoCs/agentic-pipeline.md` → `wiki/planning/PoCs/agentic-pipeline/design.md`; new `wiki/planning/PoCs/agentic-pipeline/sprints/README.md` scaffolded with `status: not-yet-decomposed` frontmatter pointing at [[use-cases/archive/UC-4|UC-4]] (originally scoped to own the integration sprints; archived 2026-06-11 — Project Actors track now owned by the Knowledge-graph-PoC) and at the floor-plan-cv sprints README as the template for when standalone sprint files eventually land.
+
+Discrepancy check between `floor-plan-cv/design.md` and its `sprints/` folder: the two are complementary, not duplicative — design holds the Q1..Q13 architectural decision log; sprints hold the T<sprint>.<n> task breakdown with files-touched + acceptance + dependencies. Neither dominates the other, so design.md is kept (not deleted).
+
+All wikilinks + relative paths inside moved files were rewritten in-place (`[[planning/PoCs/floor-plan-cv]]` → `[[planning/PoCs/floor-plan-cv/design]]`; `[[planning/floor-plan-cv-sprints/sN-...]]` → `[[planning/PoCs/floor-plan-cv/sprints/sN-...]]`; design.md relative paths deepened by one segment; agentic-pipeline `poc_repo` frontmatter path deepened by one segment).
+
+**Pages touched**: [[index]], [[log]], [[planning/PoCs/floor-plan-cv/design]] + sprints/*, [[planning/PoCs/agentic-pipeline/design]] + sprints/README.
+
+## [2026-06-11] plan | news-pipeline PoC — design + sprint plan
+
+Created new folder `wiki/planning/PoCs/news-pipeline/` with two pages:
+- [[planning/PoCs/news-pipeline/design|design.md]] — wiki-shaped design for the 4-source PT real-estate news + regulatory-intelligence pipeline; supersedes the unmerged v2 draft in the vigorous-sanderson-fd8cfa worktree. Architecture grounded in live preflight of all sources (DRE OutSystems screenservices via HAR replay, Vida sitemap, Idealista sitemap-news, Público JSON API) + PTdata API (`geo/search`, `companies/{nif}`, `legislation/search`). Drops the v2 embedding/clustering stack in favour of one daily Sonnet call. Org-name → NIPC deferred to the Knowledge-graph-PoC's silver-layer resolver.
+- [[planning/PoCs/news-pipeline/sprint-plan|sprint-plan.md]] — 5-PR slicing to v1 (~10 working days): PR1 Idealista end-to-end, PR2 Vida + Público, PR3 Haiku NER + PTdata geo + eval gates, PR4 daily Sonnet + SMTP + budget guard, PR5 DRE + weekly synthesis + freshness watchdog.
+
+Authoritative implementation plan at `.claude/plans/news-pipeline.md`; preflight evidence at `.context/news-sources-preflight.md` (both outside the wiki).
+
+**Convention drift (acknowledged)**: this PoC was written before merging the 2026-06-11 PoCs-folder-shape reorg above and uses a single `sprint-plan.md` file instead of the per-PoC `sprints/` subfolder shape. To be reconciled in a follow-up by splitting `sprint-plan.md` into `sprints/README.md` + `sprints/s1-idealista.md` through `s5-dre.md`.
+
+**Overlap with [[use-cases/archive/UC-4|UC-4]]** (archived in the next log entry): this PoC is essentially the "Articles" track + part of the "Regulatory Events" track from UC-4's strategy. Resolved in this same PR by archiving UC-4.
+
+**Pages touched**: [[planning/PoCs/news-pipeline/design]] (new), [[planning/PoCs/news-pipeline/sprint-plan]] (new), [[index]] (Planning section bullet added), [[log]] (this entry).
+
+## [2026-06-11] archive | UC-4 (Qualitative Signal Layer) — never built, framing superseded
+
+Archived the UC-4 use-case planned 2026-05-29. UC-4 existed only as the [[index]] bullet + planning narrative; no problem-statement, project-plan, or sprint-plan file was ever created. Its three-track scope was decomposed into two active successors that fit existing project structures better:
+
+- **Articles + Regulatory Events tracks** → [[planning/PoCs/news-pipeline/design]] + [[planning/PoCs/news-pipeline/sprint-plan]] (preflight-grounded, 5 PRs to v1; DRE preflight verified via OutSystems screenservices replay).
+- **Project Actors track** → Knowledge-graph-PoC silver-layer resolver (shares infrastructure with developer-listings work already in flight).
+
+Architectural artifacts UC-4 shaped (notably the `silver_dev_uid_map` + `dev_uids[]` surface from [[sprint-04.6]]) remain valid on their own merits — they support any future per-dev LLM enrichment, not just UC-4's specifically. Inline `[[UC-4]]` references in [[dev-uid-stability]], [[cross-portal-dev-dedup]], [[sprint-04.6]], [[index]], and the [[planning/PoCs/agentic-pipeline/sprints/README|agentic-pipeline/sprints/README]] scaffold (introduced by the PoCs-folder-shape reorg in the prior log entry) were reframed to point at the archive marker with the successor mapping called out.
+
+Archive marker at [[use-cases/archive/UC-4]] preserves the planning intent for future reference.
+
+**Pages touched**: [[use-cases/archive/UC-4]] (new), [[index]] (Use-cases section heading + UC-4 bullet removed; news-pipeline + agentic-pipeline PoC bullets reframed; concept + sprint cross-references updated), [[dev-uid-stability]] (4 inline reframes), [[cross-portal-dev-dedup]] (2 inline reframes), [[sprint-04.6]] (inline historical-context note), [[planning/PoCs/agentic-pipeline/sprints/README]] (UC-4 reframe), [[log]] (this entry).
+
+## [2026-06-11] design | portal-orchestration PoC — drop SCD2 from bronze
+
+PoC plan written for the bronze-layer restructure across all 5 portals ([[idealista]], [[remax]], [[jll]], [[zome]], [[imovirtual]]). Supersedes the prior [[sprint-04.6]] Shape A scope (heartbeat-gated SCD2 closure) — that design is preserved as historical context in the sprint-04.6 page but no longer the implementation target.
+
+**Driver**: empirical pre-flight audit run 2026-06-11 surfaced two live bugs on the existing SCD2 contract:
+- Hash collision (silent data loss): 34.2% of jll_listings, 27.3% of remax_developments, 21.1% of remax_listings, 19.4% of imovirtual_development_units, 15.5% of zome_listings have row_hash shared by ≥2 distinct PKs in the active set. Root cause: `_stable_hash` excludes PK; two distinct entities with identical version-column values share a hash → dlt drops second-arriving row from bronze permanently.
+- Phantom-close: ~4% of remax_listings, ~3% of remax_developments and remax_plots, ~2% of zome_listings closed in bronze (`_dlt_valid_to IS NOT NULL`) despite being heartbeat-fresh with no successor. Same failure mode as the 2026-06-04 idealista incident; latent in all 5 portals.
+
+**Reframe driver**: [[uc-3-economics|UC-3]] is the sole primary objective as of 2026-06-11; UC-1/UC-4 deprioritized. Independently verified by a Fable 5 grill agent (6-question relentless interview converged on Shape B — drop SCD2 — at high confidence). Both bugs vanish under the simpler UPSERT + heartbeat + snapshots contract.
+
+**Decisions locked**:
+- Drop SCD2 from bronze entirely (all 14 fact tables across 5 portals).
+- Switch resources to `disposition: merge` (PK-keyed UPSERT).
+- Add `first_seen_date DATE` to all 14 heartbeat sidecars; preserve via UPSERT-only-on-insert semantics.
+- New `bronze_listings.<portal>_<entity>_snapshots` tables — append-only, full-row, every successful DAG run, mandatory day-1.
+- Preserve existing SCD2 history as `*_scd2_archive` (RENAME, not DROP) for ~30 days as rollback insurance.
+- Silver `unified_listings_residential.sql` 3-day window replaced with 21-day heartbeat-driven filter. 21d locks as the sole threshold.
+
+**Recorded trade-offs**: pre-migration days-on-market signal unrecoverable (new entities accrue from migration day forward); pre-migration SCD2 history preserved 30 days then dropped (acceptable per the partial untrustworthiness from collision audit).
+
+**Storage projection**: ~8 GB/year snapshot accrual today; ~80 GB/year at projected 5M-listings scale. Trivial on Hetzner AX102.
+
+**Sprint plan**: 6 PRs to v1, ~9 working days. PR1 foundation (additive, no bronze-shape changes); PR2 idealista canary (smallest cleanest table); PR3 remax (biggest visible bug recovery); PR4 zome + imovirtual; PR5 jll (worst collision recovery) + silver 21d lock; PR6 wiki + runbook + archive-drop schedule + tests.
+
+**Side finding (out-of-scope, backlog)**: `idealista_plots_state` has 0 fresh heartbeats — idealista plots heartbeat hasn't been emitted in 21+ days. Investigate independently.
+
+**Pages touched**: [[planning/PoCs/portal-orchestration/design]] (new), [[planning/PoCs/portal-orchestration/sprint-plan]] (new), [[index]] (Planning section bullet added).
+
+**Pending wiki updates** (will land per-PR per the sprint plan):
+- New: `wiki/concepts/bronze-snapshots.md` (PR1)
+- Update: [[heartbeat-sidecar]] — document `first_seen_date` (PR1)
+- Update: [[scd2-row-hash]] — deprecation banner (PR2), final superseded status (PR6)
+- Update: [[bronze-permissive]] — never-delete invariant amended to point at snapshots (PR2, finalized PR6)
+- Update: [[medallion-layering]] — bronze layer history-tracking guidance (PR6)
+- Update: [[orchestration]] — `snapshot_facts` per portal (PR6)
+- New runbook: `wiki/runbooks/scd2-archive-drop.md` (PR6)
