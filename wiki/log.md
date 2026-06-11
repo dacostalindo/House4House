@@ -2449,3 +2449,28 @@ Added `dbt/models/staging/portals/stg_portal_listings_imovirtual.sql` and wired 
 - [[log]] (this entry), [[index]] (Decisions section)
 
 **Pages touched**: [[imovirtual]], [[2026-06-09-imovirtual-listings-silver]], [[log]], [[index]].
+
+## [2026-06-07] plan | floor-plan CV — design doc + sprint task breakdown
+
+Captured the full design for per-room area extraction across the 4 listing portals, validated by [[zome]]'s `areas_extras` ground truth (1,447 labelled listings) and intersected with `aplantsgallery` floor plans (1,230 plans-with-areas eval set). Plan replaces the [[idealista]]-only `floor_plan_extractions` pipeline (1,473 production rows) via Path A — migrate to a new bronze CV-prediction table + retire the legacy DAG.
+
+**Architecture locked** (interview-driven, 13 question rounds):
+- Silver shape: long/EAV `unified_listing_spaces`, one row per (listing_hash, space_type, ordinal, source).
+- Taxonomy: closed 9-enum English snake_case (`bedroom, bedroom_suite, bathroom, kitchen, living_room, balcony, terrace, garden, garage`); `bedroom_suite` defined as a bedroom containing a WC inside.
+- Storage: MinIO blob layer at `s3://raw/floor-plans/by-hash/{sha[:2]}/{sha[2:4]}/{sha}.{ext}`; three roles — `pdf_source` + `image_full` (CV input, WebP-lossless 3000 px) + `image_preview` (UI verify, WebP-lossy q80 1024 px).
+- Inference: per-blob (sha256-cached); OCR-first hybrid gated on E1 yield; vision model gated on E2 Sonnet 4.5 vs Gemini 2.5 Pro bake-off.
+- Production CV explicitly skips the 1,230 labelled listings; a separate benchmark CV scores a 200-blob stratified sample → `metadata.cv_floor_plan_benchmark`.
+- Pydantic + plain `anthropic` SDK (no pydantic-ai); mirror `pipelines/enrichment/plot_listing_extraction/schema.py`.
+
+**Sprint sizing**: ~5–6 weeks calendar across S+1..S+5 (surface → archive → experiments → CV → migrate + retire).
+
+**Files touched**:
+- [[planning/PoCs/floor-plan-cv]] — full plan doc, 503 lines, Q1..Q13 decision log with user-confirmed answers.
+- [[planning/floor-plan-cv-sprints/README]] + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration — 6 files, 1,367 lines, 29 numbered tasks (T1.0..T5.6).
+- `dbt/models/staging/listings/_staging_listings__sources.yml` — expanded [[zome]]'s `areas_extras` description from one-liner to full spec (9-key JSONB shape, 1,447/10,628 populated coverage, role as CV ground-truth anchor).
+
+**Post-merge data-quality findings** (caught running candidate S+1 SQL against the live warehouse, will land with the S+1 PR):
+- `listing_uid` text key in the plan doc conflicts with the canonical `listing_hash = MD5(source || '|' || source_listing_id)` convention from [[unified-listings-residential|unified_listings_residential]]. Spec amendment needed before S+1 code lands.
+- ~0.06% of `areas_extras` values are malformed (semicolons-as-decimals like `"18;65"`, unit suffixes like `"35 m²"`, trailing punctuation, leading-dot decimals). A `REGEXP_MATCH('^(0?\.[0-9]+|[0-9]+\.?[0-9]*)')` after light cleanup salvages 8,191 / 8,192 (99.99%) candidate space rows; the single survivor (`"70.00;20.00"` — two areas in one cell) NULLs out + logged via dbt singular test.
+
+**Pages touched**: [[planning/PoCs/floor-plan-cv]], [[planning/floor-plan-cv-sprints/README]], [[log]], [[index]].

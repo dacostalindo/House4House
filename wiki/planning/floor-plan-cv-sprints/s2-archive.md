@@ -10,6 +10,14 @@ estimated_effort: 1.5 weeks
 
 # S+2 — Archive floor plans to MinIO with sha256 dedup
 
+## For future Claude
+
+This is a plan page for **Sprint 2** of the floor-plan CV project — adds
+the MinIO blob layer + ingest DAG that downloads, dedups by SHA256, and
+rasterizes PDFs across [[zome]] + [[idealista]] + [[jll]] + [[remax]].
+Enables Sprints 3 and 4. Architectural background:
+[[planning/PoCs/floor-plan-cv]]. Status: planned. Parallel-safe with S+1.
+
 **Goal:** Download every floor plan from the 4 portals into
 `s3://raw/floor-plans/by-hash/`, content-addressed by SHA256. PDFs get
 rasterized to high-res WebP-lossless; all `image_full` blobs get a

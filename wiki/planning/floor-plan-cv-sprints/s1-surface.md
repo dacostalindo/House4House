@@ -10,6 +10,15 @@ estimated_effort: 1 week
 
 # S+1 — Surface Zome's per-room areas into silver
 
+## For future Claude
+
+This is a plan page for **Sprint 1** of the floor-plan CV project — pure
+SQL work that unpivots [[zome]]'s `areas_extras` JSONB into a long-format
+silver model. Architectural background lives in
+[[planning/PoCs/floor-plan-cv]]; this file holds the task breakdown.
+Status: planned. Read when picking up S+1 or planning a PR that touches
+`unified_listing_spaces`.
+
 **Goal:** Make `bronze_listings.zome_listings.areas_extras` queryable in
 silver as a long-format `unified_listing_spaces` model with `source='zome_native'`.
 No ML, no CV — pure SQL unpivot. Delivers value immediately for the 1,447

@@ -10,6 +10,15 @@ estimated_effort: 1 week
 
 # S+5 — Wire CV into silver + legacy migration + retire old DAG
 
+## For future Claude
+
+This is a plan page for **Sprint 5** of the floor-plan CV project — wires
+S+4's bronze CV output into the silver `unified_listing_spaces` model,
+migrates 1,473 legacy [[idealista]] floor-plan rows into the new schema,
+and retires the legacy `image_classification_dag` task group B (task
+group A keeps running). Terminal sprint. Architectural background:
+[[planning/PoCs/floor-plan-cv]]. Status: planned. Depends on S+1 + S+4.
+
 **Goal:** Connect S+4's bronze CV output into S+1's silver
 `unified_listing_spaces`, migrate the 1,473 legacy
 `floor_plan_extractions` rows into the new schema as

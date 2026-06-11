@@ -151,6 +151,8 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 - [[pt-education-amenity-design]] — v1 design for the education geo-amenity layer (point-proximity + area-quality); decision tree + surfacing spec + 6-gate verification; sources [[gesedu]] + [[infoescolas]]. Scoped, not built.
 - [[pt-education-amenity-pillar]] — live Phase 0/1/2 tracking dashboard for the 5-source education ingest (KG → university, públicos + privados); source #1 [[publico-rankings]] shipped in [PR #52](https://github.com/dacostalindo/House4House/pull/52).
+- [[planning/PoCs/floor-plan-cv|floor-plan-cv]] — full design plan for per-room area extraction across portals: surface [[zome]]'s `areas_extras` ground truth, archive plans to MinIO with sha256 dedup, replace the [[idealista]]-only legacy CV pipeline. 5 sprints sized; experiments E1 (OCR yield) + E2 (Sonnet 4.5 vs Gemini 2.5 Pro bake-off) gate the architecture. Shipped 2026-06-07 (PR #57).
+- [[planning/floor-plan-cv-sprints/README|floor-plan-cv-sprints]] — task-level breakdown of the floor-plan CV plan into 29 numbered tasks (T1.0..T5.6) across 5 sprint files. Each task has Files + Acceptance + Depends-on so future sessions can pick one cold.
 
 ## Decisions (19 ADRs)
 

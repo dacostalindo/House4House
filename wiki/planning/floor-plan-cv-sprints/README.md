@@ -8,14 +8,22 @@ status: design-approved
 
 # Floor-plan CV — sprint task breakdown
 
-Task-level decomposition of the 5 sprints sized in
-[`../PoCs/floor-plan-cv.md`](../PoCs/floor-plan-cv.md).
-That plan doc holds the **architectural decisions** (Q1–Q13 interview).
-This folder holds the **execution breakdown** — one file per sprint,
-tasks numbered T<sprint>.<n>, each with files touched + acceptance
-criteria + dependencies.
-
 ## For future Claude
+
+This is a plan-folder index — the entry point for the 5-sprint execution
+breakdown of the floor-plan CV project. The architectural decisions live
+in the sibling [[planning/PoCs/floor-plan-cv|floor-plan-cv plan doc]];
+this folder holds the per-sprint task lists. Read this README first when
+picking up the project mid-flight; it routes you to the right sprint file.
+
+Task-level decomposition of the 5 sprints sized in
+[[planning/PoCs/floor-plan-cv]]. That plan doc holds the
+**architectural decisions** (Q1–Q13 interview). This folder holds the
+**execution breakdown** — one file per sprint, tasks numbered
+T<sprint>.<n>, each with files touched + acceptance criteria +
+dependencies.
+
+## When to read this
 
 Read this when:
 - You're picking up a sprint mid-execution and need to know which tasks
@@ -33,11 +41,11 @@ Don't read this when:
 
 | Sprint | Theme | File | Depends on | Effort |
 |---|---|---|---|---|
-| S+1 | Surface Zome native data | [`s1-surface.md`](./s1-surface.md) | — | ~1 week |
-| S+2 | Archive plans to MinIO | [`s2-archive.md`](./s2-archive.md) | — (parallel-safe with S+1) | ~1.5 weeks |
-| S+3 | Experiments (OCR + bake-off) | [`s3-experiments.md`](./s3-experiments.md) | S+2 (needs blobs) | ~3 days |
-| S+4 | CV production pipeline | [`s4-cv.md`](./s4-cv.md) | S+3 (gated decisions) | ~1.5 weeks |
-| S+5 | Migrate legacy + retire old DAG | [`s5-migration.md`](./s5-migration.md) | S+1, S+4 | ~1 week |
+| S+1 | Surface Zome native data | [[planning/floor-plan-cv-sprints/s1-surface]] | — | ~1 week |
+| S+2 | Archive plans to MinIO | [[planning/floor-plan-cv-sprints/s2-archive]] | — (parallel-safe with S+1) | ~1.5 weeks |
+| S+3 | Experiments (OCR + bake-off) | [[planning/floor-plan-cv-sprints/s3-experiments]] | S+2 (needs blobs) | ~3 days |
+| S+4 | CV production pipeline | [[planning/floor-plan-cv-sprints/s4-cv]] | S+3 (gated decisions) | ~1.5 weeks |
+| S+5 | Migrate legacy + retire old DAG | [[planning/floor-plan-cv-sprints/s5-migration]] | S+1, S+4 | ~1 week |
 
 **Parallelism note:** S+1 and S+2 share no files and can run concurrently
 if you have two pairs of hands. S+3, S+4, S+5 are strictly sequential.
@@ -59,5 +67,5 @@ Within a sprint file each task has:
 3. Treat the **Acceptance** block as your definition of done.
 4. Cross off completed tasks by adding `✓` at the start of the task heading
    (e.g. `## ✓ T2.4 — ...`) — keeps the file as a live checklist.
-5. Append a one-line entry to [`../../log.md`](../../log.md) on commit per
+5. Append a one-line entry to [[log]] on commit per
    project CLAUDE.md rules.
