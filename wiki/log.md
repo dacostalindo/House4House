@@ -2434,3 +2434,28 @@ Added `dbt/models/staging/portals/stg_portal_listings_imovirtual.sql` and wired 
 - [[log]] (this entry), [[index]] (Decisions section)
 
 **Pages touched**: [[imovirtual]], [[2026-06-09-imovirtual-listings-silver]], [[log]], [[index]].
+
+## [2026-06-11] plan | news-pipeline PoC — design + sprint plan
+
+Created new folder `wiki/planning/PoCs/news-pipeline/` with two pages:
+- [[planning/PoCs/news-pipeline/design|design.md]] — wiki-shaped design for the 4-source PT real-estate news + regulatory-intelligence pipeline; supersedes the unmerged v2 draft in the vigorous-sanderson-fd8cfa worktree. Architecture grounded in live preflight of all sources (DRE OutSystems screenservices via HAR replay, Vida sitemap, Idealista sitemap-news, Público JSON API) + PTdata API (`geo/search`, `companies/{nif}`, `legislation/search`). Drops the v2 embedding/clustering stack in favour of one daily Sonnet call. Org-name → NIPC deferred to the Knowledge-graph-PoC's silver-layer resolver.
+- [[planning/PoCs/news-pipeline/sprint-plan|sprint-plan.md]] — 5-PR slicing to v1 (~10 working days): PR1 Idealista end-to-end, PR2 Vida + Público, PR3 Haiku NER + PTdata geo + eval gates, PR4 daily Sonnet + SMTP + budget guard, PR5 DRE + weekly synthesis + freshness watchdog.
+
+Authoritative implementation plan at `.claude/plans/news-pipeline.md`; preflight evidence at `.context/news-sources-preflight.md` (both outside the wiki).
+
+**Overlap with [[UC-4]]**: this PoC is essentially the "Articles" track + part of the "Regulatory Events" track from UC-4's strategy. Not reconciled in this commit — see open question in design doc.
+
+**Pages touched**: [[planning/PoCs/news-pipeline/design]] (new), [[planning/PoCs/news-pipeline/sprint-plan]] (new), [[index]] (Planning section bullet added), [[log]] (this entry).
+
+## [2026-06-11] archive | UC-4 (Qualitative Signal Layer) — never built, framing superseded
+
+Archived the UC-4 use-case planned 2026-05-29. UC-4 existed only as the [[index]] bullet + planning narrative; no problem-statement, project-plan, or sprint-plan file was ever created. Its three-track scope was decomposed into two active successors that fit existing project structures better:
+
+- **Articles + Regulatory Events tracks** → [[planning/PoCs/news-pipeline/design]] + [[planning/PoCs/news-pipeline/sprint-plan]] (preflight-grounded, 5 PRs to v1; DRE preflight verified via OutSystems screenservices replay).
+- **Project Actors track** → Knowledge-graph-PoC silver-layer resolver (shares infrastructure with developer-listings work already in flight).
+
+Architectural artifacts UC-4 shaped (notably the `silver_dev_uid_map` + `dev_uids[]` surface from [[sprint-04.6]]) remain valid on their own merits — they support any future per-dev LLM enrichment, not just UC-4's specifically. Inline `[[UC-4]]` references in [[dev-uid-stability]], [[cross-portal-dev-dedup]], [[sprint-04.6]], and [[index]] were reframed to point at the archive marker with the successor mapping called out.
+
+Archive marker at [[use-cases/archive/UC-4]] preserves the planning intent for future reference.
+
+**Pages touched**: [[use-cases/archive/UC-4]] (new), [[index]] (Use-cases section heading + UC-4 bullet removed; news-pipeline PoC bullet reframed; concept + sprint cross-references updated), [[dev-uid-stability]] (4 inline reframes), [[cross-portal-dev-dedup]] (2 inline reframes), [[sprint-04.6]] (inline historical-context note), [[log]] (this entry).

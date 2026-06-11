@@ -20,7 +20,7 @@ Land the orchestration design locked on 2026-06-09: a daily wall-clock silver bu
 ## Why now (sprint priority)
 
 - **Real incident already happened.** Wiki log shows a 2026-06-04 idealista one-shot SQL restore (`DELETE` 150 phantoms + `UPDATE` 444 rows back to `valid_to = NULL`) because dlt closed SCD2 on partial-payload-row-absence. Same failure mode is present in all 4 (now 5 with imovirtual) portals; ticking time bomb.
-- **Blocks UC-4.** The [[UC-4]] LLM dev-actor enrichment (planned post-sprint-04.5) FKs to `dev_uid`. Without the append-only map, every silver rebuild orphans the LLM outputs. Sprint 4.6 must land before UC-4 starts.
+- **Blocks UC-4.** The [[use-cases/archive/UC-4|UC-4 (archived 2026-06-11)]] LLM dev-actor enrichment (planned post-sprint-04.5) FKs to `dev_uid`. Without the append-only map, every silver rebuild orphans the LLM outputs. Sprint 4.6 must land before UC-4 starts. (Historical context: UC-4 was archived 2026-06-11 after Sprint 4.6 shipped — the `dev_uid` work remains load-bearing for whichever consumer takes over per-dev LLM enrichment; the Project Actors track moved to the Knowledge-graph-PoC.)
 - **Unblocks UC-3 v1 production runs.** UC-3 Atlas Inspector queries `silver_unified_developments` + `silver_unified_listings` directly. Today's daily rebuild already works; what's missing is the stable `dev_uids[]` surface and the SCD2 fix. Sprint 4.6 closes both gaps.
 
 ## Pre-implementation verification outcomes (2026-06-09)
@@ -125,4 +125,4 @@ D.4 — **New runbook page** `wiki/runbooks/macro-flush-dev-uid.md` describing t
 - [[scd2-row-hash]], [[heartbeat-sidecar]] — to be updated as part of D.2/D.3.
 - [[sprint-04.5]] — predecessor (scope reduced 2026-06-09; this sprint absorbs the silver-orchestration parts).
 - [[sprint-05]] — successor (hedonic model; not blocked by 4.6 except for the `fact_market_observations` boundary call).
-- [[UC-4]] — primary consumer of the stable `dev_uid` exit criterion.
+- [[use-cases/archive/UC-4|UC-4 (archived 2026-06-11)]] — primary consumer of the stable `dev_uid` exit criterion.

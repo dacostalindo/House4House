@@ -113,7 +113,7 @@ P0 (7): caop, bgri, osm, idealista, ine, bpstat, ecb. P1 (18): bupi, cadastro, c
 - [[srup-properties-schema]] — per-key breakdown of the 16 `raw_srup_*` `properties` JSONB blobs (OGC lowercase vs WFS UPPERCASE conventions) → typed `stg_srup_*` columns.
 - [[sce-buildings-clustering]] — DBSCAN(30m) + GROUP BY normalized_address roll-up of geocoded [[sce]] certificates into `silver_sce_buildings` rows; documents Decisions 1-5 (Nominatim-only filter, exact-match over Levenshtein, no parcel_id, no Splink, address-grouping vs coord-only).
 - [[cross-portal-dev-dedup]] — name-driven word-set Jaccard dedup of the 4 listing portals into `silver_unified_developments`; documents why proximity-first failed, the normalization pipeline (typology + boilerplate + trailing-concelho strip), the geo hierarchy (JLL > Zome > RE/MAX > idealista), and why SCE is *not* merged here. **2026-06-09 addendum**: identity now carries stable `dev_uids[]` from [[dev-uid-stability]] in addition to the volatile `component_id`.
-- [[dev-uid-stability]] — the append-only `silver_dev_uid_map` `(portal, portal_dev_id) → dev_uid` that gives `silver_unified_developments` rows a stable identifier for enrichment FKs (UC-4 LLM dev-actor, CV); explicitly NOT the registry/alias machinery rejected during the 2026-06-09 interview.
+- [[dev-uid-stability]] — the append-only `silver_dev_uid_map` `(portal, portal_dev_id) → dev_uid` that gives `silver_unified_developments` rows a stable identifier for enrichment FKs (originally [[use-cases/archive/UC-4|UC-4]] LLM dev-actor — archived 2026-06-11, scope moved to the Knowledge-graph-PoC; CV); explicitly NOT the registry/alias machinery rejected during the 2026-06-09 interview.
 - [[dbt-source-column-descriptions]] — every column in every `_staging_<domain>__sources.yml` carries a `description:`; one line, names unit/scale, cites original source key when renamed, expands codebook letters inline; verification triad: `information_schema` ≡ YAML ≡ dbt manifest column counts must agree.
 - [[silver-dq-baseline]] — 4 universal invariants every silver model follows (dual-CRS, surrogate PK, bronze→silver row-count parity, FK denorm integrity); deliberate exclusion of `accepted_values`; statistical-source silver topology mapping (macro_timeseries vs ine_indicators_long boundary). Established by sprint-09 WS4 quick-wins batch.
 - [[airflow-home-isolation]] — the `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s `AIRFLOW_HOME=$(PWD)/.airflow-home` fix.
@@ -136,6 +136,7 @@ Forward-looking project planning content (vs. as-built [[architecture/README|arc
 - [[roadmap-p3-p4]] — deferred sources (~18) organized into Phase 2A / 2D / 2B / 2C with per-row trigger conditions.
 - [[milestones]] — Go/No-Go gates for M1 ([[UC-1]]) / M2 ([[UC-2]]) / M3 ([[UC-3]]) + MVP hedonic feature coverage.
 - [[pt-education-amenity-pillar]] — live Phase 0/1/2 tracking dashboard for the 5-source education ingest (KG → university, públicos + privados); source #1 [[publico-rankings]] shipped in [PR #52](https://github.com/dacostalindo/House4House/pull/52).
+- [[planning/PoCs/news-pipeline/design|news-pipeline PoC]] — internal-analyst daily digest + weekly synthesis over 4 PT real-estate-relevant sources (DRE, Vida, Idealista/news, Público), geo-grounded to dicofre via PTdata. Preflight-verified design; 5 PRs to v1. Paired sprint plan: [[planning/PoCs/news-pipeline/sprint-plan|sprint-plan]]. Active successor to the Articles + Regulatory tracks of the archived [[use-cases/archive/UC-4|UC-4]]; Project Actors track moved to the Knowledge-graph-PoC.
 
 ## Decisions (19 ADRs)
 
@@ -189,7 +190,7 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 - [[sprint-04]] — Image Classification + Location Scores (Weeks 7-8) — `in_progress`
 - [[sprint-04.4]] — Pre-Sprint-4.5 Preparation (Week 8.5) — `done` (audit-corrected: shipped 2026-04-30)
 - [[sprint-04.5]] — Listings + Developments Cross-Portal Dedup (Week 9) — `planned` (scope reduced 2026-06-09: listing-level dedup dropped; silver orchestration parts absorbed into 4.6)
-- [[sprint-04.6]] — Silver orchestration + dev_uid stability + SCD2 heartbeat closure — `planned` (gates UC-4; blocker for daily wall-clock silver due to C2 SCD2 incident)
+- [[sprint-04.6]] — Silver orchestration + dev_uid stability + SCD2 heartbeat closure — `planned` (originally gating [[use-cases/archive/UC-4|UC-4]] — archived 2026-06-11; remains the blocker for daily wall-clock silver due to C2 SCD2 incident, and underpins any future per-dev LLM enrichment)
 - [[sprint-05]] — Hedonic Model & Valuation (Weeks 10-11) — `planned`
 - [[sprint-06]] — UC-1 MVP Investment Opportunities (Weeks 12-13) — `planned` 🏁 M1
 - [[sprint-07]] — UC-2 MVP Pricing Strategy (Weeks 14-15) — `planned` 🏁 M2
@@ -201,14 +202,13 @@ Two parallel tracks: 11 data-product sprints + 1 dev-tooling sprint (gstack-driv
 
 - [[sprint-dev-tooling]] — gstack 7-Phase roadmap (Phase 1+2+3+4+6+7 done; Phase 2.5 closed; Phase 5 planned)
 
-## Use cases (3 pages + 1 folder — PR 4 seed + UC-4 added 2026-05-29)
+## Use cases (3 pages — PR 4 seed; UC-4 archived 2026-06-11, see [[use-cases/archive/UC-4]])
 
-Each UC combines product narrative + conceptual data model + serving layer in one page (per `/plan-design-review` finding 2.3 lock). UC-4 is the deliberate folder exception — see [[UC-4]] for rationale. See [[use-cases/README|use-cases orientation]] for schema + cross-UC dependencies.
+Each UC combines product narrative + conceptual data model + serving layer in one page (per `/plan-design-review` finding 2.3 lock). UC-4 was planned as a deliberate folder exception but never built; it was archived 2026-06-11 — see [[use-cases/archive/UC-4|the archive marker]] for rationale and successor mapping. See [[use-cases/README|use-cases orientation]] for schema + cross-UC dependencies.
 
 - [[UC-1]] — Undervalued Property Identification (investors / promoters / fund managers / flippers) — MVP at [[sprint-06]] 🏁 M1
 - [[UC-2]] — New Housing Unit Pricing Strategy (developers / commercial directors / project managers) — MVP at [[sprint-07]] 🏁 M2; depends on UC-1 hedonic
 - [[UC-3]] — End-to-End Plot Economic-Value Pipeline (7-stage funnel: Scout → Inspect → Assemble → Build out → Value → Profit → Competitive Intel; land developers / promoters / funds) — v1 wedge = Aveiro Stages 1-4 + SCE unit aggregation + idealista LLM plot extraction + dev dedup, ships across [[sprint-08]]+[[sprint-09]] 🏁 M3 Week 21. Stages 5-6 (Value/Profit, depends on UC-1 hedonic) + full Stage 7 (national rollout + promoter dedup) defer to v2/v3. Gated on 3 PT developer interviews per [[2026-05-12-uc3-expanded-scope]] kill criteria.
-- [[UC-4]] (folder) — Qualitative Signal Layer (Agentic News / Project Actors / Regulatory Events) — turns the warehouse from structured-data lake into queryable KB by adding *who* (developer + architect), *what's said* (PT real-estate press), *what's changing* (DRE + municipal PDM events). Foundation PR at `sprint-04.7` between [[sprint-04.5]] dedup and [[sprint-05]] hedonic; 6 PRs over ~10 weeks. Strategy delivery order: Articles → Project Actors → Regulatory. Absorbs [[planning/PoCs/agentic-pipeline]]. Introduces Flow G (LLM-mediated typed extraction) as a new ingest-flow type. Sub-pages: [[UC-4/problem-statement]] · [[UC-4/project-plan]] · [[UC-4/sprint-plan]].
 
 ## Forthcoming (PR 5-8)
 
