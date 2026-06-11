@@ -12,6 +12,7 @@ Four pages from README §14-§17, each a focused planning artifact:
 - [[resources]] — README §15 — team composition, infrastructure budget, per-sprint effort estimates, data-volume projections.
 - [[roadmap-p3-p4]] — README §16 — deferred sources organized into Phase 2A (Risk & Environment) / 2D (Land Development Intelligence) / 2B (Supply & Costs) / 2C (Coverage & Niche) post-MVP expansion plan.
 - [[milestones]] — README §17 partial (Go/No-Go criteria for M1 / M2 / M3 + MVP hedonic feature coverage) — the explicit hard-fail / soft-fail gates per use-case MVP.
+- [[pt-education-amenity-design]] — v1 design for the education geo-amenity layer (dual signal: point-proximity + area-quality); resolved decision tree, surfacing spec, and 6-gate verification. Sources [[gesedu]] + [[infoescolas]]. `status: scoped-not-built`.
 
 Pillar-specific planning pages (one per major multi-source pillar in flight):
 

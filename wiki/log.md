@@ -1187,6 +1187,21 @@ FROM gold_analytics.dim_constraint_severity GROUP BY 1;
 
 **Pages touched**: [[log]] (this entry), [[pdm-srup-constraint-model]] (legal_quote columns section).
 
+## [2026-06-06] ingest | PT education amenity — gesedu + infoescolas sources (P1)
+
+Scoped the Portuguese-education geo-amenity layer (dual signal: point-proximity to schools + area quality) from an interview + a 6-gate verification pass. Created two source pages: [[gesedu]] (national school register via AGSE's **public ArcGIS REST FeatureServer** — `RedeEscolar_mapa/FeatureServer/0`, ~8,670 schools with `CODESCME` código + address + native lat/lon; **no scrape, no geocode**) and [[infoescolas]] (DGEEC per-school exam-avg + equity, bulk XLSX from `bds.asp`, código-joined on `Código Escola DGEEC`). Pairs with [[bgri]] (resident attainment). Build template = [[crus-ogc]]: the unified template already ships an `ArcgisRestAdapter` (`protocol="arcgis_rest"`), so the lead pipeline is config + two thin DAGs, no new fetch code. Bronze `bronze_location.raw_gesedu_schools` + `bronze_location.raw_infoescolas_quality`; dual-CRS per [[2026-05-10-dual-crs-storage]]; catchment mart uses `ST_DWithin(geom_pt, …, {1000,3000})` in EPSG:3763.
+
+**Verification (2026-06-06)**: all 6 gates closed — Infoescolas carries the DGEEC código (clean join, not fuzzy); GesEdu FeatureServer ships geometry (kills geocoding); código grain aligns escola/agrupamento; reorg confirmed (AGSE/DL 99/2025 owns GesEdu, EduQA/DL 105/2025 absorbed IAVE) — all endpoints live, `.medu.pt` drift-prone so add liveness checks. Endpoint + field maps saved to project memory.
+
+**Pages touched**: [[log]] (this entry), new [[gesedu]] + [[infoescolas]], [[index.md|index]] (Sources 23→25, P1 13→15, new "Education amenity (2)" section, area-routing line + anchors).
+
+**Decisions deferred from v1**: retention/dropout (Regiões em Números — drops the last scraper + concelho-name crosswalk); higher-ed proximity; OSM school points (superseded by the authoritative FeatureServer, kept as coverage cross-check). Full design: `Personal-Wiki/New developments/PT-education-ingest-design.md`. **NOT built** — these are scoped specs, no pipeline run yet.
+
+## [2026-06-06] ingest | move PT-education design into wiki (planning/)
+
+Moved the education-ingest design doc from the Personal-Wiki vault into the House4House wiki as [[pt-education-amenity-design]] (`type: plan`, `status: scoped-not-built`) — adapted to wiki conventions (frontmatter, `## For future Claude`, `[[wikilinks]]`) and reconciled the catchment CRS note to `geom_pt`/EPSG:3763 per [[2026-05-10-dual-crs-storage]] (was "geography"). Original deleted from `Personal-Wiki/New developments/`.
+
+**Pages touched**: [[log]] (this entry), new [[pt-education-amenity-design]], [[index.md|index]] (Planning 4→5), [[planning/README]], [[gesedu]] + [[infoescolas]] (design-doc link repointed from the vault path to [[pt-education-amenity-design]]).
 ## [2026-06-05] update | zome tab_listing_view enrichment folded into zome_listings
 
 Zome's website detail page reads `tab_listing_view`, which carries ~19 columns the ingested base table `tab_listing_list` lacks — notably `aplantsgallery` (floor plans / plantas, ~79% coverage), the energy certificate (~82%), full description, and extra attributes. These were absent from the warehouse (the "plantas on the site but not in the DB" gap). Folded them **into** `zome_listings` (no sidecar table, per user's anti-sprawl preference) as OUT-of-`row_hash` enrichment columns; SCD2 spine unchanged. Also: bumped `LISTINGS_MAX_OFFSET` 10k→15k (view has ~10.6k rows), added `tab_listing_view` to the MinIO audit, and an enrichment-coverage tripwire to `validate_facts`. Verified end-to-end against the warehouse (10,604 rows, 1:1 grain, target listing ZMPT589319 floor plan materialized). See [[zome]], [[scd2-row-hash]].
