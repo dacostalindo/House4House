@@ -2514,3 +2514,40 @@ Architectural artifacts UC-4 shaped (notably the `silver_dev_uid_map` + `dev_uid
 Archive marker at [[use-cases/archive/UC-4]] preserves the planning intent for future reference.
 
 **Pages touched**: [[use-cases/archive/UC-4]] (new), [[index]] (Use-cases section heading + UC-4 bullet removed; news-pipeline + agentic-pipeline PoC bullets reframed; concept + sprint cross-references updated), [[dev-uid-stability]] (4 inline reframes), [[cross-portal-dev-dedup]] (2 inline reframes), [[sprint-04.6]] (inline historical-context note), [[planning/PoCs/agentic-pipeline/sprints/README]] (UC-4 reframe), [[log]] (this entry).
+
+## [2026-06-11] design | portal-orchestration PoC — drop SCD2 from bronze
+
+PoC plan written for the bronze-layer restructure across all 5 portals ([[idealista]], [[remax]], [[jll]], [[zome]], [[imovirtual]]). Supersedes the prior [[sprint-04.6]] Shape A scope (heartbeat-gated SCD2 closure) — that design is preserved as historical context in the sprint-04.6 page but no longer the implementation target.
+
+**Driver**: empirical pre-flight audit run 2026-06-11 surfaced two live bugs on the existing SCD2 contract:
+- Hash collision (silent data loss): 34.2% of jll_listings, 27.3% of remax_developments, 21.1% of remax_listings, 19.4% of imovirtual_development_units, 15.5% of zome_listings have row_hash shared by ≥2 distinct PKs in the active set. Root cause: `_stable_hash` excludes PK; two distinct entities with identical version-column values share a hash → dlt drops second-arriving row from bronze permanently.
+- Phantom-close: ~4% of remax_listings, ~3% of remax_developments and remax_plots, ~2% of zome_listings closed in bronze (`_dlt_valid_to IS NOT NULL`) despite being heartbeat-fresh with no successor. Same failure mode as the 2026-06-04 idealista incident; latent in all 5 portals.
+
+**Reframe driver**: [[uc-3-economics|UC-3]] is the sole primary objective as of 2026-06-11; UC-1/UC-4 deprioritized. Independently verified by a Fable 5 grill agent (6-question relentless interview converged on Shape B — drop SCD2 — at high confidence). Both bugs vanish under the simpler UPSERT + heartbeat + snapshots contract.
+
+**Decisions locked**:
+- Drop SCD2 from bronze entirely (all 14 fact tables across 5 portals).
+- Switch resources to `disposition: merge` (PK-keyed UPSERT).
+- Add `first_seen_date DATE` to all 14 heartbeat sidecars; preserve via UPSERT-only-on-insert semantics.
+- New `bronze_listings.<portal>_<entity>_snapshots` tables — append-only, full-row, every successful DAG run, mandatory day-1.
+- Preserve existing SCD2 history as `*_scd2_archive` (RENAME, not DROP) for ~30 days as rollback insurance.
+- Silver `unified_listings_residential.sql` 3-day window replaced with 21-day heartbeat-driven filter. 21d locks as the sole threshold.
+
+**Recorded trade-offs**: pre-migration days-on-market signal unrecoverable (new entities accrue from migration day forward); pre-migration SCD2 history preserved 30 days then dropped (acceptable per the partial untrustworthiness from collision audit).
+
+**Storage projection**: ~8 GB/year snapshot accrual today; ~80 GB/year at projected 5M-listings scale. Trivial on Hetzner AX102.
+
+**Sprint plan**: 6 PRs to v1, ~9 working days. PR1 foundation (additive, no bronze-shape changes); PR2 idealista canary (smallest cleanest table); PR3 remax (biggest visible bug recovery); PR4 zome + imovirtual; PR5 jll (worst collision recovery) + silver 21d lock; PR6 wiki + runbook + archive-drop schedule + tests.
+
+**Side finding (out-of-scope, backlog)**: `idealista_plots_state` has 0 fresh heartbeats — idealista plots heartbeat hasn't been emitted in 21+ days. Investigate independently.
+
+**Pages touched**: [[planning/PoCs/portal-orchestration/design]] (new), [[planning/PoCs/portal-orchestration/sprint-plan]] (new), [[index]] (Planning section bullet added).
+
+**Pending wiki updates** (will land per-PR per the sprint plan):
+- New: `wiki/concepts/bronze-snapshots.md` (PR1)
+- Update: [[heartbeat-sidecar]] — document `first_seen_date` (PR1)
+- Update: [[scd2-row-hash]] — deprecation banner (PR2), final superseded status (PR6)
+- Update: [[bronze-permissive]] — never-delete invariant amended to point at snapshots (PR2, finalized PR6)
+- Update: [[medallion-layering]] — bronze layer history-tracking guidance (PR6)
+- Update: [[orchestration]] — `snapshot_facts` per portal (PR6)
+- New runbook: `wiki/runbooks/scd2-archive-drop.md` (PR6)
