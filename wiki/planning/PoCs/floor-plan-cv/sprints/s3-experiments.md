@@ -15,7 +15,7 @@ estimated_effort: 3 days
 This is a plan page for **Sprint 3** of the floor-plan CV project — two
 empirical experiments (OCR yield + Sonnet vs Gemini bake-off) that gate
 Sprint 4's architecture and model choice. Architectural background:
-[[planning/PoCs/floor-plan-cv]]. Status: planned. Depends on S+2 blobs.
+[[planning/PoCs/floor-plan-cv/design]]. Status: planned. Depends on S+2 blobs.
 
 **Goal:** Two empirical decisions that gate S+4's architecture:
 - **E1 — OCR yield.** Decides whether to ship OCR-first hybrid or vision-LLM-only.

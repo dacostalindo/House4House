@@ -4,7 +4,7 @@ type: plan
 last_verified: 2026-05-15
 tags: [plan, agentic, llm, poc, knowledge-graph, project-actors]
 status: poc-shipped-outside-h4h
-poc_repo: ../../../../Knowledge-graph-PoC/agentic-pipeline/
+poc_repo: ../../../../../Knowledge-graph-PoC/agentic-pipeline/
 ---
 
 # Agentic extraction pipeline — project actors PoC
