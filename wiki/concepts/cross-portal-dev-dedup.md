@@ -1,13 +1,24 @@
 ---
 title: Cross-portal development de-duplication
 type: concept
-last_verified: 2026-06-06
-tags: [silver, cross_portal, dedup, name_matching, slice_b_prime]
+last_verified: 2026-06-09
+tags: [silver, cross_portal, dedup, name_matching, slice_b_prime, dev_uid]
+---
+
+## Addendum 2026-06-09 — stable `dev_uid` via append-only map + orchestration locked
+
+Two changes from the 2026-06-06 design, landed via the 2026-06-09 orchestration interview:
+
+1. **Identity surface adds `dev_uids[]`.** The volatile `dev_key = MIN(member_id)` stays as a per-run grouping label (renamed `component_id` for clarity), but the row now also carries `dev_uids UUID[]` — the stable identifiers downstream consumers (notably [[UC-4]] LLM dev-actor enrichment) FK against. The `dev_uids` array is sourced from `silver_dev_uid_map`, an append-only `(portal, portal_dev_id) → dev_uid` table. See [[dev-uid-stability]] for the full mechanics, including merge (multiple `dev_uids` in one row) and split (same `dev_uid` in multiple rows) observability.
+2. **Orchestration: wall-clock daily silver at `0 11 * * *`, no Airflow Datasets.** Per [[2026-06-09-silver-wall-clock-not-datasets]]: portal scrapers continue on their per-portal crons; silver builds whatever bronze + heartbeat-alive rows it finds at 11:00. Rejected after senior-eng review: Dataset-driven any-of-5 firing was over-engineering for upstreams that are themselves cron, not event-driven.
+
+The Phase 1 normalization pipeline (token + char-trigram dual Jaccard, same-concelho gating, geo-priority hierarchy) is unchanged. The two changes are additive: identity stability and trigger model.
+
 ---
 
 ## For future Claude
 
-This note is a concept about how `silver_unified_developments` collapses the five listing portals' development records (idealista, RE/MAX, Zome, JLL, imovirtual) into one row per real-world marketed development. The matching is **name-driven, not proximity-driven** — portal coordinates routinely disagree by 200-300m+ for the same project, so spatial clustering can't be the grouping key. SCE buildings are deliberately *not* merged here.
+This note is a concept about how `silver_unified_developments` collapses the five listing portals' development records (idealista, RE/MAX, Zome, JLL, imovirtual) into one row per real-world marketed development. The matching is **name-driven, not proximity-driven** — portal coordinates routinely disagree by 200-300m+ for the same project, so spatial clustering can't be the grouping key. SCE buildings are deliberately *not* merged here. Per-row identity carries both a volatile `component_id` (runtime grouping) and a stable `dev_uids UUID[]` array sourced from the append-only [[dev-uid-stability]] map — enrichment pipelines (CV, [[UC-4]] LLM dev-actor) FK on `dev_uid`, never on the volatile column.
 
 ## What it is
 
@@ -86,6 +97,8 @@ The reframe: SCE buildings and portal developments are different concepts. `silv
 
 ## See also
 
+- [[dev-uid-stability]] — the append-only `silver_dev_uid_map` that gives the unified row a stable identifier for enrichment FKs (LLM dev-actor, CV).
+- [[2026-06-09-silver-wall-clock-not-datasets]] — the orchestration decision that pairs with this concept (wall-clock daily silver, no Airflow Datasets).
 - [[silver_sce_buildings]] — the sister table holding physical buildings with energy certificates; queried alongside, not merged.
 - [[sce-buildings-clustering]] — the SCE-side equivalent concept (DBSCAN + fração-grain dedup).
 - [[portal-field-map]] — the per-portal field-mapping reference that made Phase 1 normalization possible.

@@ -1,9 +1,18 @@
 ---
 title: Orchestration & scheduling
 type: plan
-last_verified: 2026-05-10
+last_verified: 2026-06-09
 tags: [architecture, orchestration, airflow, scheduling, plan]
 ---
+
+## Addendum 2026-06-09 — silver wall-clock trigger locked
+
+Two changes from the 2026-06-09 orchestration interview ([[2026-06-09-silver-wall-clock-not-datasets]]):
+
+1. **`dag_deduplication` removed** from the transformation taxonomy + schedule map. Cross-portal listing-level dedup was dropped from the silver design (only UC-3 matters for v1; UC-3 doesn't need it). Dev-grain dedup now lives inside `dag_dbt_silver` via the `silver_dev_uid_map` incremental model (see [[dev-uid-stability]]).
+2. **Silver trigger explicitly locked to wall-clock cron `0 11 * * *`** (no Airflow Datasets). The wider rationale in [[2026-06-09-silver-wall-clock-not-datasets]]: portal scrapers are themselves cron-driven, so Dataset emission would buy zero freshness and introduce churn that forced rejected registry machinery downstream. This is consistent with the existing "wall-clock based, not sensor-based" posture documented below in §"Dependency conventions" — Datasets are a softer form of the same coupling and were rejected on the same grounds.
+
+Default portal-DAG retry policy also locked (interview output): `retries=2`, exponential backoff, `max_retry_delay=1h`. Concurrency: `max_active_runs=1` per portal, `zenrows_pool slots=2`, `ZENROWS_DAILY_BUDGET_USD=20` soft cap in source.
 
 ## For future Claude
 
@@ -23,9 +32,10 @@ dags/
 │   │                 jll, lidar, remax, sce, srup, srup-ogc, zome
 │   └── (P2 sources): apa, aveiro-pmot, lneg
 ├── transformation/
-│   ├── dag_dbt_silver.py            # Daily — all Silver models via Cosmos DbtDag
-│   ├── dag_dbt_gold.py              # Daily — all Gold models
-│   ├── dag_deduplication.py         # Daily — listing dedup across portals (Flow F)
+│   ├── dag_dbt_silver.py            # Daily 11:00 — all Silver models via Cosmos DbtDag
+│   │                                #   (includes silver_dev_uid_map → silver_unified_developments
+│   │                                #    → silver_unified_listings; see [[dev-uid-stability]])
+│   ├── dag_dbt_gold.py              # Daily 12:00 — all Gold models
 │   ├── dag_geocoding.py             # Daily — geocode new records via Nominatim
 │   └── dag_location_scores.py       # Weekly — recompute UC-1 location scores
 ├── quality/
@@ -43,7 +53,7 @@ Per the [[ingest-flows]] taxonomy, ingestion DAGs map to flows:
 - **Flow C** (GIS): all 14 GIS sources
 - **Flow D** (derived): the `transformation/` DAGs above
 - **Flow E** (spatial composition for UC-3): part of `dag_dbt_silver` + `dag_dbt_gold`
-- **Flow F** (development portal cross-reference for UC-2): handled by `dag_deduplication` + per-portal ingest DAGs
+- **Flow F** (development portal cross-reference for UC-2): handled inside `dag_dbt_silver` via the [[dev-uid-stability|silver_dev_uid_map]] + [[cross-portal-dev-dedup]] models (the previous `dag_deduplication` was retired 2026-06-09; listing-grain dedup was dropped, dev-grain dedup is now an in-DAG dbt step)
 
 ## Schedule map
 
@@ -56,8 +66,7 @@ Per README §11.2, the recurring schedule:
 | [[remax]] scraper | `0 6 * * 2` (Tuesdays 6AM) | 4.5+ | None |
 | [[zome]] scraper | `0 6 * * 1` (Mondays 6AM) | 4.5+ | None |
 | Geocoding pipeline | `0 9 * * *` | 2+ | After scrapers |
-| Listing dedup | `0 10 * * *` | 3+ | After geocoding |
-| dbt Silver run | `0 11 * * *` | 2+ | After dedup |
+| dbt Silver run | `0 11 * * *` | 2+ | Wall-clock; includes `silver_dev_uid_map` + cross-portal dev dedup inline (see [[2026-06-09-silver-wall-clock-not-datasets]]) |
 | dbt Gold run | `0 12 * * *` | 2+ | After Silver |
 | MatView refresh | `0 13 * * *` | 6+ | After Gold |
 | [[ecb]] Euribor | `0 6 1 * *` (monthly 1st) | 2+ | None |
@@ -109,5 +118,8 @@ If a hard dependency emerges (e.g., "gold must NEVER run on stale silver"), enco
 - [[ingest-flows]] — the conceptual flow types each DAG implements
 - [[2026-05-05-cosmos-pin]] — Cosmos pinned `>=1.6,<1.7`
 - [[2026-05-10-airflow-2-not-3]] — Airflow 2 stay-the-course decision
+- [[2026-06-09-silver-wall-clock-not-datasets]] — silver wall-clock lock + Datasets rejection
+- [[dev-uid-stability]] — append-only `silver_dev_uid_map` driving in-DAG dev-grain dedup
+- [[cross-portal-dev-dedup]] — dev-dedup model `silver_unified_developments`
 - [[airflow-home-isolation]] — `~/airflow/airflow.cfg` bleed gotcha + `make verify`'s isolation
 - README §11 — the original orchestration section
