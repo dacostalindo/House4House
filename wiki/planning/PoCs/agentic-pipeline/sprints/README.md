@@ -24,11 +24,7 @@ files touched + acceptance criteria + dependencies.
 PoC validated outside H4H on 2026-05-15 in
 `~/Desktop/Apps/Knowledge-graph-PoC/agentic-pipeline/` (21 ok rows over 20
 H4H-sourced development names, 100% precision on verified ground truth).
-Per [[UC-4]], the integration work is currently absorbed into UC-4's
-sprint plan rather than this folder — UC-4 owns the actor-graph use case
-that the agentic pipeline feeds. This folder exists for structural
-consistency with [[planning/PoCs/floor-plan-cv/design]] and as the natural home
-if/when standalone agentic-pipeline sprints emerge outside UC-4 scope.
+The integration work was originally scoped under [[use-cases/archive/UC-4|UC-4]] (archived 2026-06-11; the Project Actors track now lives in the Knowledge-graph-PoC silver-layer resolver). This folder exists for structural consistency with [[planning/PoCs/floor-plan-cv/design]] and as the natural home if/when standalone agentic-pipeline sprints emerge alongside the KG-PoC integration.
 
 ## When sprint files do land here
 

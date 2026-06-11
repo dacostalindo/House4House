@@ -2480,10 +2480,37 @@ Captured the full design for per-room area extraction across the 4 listing porta
 Standardised the `wiki/planning/PoCs/` shape so every PoC owns one folder containing a `design.md` + a `sprints/` subfolder. Two reorgs in one pass:
 
 - `wiki/planning/PoCs/floor-plan-cv.md` → `wiki/planning/PoCs/floor-plan-cv/design.md`; `wiki/planning/floor-plan-cv-sprints/` → `wiki/planning/PoCs/floor-plan-cv/sprints/` (README + s1-surface + s2-archive + s3-experiments + s4-cv + s5-migration moved verbatim).
-- `wiki/planning/PoCs/agentic-pipeline.md` → `wiki/planning/PoCs/agentic-pipeline/design.md`; new `wiki/planning/PoCs/agentic-pipeline/sprints/README.md` scaffolded with `status: not-yet-decomposed` frontmatter pointing at [[UC-4]] (which currently owns the integration sprints) and at the floor-plan-cv sprints README as the template for when standalone sprint files eventually land.
+- `wiki/planning/PoCs/agentic-pipeline.md` → `wiki/planning/PoCs/agentic-pipeline/design.md`; new `wiki/planning/PoCs/agentic-pipeline/sprints/README.md` scaffolded with `status: not-yet-decomposed` frontmatter pointing at [[use-cases/archive/UC-4|UC-4]] (originally scoped to own the integration sprints; archived 2026-06-11 — Project Actors track now owned by the Knowledge-graph-PoC) and at the floor-plan-cv sprints README as the template for when standalone sprint files eventually land.
 
 Discrepancy check between `floor-plan-cv/design.md` and its `sprints/` folder: the two are complementary, not duplicative — design holds the Q1..Q13 architectural decision log; sprints hold the T<sprint>.<n> task breakdown with files-touched + acceptance + dependencies. Neither dominates the other, so design.md is kept (not deleted).
 
 All wikilinks + relative paths inside moved files were rewritten in-place (`[[planning/PoCs/floor-plan-cv]]` → `[[planning/PoCs/floor-plan-cv/design]]`; `[[planning/floor-plan-cv-sprints/sN-...]]` → `[[planning/PoCs/floor-plan-cv/sprints/sN-...]]`; design.md relative paths deepened by one segment; agentic-pipeline `poc_repo` frontmatter path deepened by one segment).
 
 **Pages touched**: [[index]], [[log]], [[planning/PoCs/floor-plan-cv/design]] + sprints/*, [[planning/PoCs/agentic-pipeline/design]] + sprints/README.
+
+## [2026-06-11] plan | news-pipeline PoC — design + sprint plan
+
+Created new folder `wiki/planning/PoCs/news-pipeline/` with two pages:
+- [[planning/PoCs/news-pipeline/design|design.md]] — wiki-shaped design for the 4-source PT real-estate news + regulatory-intelligence pipeline; supersedes the unmerged v2 draft in the vigorous-sanderson-fd8cfa worktree. Architecture grounded in live preflight of all sources (DRE OutSystems screenservices via HAR replay, Vida sitemap, Idealista sitemap-news, Público JSON API) + PTdata API (`geo/search`, `companies/{nif}`, `legislation/search`). Drops the v2 embedding/clustering stack in favour of one daily Sonnet call. Org-name → NIPC deferred to the Knowledge-graph-PoC's silver-layer resolver.
+- [[planning/PoCs/news-pipeline/sprint-plan|sprint-plan.md]] — 5-PR slicing to v1 (~10 working days): PR1 Idealista end-to-end, PR2 Vida + Público, PR3 Haiku NER + PTdata geo + eval gates, PR4 daily Sonnet + SMTP + budget guard, PR5 DRE + weekly synthesis + freshness watchdog.
+
+Authoritative implementation plan at `.claude/plans/news-pipeline.md`; preflight evidence at `.context/news-sources-preflight.md` (both outside the wiki).
+
+**Convention drift (acknowledged)**: this PoC was written before merging the 2026-06-11 PoCs-folder-shape reorg above and uses a single `sprint-plan.md` file instead of the per-PoC `sprints/` subfolder shape. To be reconciled in a follow-up by splitting `sprint-plan.md` into `sprints/README.md` + `sprints/s1-idealista.md` through `s5-dre.md`.
+
+**Overlap with [[use-cases/archive/UC-4|UC-4]]** (archived in the next log entry): this PoC is essentially the "Articles" track + part of the "Regulatory Events" track from UC-4's strategy. Resolved in this same PR by archiving UC-4.
+
+**Pages touched**: [[planning/PoCs/news-pipeline/design]] (new), [[planning/PoCs/news-pipeline/sprint-plan]] (new), [[index]] (Planning section bullet added), [[log]] (this entry).
+
+## [2026-06-11] archive | UC-4 (Qualitative Signal Layer) — never built, framing superseded
+
+Archived the UC-4 use-case planned 2026-05-29. UC-4 existed only as the [[index]] bullet + planning narrative; no problem-statement, project-plan, or sprint-plan file was ever created. Its three-track scope was decomposed into two active successors that fit existing project structures better:
+
+- **Articles + Regulatory Events tracks** → [[planning/PoCs/news-pipeline/design]] + [[planning/PoCs/news-pipeline/sprint-plan]] (preflight-grounded, 5 PRs to v1; DRE preflight verified via OutSystems screenservices replay).
+- **Project Actors track** → Knowledge-graph-PoC silver-layer resolver (shares infrastructure with developer-listings work already in flight).
+
+Architectural artifacts UC-4 shaped (notably the `silver_dev_uid_map` + `dev_uids[]` surface from [[sprint-04.6]]) remain valid on their own merits — they support any future per-dev LLM enrichment, not just UC-4's specifically. Inline `[[UC-4]]` references in [[dev-uid-stability]], [[cross-portal-dev-dedup]], [[sprint-04.6]], [[index]], and the [[planning/PoCs/agentic-pipeline/sprints/README|agentic-pipeline/sprints/README]] scaffold (introduced by the PoCs-folder-shape reorg in the prior log entry) were reframed to point at the archive marker with the successor mapping called out.
+
+Archive marker at [[use-cases/archive/UC-4]] preserves the planning intent for future reference.
+
+**Pages touched**: [[use-cases/archive/UC-4]] (new), [[index]] (Use-cases section heading + UC-4 bullet removed; news-pipeline + agentic-pipeline PoC bullets reframed; concept + sprint cross-references updated), [[dev-uid-stability]] (4 inline reframes), [[cross-portal-dev-dedup]] (2 inline reframes), [[sprint-04.6]] (inline historical-context note), [[planning/PoCs/agentic-pipeline/sprints/README]] (UC-4 reframe), [[log]] (this entry).
